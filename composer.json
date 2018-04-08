@@ -1,6 +1,19 @@
 {
 	"name": "ixaya/manager",
     "description": "An HMVC Framework, Superset of CodeIgniter",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Gustavo MOya",
+            "email": "gm@ixaya.com",
+            "role": "Developer"
+        },
+		{
+            "name": "Humberto Olavarrieta",
+            "email": "ho@ixaya.com",
+            "role": "Developer"
+        }
+    ],
     "require": {
         "php": "^5.4 || ^7.0",
         "codeigniter/framework": "^3.1",
