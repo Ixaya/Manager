@@ -196,7 +196,6 @@
 	    </div>
 
 
-					<!-- <h3>Available Zuggig products: <?php echo($getZuggigProducts['zuggigProducts']); ?></h3> -->
     </div>
 <!--     Usuarios activos texto -->
     
@@ -209,7 +208,6 @@
 				</div>
 	    
 				<div class="panel-body">
-					<!-- <h3>Available Zuggig products: <?php echo($getZuggigProducts['zuggigProducts']); ?></h3> -->
 	    
 						<div id="activeUsers"></div>
 	    		</div>
@@ -231,7 +229,6 @@
 	    </div>
 
 
-					<!-- <h3>Available Zuggig products: <?php echo($getZuggigProducts['zuggigProducts']); ?></h3> -->
     </div>
 <!--     Usuarios activos graficos -->
     
@@ -309,7 +306,7 @@
                             </thead>
                             
                             <tbody>
-	                            <h3> Available Zuggig products: <?php echo($getZuggigProducts['zuggigProducts']); ?> </h3>
+	                            <h3> Available products: <?php echo($get_products['products']); ?> </h3>
 	                            
 	                            <?php foreach($getTopMatchedProducts as $topProduct): ?>
 		                            <tr>

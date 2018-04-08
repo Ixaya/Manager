@@ -14,6 +14,9 @@
             "role": "Developer"
         }
     ],
+    "scripts": {
+        "deploy": "deploy"
+    }
     "require": {
         "php": "^5.4 || ^7.0",
         "codeigniter/framework": "^3.1",
