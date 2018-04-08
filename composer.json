@@ -1,0 +1,6 @@
+{
+    "require": {
+        "codeigniter/framework": "^3.1",
+        "facebook/graph-sdk": "^5.6"
+    }
+}
