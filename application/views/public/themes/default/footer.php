@@ -1,5 +1,5 @@
 	<div id="copy">
-		<p>Copyright © 2018 Ixaya. Ixaya Net es una marca registrada de Ixaya.</p>
+		<p>Copyright © 2018 My Company.</p>
 	</div><!--end copy-->
 	
 	</footer>
