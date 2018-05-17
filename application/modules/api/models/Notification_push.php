@@ -1,7 +1,7 @@
 <?php
 //
 //  Notification_push.php
-//  Züggig
+//  Ixaya
 //
 // Created by Humberto Olavarrieta on 6/22/17.
 //  Copyright © 2017 Ixaya. All rights reserved.
@@ -201,7 +201,7 @@ class Notification_push extends API_Model {
 	    
 	    try {
 		    if ($subtext == false)
-		    	$subtext = 'Notificación Züggig';
+		    	$subtext = 'Notificación';
 		    	
 		    $server_key = 'AAAAWxfFqsM:APA91bGDfAbEo7r1rngGPzRg9YnJqI_VtGzSeT_ump27_v4wgZDbTspwqQp5VlGFFPlYZKCAjCb93ye_1peI1yLDNpGYceDd07r-L6F1UJMDQJ_mxKOBWAGbo6GomCtDRbLJaR_nuwzI';
 			$client = new Client();

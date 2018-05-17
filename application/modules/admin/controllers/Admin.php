@@ -62,9 +62,6 @@ class Admin extends Admin_Controller {
 	    $getActiveUsers = $this->user->get_active_users();
 	    $data['getActiveUsers'] = $getActiveUsers;
 	    
-	    $getZuggigProducts = $this->product->get_zuggig_products();
-	    $data['getZuggigProducts'] = $getZuggigProducts;
-	    
 	    $getCheckoutVs = $this->retailer->get_checkout_vs();
 	    $data['getCheckoutVs'] = $getCheckoutVs;
 

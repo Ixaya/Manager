@@ -1,7 +1,7 @@
 <?php
 //
 //  Login.php
-//  Züggig
+//  Ixaya
 //
 // Created by Humberto Olavarrieta on 2/3/17.
 //  Copyright © 2017 Ixaya. All rights reserved.

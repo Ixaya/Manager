@@ -50,77 +50,6 @@ class Management extends IX_Rest_Controller {
     }
 
 	/**
-	 * create_zuggig_email function.
-	 * 
-	 * @access public
-	 * @param mixed $user_id (default: null)
-	 * @return void
-	 */
-	function create_zuggig_email($user_id = null)
-	{
-
-		log_message('debug',"create_zuggig_email, user_id=$user_id");
-	    $result = NULL;
-	    if (!empty($user_id)){	    
-		    log_message('debug',"---- Create zuggig email :$user_id");
-			$this->load->model('api/profile');
-			$result = $this->profile->create_zuggig_email($user_id);
-			log_message('debug',"---- Create zuggig email Result: $result");
-		}
-		
-		$this->set_response(array("result"=>$result, "gus"=>"true"), REST_Controller::HTTP_CREATED);
-// 		echo(json_encode($output, JSON_PRETTY_PRINT));
-	}
-
-	//WRAPPER Functions
-	function create_zuggig_email_post()
-    {   
-	    $user_id = $this->post('user_id');
-	    log_message('debug',"create_zuggig_email_post, user_id=$user_id");
-	    $result = $this->create_zuggig_email($user_id);
-    }
-
-    function create_zuggig_email_get()
-    {
-		$user_id = $this->get('user_id');
-		log_message('debug',"create_zuggig_email_get, user_id=$user_id");
-	    $result = $this->create_zuggig_email($user_id);
-    }
-
-
-	/**
-	 * create_missing_zuggig_emails function.
-	 * 
-	 * @access public
-	 * @return void
-	 */
-	function create_missing_zuggig_emails()
-    {
-	    log_message('debug',"create_missing_zuggig_emails");
-		$this->load->model('api/profile');
-		
-		
-		$result = $this->profile->create_zuggig_email_all();
-		
-		$this->set_response($result, REST_Controller::HTTP_OK);
-// 		printf($result);
-    }
-
-	//WRAPPER Functions
-    function create_missing_zuggig_emails_get()
-    {
-	    log_message('debug',"create_missing_zuggig_emails_get");
-		$this->create_missing_zuggig_emails();
-    }
-    
-    function create_missing_zuggig_emails_post()
-    {    
-	    log_message('debug',"create_missing_zuggig_emails_post");
-		$this->create_missing_zuggig_emails();
-    }
-		    
-
-	/**
 	 * unencrypt_credit_card_post function.
 	 * 
 	 * @access public
@@ -162,7 +91,7 @@ class Management extends IX_Rest_Controller {
 	    
         $this->load->helper(array('url', 'image'));
 	    	
-	    $config['upload_path']          = '/home/zuggig/app/public/media/checkout/';
+	    $config['upload_path']          = 'media/';
 		//$config['upload_path']          = '/localhost/public/media/';
         $config['allowed_types']        = 'gif|jpg|png';
         $config['max_size']             = 2048; //2MB (PHP Max in this config)

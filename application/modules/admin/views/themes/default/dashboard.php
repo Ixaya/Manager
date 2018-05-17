@@ -59,7 +59,7 @@
                         </div>
                         <div class="col-xs-9 text-right">
                             <div class="huge"><?php echo(count($products))?></div>
-                            <div>Züggig products</div>
+                            <div>Products</div>
                         </div>
                     </div>
                 </div>
@@ -519,7 +519,7 @@
                                     </span>
                                     <div class="chat-body clearfix">
                                         <div class="header">
-                                            <strong class="primary-font">Zuggig</strong>
+                                            <strong class="primary-font">Example </strong>
                                             
                                         </div>
                                         <p>

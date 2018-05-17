@@ -25,7 +25,7 @@
                 <h4 style="color:#00317c"> Estimated female users: <?php echo($getCountUserFemale[0]['COUNT(id)'])?></h3>
                         
                         </br>
-                        <h3 style="color:#00317c"> Top 10 Products (Züggig Matched) </h3>
+                        <h3 style="color:#00317c"> Top 10 Products</h3>
                 
                 <table class="table table-striped table-bordered table-hover" id="dataTables-ordering-desc">
                             <thead>

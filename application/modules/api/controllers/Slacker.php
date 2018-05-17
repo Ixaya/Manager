@@ -1,7 +1,7 @@
 <?php
 //
 //  Slacker.php
-//  Züggig
+//  Ixaya
 //
 // Created by Gustavo Moya on 02/17/18.
 //  Copyright © 2018 Ixaya. All rights reserved.
