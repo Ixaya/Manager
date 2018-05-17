@@ -1,7 +1,7 @@
 <?php
 //
 //  Notification.php
-//  Züggig
+//  Ixaya
 //
 // Created by Humberto Olavarrieta on 5/2/17.
 //  Copyright © 2017 Ixaya. All rights reserved.
@@ -115,7 +115,7 @@ class Notification extends API_Model {
         
         if($kind == '0' && $fromUserID == '1')
         {
-	        log_message('debug','IMPOSIBLE NOTIFICATION FROM ZUGGIG');
+	        log_message('debug','IMPOSIBLE NOTIFICATION FROM MANAGER');
 	        return 0;
         }
         
