@@ -1,6 +1,6 @@
 <?php
 
-class Migration_Products extends CI_Migration {
+class Migration_Product extends CI_Migration {
 
     public function up() {
         $this->dbforge->add_field(array(
@@ -34,7 +34,22 @@ class Migration_Products extends CI_Migration {
                 'constraint' => 250
             )
             ,
+            'material' => array(
+                'type' => 'VARCHAR',
+                'constraint' => 350
+            )
+            ,
             'features' => array(
+                'type' => 'VARCHAR',
+                'constraint' => 350
+            )
+            ,
+            'colors' => array(
+                'type' => 'VARCHAR',
+                'constraint' => 350
+            )
+            ,
+            'sizes' => array(
                 'type' => 'VARCHAR',
                 'constraint' => 350
             )
@@ -42,6 +57,14 @@ class Migration_Products extends CI_Migration {
             'price' => array(
                 'type' => 'INT',
                 'constraint' => 11
+            ),
+            'image_url' => array(
+                'type' => 'varchar',
+                'constraint' => 500
+			),
+            'datasheet_url' => array(
+                'type' => 'varchar',
+                'constraint' => 500
             )
             ,
             'qty_at_hand' => array(
@@ -64,17 +87,17 @@ class Migration_Products extends CI_Migration {
             )
             ,
             'date_created' => array(
-                'type' => 'DATETIME'
+                'type' => 'TIMESTAMP'
             ),
-            'date_updated' => array(
-                'type' => 'DATETIME'
+            'last_update' => array(
+                'type' => 'TIMESTAMP'
             )
         ));
         $this->dbforge->add_key('id', TRUE);
-        $this->dbforge->create_table('products');
+        $this->dbforge->create_table('product');
     }
 
     public function down() {
-        $this->dbforge->drop_table('products');
+        $this->dbforge->drop_table('product');
     }
 }

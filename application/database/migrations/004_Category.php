@@ -1,6 +1,6 @@
 <?php
 
-class Migration_Categories extends CI_Migration {
+class Migration_Category extends CI_Migration {
 
     public function up() {
         $this->dbforge->add_field(array(
@@ -24,17 +24,17 @@ class Migration_Categories extends CI_Migration {
             )
             ,
             'date_created' => array(
-                'type' => 'DATETIME'
+                'type' => 'TIMESTAMP'
             ),
-            'date_updated' => array(
-                'type' => 'DATETIME'
+            'last_update' => array(
+                'type' => 'TIMESTAMP'
             )
         ));
         $this->dbforge->add_key('id', TRUE);
-        $this->dbforge->create_table('categories');
+        $this->dbforge->create_table('category');
     }
 
     public function down() {
-        $this->dbforge->drop_table('categories');
+        $this->dbforge->drop_table('category');
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-class Migration_Brands extends CI_Migration {
+class Migration_Brand extends CI_Migration {
 
     public function up() {
         $this->dbforge->add_field(array(
@@ -12,8 +12,7 @@ class Migration_Brands extends CI_Migration {
             'description' => array(
                 'type' => 'VARCHAR',
                 'constraint' => 100
-            )
-            ,
+            ),
             'created_from_ip' => array(
                 'type' => 'VARCHAR',
                 'constraint' => 100
@@ -21,20 +20,19 @@ class Migration_Brands extends CI_Migration {
             'updated_from_ip' => array(
                 'type' => 'VARCHAR',
                 'constraint' => 100
-            )
-            ,
-            'date_created' => array(
-                'type' => 'DATETIME'
             ),
-            'date_updated' => array(
-                'type' => 'DATETIME'
+            'date_created' => array(
+                'type' => 'TIMESTAMP'
+            ),
+            'last_update' => array(
+                'type' => 'TIMESTAMP'
             )
         ));
         $this->dbforge->add_key('id', TRUE);
-        $this->dbforge->create_table('brands');
+        $this->dbforge->create_table('brand');
     }
 
     public function down() {
-        $this->dbforge->drop_table('brands');
+        $this->dbforge->drop_table('brand');
     }
 }

@@ -4,10 +4,10 @@ class Migration_Ion_auth extends CI_Migration {
 
 	public function up()
 	{
-		// Drop table 'groups' if it exists
-		$this->dbforge->drop_table('groups', TRUE);
+		// Drop table 'group' if it exists
+		$this->dbforge->drop_table('group', TRUE);
 
-		// Table structure for table 'groups'
+		// Table structure for table 'group'
 		$this->dbforge->add_field(array(
 			'id' => array(
 				'type' => 'MEDIUMINT',
@@ -25,9 +25,9 @@ class Migration_Ion_auth extends CI_Migration {
 			)
 		));
 		$this->dbforge->add_key('id', TRUE);
-		$this->dbforge->create_table('groups');
+		$this->dbforge->create_table('group');
 
-		// Dumping data for table 'groups'
+		// Dumping data for table 'group'
 		$data = array(
 			array(
 				'id' => '1',
@@ -40,13 +40,13 @@ class Migration_Ion_auth extends CI_Migration {
 				'description' => 'General User'
 			)
 		);
-		$this->db->insert_batch('groups', $data);
+		$this->db->insert_batch('group', $data);
 
 
-		// Drop table 'users' if it exists
-		$this->dbforge->drop_table('users', TRUE);
+		// Drop table 'user' if it exists
+		$this->dbforge->drop_table('user', TRUE);
 
-		// Table structure for table 'users'
+		// Table structure for table 'user'
 		$this->dbforge->add_field(array(
 			'id' => array(
 				'type' => 'MEDIUMINT',
@@ -135,7 +135,7 @@ class Migration_Ion_auth extends CI_Migration {
 
 		));
 		$this->dbforge->add_key('id', TRUE);
-		$this->dbforge->create_table('users');
+		$this->dbforge->create_table('user');
 
 		// Dumping data for table 'users'
 		$data = array(
@@ -155,13 +155,13 @@ class Migration_Ion_auth extends CI_Migration {
 			'company' => 'ADMIN',
 			'phone' => '0',
 		);
-		$this->db->insert('users', $data);
+		$this->db->insert('user', $data);
 
 
-		// Drop table 'users_groups' if it exists
-		$this->dbforge->drop_table('users_groups', TRUE);
+		// Drop table 'user_group' if it exists
+		$this->dbforge->drop_table('user_group', TRUE);
 
-		// Table structure for table 'users_groups'
+		// Table structure for table 'user_group'
 		$this->dbforge->add_field(array(
 			'id' => array(
 				'type' => 'MEDIUMINT',
@@ -181,9 +181,9 @@ class Migration_Ion_auth extends CI_Migration {
 			)
 		));
 		$this->dbforge->add_key('id', TRUE);
-		$this->dbforge->create_table('users_groups');
+		$this->dbforge->create_table('user_group');
 
-		// Dumping data for table 'users_groups'
+		// Dumping data for table 'user_group'
 		$data = array(
 			array(
 				'id' => '1',
@@ -196,13 +196,13 @@ class Migration_Ion_auth extends CI_Migration {
 				'group_id' => '2',
 			)
 		);
-		$this->db->insert_batch('users_groups', $data);
+		$this->db->insert_batch('user_group', $data);
 
 
 		// Drop table 'login_attempts' if it exists
-		$this->dbforge->drop_table('login_attempts', TRUE);
+		$this->dbforge->drop_table('login_attempt', TRUE);
 
-		// Table structure for table 'login_attempts'
+		// Table structure for table 'login_attempt'
 		$this->dbforge->add_field(array(
 			'id' => array(
 				'type' => 'MEDIUMINT',
@@ -227,15 +227,15 @@ class Migration_Ion_auth extends CI_Migration {
 			)
 		));
 		$this->dbforge->add_key('id', TRUE);
-		$this->dbforge->create_table('login_attempts');
+		$this->dbforge->create_table('login_attempt');
 
 	}
 
 	public function down()
 	{
-		$this->dbforge->drop_table('users', TRUE);
-		$this->dbforge->drop_table('groups', TRUE);
-		$this->dbforge->drop_table('users_groups', TRUE);
-		$this->dbforge->drop_table('login_attempts', TRUE);
+		$this->dbforge->drop_table('user', TRUE);
+		$this->dbforge->drop_table('group', TRUE);
+		$this->dbforge->drop_table('user_group', TRUE);
+		$this->dbforge->drop_table('login_attempt', TRUE);
 	}
 }
