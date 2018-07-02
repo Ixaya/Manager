@@ -55,15 +55,6 @@ $route['translate_uri_dashes'] = FALSE;
 
 $route['admin/dashboard'] = 'admin/admin';
 
-// frontend routes ||| Horacio 8 AGO 2017 |||
-$route['hosting'] = 'frontend/hosting';
-$route['vps'] = 'frontend/vps';
-$route['dominios'] = 'frontend/domains';
-$route['domains'] = 'frontend/domains';
-$route['paquete365'] = 'frontend/p365';
-$route['direct'] = 'frontend/direct';
-
-
 //examples routes
 /*
 $route['admin/examples'] = 'admin/examples';
