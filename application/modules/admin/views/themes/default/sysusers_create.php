@@ -52,25 +52,6 @@
                                     <label>Phone</label>
                                     <input class="form-control" placeholder="Enter phone number" id="phone" name="phone">
                                 </div>
-                               <!-- <div class="form-group">
-                                    <label>Active</label>
-	                                    <select class="form-control" id="status" name="status">
-											<?php if ($user->active == 1):?>
-												<option selected value="1">True</option>
-		                                    	<option value="0">False</option>
-		                                    <?php else:?>
-		                                    	<option value="1">True</option>
-		                                    	<option selected value="0">False</option>
-											<?php endif; ?>
-	                                    </select>
-                                     <!--
-                                    <select class="form-control" id="status" name="status">
-										<?php foreach ($speaker as $speakers => $list):?>
-	                                    	<option value="<?=$list['status']?>"><?=$list['status']?></option>
-										<?php endforeach; ?>	
-                                    </select>
-                                    
-                                </div>-->
                                 <div class="form-group">
 						        	<input type="checkbox" id="active" name="active" value="1"/>
 			                        <label>&nbsp Is enabled</label>

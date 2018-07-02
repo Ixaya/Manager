@@ -44,7 +44,6 @@
                                     <th>Email</th>
                                     <th>IP Address</th>
                                     <th>Created On</th>
-                                    <th>Last Activity</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -60,18 +59,9 @@
                                             <td><?=$user->email?></td>
                                             <td><?=$user->ip_address?></td>
 											<td><?=gmdate("m/d/Y g:i:s A", $user->created_on)?></td>
-											<td><?=$user->last_activity_date?></td>
                                             <td>
-<!--
-                                                <a href="<?= base_url('admin/addresses/index_selected/'.$user->id)?>">addresses</a>  |
-                                                <a href="<?= base_url('admin/payment_methods/index_selected/'.$user->id)?>">cards</a> |
-                                                <a href="<?= base_url('admin/user_lists/index_selected/'.$user->id)?>">lists</a> |
-                                                <a href="<?= base_url('admin/user_social_networks/index_selected/'.$user->id)?>">social networks</a> |
-                                                <a href="<?= base_url('admin/user_friends/index_selected/'.$user->id)?>">friends</a> |
-                                                <a href="<?= base_url('admin/product_favorites/index_selected/'.$user->id)?>">favorite products</a> |
-                                                <a href="<?= base_url('admin/notifications/index_selected/'.$user->id)?>">Notifications</a>                                                 
--->
-                                                <a href="<?= base_url('admin/sysusers/detail/'.$user->id) ?>" class="btn btn-primary">details</a>
+                                                <a href="<?= base_url('admin/sysusers/edit/'.$user->id) ?>" class="btn btn-primary">edit</a>
+                                                <a href="<?= base_url('admin/sysusers/delete/'.$user->id) ?>" class="btn btn-danger">delete</a>
                                                 
                                             </td>
                                         </tr>
@@ -94,7 +84,6 @@
                                     <th>Email</th>
                                     <th>IP Address</th>
                                     <th>Created On</th>
-                                    <th>Last Activity</th>
                                     <th>Action</th>
                                 </tr>
                                 

@@ -19,10 +19,7 @@ class Sysusers extends Admin_Controller {
     }
 
     public function index() {
-	    $offset = "0";
-
-//         $users = $this->ion_auth->users()->result();
-        $users = $this->user->get_users($offset);
+        $users = $this->ion_auth->users()->result();
         $data['users'] = $users;
         $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "sysusers_list";
         $this->load->view($this->_container, $data);
@@ -57,14 +54,9 @@ class Sysusers extends Admin_Controller {
             $email = $this->input->post('email');
            // $active = $this->input->post('active');
             $group_id = array( $this->input->post('group_id'));
-            
-// 			$client_id = array( $this->input->post('client_id'));
-
-
             $additional_data = array(
                 'first_name' => $this->input->post('first_name'),
                 'last_name' => $this->input->post('last_name'),
-                'username' 	=> $this->input->post('username'),
                 'phone' 	=> $this->input->post('phone')
             );
             
@@ -74,7 +66,7 @@ class Sysusers extends Admin_Controller {
             	$additional_data['active'] = 0;
             
 
-            $user = $this->ion_auth->register($email, $password, $email, $additional_data, $group_id);
+            $user = $this->ion_auth->register($username, $password, $email, $additional_data, $group_id);
             
 
             if(!$user)
