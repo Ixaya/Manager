@@ -131,8 +131,33 @@ class Migration_Ion_auth extends CI_Migration {
 				'type' => 'VARCHAR',
 				'constraint' => '20',
 				'null' => TRUE
-			)
-
+			),
+			'image_name' => array(
+				'type' => 'VARCHAR',
+				'constraint' => '128',
+				'null' => TRUE
+			),
+			'image_url' => array(
+				'type' => 'VARCHAR',
+				'constraint' => '254',
+				'null' => TRUE
+			),			
+			'last_activity_date' => array(
+				'type' => 'TIMESTAMP',
+			),
+			'last_activity_os' => array(
+				'type' => 'TINYINT',
+				'constraint' => '1',
+				'unsigned' => TRUE
+			),
+			'client_id' => array(
+				'type' => 'MEDIUMINT',
+				'constraint' => '11',
+				'unsigned' => TRUE
+			),			
+			'last_update' => array(
+				'type' => 'TIMESTAMP',
+			),
 		));
 		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->create_table('user');
@@ -154,6 +179,7 @@ class Migration_Ion_auth extends CI_Migration {
 			'last_name' => 'istrator',
 			'company' => 'ADMIN',
 			'phone' => '0',
+			'client_id' => '0',
 		);
 		$this->db->insert('user', $data);
 

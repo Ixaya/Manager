@@ -19,55 +19,34 @@ class Sysusers extends Admin_Controller {
     }
 
     public function index() {
-        $users = $this->ion_auth->users()->result();
+        $users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date, last_activity_date');
+        //print_r($users);
+        
         $data['users'] = $users;
         $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "sysusers_list";
         $this->load->view($this->_container, $data);
     }
     
 	public function index_ajax() {
-		$users = $this->user->get_all('id,first_name,email,ip_address,created_on,last_activity_date',null,null,10);
+		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date,last_activity_date',null,null,10);
         echo json_encode($users);
-    }
-
-
-	public function index_details($id)
-    {
-	    $user = array();
-	    
-	    if (isset($id)) {
-        	$addresses = $this->address->get_all("*", array('user_id' => $id));
-		}
-		$data['addresses'] = $addresses;	  
-		
-		$users = $this->ion_auth->users()->result();
-        $data['users'] = $users;
-        $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "sysusers_list";
-        $this->load->view($this->_container, $data);
     }
 	
     public function create() {
         if ($this->input->post('username')) {
-//             $client_id = $this->input->post('client_id');
             $username = $this->input->post('username');
             $password = $this->input->post('password');
             $email = $this->input->post('email');
-           // $active = $this->input->post('active');
             $group_id = array( $this->input->post('group_id'));
+            
             $additional_data = array(
                 'first_name' => $this->input->post('first_name'),
                 'last_name' => $this->input->post('last_name'),
-                'phone' 	=> $this->input->post('phone')
+                'username' 	=> $this->input->post('username'),
+                'company' 	=> $this->input->post('company'),
             );
-            
-            if($this->input->post('active') == 1)
-            	$additional_data['active'] = 1;
-            else
-            	$additional_data['active'] = 0;
-            
 
-            $user = $this->ion_auth->register($username, $password, $email, $additional_data, $group_id);
-            
+            $user = $this->ion_auth->register($email, $password, $email, $additional_data, $group_id);
 
             if(!$user)
             {
@@ -77,58 +56,44 @@ class Sysusers extends Admin_Controller {
             }
             else
             {
+	            if ($this->input->post('active') == 1)
+            		$this->ion_auth->activate($user);
+            	
                 redirect('/admin/sysusers', 'refresh');
             }
-
-
         }
+        
         $data['groups'] = $this->ion_auth->groups()->result();
         $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "sysusers_create";
+        
         $this->load->view($this->_container, $data);
     }
 
     public function edit($id) {
         if ($this->input->post('first_name')) {
-            $data['ip_address'] = $this->input->post('ip_address');
             $data['username'] = $this->input->post('username');
             $data['first_name'] = $this->input->post('first_name');
             $data['last_name'] = $this->input->post('last_name');
             $data['email'] = $this->input->post('email');
-            $data['phone'] = $this->input->post('phone');
-            $data['active'] = $this->input->post('active');
             $data['company'] = $this->input->post('company');
-            $data['facebook_id'] = $this->input->post('facebook_id');
-            $data['activation_code'] = $this->input->post('activation_code');
-            $data['created_on'] = $this->input->post('created_on');
-            $data['last_login'] = $this->input->post('last_login');
-            $data['fb_token'] = $this->input->post('fb_token');
-            $data['fb_login'] = $this->input->post('fb_login');
-            $data['fb_last_sync'] = $this->input->post('fb_last_sync');
-            $data['fb_response'] = $this->input->post('fb_response');
-            $data['image_url'] = $this->input->post('image_url');
-            if($this->input->post('is_public') == 1)
-            	$data['is_public'] = $this->input->post('is_public');
-			else
-				$data['is_public'] = 0;
-            
-            if($this->input->post('password')){
-		        $data['passwprd'] = $this->ion_auth->hash_password($new, $this->ion_auth->salt);
 
+			$newPassword = $this->input->post('password');
+            if(!empty($newPassword)){
+	            //if you use: ion_auth->update there is no need to encrypt it, else it will double crypt it.
+		        $data['password'] = $newPassword;
             }
-            
-            
-			$data['password'] = $this->input->post('password');
-            $group_id = $this->input->post('group_id');
-            
-            $getFb = $this->user->get_fb($id);
-			$data['getFb'] = $getFb;
-
+			
+			if ($this->input->post('active') == 1)
+            	$this->ion_auth->activate($id);
+            else
+            	$this->ion_auth->deactivate($id);
+			
             $this->ion_auth->remove_from_group('', $id);
-            $this->ion_auth->add_to_group($group_id, $id);
+            $this->ion_auth->add_to_group($this->input->post('group_id'), $id);
 
             $this->ion_auth->update($id, $data);
             
-            //redirect('/admin/sysusers', 'refresh');
+            redirect('/admin/sysusers', 'refresh');
         }
 
         $this->load->helper('ui');
@@ -149,8 +114,7 @@ class Sysusers extends Admin_Controller {
     
     public function do_upload($id)
     {
-//             $config['upload_path']          = '/home/ixayanet/app/public/media/';
-			$config['upload_path']          = '/home/ixayanet/app/public/media/';
+			$config['upload_path']          = '/home/chabelo/app/public/media/user';
             $config['allowed_types']        = 'gif|jpg|png';
             $config['max_size']             = 2048; //2MB (PHP Max in this config)
 //             $config['max_width']            = 1024;
@@ -163,107 +127,17 @@ class Sysusers extends Admin_Controller {
 			
             $this->load->library('upload', $config);
 
-            if ( ! $this->upload->do_upload('userfile'))
+            if (!$this->upload->do_upload('userfile'))
             {
 		            $this->session->set_flashdata('message', $this->upload->display_errors());
 		            $this->edit($id);
             }
             else
             {		$upload_data = $this->upload->data();
-		            $data['image_url']   = base_url("/media/".$upload_data['file_name']);
+		            $data['image_url']   = base_url("/media/user/".$upload_data['file_name']);
 		            $data['image_name']  = $upload_data['file_name'];
 				    $this->user->update($data, $id);				    
 		            redirect('/admin/sysusers', 'refresh');
             }
     }
-    public function detail($id)
-    {
-
-		$user = $this->user->get($id);
-        $data['user'] = $user;
-	    
-	    $getFb = $this->user->get_fb($id);
-        $data['getFb'] = $getFb;
-         
-        $getUserLocation = $this->user->get_user_location($id);
-        $data['getUserLocation'] = $getUserLocation;
-        
-        $getUserLists = $this->user->get_user_lists($id);
-        $data['getUserLists'] = $getUserLists;
-        
-        $getUserFriends = $this->user->get_user_friends($id);
-        $data['getUserFriends'] = $getUserFriends;
-        
-        $getUserEvent = $this->user->get_user_event($id);
-        $data['getUserEvent'] = $getUserEvent;
-        
-        $getUserNotifications = $this->user->get_user_notifications($id);
-        $data['getUserNotifications'] = $getUserNotifications;
-        
-        $getUserChats = $this->user->get_user_chats($id);
-        $data['getUserChats'] = $getUserChats;
-        
-        $getUserFavoriteProduct = $this->user->get_user_favorite_product($id);
-        $data['getUserFavoriteProduct'] = $getUserFavoriteProduct;
-        
-        $getOsKind = $this->user->get_os_kind($id);
-        $data['getOsKind'] = $getOsKind;
-        
-	    $address = $this->user->get_address($id);
-        $data['getAddress'] = $address;
-        
-        $paymentMethod = $this->user->get_payment_method($id);
-        $data['paymentMethod'] = $paymentMethod;
-	    
-	    $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "sysusers_detail";
-        $this->load->view($this->_container, $data);
-    }
-    public function chats($id)
-    {
-	    $getAllUserChats = $this->user->get_all_user_chats($id);
-        $data['getAllUserChats'] = $getAllUserChats;
-        
-	    $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "sysusers_chats";
-        $this->load->view($this->_container, $data);
-	}
-	
-	public function info()
-    {
-	    $getIosInstallations = $this->user->get_ios_installations();
-        $data['getIosInstallations'] = $getIosInstallations;
-        
-        $getAndroidInstallations = $this->user->get_android_installations();
-        $data['getAndroidInstallations'] = $getAndroidInstallations;
-        
-        $getCountUserMale = $this->user->get_count_user_male();
-        $data['getCountUserMale'] = $getCountUserMale;
-        
-        $getCountUserFemale = $this->user->get_count_user_female();
-        $data['getCountUserFemale'] = $getCountUserFemale;
-        
-        $getMostSharedProduct = $this->user->get_most_shared_products();
-        $data['getMostSharedProduct'] = $getMostSharedProduct;
-        
-        $getTopMatchedProducts = $this->user->get_top_matched_products();
-        $data['getTopMatchedProducts'] = $getTopMatchedProducts;
-        
-        $getTopLiverpoolProducts = $this->user->get_top_liverpool_products();
-        $data['getTopLiverpoolProducts'] = $getTopLiverpoolProducts;        
-        
-        $getTopBestbuyProducts = $this->user->get_top_bestbuy_products();
-        $data['getTopBestbuyProducts'] = $getTopBestbuyProducts;
-        
-        $getTopClaroProducts = $this->user->get_top_claro_products();
-        $data['getTopClaroProducts'] = $getTopClaroProducts;
-        
-        $getTopInnovaProducts = $this->user->get_top_innova_products();
-        $data['getTopInnovaProducts'] = $getTopInnovaProducts;
-        
-        $getTopPetcoProducts = $this->user->get_top_petco_products();
-        $data['getTopPetcoProducts'] = $getTopPetcoProducts;
-	    
-	    $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "sysusers_info";
-        $this->load->view($this->_container, $data);
-	}
-
 }

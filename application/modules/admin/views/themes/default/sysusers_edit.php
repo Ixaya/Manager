@@ -17,30 +17,45 @@
                 </div>
                 <div class="panel-body">
                     <div class="row">
+	                    
+	                    
+	                    <?php if ($this->session->flashdata('message')): ?>
+                        <div class="col-lg-12 col-md-12">
+                            <div class="alert alert-info alert-dismissable">
+                                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+                                <?=$this->session->flashdata('message')?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                        
+                        
                         <div class="col-lg-6">
                             <form role="form" method="POST" action="<?=base_url('admin/sysusers/edit/'.$user->id)?>">
-                                </div>
-								<div class="form-group">
+                                <div class="form-group">
                                     <label>ID:</label>
                                     <text>&nbsp<?=$user->id?></text>
                                 </div>
-								<div class="form-group">
-                                    <label>IP address</label>
-                                    <input class="form-control" value="<?=$user->ip_address?>" placeholder="Enter IP address" id="ip_address" name="ip_address">
+                                <div class="form-group">
+                                    <label>Last update: </label>
+                                    <text>&nbsp<?=$user->last_update?><text>
+                                </div>
+                                <div class="form-group">
+                                    <label>IP address: </label>
+                                    <text>&nbsp<?=$user->ip_address?><text>
                                 </div>
                                 <div class="form-group">
                                     <label>Username</label>
                                     <input class="form-control" value="<?=$user->username?>" placeholder="Enter username" id="username" name="username">
                                 </div>
                                 <div class="form-group">
-                                    <label>Password</label>
-                                    <input class="form-control" value="" placeholder="Only enter password if you want to change it" id="password" name="password">
-                                </div>
-                                
-                                <div class="form-group">
                                     <label>Email</label>
                                     <input class="form-control" value="<?=$user->email?>" placeholder="Enter group description" id="email" name="email">
                                 </div>
+                                <div class="form-group">
+                                    <label>Password</label>
+                                    <input class="form-control" value="" placeholder="Only enter password if you want to change it" id="password" name="password">
+                                </div>                              
+                                
                                 <div class="form-group">
                                     <label>User Group</label>
                                     <select class="form-control" id="group_id" name="group_id">
@@ -57,21 +72,35 @@
                                     <label>Last Name</label>
                                     <input class="form-control" value="<?=$user->last_name?>" placeholder="Enter last name" id="last_name" name="last_name">
                                 </div>
-                                <div class="form-group">
+								<div class="form-group">
                                     <label>Company</label>
-                                    <input class="form-control" value="<?=$user->company?>" placeholder="Enter company" id="company" name="company">
+                                    <input class="form-control" value="<?=$user->company?>" placeholder="Enter Company" id="company" name="company">
                                 </div>
-                                <div class="form-group">
-                                    <label>Phone</label>
-                                    <input class="form-control" value="<?=$user->phone?>" placeholder="Enter phone" id="phone" name="phone">
-                                </div>
+                                <br />
                                 <div class="form-group">
                                     <label>Active</label>
+                                    
+<!--                                     <input class="form-control" value="<?=$user->active?>" placeholder="User is active" id="active" name="active"> -->
+<!--  									<?=form_dropdown('active', array(1=>'True',0=>'False'), ($user->active == 't') ? '1' : '0', 'class="form-control" id="active"')?> -->
 									<?=form_dropdown('active', array(1=>'True',0=>'False'), $user->active, 'class="form-control" id="active"')?>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Update</button>
                            
 							 </form>
+                            <br /><br />
+                            <?php echo form_open_multipart(base_url('admin/sysusers/do_upload/'.$user->id));?>	
+                                <div class="form-group">
+                                    <label>Current Image</label>
+                                    <?php if(count($user->image_name) > 0) : ?>
+										<div> <img height="200px" src="<?php echo($user->image_url); ?>" /> </div>
+									<?php endif; ?>
+                                </div>
+	                            <div class="form-group">
+		                            <label>Upload New Image</label>								
+									<input type="file" name="userfile" size="20" />
+	                            </div>
+								<button type="submit" class="btn btn-primary">Update Image</button>
+							</form>
                         </div>
                     </div>
                     <!-- /.row (nested) -->

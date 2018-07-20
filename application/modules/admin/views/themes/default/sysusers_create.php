@@ -17,6 +17,16 @@
                 </div>
                 <div class="panel-body">
                     <div class="row">
+	                    
+	                    <?php if ($this->session->flashdata('message')): ?>
+                        <div class="col-lg-12 col-md-12">
+                            <div class="alert alert-info alert-dismissable">
+                                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+                                <?=$this->session->flashdata('message')?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                        
                         <div class="col-lg-6">
                             <form role="form" method="POST" action="<?=base_url('admin/sysusers/create')?>">
                                 <div class="form-group">
@@ -49,14 +59,15 @@
                                 </div>
 
                                 <div class="form-group">
-                                    <label>Phone</label>
-                                    <input class="form-control" placeholder="Enter phone number" id="phone" name="phone">
+                                    <label>Company</label>
+                                    <input class="form-control" placeholder="Enter Company" id="company" name="company">
                                 </div>
+                                <br />
                                 <div class="form-group">
-						        	<input type="checkbox" id="active" name="active" value="1"/>
-			                        <label>&nbsp Is enabled</label>
-			                    </div>
-                                
+                                    <label>Activate</label>
+                                    <?=form_dropdown('active', array(1=>'True',0=>'False'), 1, 'class="form-control" id="active"')?>
+                                </div>
+	                            <br/>
                                 <button type="submit" class="btn btn-primary">Save</button>
                                 <button type="reset" class="btn btn-default">Reset</button>
                             </form>

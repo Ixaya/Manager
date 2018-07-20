@@ -17,7 +17,6 @@
                 <h2>
                     Users
                     <a  href="<?= base_url('admin/sysusers/create') ?>" class="btn btn-success">Add New</a>
-                    <a  href="<?= base_url('admin/sysusers/info') ?>" class="btn btn-primary">General users info</a>
                 </h2>
                 
             </div>
@@ -44,6 +43,7 @@
                                     <th>Email</th>
                                     <th>IP Address</th>
                                     <th>Created On</th>
+                                    <th>Last Activity</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -53,16 +53,16 @@
                                 <?php if (count($users)): ?>
                                     <?php foreach ($users as $user): ?>
                                         <tr class="odd gradeX">
-                                            <td><?=$user->id?></td>
+                                            <td><?=$user['id']?></td>
 
-                                            <td><?=$user->first_name .' '.$user->last_name ?></td>
-                                            <td><?=$user->email?></td>
-                                            <td><?=$user->ip_address?></td>
-											<td><?=gmdate("m/d/Y g:i:s A", $user->created_on)?></td>
+                                            <td><?=$user['first_name'] .' '.$user['last_name'] ?></td>
+                                            <td><?=$user['email']?></td>
+                                            <td><?=$user['ip_address']?></td>
+											<td><?= $user['created_on_date']?></td>
+											<td><?=$user['last_activity_date']?></td>
                                             <td>
-                                                <a href="<?= base_url('admin/sysusers/edit/'.$user->id) ?>" class="btn btn-primary">edit</a>
-                                                <a href="<?= base_url('admin/sysusers/delete/'.$user->id) ?>" class="btn btn-danger">delete</a>
-                                                
+                                                <a href="<?= base_url('admin/sysusers/edit/'.$user['id']) ?>" class="btn btn-primary">Edit</a>
+                                                <a href="<?= base_url('admin/sysusers/delete/'.$user['id']) ?>" class="btn btn-danger">Delete</a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -84,6 +84,7 @@
                                     <th>Email</th>
                                     <th>IP Address</th>
                                     <th>Created On</th>
+                                    <th>Last Activity</th>
                                     <th>Action</th>
                                 </tr>
                                 
@@ -101,7 +102,8 @@
 <!-- /#page-wrapper -->
 
 
-<script src="<?= base_url() ?>assets/admin/js/jquery.min.js"></script>
+
+
 <script>
     $(document).ready(function() {
         $('#dataTables-ajax').DataTable({
@@ -121,4 +123,5 @@
         });
     });
 </script>
+
 
