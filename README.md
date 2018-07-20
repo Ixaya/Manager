@@ -25,7 +25,7 @@ HMVC Code Igniter based Framework for creating backends and complete websites
 
 ## How to Install
 
-To Install **Manager** you need to 
+To Install **Manager** you need to  
 
 ### Step by Step guide on OSX
 * Install Homebew `/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"`
