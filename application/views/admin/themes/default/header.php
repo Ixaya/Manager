@@ -10,7 +10,7 @@
         <meta name="description" content="">
         <meta name="author" content="">
 
-        <title>Chabelo - Admin</title>
+        <title>Ixaya - Admin</title>
 
         <!-- Bootstrap Core CSS -->
         <link href="<?= base_url() ?>assets/admin/css/bootstrap.min.css" rel="stylesheet">
@@ -60,7 +60,7 @@
                         <span class="icon-bar"></span>
 
                     </button>
-    	            <img class="navbar-brand" src="<?= base_url() ?>assets/frontend/images/letras_chabelo.png" />
+    	            <img class="navbar-brand" src="<?= base_url() ?>assets/admin/images/logo_small.png" />
 					<a class="navbar-brand" href="<?= base_url('admin/dashboard') ?>">Welcome <?=$this->logged_in_name?></a></div>
                 </div>
 

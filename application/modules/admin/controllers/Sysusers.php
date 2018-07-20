@@ -114,7 +114,7 @@ class Sysusers extends Admin_Controller {
     
     public function do_upload($id)
     {
-			$config['upload_path']          = '/home/chabelo/app/public/media/user';
+			$config['upload_path']          = '_base_route_/app/public/media/user';
             $config['allowed_types']        = 'gif|jpg|png';
             $config['max_size']             = 2048; //2MB (PHP Max in this config)
 //             $config['max_width']            = 1024;
