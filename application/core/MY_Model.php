@@ -249,4 +249,12 @@ class MY_Model extends CI_Model {
 	        return FALSE;
 	    }
     }
+    
+	public function count_all()
+    {
+	    $table = $this->table_name;
+	    $query = "SELECT count(id) as count FROM $table";
+	    $result = $this->query_as_array_auto($query, null);
+	    return $result[0]['count'];
+    }
 }
