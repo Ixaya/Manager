@@ -2,7 +2,7 @@
 
 class Admin_Controller extends MY_Controller {
     public $is_admin;
-    public $client_id;
+    //public $client_id; //
     public $logged_in_name;
     public $language_file;
 
@@ -18,6 +18,7 @@ class Admin_Controller extends MY_Controller {
             redirect('/auth', 'refresh');
         }
         
+/*
         $this->load->helper('inflector');
         if (!$this->language_file) {
          	$this->language_file = strtolower(get_class($this));
@@ -27,13 +28,14 @@ class Admin_Controller extends MY_Controller {
 	        $this->config->set_item('language', $_SESSION['language']);
 	    }
 	    $this->lang->load($this->language_file);
+*/
 
 
         $this->is_admin = $this->ion_auth->is_admin();
         $user = $this->ion_auth->user()->row();
         $this->logged_in_name = $user->first_name;
-        $this->client_id = $user->client_id;
-        $_SESSION['client_id'] = $this->client_id;
+        //$this->client_id = $user->client_id;
+        //$_SESSION['client_id'] = $this->client_id;
 
 /*
         print("<pre>");

@@ -53,7 +53,7 @@ class MY_Model extends CI_Model {
         return $this->db->get_where($this->table_name, array($this->primary_key => $id))->row();
     }
 
-    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '') {
+    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method='left') {
         $data = array();
         if ($fields != '') {
             $this->db->select($fields);
@@ -68,6 +68,10 @@ class MY_Model extends CI_Model {
 
         if ($table != '') {
             $this->table_name = $table;
+        }
+        
+        if ($join_table != '' && $join_where != '') {
+            $this->db->join($join_table, $join_where, $join_method);
         }
 
         if ($limit != '') {
@@ -220,4 +224,30 @@ class MY_Model extends CI_Model {
 		}
         return $data;
 	}
+	
+	public function replace($data) {
+		$data['last_update'] = date('Y-m-d H:i:s');
+	    //$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
+	// 		$data['client_id'] = $this->client_id;
+	
+		if($this->override_column && $this->override_id)
+		{
+			$data[$this->override_column] = $this->override_id;
+		}
+		
+	    $success = $this->db->replace($this->table_name, $data);
+	    if ($success) {
+	        return $this->db->insert_id();
+	    } else {
+	        return FALSE;
+	    }
+    }
+    
+	public function count_all()
+    {
+	    $table = $this->table_name;
+	    $query = "SELECT count(id) as count FROM $table";
+	    $result = $this->query_as_array_auto($query, null);
+	    return $result[0]['count'];
+    }
 }

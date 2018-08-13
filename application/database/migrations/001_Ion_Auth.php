@@ -166,7 +166,7 @@ class Migration_Ion_auth extends CI_Migration {
 		$data = array(
 			'id' => '1',
 			'ip_address' => '127.0.0.1',
-			'username' => 'administrator',
+			'username' => 'admin@admin.com',
 			'password' => '$2a$07$SeBknntpZror9uyftVopmu61qg0ms8Qv1yV6FG.kQOSM.9QhmTo36',
 			'salt' => '',
 			'email' => 'admin@admin.com',
