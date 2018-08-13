@@ -37,17 +37,10 @@ class MY_Model extends CI_Model {
 
 		if($this->override_column && $this->where_override == null)
         {
+	        if(isset($_SESSION[$this->override_column] && $this->override_id == null)
+	        	$this->override_id = $_SESSION[$this->override_column];
 	        if($this->override_id != null)
 				$this->where_override = array($this->override_column => $this->override_id);
-			else
-			{
-				
-				if(isset($_SESSION[$this->override_column]))
-				{
-					$this->where_override = array($this->override_column => $_SESSION[$this->override_column]);
-				}
-			}
-
         }
 
 /*
