@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-// require APPPATH . '/libraries/REST_Controller.php';
+require_once APPPATH . 'modules/api/libraries/REST_Controller.php';
 
 class IX_Rest_Controller extends REST_Controller {	
 	protected $user_id = '';
@@ -23,7 +23,7 @@ class IX_Rest_Controller extends REST_Controller {
 	    	$data['last_activity_os'] = $this->getPlatform();
 	    	
 	    	$this->rest->db->where('id', $this->user_id);
-			$this->rest->db->update('ic_user', $data);
+			$this->rest->db->update('user', $data);
 	    }
     }
 

@@ -1,6 +1,6 @@
 <?php
 
-class Migration_Color extends CI_Migration {
+class Migration_Example extends CI_Migration {
 
     public function up() {
         $this->dbforge->add_field(array(
@@ -9,7 +9,12 @@ class Migration_Color extends CI_Migration {
                 'constraint' => 11,
                 'auto_increment' => TRUE
             ),
-            'name' => array(
+            'title' => array(
+                'type' => 'VARCHAR',
+                'constraint' => 100
+            )
+            ,
+            'example' => array(
                 'type' => 'VARCHAR',
                 'constraint' => 100
             ),
@@ -18,11 +23,10 @@ class Migration_Color extends CI_Migration {
             )
         ));
         $this->dbforge->add_key('id', TRUE);
-        $this->dbforge->create_table('color');
+        $this->dbforge->create_table('example');
     }
 
     public function down() {
-        $this->dbforge->drop_table('color');
+        $this->dbforge->drop_table('example');
     }
-
 }
