@@ -183,9 +183,6 @@ $config['auth_library_function'] = '';
 // $config['auth_override_class_method']['accounts']['user'] = 'basic';
 // $config['auth_override_class_method']['dashboard']['*'] = 'basic';
 $config['auth_override_class_method']['login']['*'] = 'none';
-$config['auth_override_class_method']['walmart']['*'] = 'none';
-$config['auth_override_class_method']['notifications']['send_scheduled'] = 'none';
-$config['auth_override_class_method']['Profiles']['sync_facebook_images'] = 'none';
 
 // ---Uncomment list line for the wildard unit test
 // $config['auth_override_class_method']['wildcard_test_cases']['*'] = 'basic';
@@ -291,7 +288,7 @@ $config['rest_database_group'] = 'default';
 | The table name in your database that stores API keys
 |
 */
-$config['rest_keys_table'] = 'ic_user_key';
+$config['rest_keys_table'] = 'user_key';
 
 /*
 |--------------------------------------------------------------------------
