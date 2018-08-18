@@ -33,7 +33,10 @@ class Media extends CI_Controller {
         // basic info
         $path = $this->uri->uri_string();
         $pathinfo = pathinfo($path);
-        $size = end(explode("-", $pathinfo["filename"]));
+        
+        $size_array = explode("-", $pathinfo["filename"]);
+        $size = end($size_array);
+        
         $original = $pathinfo["dirname"] . "/" . str_ireplace("-" . $size, "", $pathinfo["basename"]);
         
         // original image not found, show 404
