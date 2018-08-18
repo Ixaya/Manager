@@ -43,14 +43,8 @@ class Auth extends MY_Controller {
                 redirect('auth', 'refresh');
             }
         } else {
-            $this->session->set_flashdata('message', $this->ion_auth->errors());
-            (validation_errors()) ? validation_errors() : $this->session->flashdata('message');
-
-            $data['page'] = $this->config->item('ci_my_admin_template_dir_public') . "login_form";
-            $data['module'] = 'auth';
-            $data['message'] = $this->data['message'];
-
-            $this->load->view($this->_container, $data);
+            $this->session->set_flashdata('message', validation_errors());
+            redirect('auth', 'refresh');
         }
     }
 

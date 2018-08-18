@@ -2,13 +2,7 @@
 <html lang="en">
 <head>
     <!-- Bootstrap Core CSS -->
-    <link href="<?=base_url()?>assets/admin/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- MetisMenu CSS -->
-    <link href="<?=base_url()?>assets/admin/css/metisMenu.min.css" rel="stylesheet">
-
-    <!-- Custom CSS -->
-    <link href="<?=base_url()?>assets/admin/css/sb-admin-2.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
 
     <!-- Custom Fonts -->
     <link href="<?=base_url()?>assets/admin/css/font-awesome.min.css" rel="stylesheet" type="text/css">
@@ -28,8 +22,6 @@
 	<!--[if lt IE 9]>
 	<script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
 	<![endif]-->
-	
-<!-- 	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js" type="text/javascript"></script> -->
 </head>
 <body>
 	

@@ -1,14 +1,11 @@
 <div class="container">
     <div class="row">
-        <div class="col-md-4 col-md-offset-4">
-            <div class="login-panel panel panel-default">
-                <div class="panel-heading">
-<!-- 					<p><img height="64px" src=<?=base_url()?>assets/frontend/images/IxayaNet_logo.png /></p> -->
-					<h3 class="panel-title">Please Sign In</h3>
-                </div>
-                <div class="panel-body">
+        <div class="col-md-4 offset-md-4">
+            <div class="card">
+	            <h5 class="card-header text-center">Please Sign In</h5>
+                <div class="card-body">
                     <?php if ($this->session->flashdata('message')): ?>
-                        <div class="alert alert-danger fade in">
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
                             <a href="#" class="close" data-dismiss="alert">&times;</a>
                             <?= $this->session->flashdata('message') ?>
                         </div>
@@ -21,11 +18,11 @@
                             <div class="form-group">
                                 <input class="form-control" placeholder="Password" name="password" type="password" value="">
                             </div>
-                            <div class="checkbox">
-                                <label>
-                                    <input name="remember" type="checkbox" value="Remember Me">Remember Me
-                                </label>
-                            </div>
+                            <div class="form-check">
+						    	<input type="checkbox" class="form-check-input" id="remember" name="remember" value="Remember Me">
+						    	<label class="form-check-label" for="remember">Remember Me</label>
+							</div>
+							<br/>
                             <!-- Change this to a button or input when using this as a form -->
                             <button class="btn btn-lg btn-success btn-block" type="submit">Login</button>
                         </fieldset>
