@@ -1,3 +1,4 @@
+
 <?php (defined('BASEPATH')) OR exit('No direct script access allowed');
 
 class MY_Model extends CI_Model {
@@ -15,6 +16,9 @@ class MY_Model extends CI_Model {
     protected $override_column = NULL;
     protected $override_id = NULL;
 
+
+    
+    
     public function __construct() {
         parent::__construct();
 
@@ -37,12 +41,19 @@ class MY_Model extends CI_Model {
 
 		if($this->override_column && $this->where_override == null)
         {
-	        if(isset($_SESSION[$this->override_column]) && $this->override_id == null)
-	        	$this->override_id = $_SESSION[$this->override_column];
 	        if($this->override_id != null)
 				$this->where_override = array($this->override_column => $this->override_id);
-        }
+			else
+			{
+				
+				if(isset($_SESSION[$this->override_column]))
+				{
+					$this->where_override = array($this->override_column => $_SESSION[$this->override_column]);
+				}
+			}
 
+        }
+        
 /*
         if(count($this->client_id) && isset($_SESSION['client_id'])){
 	        $this->client_id = $_SESSION['client_id'];
@@ -50,18 +61,13 @@ class MY_Model extends CI_Model {
 */
     }
     public function get($id) {
-	    if ($this->soft_delete == true)
-        	$this->db->where('delete', 0);
-	    
 	    if($this->where_override)
 			$this->db->where($this->where_override);
-		
-		$this->db->where($this->primary_key, $id);
-	    
-        return $this->db->get($this->table_name)->row();
+			
+        return $this->db->get_where($this->table_name, array($this->primary_key => $id))->row();
     }
 
-    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method='left') {
+    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '') {
         $data = array();
         if ($fields != '') {
             $this->db->select($fields);
@@ -69,9 +75,6 @@ class MY_Model extends CI_Model {
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
-			
-		if ($this->soft_delete == true)
-        	$this->db->where('delete', 0);
 		
         if (count($where)) {
             $this->db->where($where);
@@ -80,11 +83,7 @@ class MY_Model extends CI_Model {
         if ($table != '') {
             $this->table_name = $table;
         }
-        
-        if ($join_table != '' && $join_where != '') {
-            $this->db->join($join_table, $join_where, $join_method);
-        }
-		
+
         if ($limit != '') {
             $this->db->limit($limit);
         }
@@ -116,9 +115,6 @@ class MY_Model extends CI_Model {
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
-		
-		if ($this->soft_delete == true)
-        	$this->db->where('delete', 0);
 			
 // 		$this->db->where(array('client_id' => $this->client_id));
 		$this->db->where(array('last_update >' => $last_update));
@@ -226,12 +222,11 @@ class MY_Model extends CI_Model {
         return $this->db->query($query)->result();
 	}
 	public function query_as_array_auto($query, $arguments = NULL){
-		$data = array();
+			$data = array();
+//         $this->db->where(array('client_id' => $this->client_id));
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
-		if ($this->soft_delete == true)
-        	$this->db->where('delete', 0);
 			
         $query = $this->db->query($query, $arguments);
 		foreach ($query->result_array() as $row)
@@ -247,8 +242,6 @@ class MY_Model extends CI_Model {
         
 		if($this->where_override)
 			$this->db->where($this->where_override);
-		if ($this->soft_delete == true)
-        	$this->db->where('delete', 0);
 			
         $query = $this->db->query($query, $arguments);
 		foreach ($query->result_array() as $row)
@@ -257,28 +250,4 @@ class MY_Model extends CI_Model {
 		}
         return $data;
 	}
-	
-	       
-    public function replace($data) {
-		$data['last_update'] = date('Y-m-d H:i:s');
-		
-		if($this->override_column && $this->override_id)
-		$data[$this->override_column] = $this->override_id;
-		
-		$success = $this->db->replace($this->table_name, $data);
-		
-		if ($success)
-			return $this->db->insert_id();
-		else 
-			return FALSE;
-    }
-    
-    public function count_all()
-    {
-       $table = $this->table_name;
-       $query = "SELECT count(id) as count FROM $table";
-       $result = $this->query_as_array_auto($query, null);
-       
-       return $result[0]['count'];
-    }
 }
