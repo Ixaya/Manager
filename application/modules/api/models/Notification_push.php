@@ -203,7 +203,7 @@ class Notification_push extends API_Model {
 		    if ($subtext == false)
 		    	$subtext = 'Notificación';
 		    	
-		    $server_key = 'AAAAWxfFqsM:APA91bGDfAbEo7r1rngGPzRg9YnJqI_VtGzSeT_ump27_v4wgZDbTspwqQp5VlGFFPlYZKCAjCb93ye_1peI1yLDNpGYceDd07r-L6F1UJMDQJ_mxKOBWAGbo6GomCtDRbLJaR_nuwzI';
+		    $server_key = '';
 			$client = new Client();
 			$client->setApiKey($server_key);
 			$client->injectGuzzleHttpClient(new \GuzzleHttp\Client());
