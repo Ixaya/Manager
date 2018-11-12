@@ -58,10 +58,10 @@ class MY_Model extends CI_Model {
 	    if ($this->soft_delete == false)
         	return $this->db->get_where($this->table_name, array($this->primary_key => $id))->row();
         	
-        return $this->db->get_where($this->table_name, array($this->primary_key => $id,'delete' => 0))->row();
+        return $this->db->get_where($this->table_name, array($this->primary_key => $id,'deleted' => 0))->row();
     }
 
-    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method='left') {
+    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '') {
         $data = array();
         if ($fields != '') {
             $this->db->select($fields);
@@ -71,7 +71,51 @@ class MY_Model extends CI_Model {
 			$this->db->where($this->where_override);
 			
 		if ($this->soft_delete)
-			$this->db->where('delete', 0);
+			$this->db->where('deleted', 0);
+		
+        if (!empty($where)) {
+            $this->db->where($where);
+        }
+
+        if ($table != '') {
+            $this->table_name = $table;
+        }
+
+        if ($limit != '') {
+            $this->db->limit($limit);
+        }
+
+        if ($order_by != '') {
+            $this->db->order_by($order_by);
+        }
+
+        if ($group_by != '') {
+            $this->db->group_by($group_by);
+        }
+
+        $Q = $this->db->get($this->table_name);
+
+        if ($Q->num_rows() > 0) {
+            foreach ($Q->result_array() as $row) {
+                $data[] = $row;
+            }
+        }
+        $Q->free_result();
+
+        return $data;
+    }
+    
+    public function get_all_join($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method='left') {
+        $data = array();
+        if ($fields != '') {
+            $this->db->select($fields);
+        }
+
+		if($this->where_override)
+			$this->db->where($this->where_override);
+			
+		if ($this->soft_delete)
+			$this->db->where('deleted', 0);
 		
         if (!empty($where)) {
             $this->db->where($where);
@@ -108,6 +152,8 @@ class MY_Model extends CI_Model {
 
         return $data;
     }
+    
+    
     public function get_updated($last_update, $fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '') {
         $data = array();
         if ($fields != '') {
@@ -118,7 +164,7 @@ class MY_Model extends CI_Model {
 			$this->db->where($this->where_override);
 			
 		if ($this->soft_delete)
-			$this->db->where('delete', 0);
+			$this->db->where('deleted', 0);
 		
 		$this->db->where(array('last_update >' => $last_update));
 		
@@ -194,7 +240,7 @@ class MY_Model extends CI_Model {
             return $this->db->delete($this->table_name);
         
         
-        $data['delete'] = 1;
+        $data['deleted'] = 1;
         $data['enabled'] = 0;
         $data['last_update'] = date('Y-m-d H:i:s');
 //         $data['delete_by'] = $this->user_id;
@@ -209,7 +255,7 @@ class MY_Model extends CI_Model {
 	    if ($this->soft_delete == false)
 	    	return $this->db->delete($this->table_name);    
 	    
-    	$params['delete'] = 1;
+    	$params['deleted'] = 1;
     	$params['status'] = 0;
         $params['last_update'] = date('Y-m-d H:i:s');
 	    
@@ -227,7 +273,7 @@ class MY_Model extends CI_Model {
 			$this->db->where($this->where_override);
 			
 		if ($this->soft_delete)
-			$this->db->where('delete', 0);
+			$this->db->where('deleted', 0);
 			
         $query = $this->db->query($query, $arguments);
 		foreach ($query->result_array() as $row)
@@ -246,7 +292,7 @@ class MY_Model extends CI_Model {
 			$this->db->where($this->where_override);
 			
 		if ($this->soft_delete)
-			$this->db->where('delete', 0);
+			$this->db->where('deleted', 0);
 			
         $query = $this->db->query($query, $arguments);
 		foreach ($query->result_array() as $row)
