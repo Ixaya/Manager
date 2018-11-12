@@ -1,4 +1,3 @@
-
 <?php (defined('BASEPATH')) OR exit('No direct script access allowed');
 
 class MY_Model extends CI_Model {
@@ -6,8 +5,8 @@ class MY_Model extends CI_Model {
     protected $table_name = '';
     protected $primary_key = 'id';
     protected $database_name = '';
+    
     protected $connection_name = '';
-    protected $soft_delete = false;
     
     //example: $where_override = array('client_id' => $this->override_id);
     //example: $override_column = 'client_id';    
@@ -15,20 +14,18 @@ class MY_Model extends CI_Model {
     protected $where_override = NULL;
     protected $override_column = NULL;
     protected $override_id = NULL;
-
-
-    
-    
+	protected $soft_delete = false;
+	
     public function __construct() {
         parent::__construct();
 
-		if (count($this->connection_name)) {
+		if (!empty($this->connection_name)) {
          	$this->db = $this->load->database($this->connection_name, TRUE);   
 		} else {
 			$this->load->database();
 		}
 		
-		if (count($this->database_name)) {
+		if (!empty($this->database_name)) {
             $this->db->db_select($this->database_name);
             //log_message('info', 'Connecting to: '.$this->database_name);
         }
@@ -53,21 +50,18 @@ class MY_Model extends CI_Model {
 			}
 
         }
-        
-/*
-        if(count($this->client_id) && isset($_SESSION['client_id'])){
-	        $this->client_id = $_SESSION['client_id'];
-        }
-*/
     }
     public function get($id) {
 	    if($this->where_override)
 			$this->db->where($this->where_override);
-			
-        return $this->db->get_where($this->table_name, array($this->primary_key => $id))->row();
+    
+	    if ($this->soft_delete == false)
+        	return $this->db->get_where($this->table_name, array($this->primary_key => $id))->row();
+        	
+        return $this->db->get_where($this->table_name, array($this->primary_key => $id,'delete' => 0))->row();
     }
 
-    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '') {
+    public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method='left') {
         $data = array();
         if ($fields != '') {
             $this->db->select($fields);
@@ -75,13 +69,20 @@ class MY_Model extends CI_Model {
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
+			
+		if ($this->soft_delete)
+			$this->db->where('delete', 0);
 		
-        if (count($where)) {
+        if (!empty($where)) {
             $this->db->where($where);
         }
 
         if ($table != '') {
             $this->table_name = $table;
+        }
+        
+        if ($join_table != '' && $join_where != '') {
+            $this->db->join($join_table, $join_where, $join_method);
         }
 
         if ($limit != '') {
@@ -116,11 +117,13 @@ class MY_Model extends CI_Model {
 		if($this->where_override)
 			$this->db->where($this->where_override);
 			
-// 		$this->db->where(array('client_id' => $this->client_id));
+		if ($this->soft_delete)
+			$this->db->where('delete', 0);
+		
 		$this->db->where(array('last_update >' => $last_update));
 		
 		
-        if (count($where)) {
+        if (!empty($where)) {
             $this->db->where($where);
         }
 
@@ -156,7 +159,6 @@ class MY_Model extends CI_Model {
     public function insert($data) {
 		$data['last_update'] = date('Y-m-d H:i:s');
         //$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
-// 		$data['client_id'] = $this->client_id;
 
 		if($this->override_column && $this->override_id)
 		{
@@ -173,17 +175,9 @@ class MY_Model extends CI_Model {
 
     public function update($data, $id) {
         $data['last_update'] = date('Y-m-d H:i:s');
-    
-		// if we don't have client_id in array then get this from constructor
-		// note, system management modules, override client_id, (Ixaya Management)
-		// that is why we use this validation.
-/*
-        if (!in_array("client_id", $data)) {
-	        $data['client_id'] = $this->client_id;
-        }
-*/
+
 		if($this->where_override)
-			$this->db->where($this->where_override);
+			$this->db->where($this->where_override);			
         
         //$data['updated_from_ip'] = $this->input->ip_address();
 		if (is_array($id)) 
@@ -192,7 +186,7 @@ class MY_Model extends CI_Model {
         	$this->db->where($this->primary_key, $id);
         return $this->db->update($this->table_name, $data);
     }
-
+    
     public function delete($id) {
         $this->db->where($this->primary_key, $id);
         
@@ -201,15 +195,19 @@ class MY_Model extends CI_Model {
         
         
         $data['delete'] = 1;
-        $data['status'] = 0;
+        $data['enabled'] = 0;
         $data['last_update'] = date('Y-m-d H:i:s');
 //         $data['delete_by'] = $this->user_id;
         
         return $this->db->update($this->table_name, $data);
+
     }
+    
     public function delete_array($params) {
+	    $this->db->where($params);
+	    
 	    if ($this->soft_delete == false)
-	    	return $this->db->delete($this->table_name, $params);
+	    	return $this->db->delete($this->table_name);    
 	    
     	$params['delete'] = 1;
     	$params['status'] = 0;
@@ -221,18 +219,22 @@ class MY_Model extends CI_Model {
     public function query($query){
         return $this->db->query($query)->result();
 	}
-	public function query_as_array_auto($query, $arguments = NULL){
-			$data = array();
-//         $this->db->where(array('client_id' => $this->client_id));
+	public function query_as_array_auto($query, $arguments = NULL)
+	{
+		$data = array();
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
+			
+		if ($this->soft_delete)
+			$this->db->where('delete', 0);
 			
         $query = $this->db->query($query, $arguments);
 		foreach ($query->result_array() as $row)
 		{
 		    $data[] = $row;
 		}
+		
 		//echo($this->db->last_query());
         
         return $data;
@@ -243,6 +245,9 @@ class MY_Model extends CI_Model {
 		if($this->where_override)
 			$this->db->where($this->where_override);
 			
+		if ($this->soft_delete)
+			$this->db->where('delete', 0);
+			
         $query = $this->db->query($query, $arguments);
 		foreach ($query->result_array() as $row)
 		{
@@ -250,4 +255,22 @@ class MY_Model extends CI_Model {
 		}
         return $data;
 	}
+	
+	public function replace($data) {
+		$data['last_update'] = date('Y-m-d H:i:s');
+	    //$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
+	// 		$data['client_id'] = $this->client_id;
+	
+		if($this->override_column && $this->override_id)
+		{
+			$data[$this->override_column] = $this->override_id;
+		}
+		
+	    $success = $this->db->replace($this->table_name, $data);
+	    if ($success) {
+	        return $this->db->insert_id();
+	    } else {
+	        return FALSE;
+	    }
+    }
 }
