@@ -61,7 +61,7 @@
 
                     </button>
     	            <img class="navbar-brand" src="<?= base_url() ?>assets/admin/images/logo_small.png" />
-					<a class="navbar-brand" href="<?= base_url('admin/dashboard') ?>">Welcome <?=$this->logged_in_name?></a></div>
+					<a class="navbar-brand" href="<?= base_url('admin/dashboard') ?>">Welcome <?=$this->logged_in_name?></a>
                 </div>
 
                 <!-- /.navbar-header -->
