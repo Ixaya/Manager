@@ -105,19 +105,21 @@ class MY_Model extends CI_Model {
         return $data;
     }
     
-    public function get_all_join($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method='left') {
+    public function get_all_join($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method='left')
+	{
         $data = array();
         if ($fields != '') {
             $this->db->select($fields);
         }
 
-		if($this->where_override)
+		if($this->where_override){
 			$this->db->where($this->where_override);
+		}
 			
 		if ($this->soft_delete)
 			$this->db->where('deleted', 0);
 		
-        if (!empty($where)) {
+        if (count($where)) {
             $this->db->where($where);
         }
 
@@ -126,7 +128,21 @@ class MY_Model extends CI_Model {
         }
         
         if ($join_table != '' && $join_where != '') {
-            $this->db->join($join_table, $join_where, $join_method);
+	        
+	        $i = 0;
+	        if(is_array($join_table) && is_array($join_where))
+	        {
+		        
+		        foreach($join_table as $jt)
+		        {
+			        $this->db->join($join_table[$i], $join_where[$i], $join_method);
+			    	$i++;    
+		        }
+	        } else {
+		    	$this->db->join($join_table, $join_where, $join_method);    
+	        }
+	        
+            
         }
 
         if ($limit != '') {
