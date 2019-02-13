@@ -18,7 +18,7 @@ class Auth extends MY_Controller {
 
     public function index() {
         if ($this->ion_auth->logged_in()) {
-            redirect('admin/dashboard', 'refresh');
+            $this->_redirect_to_backend();
         } else {
             $data['page'] = $this->config->item('ci_my_admin_template_dir_public') . "login_form";
             $data['module'] = 'auth';
@@ -37,7 +37,7 @@ class Auth extends MY_Controller {
             if ($this->ion_auth->login($this->input->post('email'), $this->input->post('password'), $remember)) {
                 $this->session->set_flashdata('message', $this->ion_auth->messages());
                 
-                redirect('/admin/dashboard', 'refresh');
+                $this->_redirect_to_backend();
             } else {
                 $this->session->set_flashdata('message', $this->ion_auth->errors());
                 redirect('auth', 'refresh');
@@ -56,6 +56,16 @@ class Auth extends MY_Controller {
         redirect('auth', 'refresh');
     }
 
+	private function _redirect_to_backend(){
+		$redirect_url = $this->session->userdata('auth_redirect');
+		if (!empty($redirect_url)){
+			$this->session->unset_userdata('auth_redirect');
+			redirect($redirect_url, 'refresh');
+		} else {
+			redirect("auth/", 'refresh');
+		}
+		
+	}
 }
 
 /* End of file auth.php */
