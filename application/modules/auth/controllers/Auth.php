@@ -62,7 +62,7 @@ class Auth extends MY_Controller {
 			$this->session->unset_userdata('auth_redirect');
 			redirect($redirect_url, 'refresh');
 		} else {
-			redirect("auth/", 'refresh');
+			redirect("/admin/dashboard", 'refresh');
 		}
 		
 	}
