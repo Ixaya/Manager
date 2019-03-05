@@ -119,7 +119,7 @@ class MY_Model extends CI_Model {
 		if ($this->soft_delete)
 			$this->db->where('deleted', 0);
 		
-        if (count($where)) {
+        if (!empty($where)) {
             $this->db->where($where);
         }
 
@@ -279,42 +279,60 @@ class MY_Model extends CI_Model {
     }
     
     public function query($query){
-        return $this->db->query($query)->result();
+        $query = $this->db->query($query, $arguments);
+        if (empty($query))
+        	return [];
+		
+        return $query->result();
 	}
-	public function query_as_array_auto($query, $arguments = NULL)
-	{
+	public function query_auto($query, $arguments = NULL){
 		$data = array();
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
-			
+		
 		if ($this->soft_delete)
 			$this->db->where('deleted', 0);
 			
         $query = $this->db->query($query, $arguments);
-		foreach ($query->result_array() as $row)
+        $this->db->reset_query();
+        if (empty($query))
+        	return [];
+        
+		foreach ($query->result() as $row)
 		{
 		    $data[] = $row;
 		}
-		
-		//echo($this->db->last_query());
         
         return $data;
 	}
-	public function query_as_array($query, $arguments = NULL){
-        $data = array();
-        
+	public function query_as_array($query, $arguments = NULL){		
+        $query = $this->db->query($query, $arguments);
+        if (empty($query))
+        	return [];
+		
+        return $query->result_array();
+	}
+	public function query_as_array_auto($query, $arguments = NULL){
+		$data = array();
+
 		if($this->where_override)
 			$this->db->where($this->where_override);
-			
+		
 		if ($this->soft_delete)
 			$this->db->where('deleted', 0);
 			
         $query = $this->db->query($query, $arguments);
+        $this->db->reset_query();
+        
+        if (empty($query))
+        	return [];
+        
 		foreach ($query->result_array() as $row)
 		{
 		    $data[] = $row;
 		}
+        
         return $data;
 	}
 	
