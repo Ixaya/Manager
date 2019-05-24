@@ -258,7 +258,7 @@ class MY_Model extends CI_Model {
 		$data['deleted'] = 1;
 		$data['enabled'] = 0;
 		$data['last_update'] = date('Y-m-d H:i:s');
-		        $data['delete_by'] = $this->user_id;
+    $data['deleted_by'] = $this->user_id;
 
 		return $this->db->update($this->table_name, $data);
 
@@ -350,5 +350,47 @@ class MY_Model extends CI_Model {
 		} else {
 			return FALSE;
 		}
+	}
+	
+	public function empty_object($properties = null, $include_id = TRUE)
+	{
+		if(!$properties)
+		{
+			$table = $this->table_name;
+			$properties = $this->db->list_fields($table);
+
+			$properties = array_flip($properties);
+			//array_splice($properties, 0);
+			if(!$include_id)
+			{
+				if (in_array('id', $properties)) {
+					unset($properties['id']);
+				}
+			}
+		}
+		//clean any value from array
+		$properties = array_fill_keys(array_keys($properties), '');
+		$obj = (object)$properties;
+		return $obj;
+	}
+
+	public function clean_string($text)
+	{
+		$utf8 = array(
+			'/[áàâãªä]/u'   =>   'a',
+			'/[íìîï]/u'     =>   'i',
+			'/[éèêë]/u'     =>   'e',
+			'/[óòôõºö]/u'   =>   'o',
+			'/[úùûü]/u'     =>   'u',
+			'/ç/'           =>   'c',
+			'/ñ/'           =>   'n',
+			'/–/'           =>   '_', // UTF-8 hyphen to "normal" hyphen
+			'/[’‘‹›‚]/u'    =>   '_', // Literally a single quote
+			'/[“”«»„]/u'    =>   '_', // Double quote
+			'/ /'           =>   '_', // nonbreaking space (equiv. to 0x160)
+		);
+		$clean = strtolower(rtrim($text));//Remove right spaces and convert to lower case
+		$clean = preg_replace(array_keys($utf8), array_values($utf8), $clean); //Convert special letters
+		return preg_replace("/[^A-Za-z0-9_]/", '', $clean); // Remove special characters
 	}
 }
