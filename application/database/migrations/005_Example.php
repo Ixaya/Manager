@@ -20,6 +20,9 @@ class Migration_Example extends CI_Migration {
             ),
             'last_update' => array(
                 'type' => 'TIMESTAMP'
+            ),
+            'create_date' => array(
+                'type' => 'TIMESTAMP'
             )
         ));
         $this->dbforge->add_key('id', TRUE);

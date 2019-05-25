@@ -2,52 +2,54 @@
 
 class Examples extends Admin_Controller {
 
-    function __construct() {
-        parent::__construct();
+	function __construct() {
+		parent::__construct();
 
-        $this->load->model(array('admin/example'));
-    }
+		$this->load->model(array('admin/example'));
+	}
 
-    public function index() {	    
-        $examples = $this->example->get_all();
-        $data['examples'] = $examples;
-        $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "examples_list";
-        $this->load->view($this->_container, $data);
-    }
+	public function index() {
+		$data['examples'] = $this->example->get_all();
 
-    public function create() {
-        if ($this->input->post('title')) {
-            $data['title'] = $this->input->post('title');
-            $data['example'] = $this->input->post('example');
-            $this->example->insert($data);
-            redirect('/admin/examples', 'refresh');
-        }
+		$data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "example/examples";
+		$this->load->view($this->_container, $data);
+	}
 
-        $this->load->helper(array('form','ui'));
-        $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "examples_create";
-        $this->load->view($this->_container, $data);
-    }
+	public function create() {
+		$this->edit();
+	}
 
-    public function edit($id) {
-        if ($this->input->post('title')) {
-            $data['title'] = $this->input->post('title');
-            $data['example'] = $this->input->post('example');
-            $this->example->update($data, $id);
+	public function edit($id = NULL)
+	{
+		if ($this->input->post('title')) {
+			$data['title'] = $this->input->post('title');
+			$data['example'] = $this->input->post('example');
 
-            redirect('/admin/examples', 'refresh');
-        }
+			if ($id){
+				$this->example->update($data, $id);
+			} else{
+				$data['create_date'] = date('Y-m-d H:i:s');
+				$id = $this->example->insert($data);
+			}
 
-        $this->load->helper(array('form','ui'));
-        $example = $this->example->get($id);
-        $data['example'] = $example;
-        $data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "examples_edit";
-        $this->load->view($this->_container, $data);
-    }
+			redirect("/admin/examples/edit/$id", 'refresh');
+		}
 
-    public function delete($id) {
-        $this->example->delete($id);
+		if ($id)
+			$data['example'] = $this->example->get($id);
+		else
+			$data['example'] = $this->example->empty_object();
 
-        redirect('/admin/examples', 'refresh');
-    }
+		$data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "example/example";
+
+		$this->load->helper(array('form','ui'));
+		$this->load->view($this->_container, $data);
+	}
+
+	public function delete($id) {
+		$this->example->delete($id);
+
+		redirect('/admin/examples', 'refresh');
+	}
 
 }
