@@ -50,6 +50,8 @@ class MY_Model extends CI_Model {
 			}
 		}
 	}
+	
+	
 	public function get($id) {
 		if($this->where_override)
 			$this->db->where($this->where_override);
@@ -59,6 +61,26 @@ class MY_Model extends CI_Model {
 
 		return $this->db->get_where($this->table_name, array($this->primary_key => $id,'deleted' => 0))->row();
 	}
+		public function get_where($where) {
+		if($this->where_override)
+			$this->db->where($this->where_override);
+
+		if ($this->soft_delete)
+			$this->db->where('deleted', 0);
+
+		return $this->db->get_where($this->table_name, $where)->row();
+	}
+	public function get_array($id, $table = null)
+	{
+		if(!$table)
+			$table = $this->table_name;
+
+		if($this->where_override)
+			$this->db->where($this->where_override);
+
+		return $this->db->get_where($table, array($this->primary_key => $id))->row_array();
+	}
+
 
 	public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '') {
 		$data = array();
@@ -233,7 +255,6 @@ class MY_Model extends CI_Model {
 			return FALSE;
 		}
 	}
-
 	public function update($data, $id) {
 		$data['last_update'] = date('Y-m-d H:i:s');
 
@@ -246,6 +267,25 @@ class MY_Model extends CI_Model {
 		else
 			$this->db->where($this->primary_key, $id);
 		return $this->db->update($this->table_name, $data);
+	}
+	public function update_where($data, $where) {
+		if (empty($where))
+			return false;
+
+		if($this->where_override)
+			$this->db->where($this->where_override);
+
+		$this->db->where($where);
+
+		$data['last_update'] = date('Y-m-d H:i:s');
+		return $this->db->update($this->table_name, $data);
+	}
+	public function upsert($data, $id = null)
+	{
+		if($id)
+			return $this->update($data, $id);
+		else
+			return $this->insert($data);
 	}
 
 	public function delete($id) {
@@ -276,16 +316,37 @@ class MY_Model extends CI_Model {
 
 		return $this->db->update($this->table_name, $params);
 	}
+	public function delete_where($where) {
+		if (empty($where))
+			return false;
 
-	public function query($query){
+		$this->db->where($where);
+
+		if ($this->soft_delete == false)
+			return $this->db->delete($this->table_name);
+
+		$data['deleted'] = 1;
+		$data['enabled'] = 0;
+		$data['last_update'] = date('Y-m-d H:i:s');
+		//$data['delete_by'] = $this->user_id;
+
+		return $this->db->update($this->table_name, $data);
+	}
+
+	public function query($query, $arguments = NULL){
 		$query = $this->db->query($query, $arguments);
+
+		if ($query === true)
+			return true;
+
 		if (empty($query))
 			return [];
 
 		return $query->result();
 	}
+	
 	public function query_auto($query, $arguments = NULL){
-		$data = array();
+		$data = [];
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
@@ -313,7 +374,7 @@ class MY_Model extends CI_Model {
 		return $query->result_array();
 	}
 	public function query_as_array_auto($query, $arguments = NULL){
-		$data = array();
+		$data = [];
 
 		if($this->where_override)
 			$this->db->where($this->where_override);
@@ -577,4 +638,146 @@ class MY_Model extends CI_Model {
 		}
 
 	}
+	
+	public function get_datatable($config, $where = NULL){
+		if (empty($config)){
+			$dummy_post = '{"draw":"1","columns":[{"data":"0","name":"","searchable":"true","orderable":"true","search":{"value":"","regex":"false"}},{"data":"1","name":"","searchable":"true","orderable":"true","search":{"value":"","regex":"false"}}],"order":[{"column":"0","dir":"asc"}],"start":"0","length":"10","search":{"value":"","regex":"false"}}';
+			$config = json_decode($dummy_post, true);
+		}
+
+		$where_like = [];
+		$where_array = [];
+		$search_query = "";
+		$limit_query = "";
+		$order_query = "";
+		$response = [];
+
+		if(empty($this->table_columns))
+			return ['error'=> 'Columns not declared'];
+
+		if($where != NULL)
+			$where_array[] = $where;
+
+		if($this->where_override){
+			foreach($this->where_override as $wk=>$wo){
+				$where_array[] = $wk." = ".$wo;
+			}
+			$response['post'] = json_encode($this->where_override);
+		}
+
+		if(isset($config['search']) && !empty($config['search']['value'])){
+			$word_post =htmlspecialchars($config['search']['value']);
+			$words = explode(" ", $word_post);
+
+			foreach($words as $word){
+				$like = array();
+
+				//Restructure so its only one foreach
+				$types = array_column($this->table_columns, 'type');
+				$colsKeys = array_keys($types, "STRING");
+
+				if(!empty($colsKeys)){
+					foreach($colsKeys as $key){
+						$like[] ="lower(`".$this->table_columns[$key]['column']."`) like lower('%".$word."%')";
+					}
+				}
+
+				$types = array_column($this->table_columns, 'type');
+				$colsKeys = array_keys($types, "INT");
+
+				if(!empty($colsKeys)){
+					foreach($colsKeys as $key){
+						$like[] ="CAST(`".$this->table_columns[$key]['column']."` as CHAR) LIKE '%".$word."%'";
+					}
+				}
+
+				$where_like[] = implode(" OR ", $like);
+			}
+
+			if(count($where_like) > 0){
+				$search_query = "( ".implode(") AND (", $where_like)." )";
+				$where_array[] = $search_query;
+			}
+		}
+
+		$length = 10;
+		if(isset($config['length']))
+			$length = intval($config['length']);
+
+		if($config['length'] != '-1' && isset($config['start']))
+		{
+			$start = intval($config['start']);
+			$limit_query .= "LIMIT $start, $length";
+		}
+
+		$colNames = array_column($this->table_columns, 'column');
+
+		if(!empty($config['order'])){
+			foreach($config['order'] as $col){
+				if(isset($colNames[intval($col['column'])])){
+					$order_query .= " `".$colNames[intval($col['column'])]."` ".$col['dir'].",";
+				}
+			}
+			if($order_query != ""){
+				$order_query = " ORDER BY ".rtrim($order_query, ",");
+			}
+		}
+
+		if(count($where_array) > 0)
+			$search_query = " WHERE ".implode(" AND ", $where_array);
+
+		//Remove count from query
+		$result = $this->query_as_array("SELECT *
+												FROM ".$this->table_name."
+												".$search_query."
+												".$order_query." ".$limit_query, null);
+
+		if(count($result)>0){
+			$list_results = array();
+			$urlreferences = array();
+
+			$colNames = array_column($this->table_columns, 'column');
+			foreach($result as $row){
+				$item = array();
+
+				foreach($colNames as $ky=>$col){
+					if(isset($this->table_columns[$ky]['fx'])){
+						$func = $this->table_columns[$ky]['fx'];
+						eval('$item[] = '.$func.';');
+					}else{
+						$item[] = $row[$col];
+					}
+				}
+
+				if(!empty($item)){
+					$list_results[] = $item;
+				}
+			}
+
+			$count_result = $this->query_as_array("SELECT count(id) AS total FROM ".$this->table_name." ".$search_query);
+			$response['recordsTotal'] = intval($count_result[0]['total']);
+			$response['recordsFiltered'] = intval($count_result[0]['total']);
+
+		}else{
+			$item = array();
+			foreach($this->table_columns as $column){
+				$item[]= "<td>No data</td>";
+			}
+
+			$list_results[] = $item;
+			$response['recordsTotal'] = 0;
+			$response['recordsFiltered'] = 0;
+		}
+
+
+
+		$response['draw'] = $config['draw'];
+		$response['data'] = $list_results;
+
+
+
+		return $response;
+	}
+	
+	
 }
