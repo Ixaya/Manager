@@ -75,4 +75,36 @@ class MX_Config extends CI_Config
 			return $this->item($file);
 		}
 	}
+	/**
+	 * Image URL
+	 *
+	 * Returns image_url [. uri_string]
+	 *
+	 * @uses	CI_Config::_uri_string()
+	 *
+	 * @param	string|string[]	$uri	URI string or an array of segments
+	 * @param	string	$protocol
+	 * @return	string
+	 */
+	public function image_url($uri = '', $protocol = NULL)
+	{
+		$image_url = $this->slash_item('image_url');
+		if (empty($image_url))
+			$image_url = $this->slash_item('base_url');
+
+		if (isset($protocol))
+		{
+			// For protocol-relative links
+			if ($protocol === '')
+			{
+				$image_url = substr($image_url, strpos($image_url, '//'));
+			}
+			else
+			{
+				$image_url = $protocol.substr($image_url, strpos($image_url, '://'));
+			}
+		}
+
+		return $image_url.$this->_uri_string($uri);
+	}
 }
