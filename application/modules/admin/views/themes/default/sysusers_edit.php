@@ -91,7 +91,7 @@
                             <?php echo form_open_multipart(base_url('admin/sysusers/do_upload/'.$user->id));?>	
                                 <div class="form-group">
                                     <label>Current Image</label>
-                                    <?php if(count($user->image_name) > 0) : ?>
+                                    <?php if(!empty($user->image_name)) : ?>
 										<div> <img height="200px" src="<?php echo($user->image_url); ?>" /> </div>
 									<?php endif; ?>
                                 </div>

@@ -24,22 +24,23 @@
 <script src="<?= base_url() ?>assets/admin/js/moment.min.js"></script>
 <script src="<?= base_url() ?>assets/admin/js/bootstrap-datetimepicker.min.js"></script>
 
-<script>
-    $(document).ready(function() {
-        $('#dataTables-main').DataTable({
-	        pageLength: 10,
-			lengthMenu: [[10, 20, 25, 50, 100, -1], [10, 20, 25, 50, 100, 'All']],
-            responsive: true
-        });
-
-         $('#dataTables-detail').DataTable({
-            responsive: true
-        });
-    });
-</script>
 <script type="text/javascript" charset="utf-8">
 	$(document).ready(function() {
-       if(document.getElementById('dataTables-tree')){
+		if($('#dataTables-main')){
+			$('#dataTables-main').DataTable({
+				pageLength: 10,
+				lengthMenu: [[10, 20, 25, 50, 100, -1], [10, 20, 25, 50, 100, 'All']],
+				responsive: true
+			});
+		}
+
+		if($('#dataTables-detail')){
+			 $('#dataTables-detail').DataTable({
+				responsive: true
+			});
+		}
+
+		if($('#dataTables-tree')){
 			var table = $('#dataTables-tree').DataTable({
 				pageLength: 5,
 				lengthMenu: [3, 5, 10, 25, 50],
@@ -47,47 +48,40 @@
 				treetable: {
 					expandable: true
 				}
-			} );
+			});
 		}
-		
-		if(document.getElementById('dataTables-server')){
-			<?php $ajax_url = ""; if(isset($data_table_url)){ $ajax_url= $data_table_url; } ?>
-			var p = $( "#dataTables-server" );
-			var table = $('#dataTables-server').DataTable({
-					"processing": true,
-					"serverSide": true,
-					"ajax": {
-						"url": "<?= base_url().$ajax_url ?>",
-						"type":"POST",
-						"dataSrc": function ( json ) {
-                //Make your callback here.
-                $('body,html').animate({
-						scrollTop: 0
-        		}, 400);
-                //alert("Done!");
-                return json.data;
-            }
-        			}
-			} );
-		}
-
-	} );
+	});
 </script>
 
+<?php if (isset($data_table_url)): ?>
 <script type="text/javascript" charset="utf-8">
-	$(document).ready(function() {
+	$(document).ready(function()
+	{
+		if($("#dataTables-server"))
+		{
+			$('#dataTables-server').DataTable({
+				lengthMenu: [10, 25, 50, 100, 200],
+				processing: true,
+				serverSide: true,
+				autoWidth: false,
+				responsive: true,
+				ajax: {
+					"url": "<?= base_url($data_table_url) ?>",
+					"type":"POST",
+					"dataSrc": function (json) {
+						$(window).scrollTop($('#dataTables-server').offset().top);
 
-		var table = $('#dataTables-tree').DataTable({
-			pageLength: 5,
-			lengthMenu: [3, 5, 10, 25, 50],
-			ordering: false,
-			treetable: {
-				expandable: true
-			}
-		} );
-
+						return json.data;
+					}
+				},
+				columnDefs: [
+					{ targets: 'no-sort', orderable: false }
+				]
+			});
+		}
 	} );
 </script>
+<?php endif; ?>
 <script type="text/javascript" charset="utf-8">
 	if (typeof needsCalendar !== 'undefined')
 		{

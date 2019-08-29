@@ -726,7 +726,6 @@ class MY_Model extends CI_Model {
 		if(count($where_array) > 0)
 			$search_query = " WHERE ".implode(" AND ", $where_array);
 
-		//Remove count from query
 		$result = $this->query_as_array("SELECT *
 												FROM ".$this->table_name."
 												".$search_query."
@@ -768,13 +767,9 @@ class MY_Model extends CI_Model {
 			$response['recordsTotal'] = 0;
 			$response['recordsFiltered'] = 0;
 		}
-
-
-
+		
 		$response['draw'] = $config['draw'];
 		$response['data'] = $list_results;
-
-
 
 		return $response;
 	}

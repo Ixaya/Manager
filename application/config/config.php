@@ -527,6 +527,7 @@ $config['proxy_ips'] = '';
 |--------------------------------------------------------------------------
 |
 */
+/*
 function my_error_handler($errno, $errstr, $errfile, $errline)
 {
     if (!(error_reporting() & $errno))
@@ -572,3 +573,4 @@ assert_options(ASSERT_WARNING,    0);
 assert_options(ASSERT_BAIL,       0);
 assert_options(ASSERT_QUIET_EVAL, 0);
 assert_options(ASSERT_CALLBACK, 'my_assert_handler');
+*/
