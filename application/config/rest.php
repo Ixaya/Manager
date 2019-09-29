@@ -19,14 +19,14 @@ $config['force_https'] = FALSE;
 |
 | The default format of the response
 |
-| 'array':      Array data structure
-| 'csv':        Comma separated file
-| 'json':       Uses json_encode(). Note: If a GET query string
-|               called 'callback' is passed, then jsonp will be returned
-| 'html'        HTML using the table library in CodeIgniter
-| 'php':        Uses var_export()
+| 'array':	  Array data structure
+| 'csv':		Comma separated file
+| 'json':	   Uses json_encode(). Note: If a GET query string
+|			   called 'callback' is passed, then jsonp will be returned
+| 'html'		HTML using the table library in CodeIgniter
+| 'php':		Uses var_export()
 | 'serialized':  Uses serialize()
-| 'xml':        Uses simplexml_load_string()
+| 'xml':		Uses simplexml_load_string()
 |
 */
 $config['rest_default_format'] = 'json';
@@ -44,14 +44,14 @@ $config['rest_default_format'] = 'json';
 |
 */
 $config['rest_supported_formats'] = [
-    'json',
-    'array',
-    'csv',
-    'html',
-    'jsonp',
-    'php',
-    'serialized',
-    'xml',
+	'json',
+	'array',
+	'csv',
+	'html',
+	'jsonp',
+	'php',
+	'serialized',
+	'xml',
 ];
 
 /*
@@ -103,11 +103,11 @@ $config['rest_realm'] = 'REST API';
 |
 | Set to specify the REST API requires to be logged in
 |
-| FALSE     No login required
+| FALSE	 No login required
 | 'basic'   Unsecure login
 | 'digest'  More secure login
 | 'session' Check for a PHP session variable. See 'auth_source' to set the
-|           authorization key
+|		   authorization key
 |
 */
 $config['rest_auth'] = FALSE;
@@ -119,8 +119,8 @@ $config['rest_auth'] = FALSE;
 |
 | Is login required and if so, the user store to use
 |
-| ''        Use config based users or wildcard testing
-| 'ldap'    Use LDAP authentication
+| ''		Use config based users or wildcard testing
+| 'ldap'	Use LDAP authentication
 | 'library' Use a authentication library
 |
 | Note: If 'rest_auth' is set to 'session' then change 'auth_source' to the name of the session variable
@@ -169,10 +169,10 @@ $config['auth_library_function'] = '';
 |
 | e.g:
 |
-|           $config['auth_override_class_method']['deals']['view'] = 'none';
-|           $config['auth_override_class_method']['deals']['insert'] = 'digest';
-|           $config['auth_override_class_method']['accounts']['user'] = 'basic';
-|           $config['auth_override_class_method']['dashboard']['*'] = 'none|digest|basic';
+|		   $config['auth_override_class_method']['deals']['view'] = 'none';
+|		   $config['auth_override_class_method']['deals']['insert'] = 'digest';
+|		   $config['auth_override_class_method']['accounts']['user'] = 'basic';
+|		   $config['auth_override_class_method']['dashboard']['*'] = 'none|digest|basic';
 |
 | Here 'deals', 'accounts' and 'dashboard' are controller names, 'view', 'insert' and 'user' are methods within. An asterisk may also be used to specify an authentication method for an entire classes methods. Ex: $config['auth_override_class_method']['dashboard']['*'] = 'basic'; (NOTE: leave off the '_get' or '_post' from the end of the method name)
 | Acceptable values are; 'none', 'digest' and 'basic'.
@@ -194,9 +194,9 @@ $config['auth_override_class_method']['login']['*'] = 'none';
 |
 | example:
 |
-|            $config['auth_override_class_method_http']['deals']['view']['get'] = 'none';
-|            $config['auth_override_class_method_http']['deals']['insert']['post'] = 'none';
-|            $config['auth_override_class_method_http']['deals']['*']['options'] = 'none';
+|			$config['auth_override_class_method_http']['deals']['view']['get'] = 'none';
+|			$config['auth_override_class_method_http']['deals']['insert']['post'] = 'none';
+|			$config['auth_override_class_method_http']['deals']['*']['options'] = 'none';
 */
 
 // ---Uncomment list line for the wildard unit test
@@ -221,10 +221,10 @@ $config['rest_valid_logins'] = ['admin' => '1234'];
 |
 | Usage:
 | 1. Set to TRUE and select an auth option for extreme security (client's IP
-|    address must be in whitelist and they must also log in)
+|	address must be in whitelist and they must also log in)
 | 2. Set to TRUE with auth set to FALSE to allow whitelisted IPs access with no login
 | 3. Set to FALSE but set 'auth_override_class_method' to 'whitelist' to
-|    restrict certain methods to IPs in your whitelist
+|	restrict certain methods to IPs in your whitelist
 |
 */
 $config['rest_ip_whitelist_enabled'] = FALSE;
@@ -301,15 +301,15 @@ $config['rest_keys_table'] = 'user_key';
 |
 | Default table schema:
 |   CREATE TABLE `keys` (
-|       `id` INT(11) NOT NULL AUTO_INCREMENT,
-|       `user_id` INT(11) NOT NULL,
-|       `key` VARCHAR(40) NOT NULL,
-|       `level` INT(2) NOT NULL,
-|       `ignore_limits` TINYINT(1) NOT NULL DEFAULT '0',
-|       `is_private_key` TINYINT(1)  NOT NULL DEFAULT '0',
-|       `ip_addresses` TEXT NULL DEFAULT NULL,
-|       `date_created` INT(11) NOT NULL,
-|       PRIMARY KEY (`id`)
+|	   `id` INT(11) NOT NULL AUTO_INCREMENT,
+|	   `user_id` INT(11) NOT NULL,
+|	   `key` VARCHAR(40) NOT NULL,
+|	   `level` INT(2) NOT NULL,
+|	   `ignore_limits` TINYINT(1) NOT NULL DEFAULT '0',
+|	   `is_private_key` TINYINT(1)  NOT NULL DEFAULT '0',
+|	   `ip_addresses` TEXT NULL DEFAULT NULL,
+|	   `date_created` INT(11) NOT NULL,
+|	   PRIMARY KEY (`id`)
 |   ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 |
 */
@@ -378,17 +378,17 @@ $config['rest_key_name'] = 'X-API-KEY';
 |
 | Default table schema:
 |   CREATE TABLE `logs` (
-|       `id` INT(11) NOT NULL AUTO_INCREMENT,
-|       `uri` VARCHAR(255) NOT NULL,
-|       `method` VARCHAR(6) NOT NULL,
-|       `params` TEXT DEFAULT NULL,
-|       `api_key` VARCHAR(40) NOT NULL,
-|       `ip_address` VARCHAR(45) NOT NULL,
-|       `time` INT(11) NOT NULL,
-|       `rtime` FLOAT DEFAULT NULL,
-|       `authorized` VARCHAR(1) NOT NULL,
-|       `response_code` smallint(3) DEFAULT '0',
-|       PRIMARY KEY (`id`)
+|	   `id` INT(11) NOT NULL AUTO_INCREMENT,
+|	   `uri` VARCHAR(255) NOT NULL,
+|	   `method` VARCHAR(6) NOT NULL,
+|	   `params` TEXT DEFAULT NULL,
+|	   `api_key` VARCHAR(40) NOT NULL,
+|	   `ip_address` VARCHAR(45) NOT NULL,
+|	   `time` INT(11) NOT NULL,
+|	   `rtime` FLOAT DEFAULT NULL,
+|	   `authorized` VARCHAR(1) NOT NULL,
+|	   `response_code` smallint(3) DEFAULT '0',
+|	   PRIMARY KEY (`id`)
 |   ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 |
 */
@@ -415,14 +415,14 @@ $config['rest_logs_table'] = 'api_log';
 |
 | Default table schema:
 |   CREATE TABLE `access` (
-|       `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
-|       `key` VARCHAR(40) NOT NULL DEFAULT '',
-|       `all_access` TINYINT(1) NOT NULL DEFAULT '0',
-|       `controller` VARCHAR(50) NOT NULL DEFAULT '',
-|       `date_created` DATETIME DEFAULT NULL,
-|       `date_modified` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-|       PRIMARY KEY (`id`)
-|    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+|	   `id` INT(11) unsigned NOT NULL AUTO_INCREMENT,
+|	   `key` VARCHAR(40) NOT NULL DEFAULT '',
+|	   `all_access` TINYINT(1) NOT NULL DEFAULT '0',
+|	   `controller` VARCHAR(50) NOT NULL DEFAULT '',
+|	   `date_created` DATETIME DEFAULT NULL,
+|	   `date_modified` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+|	   PRIMARY KEY (`id`)
+|	) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 |
 */
 $config['rest_enable_access'] = FALSE;
@@ -460,18 +460,18 @@ $config['rest_logs_json_params'] = FALSE;
 |
 | Default table schema:
 |   CREATE TABLE `limits` (
-|       `id` INT(11) NOT NULL AUTO_INCREMENT,
-|       `uri` VARCHAR(255) NOT NULL,
-|       `count` INT(10) NOT NULL,
-|       `hour_started` INT(11) NOT NULL,
-|       `api_key` VARCHAR(40) NOT NULL,
-|       PRIMARY KEY (`id`)
+|	   `id` INT(11) NOT NULL AUTO_INCREMENT,
+|	   `uri` VARCHAR(255) NOT NULL,
+|	   `count` INT(10) NOT NULL,
+|	   `hour_started` INT(11) NOT NULL,
+|	   `api_key` VARCHAR(40) NOT NULL,
+|	   PRIMARY KEY (`id`)
 |   ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 |
 | To specify the limits within the controller's __construct() method, add per-method
 | limits with:
 |
-|       $this->method['METHOD_NAME']['limit'] = [NUM_REQUESTS_PER_HOUR];
+|	   $this->method['METHOD_NAME']['limit'] = [NUM_REQUESTS_PER_HOUR];
 |
 | See application/controllers/api/example.php for examples
 */

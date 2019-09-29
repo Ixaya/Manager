@@ -10,19 +10,19 @@
  */
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-$lang['date_year']      = 'ឆ្នាំ';
-$lang['date_years']     = 'ឆ្នាំ';
-$lang['date_month']     = 'ខែ';
-$lang['date_months']    = 'ខែ';
-$lang['date_week']      = 'សប្តាហ៍';
-$lang['date_weeks']     = 'សប្តាហ៍';
-$lang['date_day']       = 'ថ្ងៃ';
-$lang['date_days']      = 'ថ្ងៃ';
-$lang['date_hour']      = 'ម៉ោង';
-$lang['date_hours']     = 'ម៉ោង';
-$lang['date_minute']    = 'នាទី';
+$lang['date_year']	  = 'ឆ្នាំ';
+$lang['date_years']	 = 'ឆ្នាំ';
+$lang['date_month']	 = 'ខែ';
+$lang['date_months']	= 'ខែ';
+$lang['date_week']	  = 'សប្តាហ៍';
+$lang['date_weeks']	 = 'សប្តាហ៍';
+$lang['date_day']	   = 'ថ្ងៃ';
+$lang['date_days']	  = 'ថ្ងៃ';
+$lang['date_hour']	  = 'ម៉ោង';
+$lang['date_hours']	 = 'ម៉ោង';
+$lang['date_minute']	= 'នាទី';
 $lang['date_minutes']   = 'នាទី';
-$lang['date_second']    = 'វិនាទី';
+$lang['date_second']	= 'វិនាទី';
 $lang['date_seconds']   = 'វិនាទី';
 
 $lang['UM12']	= '(UTC -12:00) Baker/Howland Island';

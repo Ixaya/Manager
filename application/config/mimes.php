@@ -146,7 +146,7 @@ return array(
 	'xspf'  =>	'application/xspf+xml',
 	'vlc'   =>	'application/videolan',
 	'wmv'   =>	array('video/x-ms-wmv', 'video/x-ms-asf'),
-	'au'    =>	'audio/x-au',
+	'au'	=>	'audio/x-au',
 	'ac3'   =>	'audio/ac3',
 	'flac'  =>	'audio/x-flac',
 	'ogg'   =>	array('audio/ogg', 'video/ogg', 'application/ogg'),

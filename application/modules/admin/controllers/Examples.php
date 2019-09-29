@@ -5,14 +5,13 @@ class Examples extends Admin_Controller {
 	function __construct() {
 		parent::__construct();
 
-		$this->load->model(array('admin/example'));
+		$this->load->model(['admin/example']);
 	}
 
 	public function index() {
 		$data['examples'] = $this->example->get_all();
 
-		$data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "example/examples";
-		$this->load->view($this->_container, $data);
+		$this->load_view("example/examples", $data);
 	}
 
 	public function create() {
@@ -40,10 +39,9 @@ class Examples extends Admin_Controller {
 		else
 			$data['example'] = $this->example->empty_object();
 
-		$data['page'] = $this->config->item('ci_my_admin_template_dir_admin') . "example/example";
 
 		$this->load->helper(array('form','ui'));
-		$this->load->view($this->_container, $data);
+		$this->load_view('example/example', $data);
 	}
 
 	public function delete($id) {

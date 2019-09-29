@@ -18,115 +18,115 @@ use sngrl\PhpFirebaseCloudMessaging\Notification;
 
 
 class Notification_push extends API_Model {
-    
-    public function __construct() {
-        //overrides
-        $this->table_name = 'ic_user_push';
-        //$this->client_id = 1;
-        
-        //initialize after overriding
-        parent::__construct();
-    }
-    
-    
-    public function addDevice($userID, $token, $osKind)
-    {
-// 	    if (is_null($userID) || is_null($token) || $token == 'null' || is_null($osKind))
-// 	    	return FALSE;
-	    
-	    $tokenRows = $this->query_as_array_auto("SELECT id FROM ".$this->table_name." WHERE user_id = ? AND token = ?", array($userID, $token));
+	
+	public function __construct() {
+		//overrides
+		$this->table_name = 'ic_user_push';
+		//$this->client_id = 1;
+		
+		//initialize after overriding
+		parent::__construct();
+	}
+	
+	
+	public function addDevice($userID, $token, $osKind)
+	{
+// 		if (is_null($userID) || is_null($token) || $token == 'null' || is_null($osKind))
+// 			return FALSE;
+		
+		$tokenRows = $this->query_as_array_auto("SELECT id FROM ".$this->table_name." WHERE user_id = ? AND token = ?", array($userID, $token));
 
-        if (count($tokenRows) > 0){
-	        $tokenRow = $tokenRows[0];
-	        $this->update(array(), $tokenRow["id"]);
-	        
-	        return $tokenRow["id"];
-        }
-        
-	    $data['user_id'] = $userID;
-	    $data['token']   = $token;
-	    $data['os_kind'] = $osKind;
-	    
-	    $success = $this->db->insert($this->table_name, $data);
-        if ($success) {
-            return $this->db->insert_id();
-        } else {
-            return FALSE;
-        }
-    }
-    
-    public function removeDevice($userID, $token)
-    {
-	    if (empty($userID) || empty($token))
-	    	return FALSE;
-	    
-	    $this->db->where('user_id', $userID);
-	    $this->db->where('token', $token);
+		if (count($tokenRows) > 0){
+			$tokenRow = $tokenRows[0];
+			$this->update(array(), $tokenRow["id"]);
+			
+			return $tokenRow["id"];
+		}
+		
+		$data['user_id'] = $userID;
+		$data['token']   = $token;
+		$data['os_kind'] = $osKind;
+		
+		$success = $this->db->insert($this->table_name, $data);
+		if ($success) {
+			return $this->db->insert_id();
+		} else {
+			return FALSE;
+		}
+	}
+	
+	public function removeDevice($userID, $token)
+	{
+		if (empty($userID) || empty($token))
+			return FALSE;
+		
+		$this->db->where('user_id', $userID);
+		$this->db->where('token', $token);
 
-        return $this->db->delete($this->table_name);
-    }
-    
-    public function sendNotification($userID, $text, $subtext, $kind, $id, $action = 0, $osKind = false, $instant = 0)
-    {
+		return $this->db->delete($this->table_name);
+	}
+	
+	public function sendNotification($userID, $text, $subtext, $kind, $id, $action = 0, $osKind = false, $instant = 0)
+	{
 		$tokenRows = $this->getDevicesFromUser($userID, $osKind);
 		$pendingBadge = $this->getPendingNotifications($userID);
-	    $result = 0;
-	    
+		$result = 0;
+		
 		log_message('debug', 'Tokens:' . count($tokenRows) . ' Badge:' . $pendingBadge . ' User: ' . $userID);
-	    foreach ($tokenRows as $tokenRow)
-	    {
-		    switch ($tokenRow["os_kind"])
-		    {
-			    //iOS Prod
-			    case 1:
-			    //iOS Dev
-			    case 3:
-			    {
-				    $notifResult = $this->sendAppleNotification($tokenRow["token"], $text, $subtext, $kind, $id, $action, $tokenRow["os_kind"], $instant, $pendingBadge);
-			    	if ($notifResult == TRUE)
-			    		$result ++;
-			    	else
-			    		log_message('error', $notifResult);
-		    		
-				    break;
-			    }
-			    case 2:
-			    {
-				    $notifResult = $this->sendAndroidNotification($tokenRow["token"], $text, $subtext, $kind, $id, $action, $tokenRow["os_kind"], $instant, $pendingBadge);
-			    	if ($notifResult == TRUE)
-			    		$result ++;
-			    	else
-			    		log_message('error', $notifResult);
-		    		
-				    break;
-			    }
-			    default:{
-				    break;
-			    }
-			    
-		    }
-	    }
-	    
-	    if ($result == count($tokenRows))
-	    	return TRUE;
-	    else
-	    	return FALSE;
-    }
-    
-    public function sendAppleNotification($token, $text, $subtext, $kind, $id, $action, $enviorment, $instant, $pendingBadge)
-    {
-	    try {
-	    log_message('debug', 't:'.$token.' m:'.$text.' k:'.$kind);
-	    
-	    $basePath = APPPATH.'modules/api/resources/';
-	    
-	    // Instantiate a new ApnsPHP_Push object
-	    $apnsEnviorment;
-	    if ($enviorment == 1)
-	    	$apnsEnviorment = ApnsPHP_Abstract::ENVIRONMENT_PRODUCTION;
-	    else
-	    	$apnsEnviorment = ApnsPHP_Abstract::ENVIRONMENT_SANDBOX;
-	    
+		foreach ($tokenRows as $tokenRow)
+		{
+			switch ($tokenRow["os_kind"])
+			{
+				//iOS Prod
+				case 1:
+				//iOS Dev
+				case 3:
+				{
+					$notifResult = $this->sendAppleNotification($tokenRow["token"], $text, $subtext, $kind, $id, $action, $tokenRow["os_kind"], $instant, $pendingBadge);
+					if ($notifResult == TRUE)
+						$result ++;
+					else
+						log_message('error', $notifResult);
+					
+					break;
+				}
+				case 2:
+				{
+					$notifResult = $this->sendAndroidNotification($tokenRow["token"], $text, $subtext, $kind, $id, $action, $tokenRow["os_kind"], $instant, $pendingBadge);
+					if ($notifResult == TRUE)
+						$result ++;
+					else
+						log_message('error', $notifResult);
+					
+					break;
+				}
+				default:{
+					break;
+				}
+				
+			}
+		}
+		
+		if ($result == count($tokenRows))
+			return TRUE;
+		else
+			return FALSE;
+	}
+	
+	public function sendAppleNotification($token, $text, $subtext, $kind, $id, $action, $enviorment, $instant, $pendingBadge)
+	{
+		try {
+		log_message('debug', 't:'.$token.' m:'.$text.' k:'.$kind);
+		
+		$basePath = APPPATH.'modules/api/resources/';
+		
+		// Instantiate a new ApnsPHP_Push object
+		$apnsEnviorment;
+		if ($enviorment == 1)
+			$apnsEnviorment = ApnsPHP_Abstract::ENVIRONMENT_PRODUCTION;
+		else
+			$apnsEnviorment = ApnsPHP_Abstract::ENVIRONMENT_SANDBOX;
+		
 		$push = new ApnsPHP_Push(
 			$apnsEnviorment,
 			$basePath.'aps_mrp.pem'
@@ -191,19 +191,19 @@ class Notification_push extends API_Model {
 		return TRUE;
 		
 		} catch (Exception $e) {
-		    return  $e->getMessage();
+			return  $e->getMessage();
 		}
-    }
-    
-    public function sendAndroidNotification($token, $text, $subtext, $kind, $id, $action, $enviorment, $instant, $pendingBadge)
-    {
-	    log_message('debug', 't:'.$token.' m:'.$text.' k:'.$kind);
-	    
-	    try {
-		    if ($subtext == false)
-		    	$subtext = 'Notificación';
-		    	
-		    $server_key = '';
+	}
+	
+	public function sendAndroidNotification($token, $text, $subtext, $kind, $id, $action, $enviorment, $instant, $pendingBadge)
+	{
+		log_message('debug', 't:'.$token.' m:'.$text.' k:'.$kind);
+		
+		try {
+			if ($subtext == false)
+				$subtext = 'Notificación';
+				
+			$server_key = '';
 			$client = new Client();
 			$client->setApiKey($server_key);
 			$client->injectGuzzleHttpClient(new \GuzzleHttp\Client());
@@ -220,64 +220,64 @@ class Notification_push extends API_Model {
 // 			var_dump($response->getBody()->getContents());
 		
 		} catch (Exception $e) {
-		    return $e->getMessage();
+			return $e->getMessage();
 		}
 		
-    }
-    
-    public function getDevicesFromUser($userID, $osKind)
-    {
-	    $lastUpdate = new DateTimeImmutable();
+	}
+	
+	public function getDevicesFromUser($userID, $osKind)
+	{
+		$lastUpdate = new DateTimeImmutable();
 		$lastUpdate = $lastUpdate->modify('-10 day');
 		$lastUpdateString = $lastUpdate->format('Y-m-d H:i:s T');
 
 		if ($osKind == false)
-		    $tokenRows = $this->query_as_array_auto("SELECT id, token, os_kind FROM ".$this->table_name
-		    									   ." WHERE user_id = ? AND last_update >= ?", array($userID, $lastUpdateString));
+			$tokenRows = $this->query_as_array_auto("SELECT id, token, os_kind FROM ".$this->table_name
+												   ." WHERE user_id = ? AND last_update >= ?", array($userID, $lastUpdateString));
 		else
 			$tokenRows = $this->query_as_array_auto("SELECT id, token, os_kind FROM ".$this->table_name
-		    									   ." WHERE user_id = ? AND last_update >= ? AND os_kind = ?", array($userID, $lastUpdateString, $osKind));
-	    
-	    return $tokenRows;
-    }
-    
-    public function getSelectedUsers($usersString, $offset)
-    {
-	    $offset = $offset * 500;
-	    $users = explode(",",$usersString);
+												   ." WHERE user_id = ? AND last_update >= ? AND os_kind = ?", array($userID, $lastUpdateString, $osKind));
+		
+		return $tokenRows;
+	}
+	
+	public function getSelectedUsers($usersString, $offset)
+	{
+		$offset = $offset * 500;
+		$users = explode(",",$usersString);
 
-	    $userRows = $this->query_as_array_auto("SELECT id, first_name FROM ic_user WHERE facebook_id IS NOT NULL AND id in ? ORDER BY id  LIMIT 500 OFFSET ?", array($users, $offset));
-	    
-	    return $userRows;
-    }
-    public function getAllUsers($mode, $offset)
-    {
-	    $offset = $offset * 500;
-	    
-	    if ($mode == 'p')
-		    $userRows = $this->query_as_array_auto("SELECT id, first_name FROM ic_user WHERE facebook_id IS NOT NULL ORDER BY id  LIMIT 500 OFFSET ?", array($offset));
+		$userRows = $this->query_as_array_auto("SELECT id, first_name FROM ic_user WHERE facebook_id IS NOT NULL AND id in ? ORDER BY id  LIMIT 500 OFFSET ?", array($users, $offset));
+		
+		return $userRows;
+	}
+	public function getAllUsers($mode, $offset)
+	{
+		$offset = $offset * 500;
+		
+		if ($mode == 'p')
+			$userRows = $this->query_as_array_auto("SELECT id, first_name FROM ic_user WHERE facebook_id IS NOT NULL ORDER BY id  LIMIT 500 OFFSET ?", array($offset));
 		else
-		    $userRows = $this->query_as_array_auto("SELECT id, first_name FROM ic_user "
-		    									  ." WHERE facebook_id IS NOT NULL AND id IN (20,24) ORDER BY id LIMIT 500 OFFSET ?", array($offset));// (20,23,24,26,27,48)", NULL);
+			$userRows = $this->query_as_array_auto("SELECT id, first_name FROM ic_user "
+												  ." WHERE facebook_id IS NOT NULL AND id IN (20,24) ORDER BY id LIMIT 500 OFFSET ?", array($offset));// (20,23,24,26,27,48)", NULL);
 
-	    
-	    return $userRows;
-    }
-    public function getPendingNotifications($userID)
-    {
-	    $query = $this->db->query("select count(id) as pending from notification where user_id = ? and read_status = 0 and status > -2;", array($userID));
+		
+		return $userRows;
+	}
+	public function getPendingNotifications($userID)
+	{
+		$query = $this->db->query("select count(id) as pending from notification where user_id = ? and read_status = 0 and status > -2;", array($userID));
 		$row = $query->row();
-			    
-	    return (int)$row->pending;
-    }
+				
+		return (int)$row->pending;
+	}
 }
 
 
 class IXAPNSLogger implements ApnsPHP_Log_Interface
 {
-    public function log($sMessage)
-    {
-	    log_message('debug', $sMessage);
-        //Do something
-    }
+	public function log($sMessage)
+	{
+		log_message('debug', $sMessage);
+		//Do something
+	}
 }

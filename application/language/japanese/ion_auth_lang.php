@@ -4,13 +4,13 @@
 *
 * Author: Ben Edmunds
 * 		  ben.edmunds@gmail.com
-*         @benedmunds
+*		 @benedmunds
 *
 * Translation: Nobuo Kihara
 * 		  softark@gmail.com
 *
 * Translation: Daniel Davis
-*         @ourmaninjapan
+*		 @ourmaninjapan
 *
 * Location: http://github.com/benedmunds/ion_auth/
 *
@@ -48,7 +48,7 @@ $lang['activation_email_unsuccessful']   = 'アクティベーション・メー
 $lang['login_successful'] 		  	 = 'ログインしました';
 $lang['login_unsuccessful'] 		 = 'ログイン出来ません';
 $lang['login_unsuccessful_not_active'] 		 = 'アカウントが無効です';
-$lang['login_timeout']                       = 'アカウントが仮にロックされています。後でもう一度試してください';
+$lang['login_timeout']					   = 'アカウントが仮にロックされています。後でもう一度試してください';
 $lang['logout_successful'] 		 	 = 'ログアウトしました';
 
 // Account Changes
@@ -59,25 +59,25 @@ $lang['delete_unsuccessful'] 		 = 'ユーザーを削除することが出来ま
 
 // Groups
 $lang['group_creation_successful']  = 'グループを作成しました';
-$lang['group_already_exists']       = 'このグループ名はすでに使われています';
-$lang['group_update_successful']    = 'グループ情報を更新しました';
-$lang['group_delete_successful']    = 'グループを削除しました';
+$lang['group_already_exists']	   = 'このグループ名はすでに使われています';
+$lang['group_update_successful']	= 'グループ情報を更新しました';
+$lang['group_delete_successful']	= 'グループを削除しました';
 $lang['group_delete_unsuccessful'] 	= 'グループを削除することが出来ません';
-$lang['group_delete_notallowed']    = 'Can\'t delete the administrators\' group';
+$lang['group_delete_notallowed']	= 'Can\'t delete the administrators\' group';
 $lang['group_name_required'] 		= 'グループ名が必要です。';
 $lang['group_name_admin_not_alter'] = 'Admin group name can not be changed';
 
 // Activation Email
-$lang['email_activation_subject']            = 'アカウントの承認';
-$lang['email_activate_heading']    = 'Activate account for %s';
+$lang['email_activation_subject']			= 'アカウントの承認';
+$lang['email_activate_heading']	= 'Activate account for %s';
 $lang['email_activate_subheading'] = 'Please click this link to %s.';
-$lang['email_activate_link']       = 'Activate Your Account';
+$lang['email_activate_link']	   = 'Activate Your Account';
 // Forgot Password Email
-$lang['email_forgotten_password_subject']    = '忘れたパスワードの確認';
-$lang['email_forgot_password_heading']    = 'Reset Password for %s';
+$lang['email_forgotten_password_subject']	= '忘れたパスワードの確認';
+$lang['email_forgot_password_heading']	= 'Reset Password for %s';
 $lang['email_forgot_password_subheading'] = 'Please click this link to %s.';
-$lang['email_forgot_password_link']       = 'Reset Your Password';
+$lang['email_forgot_password_link']	   = 'Reset Your Password';
 // New Password Email
-$lang['email_new_password_subject']          = '新しいパスワード';
-$lang['email_new_password_heading']    = 'New Password for %s';
+$lang['email_new_password_subject']		  = '新しいパスワード';
+$lang['email_new_password_heading']	= 'New Password for %s';
 $lang['email_new_password_subheading'] = 'Your password has been reset to: %s';

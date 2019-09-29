@@ -32,7 +32,7 @@ class MY_Model extends CI_Model {
 		$this->load->helper('inflector');
 
 		if (!$this->table_name) {
-			      $this->table_name = strtolower(plural(get_class($this)));
+				  $this->table_name = strtolower(plural(get_class($this)));
 			$this->table_name = strtolower(get_class($this));
 		}
 
@@ -50,8 +50,8 @@ class MY_Model extends CI_Model {
 			}
 		}
 	}
-	
-	
+
+
 	public function get($id) {
 		if($this->where_override)
 			$this->db->where($this->where_override);
@@ -298,7 +298,7 @@ class MY_Model extends CI_Model {
 		$data['deleted'] = 1;
 		$data['enabled'] = 0;
 		$data['last_update'] = date('Y-m-d H:i:s');
-    $data['deleted_by'] = $this->user_id;
+	$data['deleted_by'] = $this->user_id;
 
 		return $this->db->update($this->table_name, $data);
 
@@ -344,7 +344,7 @@ class MY_Model extends CI_Model {
 
 		return $query->result();
 	}
-	
+
 	public function query_auto($query, $arguments = NULL){
 		$data = [];
 
@@ -412,7 +412,7 @@ class MY_Model extends CI_Model {
 			return FALSE;
 		}
 	}
-	
+
 	public function empty_object($properties = null, $include_id = TRUE)
 	{
 		if(!$properties)
@@ -439,22 +439,22 @@ class MY_Model extends CI_Model {
 	{
 		$utf8 = array(
 			'/[áàâãªä]/u'   =>   'a',
-			'/[íìîï]/u'     =>   'i',
-			'/[éèêë]/u'     =>   'e',
+			'/[íìîï]/u'	 =>   'i',
+			'/[éèêë]/u'	 =>   'e',
 			'/[óòôõºö]/u'   =>   'o',
-			'/[úùûü]/u'     =>   'u',
-			'/ç/'           =>   'c',
-			'/ñ/'           =>   'n',
-			'/–/'           =>   '_', // UTF-8 hyphen to "normal" hyphen
-			'/[’‘‹›‚]/u'    =>   '_', // Literally a single quote
-			'/[“”«»„]/u'    =>   '_', // Double quote
-			'/ /'           =>   '_', // nonbreaking space (equiv. to 0x160)
+			'/[úùûü]/u'	 =>   'u',
+			'/ç/'		   =>   'c',
+			'/ñ/'		   =>   'n',
+			'/–/'		   =>   '_', // UTF-8 hyphen to "normal" hyphen
+			'/[’‘‹›‚]/u'	=>   '_', // Literally a single quote
+			'/[“”«»„]/u'	=>   '_', // Double quote
+			'/ /'		   =>   '_', // nonbreaking space (equiv. to 0x160)
 		);
 		$clean = strtolower(rtrim($text));//Remove right spaces and convert to lower case
 		$clean = preg_replace(array_keys($utf8), array_values($utf8), $clean); //Convert special letters
 		return preg_replace("/[^A-Za-z0-9_]/", '', $clean); // Remove special characters
 	}
-	
+
 	public function get_datatable_json($custom = "", $where = ""){
 		$where_like = array();
 		$where_array = array();
@@ -508,13 +508,13 @@ class MY_Model extends CI_Model {
 					$where_array[] = $search_query;
 				}
 			}
-			
+
 			$length = 10;
-			
+
 			if(isset($_POST['length']))
 			{
 				$length = intval($_POST['length']);
-				
+
 			}
 			if($_POST['length'] != '-1' && isset($_POST['start']))
 			{
@@ -536,10 +536,10 @@ class MY_Model extends CI_Model {
 			}
 
 			/*if($where != "" && $search_query != ""){
-			    $search_query = $where." AND ".$search_query;
-		    }elseif($where != "" && $search_query == ""){
-			    $search_query = $where;
-		    } */
+				$search_query = $where." AND ".$search_query;
+			}elseif($where != "" && $search_query == ""){
+				$search_query = $where;
+			} */
 
 
 			if(count($where_array) > 0){
@@ -549,8 +549,8 @@ class MY_Model extends CI_Model {
 			$result = $this->query_as_array_auto("SELECT *,
 											   (select count(id) from ".$this->table_name."
 											   ".$search_query.") as total from ".$this->table_name."
-		    									".$search_query."
-		    									".$order_query." ".$limit_query, null);
+												".$search_query."
+												".$order_query." ".$limit_query, null);
 
 			if(count($result)>0){
 				$list_results = array();
@@ -628,9 +628,9 @@ class MY_Model extends CI_Model {
 
 			$json_response = json_encode($response);
 			echo($json_response);
-			
+
 			log_message('DEBUG', $json_response);
-			
+
 			exit;
 
 		}else{
@@ -638,7 +638,7 @@ class MY_Model extends CI_Model {
 		}
 
 	}
-	
+
 	public function get_datatable($config, $where = NULL){
 		if (empty($config)){
 			$dummy_post = '{"draw":"1","columns":[{"data":"0","name":"","searchable":"true","orderable":"true","search":{"value":"","regex":"false"}},{"data":"1","name":"","searchable":"true","orderable":"true","search":{"value":"","regex":"false"}}],"order":[{"column":"0","dir":"asc"}],"start":"0","length":"10","search":{"value":"","regex":"false"}}';
@@ -767,12 +767,12 @@ class MY_Model extends CI_Model {
 			$response['recordsTotal'] = 0;
 			$response['recordsFiltered'] = 0;
 		}
-		
+
 		$response['draw'] = $config['draw'];
 		$response['data'] = $list_results;
 
 		return $response;
 	}
-	
-	
+
+
 }

@@ -79,7 +79,7 @@ class MX_Router extends CI_Router
 		{
 			$segments[1] = 'index';
 		}
-       
+	   
 		array_unshift($segments, NULL);
 		unset($segments[0]);
 		$this->uri->rsegments = $segments;

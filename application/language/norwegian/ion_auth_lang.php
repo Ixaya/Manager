@@ -4,11 +4,11 @@
 *
 * Author: Tomas E. Sandven
 * 		  tomas191191@gmail.com
-*         @codemonkey1991
+*		 @codemonkey1991
 *
 * Author: Yngve Høiseth
 * 		  yngve.hoiseth@gmail.com
-*         @yhoiseth
+*		 @yhoiseth
 *
 * Location: http://github.com/benedmunds/ion_auth/
 *
@@ -61,7 +61,7 @@ $lang['group_already_exists']	   = 'Gruppenavnet finnes allerede';
 $lang['group_update_successful']   = 'Gruppeinformasjon oppdatert';
 $lang['group_delete_successful']   = 'Gruppe slettet';
 $lang['group_delete_unsuccessful'] = 'Klarte ikke å slette gruppe';
-$lang['group_delete_notallowed']    = 'Can\'t delete the administrators\' group';
+$lang['group_delete_notallowed']	= 'Can\'t delete the administrators\' group';
 $lang['group_name_required']	   = 'Gruppenavn må fylles inn';
 $lang['group_name_admin_not_alter'] = 'Admin group name can not be changed';
 
@@ -73,11 +73,11 @@ $lang['email_activate_link']	   = 'Aktivér konto';
 
 // Forgot Password Email
 $lang['email_forgotten_password_subject'] = 'Glemt passord: bekreftelse';
-$lang['email_forgot_password_heading']    = 'Tilbakestill passord for %s';
+$lang['email_forgot_password_heading']	= 'Tilbakestill passord for %s';
 $lang['email_forgot_password_subheading'] = 'Klikk på denne linken for å %s.';
-$lang['email_forgot_password_link']       = 'Tilbakestill passord';
+$lang['email_forgot_password_link']	   = 'Tilbakestill passord';
 
 // New Password Email
-$lang['email_new_password_subject']    = 'Nytt passord';
-$lang['email_new_password_heading']    = 'Nytt passord for %s';
+$lang['email_new_password_subject']	= 'Nytt passord';
+$lang['email_new_password_heading']	= 'Nytt passord for %s';
 $lang['email_new_password_subheading'] = 'Passordet ditt har blitt endret til: %s';

@@ -34,7 +34,7 @@ $lang['activation_email_unsuccessful'] 			= 'Det var ikke muligt at sende email 
 $lang['login_successful'] 						= 'Logged ind';
 $lang['login_unsuccessful'] 						= 'Ugyldigt login';
 $lang['login_unsuccessful_not_active'] 			= 'Kontoen er inaktiv';
-$lang['login_timeout']                       = 'Temporarily Locked Out.  Try again later.';
+$lang['login_timeout']					   = 'Temporarily Locked Out.  Try again later.';
 $lang['logout_successful'] 						= 'Logged ud';
 // Account Changes
 $lang['update_successful'] 						= 'Kontoen er opdateret';
@@ -43,25 +43,25 @@ $lang['delete_successful'] 						= 'Bruger slettet';
 $lang['delete_unsuccessful'] 					= 'Det var ikke muligt at slette bruger';
 // Groups
 $lang['group_creation_successful']  = 'Group created Successfully';
-$lang['group_already_exists']       = 'Group name already taken';
-$lang['group_update_successful']    = 'Group details updated';
-$lang['group_delete_successful']    = 'Group deleted';
+$lang['group_already_exists']	   = 'Group name already taken';
+$lang['group_update_successful']	= 'Group details updated';
+$lang['group_delete_successful']	= 'Group deleted';
 $lang['group_delete_unsuccessful'] 	= 'Unable to delete group';
-$lang['group_delete_notallowed']    = 'Can\'t delete the administrators\' group';
+$lang['group_delete_notallowed']	= 'Can\'t delete the administrators\' group';
 $lang['group_name_required'] 		= 'Group name is a required field';
 $lang['group_name_admin_not_alter'] = 'Admin group name can not be changed';
 
 // Activation Email
-$lang['email_activation_subject']            = 'Konto aktivering';
-$lang['email_activate_heading']    = 'Activate account for %s';
+$lang['email_activation_subject']			= 'Konto aktivering';
+$lang['email_activate_heading']	= 'Activate account for %s';
 $lang['email_activate_subheading'] = 'Please click this link to %s.';
-$lang['email_activate_link']       = 'Activate Your Account';
+$lang['email_activate_link']	   = 'Activate Your Account';
 // Forgot Password Email
-$lang['email_forgotten_password_subject']    	= 'Verifikation af glemt adgangskode';
-$lang['email_forgot_password_heading']    = 'Reset Password for %s';
+$lang['email_forgotten_password_subject']		= 'Verifikation af glemt adgangskode';
+$lang['email_forgot_password_heading']	= 'Reset Password for %s';
 $lang['email_forgot_password_subheading'] = 'Please click this link to %s.';
-$lang['email_forgot_password_link']       = 'Reset Your Password';
+$lang['email_forgot_password_link']	   = 'Reset Your Password';
 // New Password Email
-$lang['email_new_password_subject']          	= 'Nyt kodeord';
-$lang['email_new_password_heading']    = 'New Password for %s';
+$lang['email_new_password_subject']		  	= 'Nyt kodeord';
+$lang['email_new_password_heading']	= 'New Password for %s';
 $lang['email_new_password_subheading'] = 'Your password has been reset to: %s';

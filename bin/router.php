@@ -2,10 +2,10 @@
 /**
  * Part of CodeIgniter Composer Installer
  *
- * @author     Kenji Suzuki <https://github.com/kenjis>
- * @license    MIT License
+ * @author	 Kenji Suzuki <https://github.com/kenjis>
+ * @license	MIT License
  * @copyright  2015 Kenji Suzuki
- * @link       https://github.com/kenjis/codeigniter-composer-installer
+ * @link	   https://github.com/kenjis/codeigniter-composer-installer
  */
 
 /**
@@ -19,7 +19,7 @@ $file = $_SERVER['DOCUMENT_ROOT'] . $_SERVER['SCRIPT_NAME'];
 //echo $file, PHP_EOL;
 
 if (is_file($file)) {
-    return false;
+	return false;
 }
 
 $_SERVER['SCRIPT_NAME'] = '/index.php';

@@ -3,7 +3,7 @@
 * Name:  Ion Auth Lang - Dutch
 *
 * Author: Jeroen van der Gulik
-*         jeroen@isset.nl
+*		 jeroen@isset.nl
 *
 * Adjustments by Dieter
 *
@@ -44,7 +44,7 @@ $lang['activation_email_unsuccessful']   	 = 'Activatie e-mail verzenden is misl
 $lang['login_successful'] 		  	 = 'U bent ingelogd';
 $lang['login_unsuccessful'] 		  	 = 'Login is incorrect';
 $lang['login_unsuccessful_not_active'] 		 = 'Account is inactief';
-$lang['login_timeout']                       = 'U bent tijdelijk geblokkeerd. Probeer het later nogmaals.';
+$lang['login_timeout']					   = 'U bent tijdelijk geblokkeerd. Probeer het later nogmaals.';
 $lang['logout_successful'] 		 	 = 'U bent uitgelogd';
 
 // Account Changes
@@ -55,28 +55,28 @@ $lang['delete_unsuccessful'] 		 	 = 'Gebruiker verwijderen is mislukt';
 
 // Groups
 $lang['group_creation_successful']  = 'Groep is succesvol aangemaakt';
-$lang['group_already_exists']       = 'Groepsnaam is reeds in gebruik';
-$lang['group_update_successful']    = 'Groepsinformatie is bijgewerkt';
-$lang['group_delete_successful']    = 'Groep is verwijderd';
+$lang['group_already_exists']	   = 'Groepsnaam is reeds in gebruik';
+$lang['group_update_successful']	= 'Groepsinformatie is bijgewerkt';
+$lang['group_delete_successful']	= 'Groep is verwijderd';
 $lang['group_delete_unsuccessful'] 	= 'Groep verwijderen is mislukt';
-$lang['group_delete_notallowed']    = 'Het is niet mogelijk om de administrator groep te verwijderen';
+$lang['group_delete_notallowed']	= 'Het is niet mogelijk om de administrator groep te verwijderen';
 $lang['group_name_required'] 		= 'Groepsnaam is een verplicht veld';
 $lang['group_name_admin_not_alter'] = 'De naam van de administrator groep is niet aanpasbaar';
 
 // Activation Email
-$lang['email_activation_subject']            = 'Account activering';
-$lang['email_activate_heading']    = 'Activeer account voor %s';
+$lang['email_activation_subject']			= 'Account activering';
+$lang['email_activate_heading']	= 'Activeer account voor %s';
 $lang['email_activate_subheading'] = 'Gelieve op deze link te klikken om %s.';
-$lang['email_activate_link']       = 'Activeer uw account';
+$lang['email_activate_link']	   = 'Activeer uw account';
 
 // Forgot Password Email
-$lang['email_forgotten_password_subject']    = 'Verificatie vergeten wachtwoord';
-$lang['email_forgot_password_heading']    = 'Reset wachtwoord voor %s';
+$lang['email_forgotten_password_subject']	= 'Verificatie vergeten wachtwoord';
+$lang['email_forgot_password_heading']	= 'Reset wachtwoord voor %s';
 $lang['email_forgot_password_subheading'] = 'Gelieve op deze link te klikken om %s.';
-$lang['email_forgot_password_link']       = 'Reset uw wachtwoord';
+$lang['email_forgot_password_link']	   = 'Reset uw wachtwoord';
 // New Password Email
-$lang['email_new_password_subject']          = 'Nieuw wachtwoord';
-$lang['email_new_password_heading']    = 'Nieuw wachtwoord voor %s';
+$lang['email_new_password_subject']		  = 'Nieuw wachtwoord';
+$lang['email_new_password_heading']	= 'Nieuw wachtwoord voor %s';
 $lang['email_new_password_subheading'] = 'Uw wachtwoord is aangepast naar: %s';
 
 /* End of file ion_auth_lang.php */

@@ -18,7 +18,7 @@ Configuration
 
 In your config/images.php file you need to specify what preset sizes you will be using for your images:
 
-    /*
+	/*
 	|--------------------------------------------------------------------------
 	| Image Preset Sizes
 	|--------------------------------------------------------------------------

@@ -48,9 +48,9 @@ $config['index_page'] = '';
 | URI string.  The default setting of 'REQUEST_URI' works for most servers.
 | If your links do not seem to work, try one of the other delicious flavors:
 |
-| 'REQUEST_URI'    Uses $_SERVER['REQUEST_URI']
+| 'REQUEST_URI'	Uses $_SERVER['REQUEST_URI']
 | 'QUERY_STRING'   Uses $_SERVER['QUERY_STRING']
-| 'PATH_INFO'      Uses $_SERVER['PATH_INFO']
+| 'PATH_INFO'	  Uses $_SERVER['PATH_INFO']
 |
 | WARNING: If you set this to 'PATH_INFO', URIs will always be URL-decoded!
 */
@@ -255,7 +255,7 @@ $config['log_file_extension'] = 'log';
 | The file system permissions to be applied on newly created log files.
 |
 | IMPORTANT: This MUST be an integer (no quotes) and you MUST use octal
-|            integer notation (i.e. 0700, 0644, etc.)
+|			integer notation (i.e. 0700, 0644, etc.)
 */
 $config['log_file_permissions'] = 0644;
 
@@ -300,12 +300,12 @@ $config['cache_path'] = '';
 | Whether to take the URL query string into consideration when generating
 | output cache files. Valid options are:
 |
-|	FALSE      = Disabled
-|	TRUE       = Enabled, take all query parameters into account.
-|	             Please be aware that this may result in numerous cache
-|	             files generated for the same page over and over again.
+|	FALSE	  = Disabled
+|	TRUE	   = Enabled, take all query parameters into account.
+|				 Please be aware that this may result in numerous cache
+|				 files generated for the same page over and over again.
 |	array('q') = Enabled, but only take into account the specified list
-|	             of query parameters.
+|				 of query parameters.
 |
 */
 $config['cache_query_string'] = FALSE;
@@ -358,7 +358,7 @@ $config['encryption_key'] = '91a09ba05bf1baad520affd8c84e42bc4b88b006';
 |	Whether to match the user's IP address when reading the session data.
 |
 |	WARNING: If you're using the database driver, don't forget to update
-|	         your session table's PRIMARY KEY when changing this setting.
+|			 your session table's PRIMARY KEY when changing this setting.
 |
 | 'sess_time_to_update'
 |
@@ -390,12 +390,12 @@ $config['sess_regenerate_destroy'] = FALSE;
 |
 | 'cookie_prefix'   = Set a cookie name prefix if you need to avoid collisions
 | 'cookie_domain'   = Set to .your-domain.com for site-wide cookies
-| 'cookie_path'     = Typically will be a forward slash
+| 'cookie_path'	 = Typically will be a forward slash
 | 'cookie_secure'   = Cookie will only be set if a secure HTTPS connection exists.
 | 'cookie_httponly' = Cookie will only be accessible via HTTP(S) (no javascript)
 |
 | Note: These settings (with the exception of 'cookie_prefix' and
-|       'cookie_httponly') will also affect sessions.
+|	   'cookie_httponly') will also affect sessions.
 |
 */
 $config['cookie_prefix']	= '';
@@ -427,7 +427,7 @@ $config['standardize_newlines'] = FALSE;
 | COOKIE data is encountered
 |
 | WARNING: This feature is DEPRECATED and currently available only
-|          for backwards compatibility purposes!
+|		  for backwards compatibility purposes!
 |
 */
 $config['global_xss_filtering'] = FALSE;
@@ -530,47 +530,47 @@ $config['proxy_ips'] = '';
 /*
 function my_error_handler($errno, $errstr, $errfile, $errline)
 {
-    if (!(error_reporting() & $errno))
-    {
-        // This error code is not included in error_reporting
-        return;
-    }
-    log_message('error', "$errstr @$errfile::$errline($errno)" );
-    throw new ErrorException( $errstr, $errno, 0, $errfile, $errline );
+	if (!(error_reporting() & $errno))
+	{
+		// This error code is not included in error_reporting
+		return;
+	}
+	log_message('error', "$errstr @$errfile::$errline($errno)" );
+	throw new ErrorException( $errstr, $errno, 0, $errfile, $errline );
 }
 set_error_handler("my_error_handler");
 function my_exception_handler($exception)
 {
-    echo '<pre>';
-    print_r($exception);
-    echo '</pre>';
-    header( "HTTP/1.0 500 Internal Server Error" );
+	echo '<pre>';
+	print_r($exception);
+	echo '</pre>';
+	header( "HTTP/1.0 500 Internal Server Error" );
 }
 set_exception_handler("my_exception_handler");
 function my_fatal_handler()
 {
-    $errfile = "unknown file";
-    $errstr  = "Fatal error";
-    $errno   = E_CORE_ERROR;
-    $errline = 0;
-    $error = error_get_last();
-    if ( $error !== NULL )
-    {
-        echo '<pre>';
-        print_r($error);
-        echo '</pre>';
-        header( "HTTP/1.0 500 Internal Server Error" );
-    }
+	$errfile = "unknown file";
+	$errstr  = "Fatal error";
+	$errno   = E_CORE_ERROR;
+	$errline = 0;
+	$error = error_get_last();
+	if ( $error !== NULL )
+	{
+		echo '<pre>';
+		print_r($error);
+		echo '</pre>';
+		header( "HTTP/1.0 500 Internal Server Error" );
+	}
 }
 register_shutdown_function("my_fatal_handler");
 function my_assert_handler($file, $line, $code)
 {
-    log_message('debug', "assertion failed @$file::$line($code)" );
-    throw new Exception( "assertion failed @$file::$line($code)" );
+	log_message('debug', "assertion failed @$file::$line($code)" );
+	throw new Exception( "assertion failed @$file::$line($code)" );
 }
-assert_options(ASSERT_ACTIVE,     1);
-assert_options(ASSERT_WARNING,    0);
-assert_options(ASSERT_BAIL,       0);
+assert_options(ASSERT_ACTIVE,	 1);
+assert_options(ASSERT_WARNING,	0);
+assert_options(ASSERT_BAIL,	   0);
 assert_options(ASSERT_QUIET_EVAL, 0);
 assert_options(ASSERT_CALLBACK, 'my_assert_handler');
 */

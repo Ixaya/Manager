@@ -43,7 +43,7 @@ class Login extends REST_Controller {
 		$username  = $this->post('username');
 		$password  = $this->post('password');
 
-		$extras    = $this->post('extras');
+		$extras	= $this->post('extras');
 
 		$user_id = $this->ix_ion_auth->register($username, $password, $username, $extras, [3]);
 		if ($user_id != false)
@@ -83,10 +83,10 @@ class Login extends REST_Controller {
 		$userFacebookID = $basicUserNode['id'];
 		$this->print_log(array('facebook_2'=>$userFacebookID));
 		//no email sometimes, quick fix;
-		//         if (isset($basicUserNode['email']))
-		//             $userEmail = $basicUserNode['email'];
-		//         else
-		//             $userEmail = $userFacebookID;
+		//		 if (isset($basicUserNode['email']))
+		//			 $userEmail = $basicUserNode['email'];
+		//		 else
+		//			 $userEmail = $userFacebookID;
 
 		$result = $this->ix_ion_auth->login_facebook($userFacebookID, $accessToken, false, true);
 		if ($result != false){
@@ -113,10 +113,10 @@ class Login extends REST_Controller {
 			//$userImage = $userImage->getHeaders();
 
 			/*
-             $friends=$this->facebook->fb->get('/me/friends?fields=name,picture');
-             $friends=$friends->getBody();
-             $friends=json_decode($friends);
-             */
+			 $friends=$this->facebook->fb->get('/me/friends?fields=name,picture');
+			 $friends=$friends->getBody();
+			 $friends=json_decode($friends);
+			 */
 
 			$additional_data["gender"] = $userNode['gender'];
 			$additional_data["first_name"] = $userNode['first_name'];
@@ -182,7 +182,7 @@ class Login extends REST_Controller {
 
 
 		$json = array(
-			'status'        => 1,
+			'status'		=> 1,
 			'info'   => $objAcc,
 			'api_key'  => $apiKey
 		);

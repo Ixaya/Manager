@@ -1,31 +1,31 @@
 {
 	"name": "ixaya/manager",
-    "description": "An HMVC Framework, Superset of CodeIgniter",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Gustavo Moya",
-            "email": "gm@ixaya.com",
-            "role": "Developer"
-        },
+	"description": "An HMVC Framework, Superset of CodeIgniter",
+	"license": "MIT",
+	"authors": [
 		{
-            "name": "Humberto Olavarrieta",
-            "email": "ho@ixaya.com",
-            "role": "Developer"
-        }
-    ],
-    "scripts": {
-        "deploy": "deploy"
-    },
-    "require": {
-        "php": "^5.4 || ^7.0",
-        "codeigniter/framework": "^3.1",
-        "facebook/graph-sdk": "^5.7",
-        "fzaninotto/faker": "^1.8"
-    },
-    "extra": {
-        "branch-alias": {
-            "dev-master": "1-dev"
-        }
-    }
+			"name": "Gustavo Moya",
+			"email": "gm@ixaya.com",
+			"role": "Developer"
+		},
+		{
+			"name": "Humberto Olavarrieta",
+			"email": "ho@ixaya.com",
+			"role": "Developer"
+		}
+	],
+	"scripts": {
+		"deploy": "deploy"
+	},
+	"require": {
+		"php": "^5.4 || ^7.0",
+		"codeigniter/framework": "^3.1",
+		"facebook/graph-sdk": "^5.7",
+		"fzaninotto/faker": "^1.8"
+	},
+	"extra": {
+		"branch-alias": {
+			"dev-master": "1-dev"
+		}
+	}
 }

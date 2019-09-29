@@ -182,7 +182,7 @@ class MX_Loader extends CI_Loader
 			$this->_ci_classes[$class] = $_alias;
 		}
 		return $this;
-    }
+	}
 
 	/** Load an array of libraries **/
 	public function libraries($libraries)

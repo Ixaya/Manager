@@ -4,7 +4,7 @@
 *
 * Author: Ben Edmunds
 *		  ben.edmunds@gmail.com
-*         @benedmunds
+*		 @benedmunds
 *
 * Added Awesomeness: Phil Sturgeon
 *
@@ -134,13 +134,13 @@ class Ion_auth
 	 * @return mixed boolean / array
 	 * @author Mathew
 	 */
-	public function forgotten_password($identity)    //changed $email to $identity
+	public function forgotten_password($identity)	//changed $email to $identity
 	{
 		if ( $this->ion_auth_model->forgotten_password($identity) )   //changed
 		{
 			// Get user information
-      $identifier = $this->ion_auth_model->identity_column; // use model identity column, so it can be overridden in a controller
-      $user = $this->where($identifier, $identity)->where('active', 1)->users()->row();  // changed to get_user_by_identity from email
+	  $identifier = $this->ion_auth_model->identity_column; // use model identity column, so it can be overridden in a controller
+	  $user = $this->where($identifier, $identity)->where('active', 1)->users()->row();  // changed to get_user_by_identity from email
 
 			if ($user)
 			{
@@ -214,7 +214,7 @@ class Ion_auth
 		if ($new_password)
 		{
 			$data = array(
-				'identity'     => $profile->{$identity},
+				'identity'	 => $profile->{$identity},
 				'new_password' => $new_password
 			);
 			if(!$this->config->item('use_ci_email', 'ion_auth'))
@@ -342,13 +342,13 @@ class Ion_auth
 			}
 
 			$activation_code = $this->ion_auth_model->activation_code;
-			$identity        = $this->config->item('identity', 'ion_auth');
-			$user            = $this->ion_auth_model->user($id)->row();
+			$identity		= $this->config->item('identity', 'ion_auth');
+			$user			= $this->ion_auth_model->user($id)->row();
 
 			$data = array(
 				'identity'   => $user->{$identity},
-				'id'         => $user->id,
-				'email'      => $email,
+				'id'		 => $user->id,
+				'email'	  => $email,
 				'activation' => $activation_code,
 			);
 			if(!$this->config->item('use_ci_email', 'ion_auth'))
@@ -394,14 +394,14 @@ class Ion_auth
 
 		$identity = $this->config->item('identity', 'ion_auth');
 
-                if (substr(CI_VERSION, 0, 1) == '2')
+				if (substr(CI_VERSION, 0, 1) == '2')
 		{
 			$this->session->unset_userdata( array($identity => '', 'id' => '', 'user_id' => '') );
-                }
-                else
-                {
-                	$this->session->unset_userdata( array($identity, 'id', 'user_id') );
-                }
+				}
+				else
+				{
+					$this->session->unset_userdata( array($identity, 'id', 'user_id') );
+				}
 
 		// delete the remember me cookies if they exist
 		if (get_cookie($this->config->item('identity_cookie_name', 'ion_auth')))

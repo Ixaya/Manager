@@ -1,41 +1,56 @@
 <?php if (!defined('BASEPATH'))  exit('No direct script access allowed');
 
-class MY_Controller extends CI_Controller {
+class MY_Controller extends CI_Controller
+{
+	var $_container;
+	var $_layout;
+	var $_theme;
 
-    var $_container;
-    var $_modules;
+	function __construct()
+	{
+		parent::__construct();
+		$this->load->helper('url');
 
-    function __construct() {
-        parent::__construct();
-        $this->load->helper('url');
-        $this->load->config('ci_my_admin');
-        
-        // Set container variable
-        $this->_container = $this->config->item('ci_my_admin_template_dir_public') . "layout.php";
-        $this->_modules = $this->config->item('modules_locations');
+		//construct defaults in case no overrides are setup
+		if(empty($this->_theme)){
+			$this->_theme = '/default/';
+		} else {
+			$this->_theme = '/'.$this->_theme.'/';
+		}
+		if(empty($this->_container)){
+			$this->_container = 'public';
+		}
+		if(empty($this->_layout)){
+			$this->_layout = $this->_container.$this->_theme.'layout';
+		}
 
-		
-        log_message('debug', 'CI My Admin : MY_Controller class loaded');
-    }
-    
-/*
-    function __construct() {
-        parent::__construct();
+		$this->load->library('session');
+		if (!empty($this->session->flashdata('message')) && empty($this->session->flashdata('message-kind'))){
+			$this->session->set_flashdata('message-kind', 'alert-info');
+		}
+	}
 
-        // Set container variable
-        $this->_container = $this->config->item('ci_my_admin_template_dir_admin') . "layout.php";
-        $this->_modules = $this->config->item('modules_locations');
+	public function load_clean_view($page, $data = [])
+	{
+		$layout = $this->_layout = $this->_container.$this->_theme.'/layout_clean';
+		$this->load_view($page, $data, $layout);
+	}
+	public function load_view($page, $data = [], $layout = null)
+	{
+		//modify default layout after constructing the controller
+		if(empty($container)){
+			$layout = $this->_layout;
+		}
 
-        $this->load->library(array('ion_auth'));
-        if (!$this->ion_auth->logged_in()) {
-            redirect('/auth', 'refresh');
-        }
+		$data['page'] = $page;
+		$data['module'] = $this->_theme;
+		$this->load->view($layout, $data);
+	}
+	public function json_response($data)
+	{
+		header('Content-Type: application/json');
 
-        $this->is_admin = $this->ion_auth->is_admin();
-        $user = $this->ion_auth->user()->row();
-        $this->logged_in_name = $user->first_name;
-
-        log_message('debug', 'Admin : Admin_Controller class loaded');
-    }
-*/
+		echo(json_encode($data));
+		die();
+	}
 }

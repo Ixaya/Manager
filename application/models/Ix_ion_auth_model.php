@@ -61,11 +61,11 @@ class Ix_ion_auth_model extends Ion_auth_model
 
 		// Users table.
 		$data = array(
-		    $this->identity_column   => $identity,
-		    'facebook_id' => $identity,
-		    'ip_address'  => $ip_address,
-		    'created_on'  => time(),
-		    'active'      => 1
+			$this->identity_column   => $identity,
+			'facebook_id' => $identity,
+			'ip_address'  => $ip_address,
+			'created_on'  => time(),
+			'active'	  => 1
 		);
 
 		if ($this->store_salt)
@@ -123,10 +123,10 @@ class Ix_ion_auth_model extends Ion_auth_model
 		$this->trigger_events('extra_where');
 
 		$query = $this->db->select($this->identity_column . ', id, facebook_id, active, last_login')
-		                  ->where($this->identity_column, $identity)
-		                  ->limit(1)
-		    			  ->order_by('id', 'desc')
-		                  ->get($this->tables['users']);
+						  ->where($this->identity_column, $identity)
+						  ->limit(1)
+						  ->order_by('id', 'desc')
+						  ->get($this->tables['users']);
 
 		if($this->is_time_locked_out($identity))
 		{
@@ -193,6 +193,6 @@ class Ix_ion_auth_model extends Ion_auth_model
 		$data = array( 'fb_token' => $facebook_token);
 		
 		$query = $this->db->where($this->identity_column, $identity)
-		                  ->update($this->tables['users'], $data);
+						  ->update($this->tables['users'], $data);
 	}
 }

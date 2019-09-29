@@ -2,10 +2,10 @@
 /**
  * Part of CodeIgniter3 Filename Checker
  *
- * @author     Kenji Suzuki <https://github.com/kenjis>
- * @license    MIT License
+ * @author	 Kenji Suzuki <https://github.com/kenjis>
+ * @license	MIT License
  * @copyright  2015 Kenji Suzuki
- * @link       https://github.com/kenjis/codeigniter3-filename-checker
+ * @link	   https://github.com/kenjis/codeigniter3-filename-checker
  */
 class Check extends CI_Controller
 {
@@ -106,7 +106,7 @@ class Check extends CI_Controller
 				$newname = dirname($filepath).'/'.ucfirst($filename);
 				if (rename($filepath, $newname))
 				{
-					$this->output('Rename: ' . $filepath . PHP_EOL . '     -> ' . $newname);
+					$this->output('Rename: ' . $filepath . PHP_EOL . '	 -> ' . $newname);
 				}
 			}
 			return FALSE;
