@@ -23,7 +23,7 @@ class Auth extends MY_Controller {
 			// $data['page'] = $this->config->item('ci_my_admin_template_dir_public') . "login_form";
 			// $data['module'] = 'auth';
 
-			$this->load_view('login_form', $data);
+			$this->load_view('login_form');
 		}
 	}
 
