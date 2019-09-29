@@ -20,10 +20,10 @@ class Auth extends MY_Controller {
 		if ($this->ion_auth->logged_in()) {
 			$this->_redirect_to_backend();
 		} else {
-			$data['page'] = $this->config->item('ci_my_admin_template_dir_public') . "login_form";
-			$data['module'] = 'auth';
+			// $data['page'] = $this->config->item('ci_my_admin_template_dir_public') . "login_form";
+			// $data['module'] = 'auth';
 
-			$this->load->view($this->_container, $data);
+			$this->load_view('login_form', $data);
 		}
 	}
 
@@ -36,7 +36,7 @@ class Auth extends MY_Controller {
 
 			if ($this->ion_auth->login($this->input->post('email'), $this->input->post('password'), $remember)) {
 				$this->session->set_flashdata('message', $this->ion_auth->messages());
-				
+
 				$this->_redirect_to_backend();
 			} else {
 				$this->session->set_flashdata('message', $this->ion_auth->errors());
@@ -50,7 +50,7 @@ class Auth extends MY_Controller {
 
 	public function logout() {
 		$this->load->library('session');
-		
+
 		$this->ion_auth->logout();
 
 		redirect('auth', 'refresh');
@@ -64,7 +64,7 @@ class Auth extends MY_Controller {
 		} else {
 			redirect("/admin/dashboard", 'refresh');
 		}
-		
+
 	}
 }
 
