@@ -1,4 +1,5 @@
 <?php
+require_once APPPATH . 'modules/admin/libraries/Admin_Controller.php';
 
 class Sysusers extends Admin_Controller {
 

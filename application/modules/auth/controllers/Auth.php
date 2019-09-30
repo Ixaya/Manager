@@ -20,9 +20,6 @@ class Auth extends MY_Controller {
 		if ($this->ion_auth->logged_in()) {
 			$this->_redirect_to_backend();
 		} else {
-			// $data['page'] = $this->config->item('ci_my_admin_template_dir_public') . "login_form";
-			// $data['module'] = 'auth';
-
 			$this->load_view('login_form');
 		}
 	}
