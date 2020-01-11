@@ -190,6 +190,25 @@ class MY_Model extends CI_Model {
 		return $data;
 	}
 
+	public function count_all($where = NULL)
+	{
+		$count = 0;
+		$this->db->select('count(id) AS count', FALSE);
+
+		if (!empty($where)) {
+			$this->db->where($where);
+		}
+
+		$Q = $this->db->get($this->table_name);
+
+		if ($Q->num_rows() > 0) {
+			$count = $Q->result_array()[0]['count'];
+		}
+
+		$Q->free_result();
+
+		return $count;
+	}
 
 	public function get_updated($last_update, $fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '') {
 		$data = array();

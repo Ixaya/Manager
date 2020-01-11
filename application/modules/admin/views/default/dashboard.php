@@ -20,7 +20,7 @@
 			</div>
 		</div>
 		<?php endif; ?>
-		
+
 <!--		 retailers -->
 		<div class="col-lg-3 col-md-6">
 			<div class="panel panel-primary">
@@ -30,7 +30,7 @@
 							<i class="fa fa-institution fa-5x"></i>
 						</div>
 						<div class="col-xs-9 text-right">
-							<div class="huge"></div>
+							<div class="huge"><?= $example_count ?></div>
 							<div>Example</div>
 						</div>
 					</div>
@@ -43,7 +43,7 @@
 					</div>
 				</a>
 			</div>
-		</div>		
+		</div>
 	</div>
 
 
@@ -51,12 +51,12 @@
 </div>
 
 <style>
-	
+
 	.panel-purple{
 	  color: #ffffff;
 	  background-color: #6a47aa;
 	  border-color: #6a47aa;
 	}
-	
+
 </style>
 <!-- /#page-wrapper -->
