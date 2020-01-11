@@ -199,6 +199,14 @@ class MY_Model extends CI_Model {
 			$this->db->where($where);
 		}
 
+		if($this->where_override){
+			$this->db->where($this->where_override);
+		}
+
+		if ($this->soft_delete){
+			$this->db->where('deleted', 0);
+		}
+
 		$Q = $this->db->get($this->table_name);
 
 		if ($Q->num_rows() > 0) {
