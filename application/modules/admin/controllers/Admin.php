@@ -9,7 +9,7 @@ class Admin extends Admin_Controller {
 	}
 
 	public function index() {
-		$data['example_count'] = $this->examle->count_all();
+		$data['example_count'] = $this->example->count_all();
 
 		$this->load_view('dashboard', $data);
 	}

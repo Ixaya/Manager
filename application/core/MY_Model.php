@@ -325,7 +325,7 @@ class MY_Model extends CI_Model {
 		$data['deleted'] = 1;
 		$data['enabled'] = 0;
 		$data['last_update'] = date('Y-m-d H:i:s');
-	$data['deleted_by'] = $this->user_id;
+		$data['deleted_by'] = $this->user_id;
 
 		return $this->db->update($this->table_name, $data);
 
