@@ -25,6 +25,7 @@ class Migration_Example extends CI_Migration {
 				'type' => 'TIMESTAMP'
 			)
 		));
+
 		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->create_table('example');
 	}
