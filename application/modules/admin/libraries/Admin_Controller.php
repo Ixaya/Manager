@@ -8,6 +8,7 @@ class Admin_Controller extends MY_Controller {
 
 	function __construct() {
 		$this->_container = 'admin';
+		$this->_use_domain = false;
 
 		parent::__construct();
 

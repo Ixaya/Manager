@@ -28,8 +28,8 @@ class Migration_Domain extends CI_Migration {
 			'last_update' => array(
 				'type' => 'TIMESTAMP'
 			)
-
 		));
+
 		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->create_table('domain');
 	}

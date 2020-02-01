@@ -8,7 +8,7 @@ class Migration_Api_log extends CI_Migration {
 				'type' => 'INT',
 				'constraint' => 11,
 				'auto_increment' => TRUE
-			), 
+			),
 			'uri' => array(
 				'type' => 'VARCHAR',
 				'constraint' => 255
@@ -44,6 +44,7 @@ class Migration_Api_log extends CI_Migration {
 				'constraint' => 3
 			)
 		));
+
 		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->create_table('api_log');
 	}

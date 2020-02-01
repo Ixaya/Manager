@@ -46,6 +46,7 @@ class Migration_Sepomex extends CI_Migration {
 				'constraint' => 20
 			)
 		));
+
 		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->create_table('sepomex');
 	}
@@ -57,17 +58,17 @@ class Migration_Sepomex extends CI_Migration {
 }
 
 /*
-CREATE TABLE IF NOT EXISTS `sepomex` ( 
-`id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT , 
-`idEstado` SMALLINT UNSIGNED NOT NULL , 
+CREATE TABLE IF NOT EXISTS `sepomex` (
+`id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT ,
+`idEstado` SMALLINT UNSIGNED NOT NULL ,
 `estado` VARCHAR(35) NOT NULL ,
-`idMunicipio` SMALLINT UNSIGNED NOT NULL , 
-`municipio` VARCHAR(60) NOT NULL , 
-`ciudad` VARCHAR(60), 
+`idMunicipio` SMALLINT UNSIGNED NOT NULL ,
+`municipio` VARCHAR(60) NOT NULL ,
+`ciudad` VARCHAR(60),
 `zona` VARCHAR(15) NOT NULL,
-`cp` MEDIUMINT NOT NULL , 
-`asentamiento` VARCHAR(70) NOT NULL , 
+`cp` MEDIUMINT NOT NULL ,
+`asentamiento` VARCHAR(70) NOT NULL ,
 `tipo` VARCHAR(20) NOT NULL ,
 PRIMARY KEY (`id`)
-) ENGINE = InnoDB; 
+) ENGINE = InnoDB;
 */
