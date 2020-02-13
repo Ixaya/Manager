@@ -36,6 +36,12 @@ To Install **Manager** you need to
 * Update packages using composer `composer install`
 * Run Server `sh bin/server.sh`
 
+### Step by Step guide on Windows
+* Install Git `https://git-scm.com/download/win`
+* Install PHP (5.4+) `https://windows.php.net/download/`
+* Install Composer `https://getcomposer.org/download/`
+* Clone Repository `git clone https://github.com/Ixaya/Manager.git`
+* Update packages using composer `composer install`
 
 ## Application Structure
 
