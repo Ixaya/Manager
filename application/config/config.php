@@ -220,7 +220,7 @@ $config['directory_trigger'] = 'd';
 | your log files will fill up very fast.
 |
 */
-$config['log_threshold'] = 2;
+$config['log_threshold'] = 1;
 
 /*
 |--------------------------------------------------------------------------
@@ -376,11 +376,11 @@ $config['encryption_key'] = '';
 */
 
 //Files session
-$config['sess_driver'] = 'files';
-$config['sess_save_path'] = (session_save_path() ? session_save_path() : sys_get_temp_dir());
+// $config['sess_driver'] = 'files';
+// $config['sess_save_path'] = (session_save_path() ? session_save_path() : sys_get_temp_dir());
 //Database sessions
-// $config['sess_driver'] = 'database';
-// $config['sess_save_path'] = 'ci_sessions';
+$config['sess_driver'] = 'database';
+$config['sess_save_path'] = 'ci_sessions';
 //Common sessions
 $config['sess_cookie_name'] = 'ci_session';
 $config['sess_expiration'] = 0;
