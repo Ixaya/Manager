@@ -39,7 +39,9 @@ class MY_Controller extends CI_Controller
 
 		//construct defaults in case no overrides are setup
 		if(empty($this->_theme)){
-			$this->_theme = 'default';
+			
+			$this->_theme = $this->config->item('theme');
+			//$this->_theme = 'default';
 		}
 
 		if(empty($this->_container)){

@@ -24,9 +24,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |
 */
 
- $config['base_url'] = '';
-//$config['image_url'] = '';
-
+if(is_cli()){
+     $config['base_url'] = '';
+} else {
+        $host = $_SERVER['HTTP_HOST'];
+        $config['base_url'] = "//$host";
+}
 /*
 |--------------------------------------------------------------------------
 | Index File

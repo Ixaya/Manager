@@ -5,4 +5,8 @@
 $config['edition'] = 'dev';
 // $config['edition'] = 'prod';
 
+$config['theme'] = 'default';
+// $config['theme'] = 'soon';
+
+
 ?>

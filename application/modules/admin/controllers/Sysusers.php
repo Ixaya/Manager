@@ -16,7 +16,7 @@ class Sysusers extends Admin_Controller {
 			$this->session->set_flashdata('message', 'You must be an administrator to view the users page.');
 			redirect('admin/dashboard');
 		}
-		$this->load->helper(array('form', 'url', 'image'));
+		$this->load->helper(array('form', 'url'));
 	}
 
 	public function index() {

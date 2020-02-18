@@ -1,18 +1,13 @@
 <div id="page-wrapper">
 	<div class="row">
 		<div class="col-lg-12">
-<!--			 <h1 class="page-header"><img height="64px" src="<?= base_url() ?>assets/admin/images/cooknserve_logo.png" /> | Dashboard</h1> -->
-<!-- 				 <img height="64px" src="<?= base_url() ?>assets/admin/images/cooknserve_logo.png" /> -->
-<!--			 <h1 class="page-header"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a></li></h1> -->
-			<h1 class="page-header"><i class="fa fa-dashboard fa-fw"></i><?= $this->lang->line('admin_dashboard'); ?></h1>
-
-
+			<h1 class="page-header"><i class="fa fa-dashboard fa-fw"></i> Dashboard</h1>
 		</div>
 		<!-- /.col-lg-12 -->
 	</div>
 	<!-- /.row -->
 	<div class="row">
-<!--		 <?php if ($this->session->flashdata('message')): ?> -->
+		 <?php if ($this->session->flashdata('message')): ?>
 		<div class="col-lg-12 col-md-12">
 			<div class="alert alert-info alert-dismissable">
 				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
@@ -21,7 +16,8 @@
 		</div>
 		<?php endif; ?>
 
-<!--		 retailers -->
+<!-- Example -->
+<!--
 		<div class="col-lg-3 col-md-6">
 			<div class="panel panel-primary">
 				<div class="panel-heading">
@@ -45,6 +41,7 @@
 			</div>
 		</div>
 	</div>
+-->
 
 
 
