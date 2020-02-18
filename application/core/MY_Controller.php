@@ -43,7 +43,7 @@ class MY_Controller extends CI_Controller
 		}
 
 		if(empty($this->_container)){
-			$this->_container = 'public';
+			$this->_container = 'frontend';
 		}
 		if(empty($this->_layout)){
 			$this->_layout = "{$this->_container}/{$this->_theme}/layout";

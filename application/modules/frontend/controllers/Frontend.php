@@ -10,8 +10,6 @@ class Frontend extends MY_Controller {
 	public function index()
 	{
 		$this->load_view('frontend');
-		// $data['page'] = $this->config->item('ci_my_admin_template_dir_public') . "frontend";
-		// $this->load->view($this->_container, $data);
 	}
 
 }
