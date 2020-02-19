@@ -5,13 +5,19 @@ class Admin_Controller extends MY_Controller {
 	//public $client_id; //
 	public $logged_in_name;
 	public $language_file;
+	
+	
 
 	function __construct() {
 		$this->_container = 'admin';
 		$this->_use_domain = false;
+		$this->_theme_kind = 'admin';
+		
+		//construct defaults in case no overrides are setup
+	
 
 		parent::__construct();
-
+		
 		$this->load->library(array('ion_auth'));
 		if (!$this->ion_auth->logged_in()) {
 			$this->session->set_userdata('auth_redirect', uri_string());

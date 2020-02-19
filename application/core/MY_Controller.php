@@ -9,6 +9,8 @@ class MY_Controller extends CI_Controller
 	var $_use_domain = false;
 	var $_domain_id = 0;
 	var $domain_client_id;
+	
+	var $_theme_kind = 'frontend';
 
 	function __construct()
 	{
@@ -40,7 +42,8 @@ class MY_Controller extends CI_Controller
 		//construct defaults in case no overrides are setup
 		if(empty($this->_theme)){
 			
-			$this->_theme = $this->config->item('frontend_theme');
+			// load from config file
+			$this->_theme = $this->config->item("{$this->_theme_kind}_theme");
 			//$this->_theme = 'default';
 		}
 
