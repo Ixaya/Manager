@@ -5,12 +5,13 @@
 
 
 RewriteEngine on
+#Force HTTPS
+#RewriteCond %{REQUEST_URI} !\.well-known/acme-challenge
+#RewriteCond %{HTTPS} !=on
+#RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]
+
 #CodeIgniter redirect
 RewriteCond $1 !^(index\.php|resources|assets|robots\.txt)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php?/$1 [L,QSA]
-
-#Force HTTPS
-#RewriteCond %{HTTPS}  !=on
-#RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R,L]
