@@ -465,20 +465,21 @@ class MY_Model extends CI_Model {
 	public function clean_string($text)
 	{
 		$utf8 = array(
-			'/[áàâãªä]/u'   =>   'a',
-			'/[íìîï]/u'	 =>   'i',
-			'/[éèêë]/u'	 =>   'e',
-			'/[óòôõºö]/u'   =>   'o',
-			'/[úùûü]/u'	 =>   'u',
-			'/ç/'		   =>   'c',
-			'/ñ/'		   =>   'n',
-			'/–/'		   =>   '_', // UTF-8 hyphen to "normal" hyphen
-			'/[’‘‹›‚]/u'	=>   '_', // Literally a single quote
-			'/[“”«»„]/u'	=>   '_', // Double quote
-			'/ /'		   =>   '_', // nonbreaking space (equiv. to 0x160)
+			'/[áàâãªäÁÀÂÃªÄ]/u'	 =>	 'a',
+			'/[íìîïÍÌÎÏ]/u'		 =>	 'i',
+			'/[éèêëÉÈÊË]/u'		 =>	 'e',
+			'/[óòôõºöÓÒÔÕºÖ]/u'	 =>	 'o',
+			'/[úùûüÚÙÛÜ]/u'		 =>	 'u',
+			'/[çÇ]/u'					 =>	 'c',
+			'/[ñÑ]/u'					 =>	 'n',
+			'/-/'					 =>	 '_', // UTF-8 hyphen to "normal" hyphen
+			'/[’‘‹›‚]/u'		=>	 '_', // Literally a single quote
+			'/[“”«»„]/u'		=>	 '_', // Double quote
+			'/ /'					 =>	 '_', // nonbreaking space (equiv. to 0x160)
 		);
-		$clean = strtolower(rtrim($text));//Remove right spaces and convert to lower case
-		$clean = preg_replace(array_keys($utf8), array_values($utf8), $clean); //Convert special letters
+
+		$clean = preg_replace(array_keys($utf8), array_values($utf8), $text); //Convert special letters
+		$clean = strtolower(rtrim($clean));//Remove right spaces and convert to lower case
 		return preg_replace("/[^A-Za-z0-9_]/", '', $clean); // Remove special characters
 	}
 
