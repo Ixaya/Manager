@@ -327,9 +327,7 @@ $config['cache_query_string'] = FALSE;
 | https://codeigniter.com/user_guide/libraries/encryption.html
 |
 | Generate Key:
-| $this->load->library('encryption');
-| $key = bin2hex($this->encryption->create_key(16));
-| die($key);
+| php public/index.php manager tools generate_enc_key
 |
 */
 $config['encryption_key'] = hex2bin('');
