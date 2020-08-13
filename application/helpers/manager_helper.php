@@ -16,3 +16,8 @@ function image_url($uri = '', $protocol = NULL)
 {
 	return get_instance()->config->image_url($uri, $protocol);
 }
+
+function secure_url($uri = '')
+{
+	return get_instance()->config->base_url($uri, 'https:');
+}
