@@ -9,7 +9,7 @@ class MY_Controller extends CI_Controller
 	var $_use_domain = false;
 	var $_domain_id = 0;
 	var $domain_client_id;
-	
+
 	var $_theme_kind = 'frontend';
 
 	function __construct()
@@ -41,7 +41,7 @@ class MY_Controller extends CI_Controller
 
 		//construct defaults in case no overrides are setup
 		if(empty($this->_theme)){
-			
+
 			// load from config file
 			$this->_theme = $this->config->item("{$this->_theme_kind}_theme");
 			//$this->_theme = 'default';
@@ -84,5 +84,122 @@ class MY_Controller extends CI_Controller
 
 		echo(json_encode($data));
 		die();
+	}
+
+	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL)
+	{
+		try
+		{
+			//APPPATH
+			//FCPATH
+			$file_path = FCPATH.$relative_path;
+			if (!file_exists($file_path))
+				mkdir($file_path, 0755, true);
+
+			if ($upload_config == NULL){
+				$config['allowed_types']		= 'gif|jpg|png|jpeg|svg|pdf';
+				$config['max_size']					= 10048; //2MB (PHP Max in this config)
+				$config['max_width']				= 0; // no size restriction
+				$config['max_height']				= 0; // no size restriction
+			} else {
+				$config = $upload_config;
+			}
+
+			$config['upload_path']		  = $file_path;
+			$config['remove_spaces']  = true;
+			$config['detect_mime']   = true;
+
+			if($desired_file_name)
+			{
+				$config['file_name'] = $desired_file_name;
+				$config['overwrite'] = true;
+			} else {
+				$config['encrypt_name'] = true;
+			}
+
+			//initialize in second line in case you want to do multiple uploads on same instance
+			$this->load->library('upload');
+			$this->upload->initialize($config);
+			if ($this->upload->do_upload($field_name))
+			{
+				//$this->session->set_flashdata('message', 'Se subió el archivo');
+				$this->session->set_flashdata('message', 'Imagen agregada correctamente');
+				$this->session->set_flashdata('message_kind', 'success');
+
+				$upload_data = $this->upload->data();
+
+				$original_file_path = $upload_data['full_path'];
+				$file_ext = $upload_data['file_ext'];
+				$file_type = $upload_data['file_type'];
+
+				if (!$preserve_type){
+					$file_ext = '.jpg';
+					$file_type = 'image/jpeg';
+				}
+
+				$new_file_name = $upload_data['raw_name'].$file_ext;
+				$new_file_path = $file_path.$new_file_name;
+
+
+				if (!$preserve_type){
+					//advanced convert to JPG that sets background to white
+					$input_image = imagecreatefromstring(file_get_contents($original_file_path));
+					list($width, $height) = getimagesize($original_file_path);
+					$output_image = imagecreatetruecolor($width, $height);
+					$white = imagecolorallocate($output_image,  255, 255, 255);
+					imagefilledrectangle($output_image, 0, 0, $width, $height, $white);
+					imagecopy($output_image, $input_image, 0, 0, 0, 0, $width, $height);
+					imagejpeg($output_image, $new_file_path);
+				}
+
+				if ($file_type == 'image/jpeg' || $file_type == 'image/png')
+				{
+					//create thumbnail
+					$new_file_thumb = $upload_data['raw_name'].'_thumb'.$file_ext;
+					$img_config['image_library']  = 'gd2';
+					$img_config['source_image']   = $new_file_path;
+					$img_config['create_thumb']   = TRUE;
+					$img_config['maintain_ratio'] = TRUE;
+					$img_config['width']		  = $resolution[0];
+					$img_config['height']		 = $resolution[1];
+					$this->load->library('image_lib', $img_config);
+					$this->image_lib->resize();
+				}
+
+
+				//return thumbnail name and image_name
+				$v = '';
+				if ($desired_file_name){
+					$v = dechex(time());
+					$v = "?v=$v";
+				}
+
+				$return_data['fullsize_image_name'] = $new_file_name.$v;
+				$return_data['fullsize_image_type'] = $file_type;
+				$return_data['thumb_image_name']    = $new_file_thumb.$v;
+				$return_data['original_image_link'] = $upload_data['full_path'];
+				$return_data['original_image_name'] = $upload_data['file_name'].$v;
+				$return_data['url_image'] = base_url($relative_path.$upload_data['file_name'].$v);
+
+				//delete original image in case its not a jpg
+				if($delete_original && !$preserve_type && $upload_data['file_ext'] != '.jpg')
+				{
+					//delete
+					unlink($upload_data['full_path']);
+				}
+				return $return_data;
+
+			} else {
+				$this->session->set_flashdata('message', $this->upload->display_errors());//'Error al subir imagen');
+				$this->session->set_flashdata('message_kind', 'error');
+				log_message('error', "Error uploading($relative_path): ".json_encode($this->upload->display_errors()));
+				//$this->error = $this->upload->display_errors();
+			}
+		} catch ( Exception $e ) {
+			$this->session->set_flashdata('message', 'Error al subir imagen');
+			$this->session->set_flashdata('message_kind', 'error');
+			log_message('error', "Error uploading($file_path): ".$e->getMessage());
+		}
+		return false;
 	}
 }
