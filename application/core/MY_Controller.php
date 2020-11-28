@@ -12,6 +12,9 @@ class MY_Controller extends CI_Controller
 
 	var $_theme_kind = 'frontend';
 
+	var $language_file = null;
+	var $language_enabled = false;
+
 	function __construct()
 	{
 		parent::__construct();
@@ -59,6 +62,30 @@ class MY_Controller extends CI_Controller
 		$this->load->library('session');
 		if (!empty($this->session->flashdata('message')) && empty($this->session->flashdata('message-kind'))){
 			$this->session->set_flashdata('message-kind', 'alert-info');
+		}
+
+		if($this->language_enabled)
+		{
+			if (!$this->language_file) {
+				$this->load->helper('inflector');
+			 	$this->language_file = strtolower(get_class($this));
+			}
+
+			if(isset($_SESSION['language']))
+			{
+				$this->config->set_item('language', $_SESSION['language']);
+			}
+			if(is_array($this->language_file))
+			{
+				foreach($this->language_file as $file)
+				{
+					$this->lang->load($file);
+				}
+			} else {
+				$this->lang->load($this->language_file);
+			}
+
+			$this->load->helper('language');
 		}
 	}
 
