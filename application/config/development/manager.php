@@ -8,8 +8,8 @@ $config['edition'] = 'dev';
 $config['frontend_theme'] = 'default';
 // $config['frontend_theme'] = 'soon';
 
-// $config['admin_theme'] = 'default';
-$config['admin_theme'] = 'default2';
+$config['admin_theme'] = 'default';
+// $config['admin_theme'] = 'default2';
 
 
 
