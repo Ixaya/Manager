@@ -110,6 +110,7 @@
 							
 							<li><a href="<?= base_url('admin/dashboard') ?>"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a></li>					  
 							<li><a href="<?= base_url('admin/sysusers') ?>"><i class="fa fa-user fa-fw"></i> Users</a></li>
+							<li><a href="<?= base_url('admin/page_items') ?>"><i class="fa fa-square fa-fw"></i> Page Items</a></li>
 							
 <!-- Collapsable Menu Example -->
 <!--

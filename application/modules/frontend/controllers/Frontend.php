@@ -15,7 +15,13 @@ class Frontend extends MY_Controller {
 
 	public function index()
 	{
-		$this->load_view('frontend');
+		$this->load->model('admin/page_item');
+		$data['icon_items'] 	= $this->page_item->get_all('','kind = 1');
+		$data['showcases']  	= $this->page_item->get_all('','kind = 2');
+		$data['testimonials']	= $this->page_item->get_all('','kind = 3');
+		$data['social_networks'] = $this->page_item->get_all('','kind = 4');
+		$data['about_items'] 	= $this->page_item->get_all('','kind = 5');
+		$this->load_view('frontend', $data);
 	}
 
 }
