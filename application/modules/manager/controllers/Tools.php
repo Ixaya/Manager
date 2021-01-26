@@ -29,7 +29,11 @@ class Tools extends CI_Controller {
 
 		echo $result . PHP_EOL;
 	}
-
+	public function generate_enc_key($length = 16){
+		$this->load->library('encryption');
+		$key = bin2hex($this->encryption->create_key($length));
+		die($key);
+	}
 	public function migration($name) {
 		$this->make_migration_file($name);
 	}
@@ -120,7 +124,7 @@ class $name extends Seeder {
 
 	public function run() {
 		\$this->db->truncate(\$this->table);
-		
+
 		//seed records manually
 		\$data = [
 			'user_name' => 'admin',

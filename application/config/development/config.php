@@ -25,11 +25,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 */
 
 if(is_cli()){
-     $config['base_url'] = '';
+	$config['base_url'] = '';
 } else {
-        $host = $_SERVER['HTTP_HOST'];
-        $config['base_url'] = "//$host";
+	$host = $_SERVER['HTTP_HOST'];
+	$config['base_url'] = "//$host";
 }
+
+//$config['image_url'] = '';
+
 /*
 |--------------------------------------------------------------------------
 | Index File
@@ -323,8 +326,11 @@ $config['cache_query_string'] = FALSE;
 |
 | https://codeigniter.com/user_guide/libraries/encryption.html
 |
+| Generate Key:
+| php public/index.php manager tools generate_enc_key
+|
 */
-$config['encryption_key'] = '';
+$config['encryption_key'] = hex2bin('');
 
 /*
 |--------------------------------------------------------------------------

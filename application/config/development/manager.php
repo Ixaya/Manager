@@ -11,6 +11,6 @@ $config['frontend_theme'] = 'default';
 $config['admin_theme'] = 'default';
 // $config['admin_theme'] = 'default2';
 
-
+$config['languages'] = ['english','spanish'];
 
 ?>

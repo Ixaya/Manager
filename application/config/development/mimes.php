@@ -110,7 +110,7 @@ return array(
 	'docx'	=>	array('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/msword', 'application/x-zip'),
 	'dot'	=>	array('application/msword', 'application/vnd.ms-office'),
 	'dotx'	=>	array('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/msword'),
-	'xlsx'	=>	array('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/vnd.ms-excel', 'application/msword', 'application/x-zip'),
+	'xlsx'	=>	array('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/vnd.ms-excel', 'application/msword', 'application/x-zip', 'application/octet-stream'),
 	'word'	=>	array('application/msword', 'application/octet-stream'),
 	'xl'	=>	'application/excel',
 	'eml'	=>	'message/rfc822',
