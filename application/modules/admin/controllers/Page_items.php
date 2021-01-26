@@ -6,12 +6,20 @@ class Page_items extends Admin_Controller {
 	function __construct() {
 		parent::__construct();
 
-		$this->load->model(['admin/page_item']);
+		
 	}
 
 	public function index() {
+		$this->load->model('page_item');
 		$data['page_items'] = $this->page_item->get_all();
+		$data['page_items_count'] = $this->page_item->count_all();
+		$data['icon_items'] 	= $this->page_item->count_all('kind = 1');
+		$data['showcases']  	= $this->page_item->count_all('kind = 2');
+		$data['testimonials']	= $this->page_item->count_all('kind = 3');
+		$data['social_networks'] = $this->page_item->count_all('kind = 4');
+		$data['about_items'] 	= $this->page_item->count_all('kind = 5');
 
+		$data['kinds'] = $this->page_item->kinds();
 		$this->load_view("page_item/page_items", $data);
 	}
 
@@ -21,6 +29,9 @@ class Page_items extends Admin_Controller {
 
 	public function edit($id = NULL)
 	{
+		//cargo el modelo
+		$this->load->model('page_item');
+		
 		if ($this->input->post('title')) {
 			$data['title'] = $this->input->post('title');
 			$data['description'] = $this->input->post('description');
@@ -46,10 +57,15 @@ class Page_items extends Admin_Controller {
 
 
 		$this->load->helper(array('form','ui'));
+		
+		//me traigo los kinds desde el modelo page_item
+		$data['kinds'] = $this->page_item->kinds();
+		
 		$this->load_view('page_item/page_item', $data);
 	}
 
 	public function delete($id) {
+			$this->load->model('page_item');
 		$this->page_item->delete($id);
 
 		redirect('/admin/page_items', 'refresh');

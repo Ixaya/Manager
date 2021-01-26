@@ -17,36 +17,34 @@
 		<?php endif; ?>
 
 <!-- Example -->
-<!--
 		<div class="col-lg-3 col-md-6">
 			<div class="panel panel-primary">
 				<div class="panel-heading">
 					<div class="row">
 						<div class="col-xs-3">
-							<i class="fa fa-institution fa-5x"></i>
+							<i class="fa fa-square fa-5x"></i>
 						</div>
 						<div class="col-xs-9 text-right">
-							<div class="huge"><?= $example_count ?></div>
-							<div>Example</div>
+							<div class="huge"><?= $page_items_count ?></div>
+							<div>Page Items</div>
 						</div>
 					</div>
 				</div>
 				<a href="#">
 					<div class="panel-footer">
-						<span class="pull-left"><a href="<?= base_url('admin/example/') ?>">Example</a></span>
-						<span class="pull-right"><a href="<?= base_url('admin/example/') ?>"><i class="fa fa-arrow-circle-right"></i></a></span>
+						<span class="pull-left"><a href="<?= base_url('admin/page_items') ?>">Page Items</a></span>
+						<span class="pull-right"><a href="<?= base_url('admin/page_items/') ?>"><i class="fa fa-arrow-circle-right"></i></a></span>
 						<div class="clearfix"></div>
 					</div>
 				</a>
 			</div>
 		</div>
 	</div>
--->
 
 
 
 </div>
-
+<!-- https://fontawesome.com/v4.7.0/icons/ -->
 <style>
 
 	.panel-purple{

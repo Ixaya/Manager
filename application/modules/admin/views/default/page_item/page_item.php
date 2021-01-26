@@ -47,16 +47,31 @@
 									<label>Font Awesome Icon</label>
 									<input class="form-control" placeholder="Enter faicon" id="faicon" name="faicon"  value="<?=$page_item->faicon?>">
 								</div>
+								
+								
 								<div class="form-group">
 									<label>Kind</label>
-									<input class="form-control" placeholder="Enter kind" id="kind" name="kind"  value="<?=$page_item->kind?>">
+									
+									
+<!-- 									<input class="form-control" placeholder="Enter kind" id="kind" name="kind"  value="<?=$page_item->kind?>"> -->
+									
+									<select class="form-control" name="kind" id="kind">
+										<?php foreach ($kinds as $key => $list): ?>
+											<option value="<?=$key?>" <?= ($page_item->kind == $key) ? 'selected' : '';?> ><?=$list?></option>
+										
+										<?php endforeach; ?>
+									</select>
 								</div>
+								
+								
 								<div class="form-group">
 									<label>Image Name</label>
 									<input class="form-control" placeholder="Enter image_name" id="image_name" name="image_name"  value="<?=$page_item->image_name?>">
 								</div>
 
-								<button type="submit" class="btn btn-primary">Save</button>
+								<a  href="<?= base_url('admin/page_items/delete/'.$page_item->id) ?>" class="btn btn-danger">Delete</a>
+								<button type="submit" class="btn btn-primary pull-right">Save</button>
+								
 							</form>
 						</div>
 					</div>

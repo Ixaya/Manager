@@ -5,12 +5,15 @@ class Admin extends Admin_Controller {
 
 	function __construct() {
 		parent::__construct();
-		$this->load->model('admin/example');
+		
 	}
 
 	public function index() {
-		$data['example_count'] = $this->example->count_all();
-
+		
+		
+		$this->load->model('admin/page_item');
+		$data['page_items_count'] = $this->page_item->count_all();
 		$this->load_view('dashboard', $data);
+		
 	}
 }

@@ -1,4 +1,10 @@
+
+
+
+
 <div id="page-wrapper">
+	
+	
 	<div class="row">
 		<div class="col-lg-12">
 			<div class="page-header users-header">
@@ -9,6 +15,125 @@
 			</div>
 		</div>
 		<!-- /.col-lg-12 -->
+	</div>
+	
+	
+	<div class="row">
+		 <?php if ($this->session->flashdata('message')): ?>
+		<div class="col-lg-12 col-md-12">
+			<div class="alert alert-info alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+				<?=$this->session->flashdata('message')?>
+			</div>
+		</div>
+		<?php endif; ?>
+
+		<!-- Total Page Items -->
+		<div class="col-lg-2 col-md-4">
+			<div class="panel panel-primary">
+				<div class="panel-heading">
+					<div class="row">
+						<div class="col-xs-3">
+							<i class="fa fa-list-ol fa-3x"></i>
+						</div>
+						<div class="col-xs-9 text-right">
+							<div class="huge"><?= $page_items_count ?></div>
+							<div>Total PageItems</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Total Page Items -->
+		<div class="col-lg-2 col-md-4">
+			<div class="panel panel-warning">
+				<div class="panel-heading">
+					<div class="row">
+						<div class="col-xs-3">
+							<i class="fa fa-square fa-3x"></i>
+						</div>
+						<div class="col-xs-9 text-right">
+							<div class="huge"><?= $icon_items?></div>
+							<div>Icon Items</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Showcases Items -->
+		<div class="col-lg-2 col-md-4">
+			<div class="panel panel-danger">
+				<div class="panel-heading">
+					<div class="row">
+						<div class="col-xs-3">
+							<i class="fa fa-eye fa-3x"></i>
+						</div>
+						<div class="col-xs-9 text-right">
+							<div class="huge"><?= $showcases ?></div>
+							<div>Total Showcases</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Testimonials -->
+		<div class="col-lg-2 col-md-4">
+			<div class="panel panel-success">
+				<div class="panel-heading">
+					<div class="row">
+						<div class="col-xs-3">
+							<i class="fa fa-comments fa-3x"></i>
+						</div>
+						<div class="col-xs-9 text-right">
+							<div class="huge"><?= $testimonials ?></div>
+							<div>Total Testimonials</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Social Networks -->
+		<div class="col-lg-2 col-md-4">
+			<div class="panel panel-info">
+				<div class="panel-heading">
+					<div class="row">
+						<div class="col-xs-3">
+							<span>
+							<i class="fa fa-facebook fa-2x"></i>
+							<i class="fa fa-instagram fa-1x"></i>
+							<i class="fa fa-twitter fa-2x"></i>
+							</span>
+						</div>
+						<div class="col-xs-9 text-right">
+							<div class="huge"><?= $social_networks ?></div>
+							<div>Social Networks</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- About Items -->
+		<div class="col-lg-2 col-md-4">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<div class="row">
+						<div class="col-xs-3">
+							<i class="fa fa-info fa-5x"></i>
+						</div>
+						<div class="col-xs-9 text-right">
+							<div class="huge"><?= $about_items ?></div>
+							<div>About Items</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		
 	</div>
 	<!-- /.row -->
 	<div class="row">
@@ -36,7 +161,7 @@
 										<tr class="odd gradeX">
 											<td><?=$list['title']?></td>
 											<td><?=$list['description']?></td>
-											<td><?=$list['kind']?></td>
+											<td><?=$kinds[$list['kind']]?></td>
 											<td><?=$list['last_update']?></td>
 											<td>
 												<a href="<?= base_url('admin/page_items/edit/'.$list['id']) ?>" class="btn btn-info">edit</a>
