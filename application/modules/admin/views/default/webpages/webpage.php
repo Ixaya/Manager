@@ -1,4 +1,4 @@
-<div id="webpage-wrapper">
+<div id="page-wrapper">
 	<div class="row">
 		<div class="col-lg-12">
 			<h2>
@@ -13,7 +13,7 @@
 		<div class="col-lg-12">
 			<div class="panel panel-default">
 				<div class="panel-heading">
-				  <?php if (empty($webpage->id)): ?>
+			  <?php if (empty($webpage->id)): ?>
 					Create webpage Item
 				  <?php else: ?>
 					Update webpage Item
@@ -64,4 +64,4 @@
 	</div>
 	<!-- /.row -->
 </div>
-<!-- /#webpage-wrapper -->
+<!-- /#page-wrapper -->

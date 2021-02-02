@@ -20,9 +20,14 @@
 <!-- Custom Theme JavaScript -->
 <script src="<?= base_url() ?>assets/admin/default/js/sb-admin-2.js"></script>
 
-
+<!-- Datetime Picker -->
 <script src="<?= base_url() ?>assets/admin/default/js/moment.min.js"></script>
 <script src="<?= base_url() ?>assets/admin/default/js/bootstrap-datetimepicker.min.js"></script>
+
+<!-- Summer Note -->
+<link href="<?= base_url() ?>assets/admin/default/vendor/summernote/summernote.min.css" rel="stylesheet">
+<script src="<?= base_url() ?>assets/admin/default/vendor/summernote/summernote.min.js"></script>
+
 
 <script type="text/javascript" charset="utf-8">
 	$(document).ready(function() {

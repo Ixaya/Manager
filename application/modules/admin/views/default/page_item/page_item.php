@@ -51,13 +51,18 @@
 								
 								<div class="form-group">
 									<label>Kind</label>
-									
-									
-<!-- 									<input class="form-control" placeholder="Enter kind" id="kind" name="kind"  value="<?=$page_item->kind?>"> -->
-									
 									<select class="form-control" name="kind" id="kind">
 										<?php foreach ($kinds as $key => $list): ?>
 											<option value="<?=$key?>" <?= ($page_item->kind == $key) ? 'selected' : '';?> ><?=$list?></option>
+										
+										<?php endforeach; ?>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Page and Section</label>
+									<select class="form-control" name="page_section_id" id="page_section_id">
+										<?php foreach ($page_sections as $list): ?>
+											<option value="<?=$list['id']?>" <?= ($page_item->page_section_id == $list['id']) ? 'selected' : '';?> ><?=$list['title'] .' - '. $kinds[$list['kind']]?></option>
 										
 										<?php endforeach; ?>
 									</select>

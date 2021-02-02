@@ -7,7 +7,7 @@
 		  <?php foreach ($this->_footer_links as $item): ?>
 
             <li class="list-inline-item">
-              <a href="<?= $item['url'] ?>"><?= $item['title'] ?></a>
+              <a href="<?= base_url($item['url']) ?>"><?= $item['title'] ?></a>
             </li>
             <li class="list-inline-item">&sdot;</li>
            <?php endforeach; ?>
