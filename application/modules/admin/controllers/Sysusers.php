@@ -24,7 +24,7 @@ class Sysusers extends Admin_Controller {
 		//print_r($users);
 
 		$data['users'] = $users;
-		$this->load_view('sysusers_list', $data);
+		$this->load_view('sysusers/sysusers_list', $data);
 	}
 
 	public function index_ajax() {
@@ -65,7 +65,7 @@ class Sysusers extends Admin_Controller {
 
 		$data['groups'] = $this->ion_auth->groups()->result();
 
-		$this->load_view('sysusers_create', $data);
+		$this->load_view('sysusers/sysusers_create', $data);
 	}
 
 	public function edit($id) {
@@ -101,7 +101,7 @@ class Sysusers extends Admin_Controller {
 		$data['user'] = $this->ion_auth->user($id)->row();
 		$data['user_group'] = $this->ion_auth->get_users_groups($id)->row();
 
-		$this->load_view('sysusers_edit', $data);
+		$this->load_view('sysusers/sysusers_edit', $data);
 	}
 
 	public function delete($id) {

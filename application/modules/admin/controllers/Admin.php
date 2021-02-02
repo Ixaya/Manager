@@ -13,7 +13,7 @@ class Admin extends Admin_Controller {
 		
 		$this->load->model('admin/page_item');
 		$data['page_items_count'] = $this->page_item->count_all();
-		$this->load_view('dashboard', $data);
+		$this->load_view('dashboard/dashboard', $data);
 		
 	}
 }

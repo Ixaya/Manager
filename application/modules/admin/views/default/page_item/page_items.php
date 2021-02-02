@@ -150,6 +150,7 @@
 								<tr>
 									<th>Title</th>
 									<th>Description</th>
+									<th>WebPage</th>
 									<th>Kind</th>
 									<th>Last Update</th>
 									<th>Action</th>
@@ -161,6 +162,7 @@
 										<tr class="odd gradeX">
 											<td><?=$list['title']?></td>
 											<td><?=$list['description']?></td>
+											<td>Webpage</td>
 											<td><?=$kinds[$list['kind']]?></td>
 											<td><?=$list['last_update']?></td>
 											<td>
@@ -170,6 +172,7 @@
 									<?php endforeach; ?>
 								<?php else: ?>
 									<tr class="even gradeC">
+										<td>No data</td>
 										<td>No data</td>
 										<td>No data</td>
 										<td>No data</td>
@@ -184,6 +187,7 @@
 								<tr>
 									<th>Title</th>
 									<th>Description</th>
+									<th>WebPage</th>
 									<th>Kind</th>
 									<th>Last Update</th>
 									<th>Action</th>
