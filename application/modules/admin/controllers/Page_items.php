@@ -61,6 +61,7 @@ class Page_items extends Admin_Controller {
 		//me traigo los kinds desde el modelo page_item
 		$data['kinds'] = $this->page_item->kinds();
 		
+
 		$this->load_view('page_item/page_item', $data);
 	}
 

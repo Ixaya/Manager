@@ -14,37 +14,16 @@ class Page_item extends MY_Model {
 	}
 	public function kinds()
 	{
-/*
-		$kinds = [];
-		$kinds[] = ['value' => '1', 'title' => 'Featured Icon'];
-		$kinds[] = ['value' => '2', 'title' => 'Showcase'];
-		$kinds[] = ['value' => '3', 'title' => 'Testimonial'];
-		$kinds[] = ['value' => '4', 'title' => 'Social Networks'];
-		$kinds[] = ['value' => '5', 'title' => 'About'];
-*/
 		$kinds = [];
 		$kinds[1] = 'Featured Icon';
 		$kinds[2] = 'Showcase';
 		$kinds[3] = 'Testimonial';
 		$kinds[4] = 'Social Networks';
 		$kinds[5] = 'About';
-		return $kinds;
-		
-		return $kinds;
-	}
-/*
-	public function kinds_array()
-	{
-		$kinds = [];
-		$kinds[1] = 'Featured Icon';
-		$kinds[2] = 'Showcase';
-		$kinds[3] = 'Testimonial';
-		$kinds[4] = 'Social Networks';
-		$kinds[5] = 'About';
+		$kinds[6] = 'Menu Link';
 		return $kinds;
 		
 	}
-*/
 	
 	public function count_icons()
 	{
