@@ -3,7 +3,8 @@
 if (!defined('BASEPATH'))
 	exit('No direct script access allowed');
 
-class Auth extends MY_Controller {
+class Auth extends Public_Controller {
+	
 
 	function __construct() {
 		parent::__construct();
@@ -17,8 +18,9 @@ class Auth extends MY_Controller {
 	}
 
 	public function index() {
+		
 		if ($this->ion_auth->logged_in()) {
-			$this->_redirect_to_backend();
+			$this->_redirect_to_area();	
 		} else {
 			$this->load_view('login_form');
 		}
@@ -34,7 +36,8 @@ class Auth extends MY_Controller {
 			if ($this->ion_auth->login($this->input->post('email'), $this->input->post('password'), $remember)) {
 				$this->session->set_flashdata('message', $this->ion_auth->messages());
 
-				$this->_redirect_to_backend();
+				$this->_redirect_to_area();
+				
 			} else {
 				$this->session->set_flashdata('message', $this->ion_auth->errors());
 				redirect('auth', 'refresh');
@@ -53,16 +56,94 @@ class Auth extends MY_Controller {
 		redirect('auth', 'refresh');
 	}
 
-	private function _redirect_to_backend(){
-		$redirect_url = $this->session->userdata('auth_redirect');
-		if (!empty($redirect_url)){
-			$this->session->unset_userdata('auth_redirect');
-			redirect($redirect_url, 'refresh');
+	private function _redirect_to_area()
+	{
+		
+		if($this->ion_auth->is_admin())
+		{
+			log_message('debug', 'Is Admin');
+			$redirect_url = $this->session->userdata('auth_redirect');
+			if (!empty($redirect_url)){
+				$this->session->unset_userdata('auth_redirect');
+				redirect($redirect_url, 'refresh');
+			} else {
+				redirect("/admin/dashboard", 'refresh');
+			}
 		} else {
-			redirect("/admin/dashboard", 'refresh');
-		}
+			$redirect_url = $this->session->userdata('auth_redirect');
+			if (!empty($redirect_url)){
+				$this->session->unset_userdata('auth_redirect');
+				redirect($redirect_url, 'refresh');
+			} else {
+				redirect("/", 'refresh');
+			}
 
+		}
 	}
+	
+	public function signup()
+	{
+		$email = $this->input->post('email');
+		$first_name = $this->input->post('first_name');
+		$last_name = $this->input->post('last_name');
+		$password = $this->input->post('password');
+		$password_confirmation = $this->input->post('password_confirmation');
+		
+		
+		$message = null;
+		try
+		{
+			if($password != $password_confirmation)
+			{
+				throw new Exception('The passwords do not match');
+			}
+			
+			
+			//si no falla ninguna validación previa, proceder
+			
+			
+			$additional_data = array(
+				'first_name' => $first_name,
+				'last_name' => $last_name,
+				'username' 	=> $email,
+				'company' 	=> ''
+			);
+			
+			$groups_id = [2]; //Members Group
+			$user = $this->ion_auth->register($email, $password, $email, $additional_data, $groups_id);
+
+			if(!$user)
+			{
+				$errors = $this->ion_auth->errors();				
+				throw new Exception($errors);
+			}
+			
+			$this->ion_auth->activate($user);
+			
+			
+			$this->ion_auth->login($email, $password);
+			
+			$message = 'Account created successfully, please login to proceed';
+			$this->session->set_flashdata('message_kind', 'success');
+			
+			//redirect('/', 'refresh');			
+		} 
+		catch (Exception $ex)
+		{
+			$message = $ex->getMessage();
+			log_message('debug', $message);
+			
+			
+		} finally {
+			// en caso de que queramos algún código de finalizar
+			if($message)
+				$this->session->set_flashdata('message', $message);
+				
+			redirect('/auth', 'refresh');
+		}
+		
+	}
+	 
 }
 
 /* End of file auth.php */

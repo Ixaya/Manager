@@ -3,9 +3,13 @@ require_once APPPATH . 'modules/admin/libraries/Admin_Controller.php';
 
 class Admin extends Admin_Controller {
 
+	
+
 	function __construct() {
-		parent::__construct();
 		
+		$this->group_needed = 'members';
+		
+		parent::__construct();
 	}
 
 	public function index() {

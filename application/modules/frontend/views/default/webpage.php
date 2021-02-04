@@ -1,4 +1,3 @@
-  <!-- Masthead -->
 <!--
   <header class="masthead text-white text-center">
     <div class="overlay"></div>
@@ -23,7 +22,22 @@
     </div>
   </header>
 -->
-
+  <!-- Message -->
+ <section class="bg-light text-center">
+    <div class="container">
+      	<?php if ($this->session->flashdata('message')): ?>
+		<div class="row">
+			<div class="col-md-6 offset-md-3">
+				
+				<div class="alert alert-<?= $this->session->flashdata('message-kind') ?> alert-dismissible fade show" role="alert">
+					<a href="#" class="close" data-dismiss="alert">&times;</a>
+					<?= $this->session->flashdata('message') ?>
+				</div>
+			</div>
+		</div>
+		<?php endif; ?>  
+    </div>
+ </section>
   <?php foreach ($sections as $section): ?>
 
 

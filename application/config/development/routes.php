@@ -61,8 +61,8 @@ $route['contact'] = 'frontend/contact';
 $route['terms'] = 'frontend/terms';
 $route['privacy'] = 'frontend/privacy';
 */
-
 $route['admin/dashboard'] = 'admin/admin';
+$route['auth'] = 'auth/auth';
 
 //examples routes
 /*
@@ -71,8 +71,10 @@ $route['admin/examples/create'] = 'admin/examples/create';
 $route['admin/examples/edit/(:any)'] = 'admin/examples/edit/$1';
 */
 
-
+//Ruta Global
+$route['private/(:any)'] = 'private/profile/webpage/$1';
 $route['(:any)'] = 'frontend/webpage/$1';
+
 // Images
 $route['media/(:any)'] = 'media/resize/$1';
 //$route['admin/media/(:any)'] = 'admin/media/resize/$1';

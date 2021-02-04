@@ -1,10 +1,12 @@
 <?php if (!defined('BASEPATH'))  exit('No direct script access allowed');
 
 class Admin_Controller extends MY_Controller {
+	
 	public $is_admin;
 	//public $client_id; //
 	public $logged_in_name;
 	public $language_file;
+	private $group_needed = 'admin';
 	
 	
 
@@ -18,11 +20,21 @@ class Admin_Controller extends MY_Controller {
 
 		parent::__construct();
 		
+		
+		
 		$this->load->library(array('ion_auth'));
 		if (!$this->ion_auth->logged_in()) {
 			$this->session->set_userdata('auth_redirect', uri_string());
 			redirect('/auth', 'refresh');
 		}
+		
+		if (!$this->ion_auth->in_group($this->group_needed))
+		{
+			$this->session->set_flashdata('message-kind', "danger");
+			$this->session->set_flashdata('message', "You don't have the correct permissions to access that page.");
+			redirect('/', 'refresh');
+		}
+
 
 /*
 		$this->load->helper('inflector');

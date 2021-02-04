@@ -4,6 +4,9 @@ require_once APPPATH . 'modules/admin/libraries/Admin_Controller.php';
 class Webpages extends Admin_Controller {
 
 	function __construct() {
+		
+		$this->group_needed = 'members';
+		
 		parent::__construct();
 
 		

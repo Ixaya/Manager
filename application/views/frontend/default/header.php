@@ -29,7 +29,13 @@
   <nav class="navbar navbar-light bg-light static-top">
     <div class="container">
       <a class="navbar-brand" href="<?=base_url()?>">Your Project Name</a>
+      
+      <?php if($this->_is_logged_in): ?>
+      <a class="btn btn-primary" href="<?=base_url('private/profile')?>">Profile</a>
+<!--       <a class="btn btn-primary" href="<?=base_url('auth/logout')?>">Sign Out</a> -->
+      <?php else: ?>
       <a class="btn btn-primary" href="<?=base_url('auth')?>">Sign In</a>
+      <?php endif; ?>
     </div>
   </nav>
 

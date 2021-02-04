@@ -7,7 +7,8 @@
 	<?php if ($this->session->flashdata('message')): ?>
 	<div class="row">
 		<div class="col-md-6 offset-md-3">
-			<div class="alert alert-warning alert-dismissible fade show" role="alert">
+			
+			<div class="alert alert-<?= $this->session->flashdata('message-kind') ?> alert-dismissible fade show" role="alert">
 				<a href="#" class="close" data-dismiss="alert">&times;</a>
 				<?= $this->session->flashdata('message') ?>
 			</div>
@@ -93,7 +94,7 @@
 								</div>
 								<div class="col-md-6">
 									<div class="form-group">
-										<input class="form-control" placeholder="Confirm Password" name="retry" type="password" value="">
+										<input class="form-control" placeholder="Confirm Password" name="password_confirmation" type="password" value="">
 									</div>
 								</div>
 							</div>

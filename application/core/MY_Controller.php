@@ -61,7 +61,7 @@ class MY_Controller extends CI_Controller
 
 		$this->load->library('session');
 		if (!empty($this->session->flashdata('message')) && empty($this->session->flashdata('message-kind'))){
-			$this->session->set_flashdata('message-kind', 'alert-info');
+			$this->session->set_flashdata('message-kind', 'info');
 		}
 
 		if($this->language_enabled)
