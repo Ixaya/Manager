@@ -62,8 +62,7 @@
 									<label>Page and Section</label>
 									<select class="form-control" name="page_section_id" id="page_section_id">
 										<?php foreach ($page_sections as $list): ?>
-											<option value="<?=$list['id']?>" <?= ($page_item->page_section_id == $list['id']) ? 'selected' : '';?> ><?=$list['title'] .' - '. $kinds[$list['kind']]?></option>
-										
+											<option value="<?=$list['id']?>" <?= ($page_item->page_section_id == $list['id']) ? 'selected' : '';?> ><?=$list['title'] .' - '. $kinds[$list['kind']]?></option>					
 										<?php endforeach; ?>
 									</select>
 								</div>

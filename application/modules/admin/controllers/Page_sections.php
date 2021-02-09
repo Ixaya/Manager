@@ -12,6 +12,7 @@ class Page_sections extends Admin_Controller {
 	public function index() {
 		
 		$this->load->model('webpage');
+		
 		$webpages = $this->webpage->get_all('id, title');
 		
 
@@ -25,6 +26,8 @@ class Page_sections extends Admin_Controller {
 		$data['webpages'] = $webpages_simple;
 
 		$this->load->model('page_section');
+		$this->page_section->set_override_column('webpage_id');
+		
 		$data['page_sections'] = $this->page_section->get_all();
 		$data['page_sections_count'] = $this->page_section->count_all();
 		$data['icon_sections'] 	= $this->page_section->count_all('kind = 1');
@@ -48,6 +51,7 @@ class Page_sections extends Admin_Controller {
 		//cargo el modelo
 		$this->load->model('webpage');
 		$this->load->model('page_section');
+		$this->page_section->set_override_column('webpage_id');
 		
 		
 		if ($this->input->post('webpage_id')) {
@@ -67,7 +71,10 @@ class Page_sections extends Admin_Controller {
 		}
 
 		if ($id)
+		{
 			$data['page_section'] = $this->page_section->get($id);
+			$_SESSION['page_section_id'] = $id;
+		}
 		else
 			$data['page_section'] = $this->page_section->empty_object();
 

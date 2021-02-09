@@ -12,13 +12,18 @@ class MY_Model extends CI_Model {
 	//example: $override_column = 'client_id';
 	//example: $override_id = 1;
 	protected $where_override = NULL;
-	protected $override_column = NULL;
+	public $override_column = NULL;
 	protected $override_id = NULL;
 	protected $soft_delete = false;
 
 	public function __construct() {
 		parent::__construct();
 
+		$this->setup();
+	}
+	public function setup()
+	{
+		
 		if (!empty($this->connection_name)) {
 			$this->db = $this->load->database($this->connection_name, TRUE);
 		} else {
@@ -50,7 +55,6 @@ class MY_Model extends CI_Model {
 			}
 		}
 	}
-
 
 	public function get($id) {
 		if($this->where_override)
@@ -820,6 +824,12 @@ class MY_Model extends CI_Model {
 		$response['data'] = $list_results;
 
 		return $response;
+	}
+	
+	public function set_override_column($column_name)
+	{
+		$this->override_column = $column_name;
+		$this->setup();
 	}
 
 

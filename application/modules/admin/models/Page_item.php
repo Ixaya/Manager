@@ -6,7 +6,7 @@ class Page_item extends MY_Model {
 		//overrides
 		//$this->connection_name = '';
 		//$this->table_name = '';
-		//$this->override_column = '';
+// 		$this->override_column = 'page_section_id';
 		//$this->soft_delete = true;
 
 		//initialize after overriding

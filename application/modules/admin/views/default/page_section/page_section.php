@@ -58,10 +58,14 @@
 									<label>Content</label>
 									<textarea class="form-control" placeholder="Enter content" id="content" name="content"><?=$page_section->content?></textarea>
 								</div>
-								
-
+																
+								<div class="col-lg-6 col-md-6">
 								<a  href="<?= base_url('admin/page_sections/delete/'.$page_section->id) ?>" class="btn btn-danger">Delete</a>
-								<button type="submit" class="btn btn-primary pull-right">Save</button>
+								</div>
+								<div class="col-lg-6 col-md-6">
+								<a  href="<?= base_url('admin/page_items') ?>" class="btn btn-info">Page Items</a>
+								<button type="submit" class="btn btn-primary">Save</button>
+								</div>
 								
 							</form>
 						</div>

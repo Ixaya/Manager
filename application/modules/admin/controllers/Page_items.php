@@ -11,6 +11,7 @@ class Page_items extends Admin_Controller {
 
 	public function index() {
 		$this->load->model('page_item');
+		$this->page_item->set_override_column('page_section_id');
 		$data['page_items'] = $this->page_item->get_all();
 		$data['page_items_count'] = $this->page_item->count_all();
 		$data['icon_items'] 	= $this->page_item->count_all('kind = 1');
@@ -32,6 +33,9 @@ class Page_items extends Admin_Controller {
 		//cargo el modelo
 		$this->load->model('page_item');
 		$this->load->model('page_section');
+		
+		$this->page_item->set_override_column('page_section_id');
+		$this->page_section->set_override_column('webpage_id');
 		
 		if ($this->input->post('title')) {
 			$data['title'] = $this->input->post('title');
@@ -56,8 +60,7 @@ class Page_items extends Admin_Controller {
 			$data['page_item'] = $this->page_item->get($id);
 		else
 			$data['page_item'] = $this->page_item->empty_object();
-
-
+		
 		$this->load->helper(array('form','ui'));
 		
 		//me traigo los kinds desde el modelo page_item

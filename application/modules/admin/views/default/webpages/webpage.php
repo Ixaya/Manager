@@ -17,6 +17,7 @@
 					Create webpage Item
 				  <?php else: ?>
 					Update webpage Item
+					
 				  <?php endif; ?>
 				</div>
 				<div class="panel-body">
@@ -48,9 +49,13 @@
 										<?php endforeach; ?>
 									</select>
 								</div>
+								<div class="col-lg-6 col-md-6">
 								<a  href="<?= base_url('admin/webpages/delete/'.$webpage->id) ?>" class="btn btn-danger">Delete</a>
-								<button type="submit" class="btn btn-primary pull-right">Save</button>
-								
+								</div>
+								<div class="col-lg-6 col-md-6">
+								<a  href="<?= base_url('admin/page_sections') ?>" class="btn btn-info">Page Sections</a>
+								<button type="submit" class="btn btn-primary">Save</button>
+								</div>
 							</form>
 						</div>
 					</div>

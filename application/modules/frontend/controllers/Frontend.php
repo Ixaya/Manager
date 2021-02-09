@@ -10,6 +10,7 @@ class Frontend extends Public_Controller {
 	
 	public function webpage($slug)
 	{
+		
 		$sections = [];
 		
 		//cargar el webpage referidop
@@ -24,7 +25,7 @@ class Frontend extends Public_Controller {
 			$sections =  $this->page_section->get_all('',"webpage_id = '$webpage_id'");
 		}
 		//cargar los page_items de esa seccion
-		$this->load->model('admin/page_item');		
+		$this->load->model('frontend/page_item');		
 		foreach($sections as &$section)
 		{
 			$page_section_id = $section['id'];

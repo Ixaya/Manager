@@ -36,6 +36,17 @@ class Migration_Webpage extends CI_Migration {
 
 		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->create_table('webpage');
+		
+		$data['title'] = 'About';
+		$data['slug'] = 'about';
+		$data['kind'] = '1';
+		$this->db->insert('webpage', $data);
+		
+		$data['title'] = 'Links';
+		$data['slug'] = 'links';
+		$data['kind'] = '1';
+		$this->db->insert('webpage', $data);
+		
 	}
 
 	public function down() {

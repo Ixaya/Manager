@@ -8,8 +8,6 @@ class Webpages extends Admin_Controller {
 		$this->group_needed = 'members';
 		
 		parent::__construct();
-
-		
 	}
 
 	public function index() {
@@ -51,9 +49,14 @@ class Webpages extends Admin_Controller {
 		}
 
 		if ($id)
+		{
 			$data['webpage'] = $this->webpage->get($id);
+			$_SESSION['webpage_id'] = $id;
+		}
 		else
 			$data['webpage'] = $this->webpage->empty_object();
+			
+		
 
 
 		$this->load->helper(array('form','ui'));

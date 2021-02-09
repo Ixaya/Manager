@@ -126,7 +126,7 @@
 											<td><?=$kinds[$list['kind']]?></td>
 											<td><?=$list['last_update']?></td>
 											<td>
-												<a href="<?= base_url('admin/webpages/edit/'.$list['id']) ?>" class="btn btn-info">edit</a>
+												<a href="<?= base_url('admin/webpages/edit/'.$list['id']) ?>" class="btn btn-info">Edit</a>
 											</td>
 										</tr>
 									<?php endforeach; ?>
