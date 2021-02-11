@@ -13,4 +13,9 @@ $config['admin_theme'] = 'default';
 
 $config['languages'] = ['english','spanish'];
 
+$config['project_name'] = 'Manager';
+//Ixaya/Manager HMVC PHP Framework
+$config['copyright'] = '&copy;  Ixaya Business SA de CV 2020, All Rights Reserved.';
+
+
 ?>
