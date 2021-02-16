@@ -11,6 +11,8 @@ class Profile extends Private_Controller {
 	{
 		$sections = [];
 		
+		$this->output->cache(10);
+		
 		//cargar el webpage referidop
 		$this->load->model('admin/webpage');
 		$webpage = $this->webpage->get_all('',"slug = '$slug' and kind = 2");
