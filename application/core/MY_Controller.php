@@ -47,6 +47,8 @@ class MY_Controller extends CI_Controller
 
 			// load from config file
 			$this->_theme = $this->config->item("{$this->_theme_kind}_theme");
+			
+			
 			//$this->_theme = 'default';
 		}
 
