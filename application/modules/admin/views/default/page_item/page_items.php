@@ -1,7 +1,3 @@
-
-
-
-
 <div id="page-wrapper">
 	
 	

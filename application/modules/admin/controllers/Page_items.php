@@ -68,21 +68,6 @@ class Page_items extends Admin_Controller {
 		$columns = 'page_section.id, page_section.webpage_id, webpage.title, order, page_section.content, slug, page_section.kind';
 // 		$columns = '';
 		$data['page_sections'] = $this->page_section->get_all_join($columns,'','','','','','webpage','webpage.id = page_section.webpage_id');
-		
-// 		var_dump($data['page_sections']);
-		
-/*
-		  'id' => string '1' (length=1)
-	      'webpage_id' => string '1' (length=1)
-	      'order' => string '0' (length=1)
-	      'kind' => string '1' (length=1)
-	      'content' => null
-	      'last_update' => string '2021-02-02 11:51:06' (length=19)
-	      'create_date' => string '2021-02-02 11:51:06' (length=19)
-	      'title' => string 'About' (length=5)
-	      'slug' => string 'about' (length=5)
-*/
-
 		$this->load_view('page_item/page_item', $data);
 	}
 

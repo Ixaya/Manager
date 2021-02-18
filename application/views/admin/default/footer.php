@@ -21,12 +21,25 @@
 <script src="<?= base_url() ?>assets/admin/default/js/sb-admin-2.js"></script>
 
 <!-- Datetime Picker -->
-<script src="<?= base_url() ?>assets/admin/default/js/moment.min.js"></script>
-<script src="<?= base_url() ?>assets/admin/default/js/bootstrap-datetimepicker.min.js"></script>
+<!-- <script src="<?= base_url() ?>assets/admin/default/js/moment.min.js"></script> -->
+<!-- <script src="<?= base_url() ?>assets/admin/default/js/bootstrap-datetimepicker.min.js"></script> -->
 
 <!-- Summer Note -->
 <link href="<?= base_url() ?>assets/admin/default/vendor/summernote/summernote.min.css" rel="stylesheet">
 <script src="<?= base_url() ?>assets/admin/default/vendor/summernote/summernote.min.js"></script>
+
+
+<!-- development version, includes helpful console warnings -->
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+<!-- production version, optimized for size and speed -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/vue"></script> -->
+
+<!-- VueJS Axios -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<!-- GreenSock Animation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.2.4/gsap.min.js"></script>
 
 
 <script type="text/javascript" charset="utf-8">
