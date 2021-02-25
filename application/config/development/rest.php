@@ -44,14 +44,14 @@ $config['rest_default_format'] = 'json';
 |
 */
 $config['rest_supported_formats'] = [
-	'json',
-	'array',
-	'csv',
-	'html',
-	'jsonp',
-	'php',
-	'serialized',
-	'xml',
+  'json',
+  'array',
+  'csv',
+  'html',
+  'jsonp',
+  'php',
+  'serialized',
+  'xml',
 ];
 
 /*
@@ -94,7 +94,7 @@ $config['enable_emulate_request'] = FALSE;
 | e.g: My Secret REST API
 |
 */
-$config['rest_realm'] = 'REST API';
+$config['rest_realm'] = 'MANAGER_API';
 
 /*
 |--------------------------------------------------------------------------
@@ -178,12 +178,7 @@ $config['auth_library_function'] = '';
 | Acceptable values are; 'none', 'digest' and 'basic'.
 |
 */
-// $config['auth_override_class_method']['deals']['view'] = 'none';
-// $config['auth_override_class_method']['deals']['insert'] = 'digest';
-// $config['auth_override_class_method']['accounts']['user'] = 'basic';
-// $config['auth_override_class_method']['dashboard']['*'] = 'basic';
 $config['auth_override_class_method']['login']['*'] = 'none';
-$config['auth_override_class_method']['webpages']['list'] = 'none';
 
 // ---Uncomment list line for the wildard unit test
 // $config['auth_override_class_method']['wildcard_test_cases']['*'] = 'basic';
@@ -279,7 +274,7 @@ $config['rest_ip_blacklist'] = '';
 | if you have any of these features enabled
 |
 */
-$config['rest_database_group'] = 'default';
+// $config['rest_database_group'] = 'default';
 
 /*
 |--------------------------------------------------------------------------
