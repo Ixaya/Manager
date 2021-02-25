@@ -12,14 +12,14 @@ class Frontend extends Public_Controller {
 	{
 		
 		//ten minute cache
-		$this->output->cache(10);
+		$this->output->cache(5);
 		
 		$sections = [];
 		
 		//cache enabled
 		$this->load->driver('cache', array('adapter' => 'apc', 'backup' => 'file'));
 		$data = $this->cache->get("frontend/webpage/$slug");
-		$data = null;
+// 		$data = null;
 		
 		if (!$data)
 		{

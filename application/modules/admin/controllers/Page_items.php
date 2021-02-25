@@ -44,7 +44,7 @@ class Page_items extends Admin_Controller {
 			$data['kind'] = $this->input->post('kind');
 			$data['faicon'] = $this->input->post('faicon');
 			$data['page_section_id'] = $this->input->post('page_section_id');
-			$data['image_name'] = $this->input->post('image_name');
+
 			
 			//save profile picture image
 // 			$relative_path = "../private/user/";
