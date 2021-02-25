@@ -66,7 +66,11 @@ class Page_sections extends Admin_Controller {
 				$data['create_date'] = date('Y-m-d H:i:s');
 				$id = $this->page_section->insert($data);
 			}
-
+			
+			if($this->input->post('webpage_id') != $_SESSION['webpage_id'])
+			{
+				$_SESSION['webpage_id'] = $this->input->post('webpage_id');
+			}
 			redirect("/admin/page_sections/edit/$id", 'refresh');
 		}
 

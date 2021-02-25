@@ -7,7 +7,15 @@
 		  <?php foreach ($this->_footer_links as $item): ?>
 
             <li class="list-inline-item">
-              <a href="<?= base_url($item['url']) ?>"><?= $item['title'] ?></a>
+            <?php 
+	            
+	            $url = $item['url'];
+	            
+	            if(strlen($url) > 4 && substr($url, 0, 4) != 'http')
+	            	$url = base_url($item['url']);
+	            
+            ?>
+              <a href="<?= $url ?>"><?= $item['title'] ?></a>
             </li>
             <li class="list-inline-item">&sdot;</li>
            <?php endforeach; ?>
