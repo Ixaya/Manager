@@ -36,6 +36,10 @@
 									<text>&nbsp<?=$user->id?></text>
 								</div>
 								<div class="form-group">
+									<label>API-KEY:</label>
+									<text>&nbsp<?=$api_key?></text>
+								</div>
+								<div class="form-group">
 									<label>Last update: </label>
 									<text>&nbsp<?=$user->last_update?><text>
 								</div>

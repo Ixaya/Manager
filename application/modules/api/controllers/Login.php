@@ -27,10 +27,15 @@ class Login extends REST_Controller {
 		$username   = $this->post('username');
 		$password   = $this->post('password');
 
+		$device_uuid = $this->post('device_uuid');
+		
 		$result = $this->ix_ion_auth->login($username, $password, false, true);
+		
+		
+		
 
 		if ($result != false){
-			$json = $this->___processJSONResponse($result);
+			$json = $this->___processJSONResponse($result, null, $device_uuid);
 			$this->response($json, REST_Controller::HTTP_OK);
 		} else {
 			$this->response(array('status' => -1, 'message' => "Username/password incorrect"), REST_Controller::HTTP_OK);
@@ -164,7 +169,7 @@ class Login extends REST_Controller {
 	 * cleanup user
 	 * @param type $objAcc
 	 */
-	private function ___processJSONResponse($objAcc, $apiKey = false) {
+	private function ___processJSONResponse($objAcc, $apiKey = false, $device_uuid = null) {
 
 		//Clean up user info
 		unset($objAcc->password);
@@ -177,14 +182,15 @@ class Login extends REST_Controller {
 			else
 				$userID = $objAcc->id;
 			$this->load->model('api/Rest_key_model','api_key');
-			$apiKey = $this->api_key->get_user_key($userID);
+			$apiKey = $this->api_key->get_user_key($userID, $device_uuid);
 		}
 
 
 		$json = array(
 			'status'		=> 1,
 			'info'   => $objAcc,
-			'api_key'  => $apiKey
+			'api_key'  => $apiKey,
+			'device_uuid' => $device_uuid
 		);
 
 		return $json;

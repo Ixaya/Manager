@@ -12,4 +12,6 @@ class User extends MY_Model {
 		//initialize after overriding
 		parent::__construct();
 	}
+	
+	
 }

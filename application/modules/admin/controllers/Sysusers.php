@@ -97,8 +97,17 @@ class Sysusers extends Admin_Controller {
 
 		$this->load->helper('ui');
 
+		$this->load->model('user_key');
+		$api_key_obj = $this->user_key->get_where("user_id=$id");
+		$api_key = "User doesn't have an API Key";
+		if(!empty($api_key_obj))
+		{
+			$api_key = $api_key_obj->key;
+		}
+			
 		$data['groups'] = $this->ion_auth->groups()->result();
 		$data['user'] = $this->ion_auth->user($id)->row();
+		$data['api_key'] = $api_key;
 		$data['user_group'] = $this->ion_auth->get_users_groups($id)->row();
 
 		$this->load_view('sysusers/sysusers_edit', $data);

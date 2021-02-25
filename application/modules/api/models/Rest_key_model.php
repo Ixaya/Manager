@@ -31,8 +31,25 @@ class Rest_key_model extends CI_Model {
 	 * @access public
 	 * @return void
 	 */
-	public function add_key($level = false, $user_id = false, $returnKey = false)
+	public function add_key($level = false, $user_id = false, $returnKey = false, $device_uuid = null)
 	{
+		
+		if(empty($device_uuid))
+		{
+			$remoteIP = gethostbyaddr($_SERVER['REMOTE_ADDR']);
+			
+			if (strstr($remoteIP, ', ')) {
+			    $ips = explode(', ', $remoteIP);
+			    $remoteIP = $ips[0];
+			}
+			$data['device_uuid'] = $remoteIP;
+		} else {
+			$data['device_uuid'] = $device_uuid;
+		}
+
+			
+		$data['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+			
 		// Build a new key
 		$key = $this->_generate_key();
 		$data = array();
@@ -141,7 +158,7 @@ class Rest_key_model extends CI_Model {
 		}
 	}
 	
-	public function get_user_key($user_id)
+	public function get_user_key($user_id, $device_uuid = null)
 	{
 		$keyRow = $this->db
 					->where('user_id', $user_id)
@@ -150,7 +167,7 @@ class Rest_key_model extends CI_Model {
 		if ($keyRow)
 			return $keyRow->key;
 		else
-			return $this->add_key(1, $user_id, true);
+			return $this->add_key(1, $user_id, true, $device_uuid);
 	}
 	public function delete_user_key($user_id)
 	{
