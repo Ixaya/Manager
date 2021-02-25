@@ -70,7 +70,7 @@
 			  <?php $odd = false; ?>
 			  <?php foreach ($section['page_items'] as $item): ?>
 		      <div class="row no-gutters">
-		        <div class="col-lg-6 <?= ($odd)?'order-lg-2':'';?> text-white showcase-images" style="background-image: url(<?=base_url('assets/frontend/default/images/') . $item['image_name']?>);" alt="<?= $item['title'] ?>"></div>
+		        <div class="col-lg-6 <?= ($odd)?'order-lg-2':'';?> text-white showcase-img" style="background-image: url(<?= base_url('media/page_item/' . $item['image_name'] . '_thumb.jpg'); ?>);" alt="<?= $item['title'] ?>"></div>
 		        <div class="col-lg-6 <?= ($odd)?'order-lg-1':'';?> my-auto showcase-text">
 		          <h2><?= $item['title'] ?></h2>
 		          <p class="lead mb-0"><?= $item['description'] ?></p>
@@ -92,7 +92,9 @@
 			    <?php foreach ($section['page_items'] as $item): ?>
 		        <div class="col-lg-4">
 		          <div class="testimonial-item mx-auto mb-5 mb-lg-0">
-		            <images class="images-fluid rounded-circle mb-3" src="<?=base_url('assets/frontend/default/images/') . $item['image_name']?>" alt="<?= $item['title'] ?>">
+
+		            <img class="img-fluid rounded-circle mb-3" src="<?= base_url('media/page_item/' . $item['image_name'] . '_thumb.jpg'); ?>" alt="<?= $item['title'] ?>">		            
+		            
 		            <h5><?= $item['title'] ?></h5>
 		            <p class="font-weight-light mb-0">"<?= $item['description'] ?>"</p>
 		          </div>

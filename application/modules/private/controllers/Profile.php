@@ -37,12 +37,7 @@ class Profile extends Private_Controller {
 		$this->load_view('webpage',$data);
 	}
 	public function edit()
-	{
-		
-// 		http://manager.vps102.ixaya.net/user/dcde3ece8f00cb9913ad606717181626.jpeg
-// 		http://manager.vps102.ixaya.net/user/dcde3ece8f00cb9913ad606717181626.jpg
-		
-		
+	{		
 		$data = [];
 		$current_user = $this->ion_auth->user()->row();
 		$_SESSION['page_title'] = 'Edit Profile';
@@ -62,6 +57,7 @@ class Profile extends Private_Controller {
 				$data['password'] = $newPassword;
 			}
 			
+			//save profile picture image
 			$relative_path = "../private/user/";
 			$result = $this->upload_image($relative_path);
 			if(!empty($result['thumb_image_name']))

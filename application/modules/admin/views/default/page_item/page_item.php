@@ -1,3 +1,35 @@
+<link href="<?= base_url() ?>assets/admin/default/vendor/jcrop/jcrop.css" rel="stylesheet">
+<style> 
+/*
+    body { 
+        width: 500px; 
+        height: 380px; 
+        font-family: Arial, Sans-serif; 
+    } 
+*/
+
+    .btnSubmitClass { 
+        background-color: #696969; 
+        padding: 5px 30px; 
+        border: #696969 1px solid; 
+        border-radius: 4px; 
+        color: #FFFFFF; 
+        margin-top: 10px; 
+    } 
+
+    input#cropBtnID { 
+        padding: 5px 25px 5px 25px; 
+        background: #D3D3D3; 
+        border: #98b398 1px solid; 
+        color: #FFF; 
+        visibility: hidden; 
+    } 
+
+    #outputImage { 
+        margin-top: 40px; 
+    } 
+</style> 
+
 <div id="page-wrapper">
 	<div class="row">
 		<div class="col-lg-12">
@@ -30,7 +62,7 @@
 						</div>
 						<?php endif; ?>
 						<div class="col-lg-6">
-							<form role="form" method="POST" action="<?=base_url('admin/page_items/edit/'.$page_item->id)?>">
+								<form role="form" action="#" method="POST" enctype="multipart/form-data" novalidate>
 								<div class="form-group">
 									<label>Title</label>
 									<input class="form-control" placeholder="Enter page_item title" id="title"  value="<?=$page_item->title?>" name="title">
@@ -67,11 +99,37 @@
 									</select>
 								</div>
 								
-								
-								<div class="form-group">
-									<label>Image Name</label>
-									<input class="form-control" placeholder="Enter image_name" id="image_name" name="image_name"  value="<?=$page_item->image_name?>">
-								</div>
+								<ul class="list-group mb-3">
+						        	<li class="list-group-item d-flex justify-content-between lh-condensed">
+										<div>
+						                <h6 class="my-0"><?= (empty($page_item->image_name))? 'No Picture' : 'Current Picture'?></h6>
+						<!--                 <small class="text-muted">Upload new Picture</small> -->
+										</div>
+										<span class="text-muted"></span>
+									</li>
+									<li class="list-group-item d-flex justify-content-between lh-condensed">
+										<div>
+											<h6><img  height="200px" src="<?= base_url('media/page_item/' . $page_item->image_name . '_thumb.jpg'); ?>" /></h6>
+											<small class="text-muted">Upload new Picture</small>
+							                <small><input type="file" name="userfile" size="20" /></small>
+											<span class="text-muted">
+<!-- 												<button class="btn btn-primary btn-xs btn-block" type="submit">Upload Picture</button> -->
+											</span>
+							            </div>
+									</li>
+					           </ul>
+           
+<!--
+								<div> 
+							        <img src="gfg2.jpg" id="src_image" class="img" /><br /> 
+							    </div> 
+							    <div id="btn"> 
+							        <input type='button' id="crop_btn" value='Crop Image'> 
+							    </div> 
+							    <div> 
+							        <img src="#" id="image" style="display:none;"> 
+							    </div> 
+-->
 
 								<a  href="<?= base_url('admin/page_items/delete/'.$page_item->id) ?>" class="btn btn-danger">Delete</a>
 								<button type="submit" class="btn btn-primary pull-right">Save</button>

@@ -45,6 +45,18 @@ class Page_items extends Admin_Controller {
 			$data['faicon'] = $this->input->post('faicon');
 			$data['page_section_id'] = $this->input->post('page_section_id');
 			$data['image_name'] = $this->input->post('image_name');
+			
+			//save profile picture image
+// 			$relative_path = "../private/user/";
+			$relative_path = "media/page_item/";
+			$result = $this->upload_image($relative_path);
+			if(!empty($result['thumb_image_name']))
+			{
+				$data['image_name'] = $result['thumb_image_name'];
+// 				$data['image_url'] = base_url('private/profile/picture');
+			}
+
+
 
 			if ($id){
 				$this->page_item->update($data, $id);
