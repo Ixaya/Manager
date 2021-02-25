@@ -15,6 +15,9 @@ class MY_Controller extends CI_Controller
 	var $language_file = null;
 	var $language_enabled = false;
 
+	var $_css_files = [];
+	var $_js_files = [];
+
 	function __construct()
 	{
 		parent::__construct();
@@ -47,8 +50,8 @@ class MY_Controller extends CI_Controller
 
 			// load from config file
 			$this->_theme = $this->config->item("{$this->_theme_kind}_theme");
-			
-			
+
+
 			//$this->_theme = 'default';
 		}
 
@@ -89,10 +92,10 @@ class MY_Controller extends CI_Controller
 
 			$this->load->helper('language');
 		}
-		
+
 		//Build WebPage Title and Breadcrume
 		$_SESSION['page_title'] = null;
-		
+
 	}
 
 	public function load_clean_view($page, $data = [])
@@ -121,6 +124,10 @@ class MY_Controller extends CI_Controller
 
 	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL)
 	{
+		if (empty($_FILES[$field_name]['name'])) {
+			return FALSE;
+		}
+
 		try
 		{
 			//APPPATH
@@ -185,6 +192,7 @@ class MY_Controller extends CI_Controller
 					imagejpeg($output_image, $new_file_path);
 				}
 
+				$new_file_thumb = '';
 				if ($file_type == 'image/jpeg' || $file_type == 'image/png')
 				{
 					//create thumbnail
@@ -202,17 +210,24 @@ class MY_Controller extends CI_Controller
 
 				//return thumbnail name and image_name
 				$v = '';
-				if ($desired_file_name){
+				if ($desired_file_name) {
 					$v = dechex(time());
 					$v = "?v=$v";
 				}
 
-				$return_data['fullsize_image_name'] = $new_file_name.$v;
-				$return_data['fullsize_image_type'] = $file_type;
-				$return_data['thumb_image_name']    = $new_file_thumb.$v;
-				$return_data['original_image_link'] = $upload_data['full_path'];
-				$return_data['original_image_name'] = $upload_data['file_name'].$v;
-				$return_data['url_image'] = base_url($relative_path.$upload_data['file_name'].$v);
+				if (strpos($relative_path, '/') !== 0) {
+					$relative_path = "/$relative_path";
+				}
+
+				$return_data['fullsize_name'] = $new_file_name . $v;
+				$return_data['fullsize_type'] = $file_type;
+				$return_data['fullsize_url']  = $relative_path . $new_file_name . $v;
+
+				$return_data['original_link'] = $upload_data['full_path'];
+				$return_data['original_name'] = $upload_data['file_name'] . $v;
+
+				$return_data['thumb_name']	  = $new_file_thumb . $v;
+				$return_data['thumb_url']     = $relative_path . $new_file_thumb . $v;
 
 				//delete original image in case its not a jpg
 				if($delete_original && !$preserve_type && $upload_data['file_ext'] != '.jpg')
@@ -235,16 +250,16 @@ class MY_Controller extends CI_Controller
 		}
 		return false;
 	}
-	
-		
+
+
 	public function display_image($file_path)
 	{
 		$filename = basename($file_path);
 		if (file_exists($file_path) && !empty($filename))
 		{
-			header('Content-Type: image/jpeg'); 
-			header('Cache-Control: private'); 
-			header("Content-Disposition: inline; filename='$filename'"); 
+			header('Content-Type: image/jpeg');
+			header('Cache-Control: private');
+			header("Content-Disposition: inline; filename='$filename'");
 
 			readfile($file_path);
 		} else {
