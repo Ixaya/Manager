@@ -6,7 +6,7 @@ class Page_items extends Admin_Controller {
 	function __construct() {
 		parent::__construct();
 
-		
+
 	}
 
 	public function index() {
@@ -33,10 +33,10 @@ class Page_items extends Admin_Controller {
 		//cargo el modelo
 		$this->load->model('page_item');
 		$this->load->model('page_section');
-		
+
 		$this->page_item->set_override_column('page_section_id');
 		$this->page_section->set_override_column('webpage_id');
-		
+
 		if ($this->input->post('title')) {
 			$data['title'] = $this->input->post('title');
 			$data['description'] = $this->input->post('description');
@@ -45,14 +45,14 @@ class Page_items extends Admin_Controller {
 			$data['faicon'] = $this->input->post('faicon');
 			$data['page_section_id'] = $this->input->post('page_section_id');
 
-			
+
 			//save profile picture image
 // 			$relative_path = "../private/user/";
 			$relative_path = "media/page_item/";
 			$result = $this->upload_image($relative_path);
-			if(!empty($result['thumb_image_name']))
+			if(!empty($result['thumb_name']))
 			{
-				$data['image_name'] = $result['thumb_image_name'];
+				$data['image_name'] = $result['thumb_name'];
 // 				$data['image_url'] = base_url('private/profile/picture');
 			}
 
@@ -72,9 +72,9 @@ class Page_items extends Admin_Controller {
 			$data['page_item'] = $this->page_item->get($id);
 		else
 			$data['page_item'] = $this->page_item->empty_object();
-		
+
 		$this->load->helper(array('form','ui'));
-		
+
 		//me traigo los kinds desde el modelo page_item
 		$data['kinds'] = $this->page_item->kinds();
 		$columns = 'page_section.id, page_section.webpage_id, webpage.title, order, page_section.content, slug, page_section.kind';

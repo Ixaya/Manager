@@ -482,13 +482,13 @@ abstract class REST_Controller extends MY_Controller {
 			//IX-debug post
 /*
 			ob_start();
-			var_dump($this->request->body); 
+			var_dump($this->request->body);
 			var_dump($this->request->format);
 			$rawPost = ob_get_contents();
 			ob_end_clean();
-			
+
 			error_log("Post: ".$rawPost);
-*/		
+*/
 			$this->request->body = $this->format->factory($this->request->body, $this->request->format)->to_array();
 			// Assign payload arguments to proper method container
 			$this->{'_'.$this->request->method.'_args'} = $this->request->body;
@@ -660,8 +660,8 @@ abstract class REST_Controller extends MY_Controller {
 			{
 				$this->_log_request();
 			}
-			
-			// fix cross site to option request error 
+
+			// fix cross site to option request error
 			if($this->request->method == 'options') {
 				exit;
 			}
@@ -1456,7 +1456,7 @@ abstract class REST_Controller extends MY_Controller {
 	 * @return void
 	 */
 	protected function _parse_post()
-	{		
+	{
 		$this->_post_args = $_POST;
 
 		if ($this->request->format)
