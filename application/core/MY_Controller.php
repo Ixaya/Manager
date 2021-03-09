@@ -228,6 +228,11 @@ class MY_Controller extends CI_Controller
 
 				$return_data['thumb_name']	  = $new_file_thumb . $v;
 				$return_data['thumb_url']     = $relative_path . $new_file_thumb . $v;
+				
+				$return_data['thumb_image_name'] = $return_data['thumb_name'];
+				$return_data['image_name'] = $return_data['fullsize_name'];
+				
+				
 
 				//delete original image in case its not a jpg
 				if($delete_original && !$preserve_type && $upload_data['file_ext'] != '.jpg')

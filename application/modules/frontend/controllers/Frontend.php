@@ -7,6 +7,7 @@ class Frontend extends Public_Controller {
 	{
 		$this->webpage('frontend');
 	}
+
 	
 	public function webpage($slug)
 	{
@@ -53,34 +54,26 @@ class Frontend extends Public_Controller {
 		}
 		
 		$this->load_view('webpage',$data);
+	}
+	
+	public function test()
+	{
+		$this->load->library('admin/amazons3');
+		$aws_bucket = $this->config->item('aws_bucket');
+		$aws_accesskey = $this->config->item('aws_accesskey');
+		$aws_secretkey = $this->config->item('aws_secretkey');
+		
+		$this->amazons3->aws_bucket = $aws_bucket;
+		$this->amazons3->aws_accesskey = $aws_accesskey;
+		$this->amazons3->aws_secretkey = $aws_secretkey;
 		
 		
-/*
-		
-		//no cache
-		//cargar el webpage referido
-		$this->load->model('admin/webpage');
-		$webpage = $this->webpage->get_all('',"slug = '$slug' and kind = 1");
-		if(!empty($webpage))
-		{
-			//cargar la sección referida en el webpage
-			$webpage_id = $webpage[0]['id'];
-			$this->load->model('admin/page_section');
-			$sections =  $this->page_section->get_all('',"webpage_id = '$webpage_id'");			
-		}
-		
-		//cargar los page_items de esa seccion
-		$this->load->model('frontend/page_item');		
-		foreach($sections as &$section)
-		{
-			$page_section_id = $section['id'];
-			$section['page_items'] = $this->page_item->get_all('',"page_section_id = $page_section_id");
-		}
-		$data ['sections'] = $sections;
-		$this->load_view('webpage',$data);
-		
-*/
-
+		//$this->amazons3->upload_file('/home/manager/app/private/user/ef2d3c16686589d1dd8eff7b65a59cc8.jpg');
+		//$result = $this->amazons3->list_files();
+		$result = $this->amazons3->save_file('ef2d3c16686589d1dd8eff7b65a59cc8.jpg', '/home/manager/app/private/temp/');
+		print("<pre>");
+		print_r($result);
+		print("</pre>");
 	}
 
 }

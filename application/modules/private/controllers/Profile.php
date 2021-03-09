@@ -38,6 +38,8 @@ class Profile extends Private_Controller {
 	}
 	public function edit()
 	{		
+		
+
 		$data = [];
 		$current_user = $this->ion_auth->user()->row();
 		$_SESSION['page_title'] = 'Edit Profile';
@@ -57,14 +59,32 @@ class Profile extends Private_Controller {
 				$data['password'] = $newPassword;
 			}
 			
+			
+
 			//save profile picture image
 			$relative_path = "../private/user/";
 			$result = $this->upload_image($relative_path);
 			if(!empty($result['thumb_image_name']))
-			{
+			{			
 				$data['image_name'] = $result['thumb_image_name'];
 				$data['image_url'] = base_url('private/profile/picture');
+				
+				$this->load->library('admin/amazons3');
+				$aws_bucket = $this->config->item('aws_bucket');
+				$aws_accesskey = $this->config->item('aws_accesskey');
+				$aws_secretkey = $this->config->item('aws_secretkey');
+				
+				$this->amazons3->aws_bucket = $aws_bucket;
+				$this->amazons3->aws_accesskey = $aws_accesskey;
+				$this->amazons3->aws_secretkey = $aws_secretkey;
+				
+				$this->amazons3->upload_file($relative_path.$result['thumb_image_name']);
+				$this->amazons3->upload_file($relative_path.$result['image_name']);
 			}
+			
+
+
+
 			
 			$this->ion_auth->update($current_user->id, $data);
 			$current_user = $this->ion_auth->user()->row();
@@ -79,6 +99,25 @@ class Profile extends Private_Controller {
 		$relative_path = "../private/user/";
 		$filename = $current_user->image_name;
 		$file_path = FCPATH.$relative_path.$filename;
+		
+		if(!file_exists($file_path))
+		{
+			$this->load->library('admin/amazons3');
+			$aws_bucket = $this->config->item('aws_bucket');
+			$aws_accesskey = $this->config->item('aws_accesskey');
+			$aws_secretkey = $this->config->item('aws_secretkey');
+			
+			$this->amazons3->aws_bucket = $aws_bucket;
+			$this->amazons3->aws_accesskey = $aws_accesskey;
+			$this->amazons3->aws_secretkey = $aws_secretkey;
+			$result = $this->amazons3->save_file($filename, $relative_path);
+			log_message('debug',"Get File from S3 $filename");
+		} else {
+			log_message('debug',"Get File from Local FileSystem $filename");
+		}
+		
+		
+		
 
 		$this->display_image($file_path);
 	}

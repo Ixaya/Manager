@@ -17,5 +17,9 @@ $config['project_name'] = 'Manager';
 //Ixaya/Manager HMVC PHP Framework
 $config['copyright'] = '&copy;  Ixaya Business SA de CV 2020, All Rights Reserved.';
 
+$config['aws_bucket'] = '';
+$config['aws_accesskey'] = '';
+$config['aws_secretkey'] = '';
+
 
 ?>
