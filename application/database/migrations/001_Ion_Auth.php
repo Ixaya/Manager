@@ -22,6 +22,11 @@ class Migration_Ion_auth extends CI_Migration {
 			'description' => array(
 				'type' => 'VARCHAR',
 				'constraint' => '100',
+			),
+			'level' => array(
+				'type' => 'MEDIUMINT',
+				'constraint' => '8',
+				'unsigned' => TRUE
 			)
 		));
 		$this->dbforge->add_key('id', TRUE);
@@ -32,11 +37,13 @@ class Migration_Ion_auth extends CI_Migration {
 			array(
 				'id' => '1',
 				'name' => 'admin',
+				'level' => '10',
 				'description' => 'Administrator'
 			),
 			array(
 				'id' => '2',
 				'name' => 'members',
+				'level' => '1',
 				'description' => 'General User'
 			)
 		);
@@ -141,7 +148,7 @@ class Migration_Ion_auth extends CI_Migration {
 				'type' => 'VARCHAR',
 				'constraint' => '254',
 				'null' => TRUE
-			),			
+			),
 			'last_activity_date' => array(
 				'type' => 'TIMESTAMP',
 			),
@@ -154,7 +161,7 @@ class Migration_Ion_auth extends CI_Migration {
 				'type' => 'MEDIUMINT',
 				'constraint' => '11',
 				'unsigned' => TRUE
-			),			
+			),
 			'last_update' => array(
 				'type' => 'TIMESTAMP',
 			),
