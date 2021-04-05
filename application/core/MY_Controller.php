@@ -122,7 +122,7 @@ class MY_Controller extends CI_Controller
 		die();
 	}
 
-	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL)
+	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = FALSE)
 	{
 		if (empty($_FILES[$field_name]['name'])) {
 			return FALSE;
@@ -193,7 +193,7 @@ class MY_Controller extends CI_Controller
 				}
 
 				$new_file_thumb = '';
-				if ($file_type == 'image/jpeg' || $file_type == 'image/png')
+				if ($resolution !== FALSE && ($file_type == 'image/jpeg' || $file_type == 'image/png'))
 				{
 					//create thumbnail
 					$new_file_thumb = $upload_data['raw_name'].'_thumb'.$file_ext;
@@ -228,11 +228,11 @@ class MY_Controller extends CI_Controller
 
 				$return_data['thumb_name']	  = $new_file_thumb . $v;
 				$return_data['thumb_url']     = $relative_path . $new_file_thumb . $v;
-				
+
+				//Retro compativility keys
 				$return_data['thumb_image_name'] = $return_data['thumb_name'];
-				$return_data['image_name'] = $return_data['fullsize_name'];
-				
-				
+				$return_data['fullsize_image_name'] = $return_data['fullsize_name'];
+				$return_data['url_image'] = $return_data['fullsize_url'];
 
 				//delete original image in case its not a jpg
 				if($delete_original && !$preserve_type && $upload_data['file_ext'] != '.jpg')
@@ -243,15 +243,23 @@ class MY_Controller extends CI_Controller
 				return $return_data;
 
 			} else {
-				$this->session->set_flashdata('message', $this->upload->display_errors());//'Error al subir imagen');
-				$this->session->set_flashdata('message_kind', 'error');
-				log_message('error', "Error uploading($relative_path): ".json_encode($this->upload->display_errors()));
-				//$this->error = $this->upload->display_errors();
+				if ($error === FALSE) {
+					$this->session->set_flashdata('message', $this->upload->display_errors()); //'Error al subir imagen');
+					$this->session->set_flashdata('message_kind', 'error');
+					log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
+				} else {
+					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
+				}
 			}
 		} catch ( Exception $e ) {
-			$this->session->set_flashdata('message', 'Error al subir imagen');
-			$this->session->set_flashdata('message_kind', 'error');
-			log_message('error', "Error uploading($file_path): ".$e->getMessage());
+			if ($error === FALSE) {
+				$this->session->set_flashdata('message', 'Error al subir imagen');
+				$this->session->set_flashdata('message_kind', 'error');
+				log_message('error', "Error uploading($file_path): " . $e->getMessage());
+			} else {
+				$error = 'Error al subir imagen';
+			}
+
 		}
 		return false;
 	}
