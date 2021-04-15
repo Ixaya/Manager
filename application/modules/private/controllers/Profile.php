@@ -103,13 +103,10 @@ class Profile extends Private_Controller {
 		if(!file_exists($file_path))
 		{
 			$this->load->library('admin/amazons3');
-			$aws_bucket = $this->config->item('aws_bucket');
-			$aws_accesskey = $this->config->item('aws_accesskey');
-			$aws_secretkey = $this->config->item('aws_secretkey');
 
-			$this->amazons3->aws_bucket = $aws_bucket;
-			$this->amazons3->aws_accesskey = $aws_accesskey;
-			$this->amazons3->aws_secretkey = $aws_secretkey;
+			$this->amazons3->aws_bucket = $this->config->item('aws_bucket');
+			$this->amazons3->aws_accesskey = $this->config->item('aws_accesskey');
+			$this->amazons3->aws_secretkey = $this->config->item('aws_secretkey');
 			$result = $this->amazons3->save_file($filename, $relative_path);
 			log_message('debug',"Get File from S3 $filename");
 		} else {

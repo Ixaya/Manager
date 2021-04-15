@@ -19,5 +19,18 @@ function image_url($uri = '', $protocol = NULL)
 
 function secure_url($uri = '')
 {
+	if (!empty($uri)) {
+		if (strpos($uri, 'https://') === 0)
+			return $uri;
+
+		if (strpos($uri, '//') === 0)
+			return 'https:' . $uri;
+	}
+
 	return get_instance()->config->base_url($uri, 'https:');
+}
+
+function add_css_fontawesome5(&$items)
+{
+	$items[] = '<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">';
 }
