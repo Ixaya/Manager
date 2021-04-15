@@ -12,15 +12,25 @@ class Frontend extends Public_Controller {
 	public function webpage($slug)
 	{
 		
-		//ten minute cache
-		$this->output->cache(5);
+		
+		
+		if($this->config->item('cache_enable'))
+		{
+			//Cache from config
+			$this->output->cache($this->config->item('cache_time'));
+		}
 		
 		$sections = [];
 		
-		//cache enabled
-		$this->load->driver('cache', array('adapter' => 'apc', 'backup' => 'file'));
-		$data = $this->cache->get("frontend/webpage/$slug");
-// 		$data = null;
+		
+		$data = null;
+		if($this->config->item('cache_enable'))
+		{
+			//cache enabled
+			$this->load->driver('cache', array('adapter' => 'apc', 'backup' => 'file'));
+			$data = $this->cache->get("frontend/webpage/$slug");
+		}
+		
 		
 		if (!$data)
 		{
@@ -34,7 +44,7 @@ class Frontend extends Public_Controller {
 					//cargar la sección referida en el webpage
 					$webpage_id = $webpage[0]['id'];
 					$this->load->model('admin/page_section');
-					$sections =  $this->page_section->get_all('',"webpage_id = '$webpage_id'");			
+					$sections =  $this->page_section->get_all('',"webpage_id = '$webpage_id'", '', '', 'order asc');			
 				}
 				
 				//cargar los page_items de esa seccion
