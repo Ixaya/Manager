@@ -11,9 +11,6 @@ class Tools extends CI_Controller {
 		}
 
 		$this->load->dbforge();
-
-		// initiate faker
-		$this->faker = Faker\Factory::create();
 	}
 
 	public function message($to = 'World') {
@@ -63,6 +60,9 @@ class Tools extends CI_Controller {
 	}
 
 	public function seed($name) {
+		//Note: add "fzaninotto/faker" to composer
+		$this->faker = Faker\Factory::create();
+
 		$seeder = new Seeder();
 
 		$seeder->call($name);
