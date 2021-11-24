@@ -704,9 +704,15 @@ abstract class REST_Controller extends MY_Controller {
 				$response = [$this->config->item('rest_status_field_name') => FALSE, $this->config->item('rest_message_field_name') => $this->lang->line('text_rest_api_key_time_limit')];
 				$this->response($response, self::HTTP_UNAUTHORIZED);
 			}
-// var_dump($this->methods[$controller_method]);
-			// If no level is set use 0, they probably aren't using permissions
-			$level = isset($this->methods[$controller_method]['level']) ? $this->methods[$controller_method]['level'] : 0;
+
+			// If no level is set use 0, they probably aren't using permissions, method name should contain _get/_post
+			// ix-ho: Implement set all methods level
+			$level = 0;
+			if (isset($this->methods[$controller_method]['level'])) {
+				$level = $this->methods[$controller_method]['level'];
+			} else if (isset($this->methods['*']['level'])) {
+				$level = $this->methods['*']['level'];
+			}
 
 			// If no level is set, or it is lower than/equal to the key's level
 			$authorized = $level <= $this->rest->level;
