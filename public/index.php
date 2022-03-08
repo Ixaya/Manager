@@ -66,7 +66,13 @@
 switch (ENVIRONMENT)
 {
 	case 'development':
-		error_reporting(-1);
+		//Uncomment for php8.1 compatibility
+		// if (version_compare(PHP_VERSION, '8.1', '>=')) {
+			// error_reporting(E_ERROR | E_WARNING | E_PARSE);
+		// } else {
+			error_reporting(-1);
+		// }
+
 		ini_set('display_errors', 1);
 	break;
 
