@@ -39,10 +39,6 @@ class Migration_User_key extends CI_Migration {
 			'date_created' => array(
 				'type' => 'INT',
 				'constraint' => 11
-			),
-			'magazine_id' => array(
-				'type' => 'INT',
-				'constraint' => 11
 			)
 		));
 
