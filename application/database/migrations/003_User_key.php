@@ -36,6 +36,14 @@ class Migration_User_key extends CI_Migration {
 			'ip_addresses' => array(
 				'type' => 'TEXT'
 			),
+			'user_agent' => [
+				'type' => 'VARCHAR',
+				'constraint' => '128'
+			],
+			'device_uuid' => [
+				'type' => 'VARCHAR',
+				'constraint' => '36'
+			],
 			'date_created' => array(
 				'type' => 'INT',
 				'constraint' => 11
