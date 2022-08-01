@@ -48,7 +48,7 @@ To Install **Manager** you need to
 ### Root Folder structure
 We recomend you to create a folder named app and checkout the project inside.
 
-* `composer.js`
+* `composer.jsn`
 * `application/`
 * `public/`
 * `bin/`
