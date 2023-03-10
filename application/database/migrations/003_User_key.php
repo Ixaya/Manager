@@ -51,6 +51,7 @@ class Migration_User_key extends CI_Migration {
 		));
 
 		$this->dbforge->add_key('id', TRUE);
+		$this->dbforge->add_key('key');
 		$this->dbforge->create_table('user_key');
 	}
 

@@ -23,7 +23,9 @@ class Migration_Session extends CI_Migration {
 				'type' => 'BLOB',
 			),
 		));
+		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->add_key('timestamp');
+		
 		$this->dbforge->create_table('ci_sessions');
 	}
 
