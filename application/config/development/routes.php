@@ -71,10 +71,10 @@ $route['admin/examples/create'] = 'admin/examples/create';
 $route['admin/examples/edit/(:any)'] = 'admin/examples/edit/$1';
 */
 
-//Ruta Global
-$route['private/(:any)'] = 'private/profile/webpage/$1';
-$route['(:any)'] = 'frontend/webpage/$1';
+//Ruta Global (Uncomment if you are using dynamic webpage)
+// $route['private/(:any)'] = 'private/profile/webpage/$1';
+// $route['(:any)'] = 'frontend/webpage/$1';
 
 // Images
-$route['media/(:any)'] = 'media/resize/$1';
-//$route['admin/media/(:any)'] = 'admin/media/resize/$1';
+// $route['media/(:any)'] = 'media/resize/$1';
+// $route['admin/media/(:any)'] = 'admin/media/resize/$1';

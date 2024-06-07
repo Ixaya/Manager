@@ -159,7 +159,7 @@
 								<?php if (count($page_sections)): ?>
 									<?php foreach ($page_sections as $key => $list): ?>
 										<tr class="odd gradeX">
-											<td><?=$webpages[$list['webpage_id']]?></td>
+											<td><?= (!empty($webpages[$list['webpage_id']])) ? $webpages[$list['webpage_id']] : 'Not Found' ?></td>
 											<td><?=$list['order']?></td>
 											<td><?=$kinds[$list['kind']]?></td>
 											<td><?=$list['last_update']?></td>

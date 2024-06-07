@@ -15,20 +15,25 @@ class Public_Controller extends MY_Controller {
 		//$this->_theme = 'soon';
 		
 		parent::__construct();
-		
-		$this->load->driver('cache', array('adapter' => 'apc', 'backup' => 'file'));
 
-
-		$footer_data = $this->cache->get("footer_data");
+		$footer_data = false;
+		if ($this->config->item('cache_enable')) {
+			//cache enabled
+			$this->load->driver('cache', ['adapter' => 'apc', 'backup' => 'file']);
+			$footer_data = $this->cache->get("footer_data");
+		}
 		
-	
-		if(!$footer_data)
+		if($footer_data === false)
 		{
 			log_message('DEBUG', "Saving footer_data to the cache");
 			$this->load->model('admin/page_item');
+
+			$footer_data = [];
 			$footer_data['social_networks'] = $this->page_item->get_all('','kind = 4');
 			$footer_data['footer_links'] = $this->page_item->get_all('','kind = 6');
-			$this->cache->save("footer_data", $footer_data, 300);
+			if ($this->config->item('cache_enable')) {
+				$this->cache->save("footer_data", $footer_data, 300);
+			}
 		} else {
 			log_message('DEBUG', "Using footer_data cache");
 		}

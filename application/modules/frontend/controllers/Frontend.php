@@ -12,7 +12,7 @@ class Frontend extends Public_Controller
 
 	public function webpage($slug)
 	{
-		if ($this->config->item('cache_enable')) {
+		if ($this->config->item('cache_time')) {
 			//Cache from config
 			$this->output->cache($this->config->item('cache_time'));
 		}
@@ -50,8 +50,10 @@ class Frontend extends Public_Controller
 
 			$data['sections'] = $sections;
 
-			// Save into the cache for 5 minutes
-			$this->cache->save("frontend/webpage/$slug", $data, 300);
+			if ($this->config->item('cache_enable')) {
+				// Save into the cache for 5 minutes
+				$this->cache->save("frontend/webpage/$slug", $data, 300);
+			}
 		} else {
 			log_message('DEBUG', "Using frontend/webpage/$slug cache");
 		}

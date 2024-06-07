@@ -37,8 +37,6 @@ class Profile extends Private_Controller
 	}
 	public function edit()
 	{
-
-
 		$data = [];
 		$current_user = $this->ion_auth->user()->row();
 		$_SESSION['page_title'] = 'Edit Profile';

@@ -161,6 +161,19 @@ class Ion_auth_model extends CI_Model
 	 **/
 	protected $_cache_groups = array();
 
+	//Dynamic properties
+	private $identity_column;
+	private $store_salt;
+	private $salt_length;
+	private $join;
+	private $hash_method;
+	private $default_rounds;
+	private $random_rounds;
+	private $min_rounds;
+	private $max_rounds;
+	private $message_start_delimiter;
+	private $message_end_delimiter;
+	
 	public function __construct()
 	{
 		parent::__construct();

@@ -105,7 +105,7 @@ switch (ENVIRONMENT)
  */
 	#$system_path = '../system';
 	#add codeigniter via composer
-	$system_path = '../vendor/codeigniter/framework/system';
+	$system_path = '../vendor/nielbuys/framework/system';
 
 /*
  *---------------------------------------------------------------

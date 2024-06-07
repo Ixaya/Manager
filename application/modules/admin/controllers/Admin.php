@@ -13,7 +13,7 @@ class Admin extends Admin_Controller {
 	}
 
 	public function index() {
-		$this->load_view('dashboard/dashboard', $data);
+		$this->load_view('dashboard/dashboard');
 		
 	}
 	
