@@ -661,8 +661,8 @@ abstract class REST_Controller extends MY_Controller {
 				$this->_log_request();
 			}
 
-			// fix cross site to option request error
-			if($this->request->method == 'options') {
+			// fix CORS to option request error 
+			if ($this->request->method == 'options') {
 				exit;
 			}
 
@@ -2158,6 +2158,11 @@ abstract class REST_Controller extends MY_Controller {
 	 */
 	protected function _log_access_time()
 	{
+		// fix CORS to option request error 
+		if (empty($this->rest->db)) {
+			return;
+		}
+
 		$payload['rtime'] = $this->_end_rtime - $this->_start_rtime;
 
 		return $this->rest->db->update(
