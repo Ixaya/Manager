@@ -13,10 +13,12 @@ require_once APPPATH . 'modules/api/libraries/REST_Controller.php';
 class Login extends REST_Controller {
 
 	public function __construct() {
-		parent::__construct('rest', true, 'none');
+		$this->methods['*']['auth_override'] = 'none';
+
+		parent::__construct();
 
 		$this->load->database();
-		$this->load->library(array('IX_Ion_auth'));
+		$this->load->library('IX_Ion_auth');
 	}
 
 	/**
@@ -24,6 +26,7 @@ class Login extends REST_Controller {
 	 * check if user valid or not */
 	public function index_post()
 	{
+
 		$username   = $this->post('username');
 		$password   = $this->post('password');
 
@@ -38,22 +41,26 @@ class Login extends REST_Controller {
 			$json = $this->___processJSONResponse($result, null, $device_uuid);
 			$this->response($json, REST_Controller::HTTP_OK);
 		} else {
-			$this->response(array('status' => -1, 'message' => "Username/password incorrect"), REST_Controller::HTTP_OK);
+			$this->response(['status' => -1, 'message' => "Username/password incorrect"], REST_Controller::HTTP_OK);
 		}
 	}
 	
 	public function register_post()
 	{
-		//payment code if succes then this
 		$username  = $this->post('username');
 		$password  = $this->post('password');
 
 		$extras	= $this->post('extras');
 
-		$user_id = $this->ix_ion_auth->register($username, $password, $username, $extras, [3]);
+		$groups = [GROUP_MEMBER_ID];
+
+		$user_id = $this->ix_ion_auth->register($username, $password, $username, $extras, $groups);
 		if ($user_id != false)
 		{
-// 			$this->ix_ion_auth->activate($user_id);
+			//Remove activate and login, if you wish to handle the activation by mail
+			// $this->response(['status' => 1, 'message' => "User succesfully registered."], REST_Controller::HTTP_OK);
+
+			$this->ix_ion_auth->activate($user_id);
 
 			$result = $this->ix_ion_auth->login($username, $password, false, true);
 			$json = $this->___processJSONResponse($result);
@@ -61,108 +68,7 @@ class Login extends REST_Controller {
 			$this->response($json, REST_Controller::HTTP_OK);
 		}
 
-		$this->response(array('status' => -1, 'message' => "Usuario ya registrado."), REST_Controller::HTTP_OK);
-	}
-	
-	
-	
-	public function facebook_post()
-	{
-		$this->load->library('facebook');
-		$accessToken = $this->post('facebook_token');
-
-		$this->print_log(array('facebook_1'=>$accessToken));
-		if (empty($accessToken)){
-			$this->response(array('status' => -1, 'message' => "No token"), REST_Controller::HTTP_OK);
-			return;
-		}
-		$oAuth2Client = $this->facebook->fb->getOAuth2Client();
-		$tokenMetadata = $oAuth2Client->debugToken($accessToken);
-		$tokenMetadata->validateAppId('919435211512477');
-		$tokenMetadata->validateExpiration();
-
-		$this->facebook->fb->setDefaultAccessToken($accessToken);
-		$response = $this->facebook->fb->get('/me?locale=en_US&fields=email');
-		$basicUserNode = $response->getGraphUser();
-
-		$userFacebookID = $basicUserNode['id'];
-		$this->print_log(array('facebook_2'=>$userFacebookID));
-		//no email sometimes, quick fix;
-		//		 if (isset($basicUserNode['email']))
-		//			 $userEmail = $basicUserNode['email'];
-		//		 else
-		//			 $userEmail = $userFacebookID;
-
-		$result = $this->ix_ion_auth->login_facebook($userFacebookID, $accessToken, false, true);
-		if ($result != false){
-			$json = $this->___processJSONResponse($result);
-
-			$this->print_log(array('facebook_3_l'=>$result->id));
-			$this->sync_user_image($result->id);
-
-			$this->response($json, REST_Controller::HTTP_OK);
-
-		} else {
-			$this->facebook->fb->setDefaultAccessToken($accessToken);
-			//$response = $this->facebook->fb->get('/me?locale=en_US&fields=first_name,last_name,name,email,picture');
-
-			$response = $this->facebook->fb->get('me?locale=en_US&fields=first_name,middle_name,last_name,name,email,picture,likes{category,affiliation},gender,age_range,birthday,devices,friends{devices,gender}');
-
-
-			//me?fields=likes{about,category,product_catalogs,category_list},gender
-			//me?fields=likes{category,affiliation},gender,age_range,birthday,email,devices,friends{devices,gender}
-			$userNode = $response->getGraphUser();
-			$this->print_log(array('facebook_3_r'=>$userNode['first_name']));
-
-			//$userImage = $this->facebook->fb->get('/me/picture?width=512');
-			//$userImage = $userImage->getHeaders();
-
-			/*
-			 $friends=$this->facebook->fb->get('/me/friends?fields=name,picture');
-			 $friends=$friends->getBody();
-			 $friends=json_decode($friends);
-			 */
-
-			$additional_data["gender"] = $userNode['gender'];
-			$additional_data["first_name"] = $userNode['first_name'];
-			if (array_key_exists('middle_name', $userNode))
-				$additional_data["last_name"]  = $userNode['middle_name']." " .$userNode['last_name'];
-			else
-				$additional_data["last_name"]  = $userNode['last_name'];
-			$additional_data["image_name"] = "f:". $userFacebookID;
-			$additional_data["image_url"]  = "https://graph.facebook.com/". $userFacebookID ."/picture?height=512";
-			$additional_data["fb_token"]   = $accessToken;
-			$additional_data["fb_login"]   = 1;
-
-			$userEmail = '';
-			if (isset($basicUserNode['email'])){
-				$additional_data["email"] = $basicUserNode['email'];
-				$userEmail = $basicUserNode['email'];
-			}
-
-			$userID = $this->ix_ion_auth->register_facebook($userFacebookID, $additional_data, NULL);
-
-			$this->load->model('api/slack');
-			$this->slack->new_signup($userID);
-
-			$this->sync_user_image($userID);
-
-			$this->print_log(array('facebook_4_r'=>$userID));
-
-
-
-			if ($userID != false){
-				$userData = array('email'=> $userEmail , 'id' => $userID, 'facebook_id' => $userFacebookID);
-				$json = $this->___processJSONResponse($userData);
-
-				$this->response($json, REST_Controller::HTTP_OK);
-
-			}
-			else
-			{
-				$this->response(array('status' => -1, 'message' => "Username already registered"), REST_Controller::HTTP_OK);
-			}
-		}
+		$this->response(['status' => -1, 'message' => "User previously registered."], REST_Controller::HTTP_OK);
 	}
 
 	/**

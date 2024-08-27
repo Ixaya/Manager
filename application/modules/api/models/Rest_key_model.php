@@ -1,6 +1,6 @@
 <?php
 
-if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+if (! defined('BASEPATH')) exit('No direct script access allowed');
 
 
 /**
@@ -15,7 +15,8 @@ if ( ! defined('BASEPATH')) exit('No direct script access allowed');
  * @link			https://github.com/chriskacerguis/codeigniter-restserver
  * @modified		ho@ixaya.com -> converted controller into model.
  */
-class Rest_key_model extends CI_Model {
+class Rest_key_model extends CI_Model
+{
 
 	function __construct()
 	{
@@ -138,15 +139,12 @@ class Rest_key_model extends CI_Model {
 		$new_key = $this->_generate_key();
 
 		// Insert the new key
-		if ($this->_insert_key($new_key, ['level' => $key_details->level, 'ignore_limits' => $key_details->ignore_limits]))
-		{
+		if ($this->_insert_key($new_key, ['level' => $key_details->level, 'ignore_limits' => $key_details->ignore_limits])) {
 			// Suspend old key
 			$this->_update_key($old_key, ['level' => 0]);
 
 			return true;
-		}
-		else
-		{
+		} else {
 			return false;
 		}
 	}
@@ -155,9 +153,9 @@ class Rest_key_model extends CI_Model {
 	{
 		$where = ['user_id' => $user_id];
 		$keyRow = $this->db
-					->where($where)
-					->get(config_item('rest_keys_table'))
-					->row();
+			->where($where)
+			->get(config_item('rest_keys_table'))
+			->row();
 		if ($keyRow)
 			return $keyRow->key;
 		else
@@ -166,27 +164,24 @@ class Rest_key_model extends CI_Model {
 	public function delete_user_key($user_id)
 	{
 		return $this->db
-		->where('user_id', $user_id)
-		->delete(config_item('rest_keys_table'));
+			->where('user_id', $user_id)
+			->delete(config_item('rest_keys_table'));
 	}
 	/* Helper Methods */
 
 	private function _generate_key()
 	{
-		do
-		{
+		do {
 			// Generate a random salt
 			$salt = base_convert(bin2hex($this->security->get_random_bytes(64)), 16, 36);
 
 			// If an error occurred, then fall back to the previous method
-			if ($salt === FALSE)
-			{
+			if ($salt === FALSE) {
 				$salt = hash('sha256', time() . mt_rand());
 			}
 
 			$new_key = substr($salt, 0, config_item('rest_key_length'));
-		}
-		while ($this->_key_exists($new_key));
+		} while ($this->_key_exists($new_key));
 
 		return $new_key;
 	}
@@ -196,16 +191,16 @@ class Rest_key_model extends CI_Model {
 	private function _get_key($key)
 	{
 		return $this->db
-		->where(config_item('rest_key_column'), $key)
-		->get(config_item('rest_keys_table'))
-		->row();
+			->where(config_item('rest_key_column'), $key)
+			->get(config_item('rest_keys_table'))
+			->row();
 	}
 
 	private function _key_exists($key)
 	{
 		return $this->db
-		->where(config_item('rest_key_column'), $key)
-		->count_all_results(config_item('rest_keys_table')) > 0;
+			->where(config_item('rest_key_column'), $key)
+			->count_all_results(config_item('rest_keys_table')) > 0;
 	}
 
 	private function _insert_key($key, $data)
@@ -214,22 +209,21 @@ class Rest_key_model extends CI_Model {
 		$data['date_created'] = function_exists('now') ? now() : time();
 
 		return $this->db
-		->set($data)
-		->insert(config_item('rest_keys_table'));
+			->set($data)
+			->insert(config_item('rest_keys_table'));
 	}
 
 	private function _update_key($key, $data)
 	{
 		return $this->db
-		->where(config_item('rest_key_column'), $key)
-		->update(config_item('rest_keys_table'), $data);
+			->where(config_item('rest_key_column'), $key)
+			->update(config_item('rest_keys_table'), $data);
 	}
 
 	private function _delete_key($key)
 	{
 		return $this->db
-		->where(config_item('rest_key_column'), $key)
-		->delete(config_item('rest_keys_table'));
+			->where(config_item('rest_key_column'), $key)
+			->delete(config_item('rest_keys_table'));
 	}
-
 }

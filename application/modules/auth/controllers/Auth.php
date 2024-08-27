@@ -9,7 +9,7 @@ class Auth extends Public_Controller {
 	function __construct() {
 		parent::__construct();
 		$this->load->database();
-		$this->load->library(array('ion_auth', 'form_validation','session'));//Add facebook to use in login
+		$this->load->library(array('ion_auth', 'form_validation','session'));
 		$this->load->helper(array('url', 'language'));
 
 		$this->form_validation->set_error_delimiters($this->config->item('error_start_delimiter', 'ion_auth'), $this->config->item('error_end_delimiter', 'ion_auth'));

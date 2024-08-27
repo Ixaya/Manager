@@ -64,13 +64,6 @@ class Profile extends Private_Controller
 				$data['image_url'] = base_url('private/profile/picture');
 
 				$this->load->library('admin/amazons3');
-				$aws_bucket = $this->config->item('aws_bucket');
-				$aws_accesskey = $this->config->item('aws_accesskey');
-				$aws_secretkey = $this->config->item('aws_secretkey');
-
-				$this->amazons3->aws_bucket = $aws_bucket;
-				$this->amazons3->aws_accesskey = $aws_accesskey;
-				$this->amazons3->aws_secretkey = $aws_secretkey;
 
 				$this->amazons3->upload_file($relative_path . $result['thumb_image_name']);
 				$this->amazons3->upload_file($relative_path . $result['fullsize_image_name']);
@@ -92,10 +85,6 @@ class Profile extends Private_Controller
 
 		if (!file_exists($file_path)) {
 			$this->load->library('admin/amazons3');
-
-			$this->amazons3->aws_bucket = $this->config->item('aws_bucket');
-			$this->amazons3->aws_accesskey = $this->config->item('aws_accesskey');
-			$this->amazons3->aws_secretkey = $this->config->item('aws_secretkey');
 			$result = $this->amazons3->save_file($filename, $relative_path);
 			log_message('debug', "Get File from S3 $filename");
 		} else {
@@ -108,13 +97,6 @@ class Profile extends Private_Controller
 	public function test()
 	{
 		$this->load->library('admin/amazons3');
-		$aws_bucket = $this->config->item('aws_bucket');
-		$aws_accesskey = $this->config->item('aws_accesskey');
-		$aws_secretkey = $this->config->item('aws_secretkey');
-
-		$this->amazons3->aws_bucket = $aws_bucket;
-		$this->amazons3->aws_accesskey = $aws_accesskey;
-		$this->amazons3->aws_secretkey = $aws_secretkey;
 
 		//$this->amazons3->upload_file('/home/manager/app/private/user/ef2d3c16686589d1dd8eff7b65a59cc8.jpg');
 		//$result = $this->amazons3->list_files();

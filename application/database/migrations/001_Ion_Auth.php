@@ -149,22 +149,16 @@ class Migration_Ion_auth extends CI_Migration {
 				'constraint' => '254',
 				'null' => TRUE
 			),
+			'last_update timestamp DEFAULT current_timestamp ON UPDATE current_timestamp',
 			'last_activity_date' => array(
 				'type' => 'TIMESTAMP',
+				'null' => TRUE
 			),
 			'last_activity_os' => array(
 				'type' => 'TINYINT',
 				'constraint' => '1',
 				'unsigned' => TRUE
-			),
-			'client_id' => array(
-				'type' => 'MEDIUMINT',
-				'constraint' => '11',
-				'unsigned' => TRUE
-			),
-			'last_update' => array(
-				'type' => 'TIMESTAMP',
-			),
+			)
 		));
 		$this->dbforge->add_key('id', TRUE);
 		$this->dbforge->create_table('user');

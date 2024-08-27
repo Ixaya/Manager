@@ -165,20 +165,20 @@ $config['auth_library_function'] = '';
 |
 | Set specific authentication types for methods within a class (controller)
 |
-| Set as many config entries as needed.  Any methods not set will use the default 'rest_auth' config value.
+| Set the following examples in each class above the parent __construct.
+| Any methods not set will use the default 'rest_auth' config value.
 |
 | e.g:
 |
-|		   $config['auth_override_class_method']['deals']['view'] = 'none';
-|		   $config['auth_override_class_method']['deals']['insert'] = 'digest';
-|		   $config['auth_override_class_method']['accounts']['user'] = 'basic';
-|		   $config['auth_override_class_method']['dashboard']['*'] = 'none|digest|basic';
+|		   $this->methods['*']['auth_override'] = 'none';
+|		   $this->methods['deals']['auth_override'] = 'digest';
+|		   $this->methods['accounts']['get']['auth_override'] = 'basic';
+|		   $this->methods['dashboard']['post']['auth_override'] = 'basic';
 |
-| Here 'deals', 'accounts' and 'dashboard' are controller names, 'view', 'insert' and 'user' are methods within. An asterisk may also be used to specify an authentication method for an entire classes methods. Ex: $config['auth_override_class_method']['dashboard']['*'] = 'basic'; (NOTE: leave off the '_get' or '_post' from the end of the method name)
-| Acceptable values are; 'none', 'digest' and 'basic'.
+| Here 'deals', 'accounts' and 'dashboard' are controller names, 'view', 'insert' and 'user' are methods within. An asterisk may also be used to specify an authentication method for an entire classes methods. (NOTE: leave off the '_get' or '_post' from the end of the method name)
+| Acceptable values are; 'none', 'allow', 'digest' and 'basic'.
 |
 */
-$config['auth_override_class_method']['login']['*'] = 'none';
 
 // ---Uncomment list line for the wildard unit test
 // $config['auth_override_class_method']['wildcard_test_cases']['*'] = 'basic';

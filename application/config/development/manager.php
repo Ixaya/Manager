@@ -20,9 +20,4 @@ $config['copyright'] = '&copy;  Ixaya Business SA de CV 2020, All Rights Reserve
 $config['cache_enable'] = FALSE;
 $config['cache_time'] = 5;
 
-$config['aws_bucket'] = '';
-$config['aws_accesskey'] = '';
-$config['aws_secretkey'] = '';
-
-
 ?>
