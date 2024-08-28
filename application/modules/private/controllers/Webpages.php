@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Profile extends Private_Controller
+class Webpages extends Private_Controller
 {
 	public function by_slug($slug)
 	{

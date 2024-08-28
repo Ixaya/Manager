@@ -53,17 +53,7 @@ $route['default_controller'] = 'frontend/webpages';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
-
-
-/*
-$route['about'] = 'frontend/about';
-$route['contact'] = 'frontend/contact';
-$route['terms'] = 'frontend/terms';
-$route['privacy'] = 'frontend/privacy';
-*/
-// $route['admin'] = 'admin/admin';
 $route['admin/dashboard'] = 'admin/admin';
-// $route['auth'] = 'auth/auth';
 
 //examples routes
 /*
@@ -73,7 +63,7 @@ $route['admin/examples/edit/(:any)'] = 'admin/examples/edit/$1';
 */
 
 //Ruta Global (Uncomment if you are using dynamic webpage)
-$route['private/(:any)'] = 'private/webpages/$1';
+$route['private/page/(:any)'] = 'private/webpages/by_slug/$1';
 $route['page/(:any)'] = 'frontend/webpages/by_slug/$1';
 
 // Images
