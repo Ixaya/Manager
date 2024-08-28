@@ -11,7 +11,7 @@
 	            $url = $item['url'];
 	            
 	            if(strlen($url) > 4 && substr($url, 0, 4) != 'http')
-	            	$url = base_url($item['url']);
+	            	$url = base_url("page/{$item['url']}");
 	            
             ?>
               <a href="<?= $url ?>"><?= $item['title'] ?></a>

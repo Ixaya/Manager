@@ -49,7 +49,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
-$route['default_controller'] = 'frontend';
+$route['default_controller'] = 'frontend/webpages';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
@@ -61,8 +61,9 @@ $route['contact'] = 'frontend/contact';
 $route['terms'] = 'frontend/terms';
 $route['privacy'] = 'frontend/privacy';
 */
+// $route['admin'] = 'admin/admin';
 $route['admin/dashboard'] = 'admin/admin';
-$route['auth'] = 'auth/auth';
+// $route['auth'] = 'auth/auth';
 
 //examples routes
 /*
@@ -72,9 +73,9 @@ $route['admin/examples/edit/(:any)'] = 'admin/examples/edit/$1';
 */
 
 //Ruta Global (Uncomment if you are using dynamic webpage)
-// $route['private/(:any)'] = 'private/profile/webpage/$1';
-// $route['(:any)'] = 'frontend/webpage/$1';
+$route['private/(:any)'] = 'private/webpages/$1';
+$route['page/(:any)'] = 'frontend/webpages/by_slug/$1';
 
 // Images
-// $route['media/(:any)'] = 'media/resize/$1';
+// $route['media/(:any)'] = 'media/resize/by_slug/$1';
 // $route['admin/media/(:any)'] = 'admin/media/resize/$1';

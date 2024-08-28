@@ -1,5 +1,4 @@
 <?php
-require_once APPPATH . 'modules/admin/libraries/Admin_Controller.php';
 
 class Image_Example extends Admin_Controller {
 
