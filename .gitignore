@@ -3,4 +3,4 @@
 composer.lock
 application/logs/*
 application/cache/*
-./vendor
+/vendor
