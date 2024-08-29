@@ -1,0 +1,29 @@
+.footer {
+  font-size: $footer-font-size;
+  background: $white;
+  margin-top: auto;
+
+  .footer-body {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: 0.5rem calc(var(--bs-gutter-x, 0.75rem) * 3);
+    background: $white;
+    z-index: 999;
+
+    @include media-breakpoint-down(md) {
+      justify-content: center;
+    }
+  }
+}
+
+body {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 100vh !important;
+}
+
+.main-content{
+  min-height: 100vh !important;
+}

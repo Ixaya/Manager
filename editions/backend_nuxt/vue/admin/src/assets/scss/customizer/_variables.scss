@@ -1,0 +1,56 @@
+// scss-docs-start box-shadow-variables
+$box-shadow: 0 0.5rem 1rem rgba(darken($primary, 25%), 0.05) !default;
+$box-shadow-sm: 0 0.125rem 0.25rem rgba(darken($primary, 25%), 0.1) !default;
+$box-shadow-lg: 0 10px 30px 0 rgba(darken($primary, 25%), 0.05) !default;
+$box-shadow-inset: inset 0 4px 8px rgba($black, 0.16) !default;
+
+//Color Shadow
+$box-color-shadow: 0 0.125rem 0.25rem !default;
+$box-color-shadow-hover: 0 0.125rem 0.5rem !default;
+$box-color-shadow-tint: 0.3 !default;
+$box-color-shadow-shade: 0.35 !default;
+
+$colors-name: ('primary', 'info') !default;
+
+$custom-colors: (
+  'theme-color-blue':
+    map-merge(
+      $colors,
+      (
+        'primary': #00c3f9,
+        'info': #573bff
+      )
+    ),
+  'theme-color-gray':
+    map-merge(
+      $colors,
+      (
+        'primary': #91969e,
+        'info': #fd8d00
+      )
+    ),
+  'theme-color-red':
+    map-merge(
+      $colors,
+      (
+        'primary': #db5363,
+        'info': #366af0
+      )
+    ),
+  'theme-color-yellow':
+    map-merge(
+      $colors,
+      (
+        'primary': #ea6a12,
+        'info': #6410f1
+      )
+    ),
+  'theme-color-pink':
+    map-merge(
+      $colors,
+      (
+        'primary': #e586b3,
+        'info': #25c799
+      )
+    )
+) !default;

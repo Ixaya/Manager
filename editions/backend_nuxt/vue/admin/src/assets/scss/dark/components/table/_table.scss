@@ -1,0 +1,21 @@
+.table {
+  thead {
+    tr {
+      th {
+        background-color: $body-bg;
+      }
+    }
+  }
+  tbody {
+    tr {
+      td {
+        background-color: $card-bg;
+        color: $light;
+      }
+    }
+  }
+}
+
+.p-skeleton {
+  background-color: $body-bg;
+}
