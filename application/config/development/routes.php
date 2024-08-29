@@ -49,11 +49,10 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
-$route['default_controller'] = 'frontend/webpages';
-$route['404_override'] = '';
+$route['default_controller'] = 'frontend';
+$route['404_override'] = 'frontend';
 $route['translate_uri_dashes'] = FALSE;
 
-$route['admin/dashboard'] = 'admin/admin';
 
 //examples routes
 /*
@@ -61,10 +60,6 @@ $route['admin/examples'] = 'admin/examples';
 $route['admin/examples/create'] = 'admin/examples/create';
 $route['admin/examples/edit/(:any)'] = 'admin/examples/edit/$1';
 */
-
-//Ruta Global (Uncomment if you are using dynamic webpage)
-$route['private/page/(:any)'] = 'private/webpages/by_slug/$1';
-$route['page/(:any)'] = 'frontend/webpages/by_slug/$1';
 
 // Images
 // $route['media/(:any)'] = 'media/resize/by_slug/$1';
