@@ -33,14 +33,14 @@ class Ion_auth
 	 *
 	 * @var array
 	 **/
-	public $_extra_where = array();
+	public $_extra_where = [];
 
 	/**
 	 * extra set
 	 *
 	 * @var array
 	 **/
-	public $_extra_set = array();
+	public $_extra_set = [];
 
 	/**
 	 * caching of users and their groups
@@ -296,7 +296,7 @@ class Ion_auth
 	 * @author Mathew
 	 * @return bool
 	 */
-	public function register($identity, $password, $email, $additional_data = array(), $group_ids = array()) //need to test email activation
+	public function register($identity, $password, $email, $additional_data = [], $group_ids = []) //need to test email activation
 	{
 		$this->ion_auth_model->trigger_events('pre_account_creation');
 
@@ -521,7 +521,7 @@ class Ion_auth
 		else
 		{
 			$users_groups = $this->ion_auth_model->get_users_groups($id)->result();
-			$groups_array = array();
+			$groups_array = [];
 			foreach ($users_groups as $group)
 			{
 				$groups_array[$group->id] = $group->name;

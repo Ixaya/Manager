@@ -37,8 +37,8 @@ class MX_Loader extends CI_Loader
 {
 	protected $_module;
 
-	public $_ci_plugins = array();
-	public $_ci_cached_vars = array();
+	public $_ci_plugins = [];
+	public $_ci_cached_vars = [];
 
 	/** Initialize the loader variables **/
 	public function initialize($controller = NULL)
@@ -65,7 +65,7 @@ class MX_Loader extends CI_Loader
 			parent::initialize();
 
 			/* autoload module items */
-			$this->_autoloader(array());
+			$this->_autoloader([]);
 		}
 
 		/* add this module path to the loader variables */
@@ -112,7 +112,7 @@ class MX_Loader extends CI_Loader
 	}
 
 	/** Load a module helper **/
-	public function helper($helper = array())
+	public function helper($helper = [])
 	{
 		if (is_array($helper)) return $this->helpers($helper);
 
@@ -128,7 +128,7 @@ class MX_Loader extends CI_Loader
 	}
 
 	/** Load an array of helpers **/
-	public function helpers($helpers = array())
+	public function helpers($helpers = [])
 	{
 		foreach ($helpers as $_helper) $this->helper($_helper);
 		return $this;
@@ -287,7 +287,7 @@ class MX_Loader extends CI_Loader
 	}
 
 	/** Load a module view **/
-	public function view($view, $vars = array(), $return = FALSE)
+	public function view($view, $vars = [], $return = FALSE)
 	{
 		list($path, $_view) = Modules::find($view, $this->_module, 'views/');
 

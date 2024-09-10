@@ -87,9 +87,9 @@ class MY_Model extends CI_Model
 	}
 
 
-	public function get_all($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '')
+	public function get_all($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
 	{
-		$data = array();
+		$data = [];
 		if ($fields != '') {
 			$this->db->select($fields);
 		}
@@ -132,9 +132,9 @@ class MY_Model extends CI_Model
 		return $data;
 	}
 
-	public function get_all_join($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left')
+	public function get_all_join($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left')
 	{
-		$data = array();
+		$data = [];
 		if ($fields != '') {
 			$this->db->select($fields);
 		}
@@ -220,9 +220,9 @@ class MY_Model extends CI_Model
 		return $count;
 	}
 
-	public function get_updated($last_update, $fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '')
+	public function get_updated($last_update, $fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
 	{
-		$data = array();
+		$data = [];
 		if ($fields != '') {
 			$this->db->select($fields);
 		}
@@ -477,12 +477,12 @@ class MY_Model extends CI_Model
 
 	public function get_datatable_json($custom = "", $where = "")
 	{
-		$where_like = array();
-		$where_array = array();
+		$where_like = [];
+		$where_array = [];
 		$search_query = "";
 		$limit_query = "";
 		$order_query = "";
-		$response = array();
+		$response = [];
 
 
 		if (!empty($this->table_columns)) {
@@ -502,7 +502,7 @@ class MY_Model extends CI_Model
 				$words = explode(" ", $word_post);
 
 				foreach ($words as $word) {
-					$like = array();
+					$like = [];
 					$types = array_column($this->table_columns, 'type');
 					$colsKeys = array_keys($types, "STRING");
 
@@ -571,15 +571,15 @@ class MY_Model extends CI_Model
 												" . $order_query . " " . $limit_query, null);
 
 			if (count($result) > 0) {
-				$list_results = array();
-				$urlreferences = array();
+				$list_results = [];
+				$urlreferences = [];
 
 				if ($custom != "") {
 					preg_match_all('#\modurl=(.+?)\]#s', $custom, $urlreferences);
 				}
 				$colNames = array_column($this->table_columns, 'column');
 				foreach ($result as $row) {
-					$item = array();
+					$item = [];
 
 					foreach ($colNames as $ky => $col) {
 						if (isset($this->table_columns[$ky]['fx'])) {
@@ -594,7 +594,7 @@ class MY_Model extends CI_Model
 						$custom_current = $custom;
 						foreach ($urlreferences[0] as $k => $daturl) {
 
-							$columnreferences = array();
+							$columnreferences = [];
 							$url_current = $daturl;
 							preg_match_all('#\modcol=(.+?)\]#s', $daturl, $columnreferences);
 
@@ -618,7 +618,7 @@ class MY_Model extends CI_Model
 				$response['recordsTotal'] = intval($result[0]['total']);
 				$response['recordsFiltered'] = intval($result[0]['total']);
 			} else {
-				$item = array();
+				$item = [];
 				foreach ($this->table_columns as $column) {
 					$item[] = "<td>No data</td>";
 				}
@@ -682,7 +682,7 @@ class MY_Model extends CI_Model
 			$words = explode(" ", $word_post);
 
 			foreach ($words as $word) {
-				$like = array();
+				$like = [];
 
 				//Restructure so its only one foreach
 				$types = array_column($this->table_columns, 'type');
@@ -743,11 +743,11 @@ class MY_Model extends CI_Model
 												" . $order_query . " " . $limit_query, null);
 
 		if (count($result) > 0) {
-			$list_results = array();
+			$list_results = [];
 
 			$colNames = array_column($this->table_columns, 'column');
 			foreach ($result as $row) {
-				$item = array();
+				$item = [];
 
 				foreach ($colNames as $ky => $col) {
 					if (isset($this->table_columns[$ky]['fx'])) {
@@ -767,7 +767,7 @@ class MY_Model extends CI_Model
 			$response['recordsTotal'] = intval($count_result[0]['total']);
 			$response['recordsFiltered'] = intval($count_result[0]['total']);
 		} else {
-			$item = array();
+			$item = [];
 			foreach ($this->table_columns as $column) {
 				$item[] = "<td>No data</td>";
 			}

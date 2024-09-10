@@ -22,19 +22,19 @@
 	private $ci;
 	private $table;
 	private $distinct;
-	private $group_by	   = array();
-	private $select		 = array();
-	private $joins		  = array();
-	private $columns		= array();
-	private $where		  = array();
-	private $or_where	   = array();
-	private $where_in	   = array();
-	private $like		   = array();
-	private $or_like		= array();
-	private $filter		 = array();
-	private $add_columns	= array();
-	private $edit_columns   = array();
-	private $unset_columns  = array();
+	private $group_by	   = [];
+	private $select		 = [];
+	private $joins		  = [];
+	private $columns		= [];
+	private $where		  = [];
+	private $or_where	   = [];
+	private $where_in	   = [];
+	private $like		   = [];
+	private $or_like		= [];
+	private $filter		 = [];
+	private $add_columns	= [];
+	private $edit_columns   = [];
+	private $unset_columns  = [];
 
 	/**
 	* Copies an instance of CI
@@ -157,7 +157,7 @@
 	  $this->ci->db->or_where($key_condition, $val, $backtick_protect);
 	  return $this;
 	}
-	
+
 	/**
 	* Generates the WHERE IN portion of the query
 	*
@@ -363,7 +363,7 @@
 	*/
 	private function produce_output($output, $charset)
 	{
-	  $aaData = array();
+	  $aaData = [];
 	  $rResult = $this->get_display_result();
 
 	  if($output == 'json')
@@ -431,7 +431,7 @@
 
 	  foreach($this->or_where as $val)
 		$this->ci->db->or_where($val[0], $val[1], $val[2]);
-		
+
 	  foreach($this->where_in as $val)
 		$this->ci->db->where_in($val[0], $val[1]);
 
@@ -464,7 +464,7 @@
 	private function exec_replace($custom_val, $row_data)
 	{
 	  $replace_string = '';
-	  
+
 	  // Go through our array backwards, else $1 (foo) will replace $11, $12 etc with foo1, foo2 etc
 	  $custom_val['replacement'] = array_reverse($custom_val['replacement'], true);
 
@@ -543,8 +543,8 @@
 	*/
 	private function explode($delimiter, $str, $open = '(', $close=')')
 	{
-	  $retval = array();
-	  $hold = array();
+	  $retval = [];
+	  $hold = [];
 	  $balance = 0;
 	  $parts = explode($delimiter, $str);
 
@@ -556,7 +556,7 @@
 		if($balance < 1)
 		{
 		  $retval[] = implode($delimiter, $hold);
-		  $hold = array();
+		  $hold = [];
 		  $balance = 0;
 		}
 	  }
@@ -609,7 +609,7 @@
 		}
 	  }
 
-	  $json = array();
+	  $json = [];
 
 	  if($isList)
 	  {
@@ -626,7 +626,7 @@
 		return '{' . join(',', $json) . '}';
 	  }
 	}
-	
+
 	 /**
 	 * returns the sql statement of the last query run
 	 * @return type

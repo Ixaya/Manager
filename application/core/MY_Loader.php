@@ -6,7 +6,7 @@ class MY_Loader extends MX_Loader
 {
 	/** Load a module view **/
 	public $header_vars = false;
-	public function view($view, $vars = array(), $return = FALSE)
+	public function view($view, $vars = [], $return = FALSE)
 	{
 		if ($this->header_vars != false)
 			$vars = array_merge($vars, $this->header_vars);

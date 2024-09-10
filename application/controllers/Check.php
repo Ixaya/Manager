@@ -10,12 +10,12 @@
 class Check extends CI_Controller
 {
 	private $dir;
-	private $output_ = array();
+	private $output_ = [];
 	private $fix = FALSE;
 	public function __construct()
 	{
 		parent::__construct();
-		
+
 		$this->dir = array(
 			'controllers',
 			'libraries',
@@ -29,12 +29,12 @@ class Check extends CI_Controller
 		{
 			$this->fix = TRUE;
 		}
-		
+
 		foreach ($this->dir as $dir)
 		{
 			$this->recursiveCheckFilename($dir);
 		}
-		
+
 		$this->display();
 	}
 	private function recursiveCheckFilename($dir)
@@ -47,11 +47,11 @@ class Check extends CI_Controller
 		foreach(new RecursiveIteratorIterator($iterator) as $file)
 		{
 			$filename = $file[0];
-			
+
 			$filename_show = preg_replace(
 				'/'.preg_quote(APPPATH, '/').'/', 'APPPATH/', $file[0]
 			);
-			
+
 			if (! $this->checkFilename($filename, $dir))
 			{
 				$this->output('Error: ' . $filename_show);
@@ -69,17 +69,17 @@ class Check extends CI_Controller
 	private function display()
 	{
 		sort($this->output_);
-		
+
 		if (! is_cli())
 		{
 			echo "<pre>\n";
 		}
-		
+
 		foreach ($this->output_ as $line)
 		{
 			echo $line;
 		}
-		
+
 		if (! is_cli())
 		{
 			echo "</pre>\n";
@@ -88,17 +88,17 @@ class Check extends CI_Controller
 	private function checkFilename($filepath, $dir)
 	{
 		$filename = basename($filepath);
-		
+
 		if ($dir === 'libraries' || $dir === 'core')
 		{
 			$prefix = config_item('subclass_prefix');
-			
+
 			if ($this->hasPrefix($filename, $prefix))
 			{
 				$filename = substr($filename, strlen($prefix));
 			}
 		}
-		
+
 		if (! $this->checkUcfirst($filename))
 		{
 			if ($this->fix)
@@ -133,7 +133,7 @@ class Check extends CI_Controller
 		{
 			return TRUE;
 		}
-		
+
 		return FALSE;
 	}
 }

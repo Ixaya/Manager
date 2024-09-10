@@ -26,7 +26,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * @var array
 	 **/
-	public $tables = array();
+	public $tables = [];
 
 	/**
 	 * activation code
@@ -61,21 +61,21 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * @var array
 	 **/
-	public $_ion_where = array();
+	public $_ion_where = [];
 
 	/**
 	 * Select
 	 *
 	 * @var array
 	 **/
-	public $_ion_select = array();
+	public $_ion_select = [];
 
 	/**
 	 * Like
 	 *
 	 * @var array
 	 **/
-	public $_ion_like = array();
+	public $_ion_like = [];
 
 	/**
 	 * Limit
@@ -152,14 +152,14 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * @var array
 	 **/
-	public $_cache_user_in_group = array();
+	public $_cache_user_in_group = [];
 
 	/**
 	 * caching of groups
 	 *
 	 * @var array
 	 **/
-	protected $_cache_groups = array();
+	protected $_cache_groups = [];
 
 	//Dynamic properties
 	private $identity_column;
@@ -202,8 +202,8 @@ class Ion_auth_model extends CI_Model
 
 
 		// initialize messages and error
-		$this->messages	= array();
-		$this->errors	  = array();
+		$this->messages	= [];
+		$this->errors	  = [];
 		$delimiters_source = $this->config->item('delimiters_source', 'ion_auth');
 
 		// load the error delimeters either from the config file or use what's been supplied to form validation
@@ -830,7 +830,7 @@ class Ion_auth_model extends CI_Model
 	 * @return bool
 	 * @author Mathew
 	 **/
-	public function register($identity, $password, $email, $additional_data = array(), $groups = array())
+	public function register($identity, $password, $email, $additional_data = [], $groups = [])
 	{
 		$this->trigger_events('pre_register');
 
@@ -1214,7 +1214,7 @@ class Ion_auth_model extends CI_Model
 				$this->db->select($select);
 			}
 
-			$this->_ion_select = array();
+			$this->_ion_select = [];
 		} else {
 			//default selects
 			$this->db->select(array(
@@ -1242,8 +1242,8 @@ class Ion_auth_model extends CI_Model
 			}
 
 			// verify if group name or group id was used and create and put elements in different arrays
-			$group_ids = array();
-			$group_names = array();
+			$group_ids = [];
+			$group_names = [];
 			foreach ($groups as $group) {
 				if (is_numeric($group)) $group_ids[] = $group;
 				else $group_names[] = $group;
@@ -1267,7 +1267,7 @@ class Ion_auth_model extends CI_Model
 				$this->db->where($where);
 			}
 
-			$this->_ion_where = array();
+			$this->_ion_where = [];
 		}
 
 		if (isset($this->_ion_like) && !empty($this->_ion_like)) {
@@ -1275,7 +1275,7 @@ class Ion_auth_model extends CI_Model
 				$this->db->or_like($like);
 			}
 
-			$this->_ion_like = array();
+			$this->_ion_like = [];
 		}
 
 		if (isset($this->_ion_limit) && isset($this->_ion_offset)) {
@@ -1419,7 +1419,7 @@ class Ion_auth_model extends CI_Model
 		// otherwise remove user from all groups
 		else {
 			if ($return = $this->db->delete($this->tables['users_groups'], array($this->join['users'] => (float)$user_id))) {
-				$this->_cache_user_in_group[$user_id] = array();
+				$this->_cache_user_in_group[$user_id] = [];
 			}
 		}
 		return $return;
@@ -1440,7 +1440,7 @@ class Ion_auth_model extends CI_Model
 			foreach ($this->_ion_where as $where) {
 				$this->db->where($where);
 			}
-			$this->_ion_where = array();
+			$this->_ion_where = [];
 		}
 
 		if (isset($this->_ion_limit) && isset($this->_ion_offset)) {
@@ -1756,7 +1756,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * @author aditya menon
 	 */
-	public function create_group($group_name = FALSE, $group_description = '', $additional_data = array())
+	public function create_group($group_name = FALSE, $group_description = '', $additional_data = [])
 	{
 		// bail if the group name was not passed
 		if (!$group_name) {
@@ -1795,11 +1795,11 @@ class Ion_auth_model extends CI_Model
 	 * @return bool
 	 * @author aditya menon
 	 **/
-	public function update_group($group_id = FALSE, $group_name = FALSE, $additional_data = array())
+	public function update_group($group_id = FALSE, $group_name = FALSE, $additional_data = [])
 	{
 		if (empty($group_id)) return FALSE;
 
-		$data = array();
+		$data = [];
 
 		if (!empty($group_name)) {
 			// we are changing the name, so do some checks
@@ -2008,7 +2008,7 @@ class Ion_auth_model extends CI_Model
 	public function messages_array($langify = TRUE)
 	{
 		if ($langify) {
-			$_output = array();
+			$_output = [];
 			foreach ($this->messages as $message) {
 				$messageLang = $this->lang->line($message) ? $this->lang->line($message) : '##' . $message . '##';
 				$_output[] = $this->message_start_delimiter . $messageLang . $this->message_end_delimiter;
@@ -2030,7 +2030,7 @@ class Ion_auth_model extends CI_Model
 	 **/
 	public function clear_messages()
 	{
-		$this->messages = array();
+		$this->messages = [];
 
 		return TRUE;
 	}
@@ -2081,7 +2081,7 @@ class Ion_auth_model extends CI_Model
 	public function errors_array($langify = TRUE)
 	{
 		if ($langify) {
-			$_output = array();
+			$_output = [];
 			foreach ($this->errors as $error) {
 				$errorLang = $this->lang->line($error) ? $this->lang->line($error) : '##' . $error . '##';
 				$_output[] = $this->error_start_delimiter . $errorLang . $this->error_end_delimiter;
@@ -2103,7 +2103,7 @@ class Ion_auth_model extends CI_Model
 	 **/
 	public function clear_errors()
 	{
-		$this->errors = array();
+		$this->errors = [];
 
 		return TRUE;
 	}
@@ -2112,7 +2112,7 @@ class Ion_auth_model extends CI_Model
 
 	protected function _filter_data($table, $data)
 	{
-		$filtered_data = array();
+		$filtered_data = [];
 		$columns = $this->db->list_fields($table);
 
 		if (is_array($data)) {
