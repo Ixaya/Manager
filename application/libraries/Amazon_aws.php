@@ -2,12 +2,17 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 use Aws\S3\S3Client;
+use Aws\S3\Exception\S3Exception;
+
 use Aws\CloudFront\CloudFrontClient;
+
+use Aws\Textract\TextractClient;
+
 use Aws\Credentials\Credentials;
+use Aws\Exception\AwsException;
 
-class Amazons3
+class Amazon_aws
 {
-
 	//https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/getting-started_basic-usage.html
 	//https://docs.aws.amazon.com/aws-sdk-php/v2/guide/service-s3.html
 	//composer require aws/aws-sdk-php
@@ -25,10 +30,10 @@ class Amazons3
 
 		// Is the config file in the environment folder?
 		if (
-			!file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/lib_amazons3.php')
-			&& !file_exists($file_path = APPPATH . 'config/lib_amazons3.php')
+			!file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/lib_amazon_aws.php')
+			&& !file_exists($file_path = APPPATH . 'config/lib_amazon_aws.php')
 		) {
-			show_error('The configuration file lib_amazons3.php does not exist.');
+			show_error('The configuration file lib_amazon_aws.php does not exist.');
 		}
 
 		include($file_path);
@@ -65,7 +70,7 @@ class Amazons3
 
 
 			return $objects;
-		} catch (Aws\S3\Exception\S3Exception $e) {
+		} catch (S3Exception $e) {
 			$error = $e->getMessage();
 			log_message('ERROR', json_encode($error));
 		}
@@ -108,7 +113,7 @@ class Amazons3
 			$v = "?v=$v";
 
 			return $image_url . $v;
-		} catch (Aws\S3\Exception\S3Exception $e) {
+		} catch (S3Exception $e) {
 			$error = $e->getMessage();
 
 			log_message('ERROR', json_encode($error));
@@ -127,7 +132,7 @@ class Amazons3
 				'SaveAs' => "$path/$file_name"
 			]);
 			return $object;
-		} catch (Aws\S3\Exception\S3Exception $e) {
+		} catch (S3Exception $e) {
 			$error = $e->getMessage();
 			log_message('ERROR', json_encode($error));
 		}
@@ -145,7 +150,7 @@ class Amazons3
 			]);
 
 			return $object['Body'];
-		} catch (Aws\S3\Exception\S3Exception $e) {
+		} catch (S3Exception $e) {
 			$error = $e->getMessage();
 			log_message('ERROR', json_encode($error));
 		}
@@ -174,11 +179,34 @@ class Amazons3
 			]);
 
 			return $result['Invalidation'];
-		} catch (Aws\Exception\AwsException $e) {
+		} catch (AwsException $e) {
 			$error = $e->getMessage();
 			log_message('ERROR', json_encode($error));
 
 			return false;
+		}
+	}
+
+	public function textract_file($file_name)
+	{
+		try {
+			$client = $this->build_textract_client();
+
+			$file = fopen($file_name, 'r');
+			$imageBytes = fread($file, filesize($file_name));
+			fclose($file);
+
+			$result = $client->analyzeDocument([
+				'Document' => [
+					'Bytes' => $imageBytes,
+				],
+				'FeatureTypes' => ['FORMS', 'TABLES'],
+			]);
+
+			return $result;
+		} catch (AwsException $e) {
+			$error = $e->getMessage();
+			log_message('ERROR', json_encode($error));
 		}
 	}
 
@@ -189,6 +217,15 @@ class Amazons3
 			'region'  => $this->aws_region,
 			'credentials' => $this->build_credentials()
 		]);
+	}
+
+	private function build_textract_client(){
+		return new TextractClient([
+			'version' => 'latest',
+			'region'  => $this->aws_region,
+			'credentials' => $this->build_credentials()
+		]);
+
 	}
 
 	private function build_cf_client()
