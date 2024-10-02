@@ -1,5 +1,4 @@
-<img src="http://www.ixaya.com/images/logo_ixaya.png">
-
+<img src="https://www.ixaya.com/assets/frontend/default/images/logo_ixaya.png">
 # Ixaya / Manager
 HMVC Code Igniter based Framework for creating backends and complete websites
 
