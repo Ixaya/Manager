@@ -13,18 +13,32 @@ class MY_Model extends CI_Model
 	//example: $override_column = 'client_id';
 	//example: $override_id = 1;
 	protected $where_override = NULL;
-	public $override_column = NULL;
+	protected $override_column = NULL;
 	protected $override_id = NULL;
+
+	protected $save_history = false;
 	protected $soft_delete = false;
+	protected $use_last_update = TRUE;
+
+	protected $lazy_connect = false;
+	protected $connected = false;
 
 	public function __construct()
 	{
+		$this->load->helper('inflector');
+
 		parent::__construct();
 
-		$this->setup();
+		if (!$this->lazy_connect) {
+			$this->connect();
+		}
 	}
-	public function setup()
+
+	public function connect($connection_name = NULL)
 	{
+		if ($connection_name) {
+			$this->connection_name = $connection_name;
+		}
 
 		if (!empty($this->connection_name)) {
 			$this->db = $this->load->database($this->connection_name, TRUE);
@@ -32,31 +46,90 @@ class MY_Model extends CI_Model
 			$this->load->database();
 		}
 
-		if (!empty($this->database_name)) {
+		if (strlen($this->database_name)) {
 			$this->db->db_select($this->database_name);
 			//log_message('info', 'Connecting to: '.$this->database_name);
 		}
-		$this->load->helper('inflector');
 
 		if (!$this->table_name) {
-			$this->table_name = strtolower(plural(get_class($this)));
-			$this->table_name = strtolower(get_class($this));
+			$this->generate_table_name();
 		}
 
+		$this->set_override();
+		$this->connected = TRUE;
+	}
+
+	public function set_connection($db_connection)
+	{
+		$this->db = $db_connection;
+
+		if (!$this->table_name) {
+			$this->generate_table_name();
+		}
+
+		$this->set_override();
+		$this->connected = TRUE;
+	}
+
+	public function reconnect_database($connection_name, $database_name, $generate_table_name = FALSE)
+	{
+		if ($connection_name != $this->connection_name) {
+			$this->connection_name = $connection_name;
+
+			if (!empty($this->connection_name)) {
+				$this->db = $this->load->database($this->connection_name, TRUE);
+			} else {
+				$this->load->database();
+			}
+		}
+
+		$this->database_name = $database_name;
+		if (strlen($this->database_name)) {
+			$this->db->db_select($this->database_name);
+		}
+
+		if ($generate_table_name) {
+			$this->generate_table_name();
+		}
+	}
+	protected function generate_table_name()
+	{
+		$this->table_name = strtolower(get_class($this));
+	}
+
+	public function set_override()
+	{
 		if ($this->override_column && $this->where_override == null) {
-			if ($this->override_id != null)
-				$this->where_override = array($this->override_column => $this->override_id);
-			else {
+			if ($this->override_id != null) {
+				$this->where_override = array($this->table_name . '.' . $this->override_column => $this->override_id);
+			} else {
+				//log_message('ERROR', "override_column value: ". json_encode($_SESSION));
 				if (isset($_SESSION[$this->override_column])) {
 					$this->override_id = $_SESSION[$this->override_column];
-					$this->where_override = [$this->override_column => $this->override_id];
+					$this->where_override = [$this->table_name . '.' . $this->override_column => $this->override_id];
 				}
 			}
 		}
 	}
 
+	public function check_connect()
+	{
+		if (!$this->connected) {
+			$this->connect();
+		}
+	}
+
+	public function del_override()
+	{
+		$this->where_override = NULL;
+		$this->override_column = NULL;
+		$this->override_id = NULL;
+	}
+
 	public function get($id)
 	{
+		$this->check_connect();
+
 		if ($this->where_override)
 			$this->db->where($this->where_override);
 
@@ -67,6 +140,8 @@ class MY_Model extends CI_Model
 	}
 	public function get_where($where)
 	{
+		$this->check_connect();
+
 		if ($this->where_override)
 			$this->db->where($this->where_override);
 
@@ -77,6 +152,8 @@ class MY_Model extends CI_Model
 	}
 	public function get_array($id, $table = null)
 	{
+		$this->check_connect();
+
 		if (!$table)
 			$table = $this->table_name;
 
@@ -89,6 +166,8 @@ class MY_Model extends CI_Model
 
 	public function get_all($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
 	{
+		$this->check_connect();
+
 		$data = [];
 		if ($fields != '') {
 			$this->db->select($fields);
@@ -134,6 +213,8 @@ class MY_Model extends CI_Model
 
 	public function get_all_join($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left')
 	{
+		$this->check_connect();
+
 		$data = [];
 		if ($fields != '') {
 			$this->db->select($fields);
@@ -192,8 +273,54 @@ class MY_Model extends CI_Model
 		return $data;
 	}
 
+	public function get_all_like($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '')
+	{
+		$this->check_connect();
+
+		$data = array();
+		if ($fields != '') {
+			$this->db->select($fields);
+		}
+
+		if ($this->where_override)
+			$this->db->where($this->where_override);
+
+		if (!empty($where)) {
+			$this->db->like($where);
+		}
+
+		if ($table != '') {
+			$this->table_name = $table;
+		}
+
+		if ($limit != '') {
+			$this->db->limit($limit);
+		}
+
+		if ($order_by != '') {
+			$this->db->order_by($order_by);
+		}
+
+		if ($group_by != '') {
+			$this->db->group_by($group_by);
+		}
+
+		$Q = $this->db->get($this->table_name);
+
+		if ($Q->num_rows() > 0) {
+			foreach ($Q->result_array() as $row) {
+				$data[] = $row;
+			}
+		}
+		$Q->free_result();
+
+		return $data;
+	}
+
 	public function count_all($where = NULL)
 	{
+		$this->check_connect();
+
 		$count = 0;
 		$this->db->select('count(id) AS count', FALSE);
 
@@ -220,8 +347,10 @@ class MY_Model extends CI_Model
 		return $count;
 	}
 
-	public function get_updated($last_update, $fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
+	public function get_all_updated($last_update, $fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
 	{
+		$this->check_connect();
+
 		$data = [];
 		if ($fields != '') {
 			$this->db->select($fields);
@@ -271,7 +400,12 @@ class MY_Model extends CI_Model
 
 	public function insert($data)
 	{
-		$data['last_update'] = date('Y-m-d H:i:s');
+		$this->check_connect();
+
+		if ($this->use_last_update) {
+			$data['last_update'] = date('Y-m-d H:i:s');
+		}
+
 		//$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
 
 		if ($this->override_column && $this->override_id) {
@@ -287,7 +421,11 @@ class MY_Model extends CI_Model
 	}
 	public function update($data, $id)
 	{
-		$data['last_update'] = date('Y-m-d H:i:s');
+		$this->check_connect();
+
+		if ($this->use_last_update) {
+			$data['last_update'] = date('Y-m-d H:i:s');
+		}
 
 		if ($this->where_override)
 			$this->db->where($this->where_override);
@@ -301,6 +439,8 @@ class MY_Model extends CI_Model
 	}
 	public function update_where($data, $where)
 	{
+		$this->check_connect();
+
 		if (empty($where))
 			return false;
 
@@ -309,12 +449,17 @@ class MY_Model extends CI_Model
 
 		$this->db->where($where);
 
-		$data['last_update'] = date('Y-m-d H:i:s');
+		if ($this->use_last_update) {
+			$data['last_update'] = date('Y-m-d H:i:s');
+		}
+
 		return $this->db->update($this->table_name, $data);
 	}
 
 	public function upsert($data, $id = null)
 	{
+		$this->check_connect();
+
 		if ($id) {
 			if ($this->update($data, $id))
 				return $id;
@@ -327,6 +472,8 @@ class MY_Model extends CI_Model
 
 	public function upsert_where($data, $where, $insert_data = [])
 	{
+		$this->check_connect();
+
 		$row = $this->get_where($where);
 
 		if (!empty($row)) {
@@ -341,22 +488,29 @@ class MY_Model extends CI_Model
 
 	public function delete($id)
 	{
+		$this->check_connect();
+
 		$this->db->where($this->primary_key, $id);
 
 		if ($this->soft_delete == false)
 			return $this->db->delete($this->table_name);
 
 
+		if ($this->use_last_update) {
+			$data['last_update'] = date('Y-m-d H:i:s');
+		}
+
 		$data['deleted'] = 1;
 		$data['enabled'] = 0;
-		$data['last_update'] = date('Y-m-d H:i:s');
-		$data['deleted_by'] = $this->user_id;
+		// $data['deleted_by'] = $this->user_id;
 
 		return $this->db->update($this->table_name, $data);
 	}
 
 	public function delete_array($params)
 	{
+		$this->check_connect();
+
 		$this->db->where($params);
 
 		if ($this->soft_delete == false)
@@ -370,6 +524,8 @@ class MY_Model extends CI_Model
 	}
 	public function delete_where($where)
 	{
+		$this->check_connect();
+
 		if (empty($where))
 			return false;
 
@@ -378,9 +534,12 @@ class MY_Model extends CI_Model
 		if ($this->soft_delete == false)
 			return $this->db->delete($this->table_name);
 
+		if ($this->use_last_update) {
+			$data['last_update'] = date('Y-m-d H:i:s');
+		}
+
 		$data['deleted'] = 1;
 		$data['enabled'] = 0;
-		$data['last_update'] = date('Y-m-d H:i:s');
 		//$data['delete_by'] = $this->user_id;
 
 		return $this->db->update($this->table_name, $data);
@@ -388,6 +547,8 @@ class MY_Model extends CI_Model
 
 	public function query($query, $arguments = NULL)
 	{
+		$this->check_connect();
+
 		$query = $this->db->query($query, $arguments);
 
 		if ($query === true)
@@ -398,13 +559,15 @@ class MY_Model extends CI_Model
 
 		return $query->result();
 	}
-
 	public function query_auto($query, $arguments = NULL)
 	{
 		return $this->query($query, $arguments);
 	}
+
 	public function query_as_array($query, $arguments = NULL)
 	{
+		$this->check_connect();
+
 		$query = $this->db->query($query, $arguments);
 		if (empty($query))
 			return [];
@@ -418,7 +581,12 @@ class MY_Model extends CI_Model
 
 	public function replace($data)
 	{
-		$data['last_update'] = date('Y-m-d H:i:s');
+		$this->check_connect();
+
+		if ($this->use_last_update) {
+			$data['last_update'] = date('Y-m-d H:i:s');
+		}
+		
 		//$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
 
 		if ($this->override_column && $this->override_id) {
@@ -435,6 +603,8 @@ class MY_Model extends CI_Model
 
 	public function empty_object($properties = null, $include_id = TRUE)
 	{
+		$this->check_connect();
+
 		if (!$properties) {
 			$table = $this->table_name;
 			$properties = $this->db->list_fields($table);
@@ -477,6 +647,8 @@ class MY_Model extends CI_Model
 
 	public function get_datatable_json($custom = "", $where = "")
 	{
+		$this->check_connect();
+
 		$where_like = [];
 		$where_array = [];
 		$search_query = "";
@@ -652,6 +824,8 @@ class MY_Model extends CI_Model
 
 	public function get_datatable($config, $where = NULL)
 	{
+		$this->check_connect();
+
 		if (empty($config)) {
 			$dummy_post = '{"draw":"1","columns":[{"data":"0","name":"","searchable":"true","orderable":"true","search":{"value":"","regex":"false"}},{"data":"1","name":"","searchable":"true","orderable":"true","search":{"value":"","regex":"false"}}],"order":[{"column":"0","dir":"asc"}],"start":"0","length":"10","search":{"value":"","regex":"false"}}';
 			$config = json_decode($dummy_post, true);
@@ -781,11 +955,5 @@ class MY_Model extends CI_Model
 		$response['data'] = $list_results;
 
 		return $response;
-	}
-
-	public function set_override_column($column_name)
-	{
-		$this->override_column = $column_name;
-		$this->setup();
 	}
 }
