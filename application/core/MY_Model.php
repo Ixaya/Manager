@@ -2,6 +2,7 @@
 
 class MY_Model extends CI_Model
 {
+	protected $my_db = null;
 
 	protected $table_name = '';
 	protected $primary_key = 'id';
@@ -41,13 +42,13 @@ class MY_Model extends CI_Model
 		}
 
 		if (!empty($this->connection_name)) {
-			$this->db = $this->load->database($this->connection_name, TRUE);
+			$this->my_db = $this->load->database_cache($this->connection_name);
 		} else {
-			$this->load->database();
+			$this->my_db = $this->load->database_cache();
 		}
 
 		if (strlen($this->database_name)) {
-			$this->db->db_select($this->database_name);
+			$this->my_db->db_select($this->database_name);
 			//log_message('info', 'Connecting to: '.$this->database_name);
 		}
 
@@ -61,7 +62,7 @@ class MY_Model extends CI_Model
 
 	public function set_connection($db_connection)
 	{
-		$this->db = $db_connection;
+		$this->my_db = $db_connection;
 
 		if (!$this->table_name) {
 			$this->generate_table_name();
@@ -73,25 +74,35 @@ class MY_Model extends CI_Model
 
 	public function reconnect_database($connection_name, $database_name, $generate_table_name = FALSE)
 	{
-		if ($connection_name != $this->connection_name) {
-			$this->connection_name = $connection_name;
+		$needs_reload = false;
+		if (!empty($database_name) && $this->database_name != $database_name) {
+			$this->database_name = $database_name;
 
-			if (!empty($this->connection_name)) {
-				$this->db = $this->load->database($this->connection_name, TRUE);
-			} else {
-				$this->load->database();
-			}
+			$needs_reload = true;
 		}
 
-		$this->database_name = $database_name;
-		if (strlen($this->database_name)) {
-			$this->db->db_select($this->database_name);
+		if (!empty($connection_name) && $this->connection_name != $connection_name) {
+			$this->connection_name = $connection_name;
+
+			$needs_reload = true;
+		}
+
+		if ($needs_reload) {
+			$this->connect($connection_name);
 		}
 
 		if ($generate_table_name) {
 			$this->generate_table_name();
 		}
 	}
+
+	public function check_connect()
+	{
+		if (!$this->connected) {
+			$this->connect();
+		}
+	}
+
 	protected function generate_table_name()
 	{
 		$this->table_name = strtolower(get_class($this));
@@ -112,13 +123,6 @@ class MY_Model extends CI_Model
 		}
 	}
 
-	public function check_connect()
-	{
-		if (!$this->connected) {
-			$this->connect();
-		}
-	}
-
 	public function del_override()
 	{
 		$this->where_override = NULL;
@@ -131,24 +135,24 @@ class MY_Model extends CI_Model
 		$this->check_connect();
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
 		if ($this->soft_delete == false)
-			return $this->db->get_where($this->table_name, array($this->primary_key => $id))->row();
+			return $this->my_db->get_where($this->table_name, array($this->primary_key => $id))->row();
 
-		return $this->db->get_where($this->table_name, array($this->primary_key => $id, 'deleted' => 0))->row();
+		return $this->my_db->get_where($this->table_name, array($this->primary_key => $id, 'deleted' => 0))->row();
 	}
 	public function get_where($where)
 	{
 		$this->check_connect();
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
 		if ($this->soft_delete)
-			$this->db->where('deleted', 0);
+			$this->my_db->where('deleted', 0);
 
-		return $this->db->get_where($this->table_name, $where)->row();
+		return $this->my_db->get_where($this->table_name, $where)->row();
 	}
 	public function get_array($id, $table = null)
 	{
@@ -158,9 +162,9 @@ class MY_Model extends CI_Model
 			$table = $this->table_name;
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
-		return $this->db->get_where($table, array($this->primary_key => $id))->row_array();
+		return $this->my_db->get_where($table, array($this->primary_key => $id))->row_array();
 	}
 
 
@@ -170,17 +174,17 @@ class MY_Model extends CI_Model
 
 		$data = [];
 		if ($fields != '') {
-			$this->db->select($fields);
+			$this->my_db->select($fields);
 		}
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
 		if ($this->soft_delete)
-			$this->db->where('deleted', 0);
+			$this->my_db->where('deleted', 0);
 
 		if (!empty($where)) {
-			$this->db->where($where);
+			$this->my_db->where($where);
 		}
 
 		if ($table != '') {
@@ -188,18 +192,18 @@ class MY_Model extends CI_Model
 		}
 
 		if ($limit != '') {
-			$this->db->limit($limit);
+			$this->my_db->limit($limit);
 		}
 
 		if ($order_by != '') {
-			$this->db->order_by($order_by);
+			$this->my_db->order_by($order_by);
 		}
 
 		if ($group_by != '') {
-			$this->db->group_by($group_by);
+			$this->my_db->group_by($group_by);
 		}
 
-		$Q = $this->db->get($this->table_name);
+		$Q = $this->my_db->get($this->table_name);
 
 		if ($Q->num_rows() > 0) {
 			foreach ($Q->result_array() as $row) {
@@ -217,18 +221,18 @@ class MY_Model extends CI_Model
 
 		$data = [];
 		if ($fields != '') {
-			$this->db->select($fields);
+			$this->my_db->select($fields);
 		}
 
 		if ($this->where_override) {
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 		}
 
 		if ($this->soft_delete)
-			$this->db->where('deleted', 0);
+			$this->my_db->where('deleted', 0);
 
 		if (!empty($where)) {
-			$this->db->where($where);
+			$this->my_db->where($where);
 		}
 
 		if ($table != '') {
@@ -241,27 +245,27 @@ class MY_Model extends CI_Model
 			if (is_array($join_table) && is_array($join_where)) {
 
 				foreach ($join_table as $jt) {
-					$this->db->join($join_table[$i], $join_where[$i], $join_method);
+					$this->my_db->join($join_table[$i], $join_where[$i], $join_method);
 					$i++;
 				}
 			} else {
-				$this->db->join($join_table, $join_where, $join_method);
+				$this->my_db->join($join_table, $join_where, $join_method);
 			}
 		}
 
 		if ($limit != '') {
-			$this->db->limit($limit);
+			$this->my_db->limit($limit);
 		}
 
 		if ($order_by != '') {
-			$this->db->order_by($order_by);
+			$this->my_db->order_by($order_by);
 		}
 
 		if ($group_by != '') {
-			$this->db->group_by($group_by);
+			$this->my_db->group_by($group_by);
 		}
 
-		$Q = $this->db->get($this->table_name);
+		$Q = $this->my_db->get($this->table_name);
 
 		if ($Q->num_rows() > 0) {
 			foreach ($Q->result_array() as $row) {
@@ -279,14 +283,14 @@ class MY_Model extends CI_Model
 
 		$data = array();
 		if ($fields != '') {
-			$this->db->select($fields);
+			$this->my_db->select($fields);
 		}
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
 		if (!empty($where)) {
-			$this->db->like($where);
+			$this->my_db->like($where);
 		}
 
 		if ($table != '') {
@@ -294,18 +298,18 @@ class MY_Model extends CI_Model
 		}
 
 		if ($limit != '') {
-			$this->db->limit($limit);
+			$this->my_db->limit($limit);
 		}
 
 		if ($order_by != '') {
-			$this->db->order_by($order_by);
+			$this->my_db->order_by($order_by);
 		}
 
 		if ($group_by != '') {
-			$this->db->group_by($group_by);
+			$this->my_db->group_by($group_by);
 		}
 
-		$Q = $this->db->get($this->table_name);
+		$Q = $this->my_db->get($this->table_name);
 
 		if ($Q->num_rows() > 0) {
 			foreach ($Q->result_array() as $row) {
@@ -322,21 +326,21 @@ class MY_Model extends CI_Model
 		$this->check_connect();
 
 		$count = 0;
-		$this->db->select('count(id) AS count', FALSE);
+		$this->my_db->select('count(id) AS count', FALSE);
 
 		if (!empty($where)) {
-			$this->db->where($where);
+			$this->my_db->where($where);
 		}
 
 		if ($this->where_override) {
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 		}
 
 		if ($this->soft_delete) {
-			$this->db->where('deleted', 0);
+			$this->my_db->where('deleted', 0);
 		}
 
-		$Q = $this->db->get($this->table_name);
+		$Q = $this->my_db->get($this->table_name);
 
 		if ($Q->num_rows() > 0) {
 			$count = $Q->result_array()[0]['count'];
@@ -353,20 +357,20 @@ class MY_Model extends CI_Model
 
 		$data = [];
 		if ($fields != '') {
-			$this->db->select($fields);
+			$this->my_db->select($fields);
 		}
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
 		if ($this->soft_delete)
-			$this->db->where('deleted', 0);
+			$this->my_db->where('deleted', 0);
 
-		$this->db->where(array('last_update >' => $last_update));
+		$this->my_db->where(array('last_update >' => $last_update));
 
 
 		if (!empty($where)) {
-			$this->db->where($where);
+			$this->my_db->where($where);
 		}
 
 		if ($table != '') {
@@ -374,18 +378,18 @@ class MY_Model extends CI_Model
 		}
 
 		if ($limit != '') {
-			$this->db->limit($limit);
+			$this->my_db->limit($limit);
 		}
 
 		if ($order_by != '') {
-			$this->db->order_by($order_by);
+			$this->my_db->order_by($order_by);
 		}
 
 		if ($group_by != '') {
-			$this->db->group_by($group_by);
+			$this->my_db->group_by($group_by);
 		}
 
-		$Q = $this->db->get($this->table_name);
+		$Q = $this->my_db->get($this->table_name);
 
 		if ($Q->num_rows() > 0) {
 			foreach ($Q->result_array() as $row) {
@@ -412,9 +416,9 @@ class MY_Model extends CI_Model
 			$data[$this->override_column] = $this->override_id;
 		}
 
-		$success = $this->db->insert($this->table_name, $data);
+		$success = $this->my_db->insert($this->table_name, $data);
 		if ($success) {
-			return $this->db->insert_id();
+			return $this->my_db->insert_id();
 		} else {
 			return FALSE;
 		}
@@ -428,14 +432,14 @@ class MY_Model extends CI_Model
 		}
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
 		//$data['updated_from_ip'] = $this->input->ip_address();
 		if (is_array($id))
-			$this->db->where_in($this->primary_key, $id);
+			$this->my_db->where_in($this->primary_key, $id);
 		else
-			$this->db->where($this->primary_key, $id);
-		return $this->db->update($this->table_name, $data);
+			$this->my_db->where($this->primary_key, $id);
+		return $this->my_db->update($this->table_name, $data);
 	}
 	public function update_where($data, $where)
 	{
@@ -445,15 +449,15 @@ class MY_Model extends CI_Model
 			return false;
 
 		if ($this->where_override)
-			$this->db->where($this->where_override);
+			$this->my_db->where($this->where_override);
 
-		$this->db->where($where);
+		$this->my_db->where($where);
 
 		if ($this->use_last_update) {
 			$data['last_update'] = date('Y-m-d H:i:s');
 		}
 
-		return $this->db->update($this->table_name, $data);
+		return $this->my_db->update($this->table_name, $data);
 	}
 
 	public function upsert($data, $id = null)
@@ -490,10 +494,10 @@ class MY_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		$this->db->where($this->primary_key, $id);
+		$this->my_db->where($this->primary_key, $id);
 
 		if ($this->soft_delete == false)
-			return $this->db->delete($this->table_name);
+			return $this->my_db->delete($this->table_name);
 
 
 		if ($this->use_last_update) {
@@ -504,23 +508,23 @@ class MY_Model extends CI_Model
 		$data['enabled'] = 0;
 		// $data['deleted_by'] = $this->user_id;
 
-		return $this->db->update($this->table_name, $data);
+		return $this->my_db->update($this->table_name, $data);
 	}
 
 	public function delete_array($params)
 	{
 		$this->check_connect();
 
-		$this->db->where($params);
+		$this->my_db->where($params);
 
 		if ($this->soft_delete == false)
-			return $this->db->delete($this->table_name);
+			return $this->my_db->delete($this->table_name);
 
 		$params['deleted'] = 1;
 		$params['status'] = 0;
 		$params['last_update'] = date('Y-m-d H:i:s');
 
-		return $this->db->update($this->table_name, $params);
+		return $this->my_db->update($this->table_name, $params);
 	}
 	public function delete_where($where)
 	{
@@ -529,10 +533,10 @@ class MY_Model extends CI_Model
 		if (empty($where))
 			return false;
 
-		$this->db->where($where);
+		$this->my_db->where($where);
 
 		if ($this->soft_delete == false)
-			return $this->db->delete($this->table_name);
+			return $this->my_db->delete($this->table_name);
 
 		if ($this->use_last_update) {
 			$data['last_update'] = date('Y-m-d H:i:s');
@@ -542,14 +546,14 @@ class MY_Model extends CI_Model
 		$data['enabled'] = 0;
 		//$data['delete_by'] = $this->user_id;
 
-		return $this->db->update($this->table_name, $data);
+		return $this->my_db->update($this->table_name, $data);
 	}
 
 	public function query($query, $arguments = NULL)
 	{
 		$this->check_connect();
 
-		$query = $this->db->query($query, $arguments);
+		$query = $this->my_db->query($query, $arguments);
 
 		if ($query === true)
 			return true;
@@ -568,7 +572,7 @@ class MY_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		$query = $this->db->query($query, $arguments);
+		$query = $this->my_db->query($query, $arguments);
 		if (empty($query))
 			return [];
 
@@ -586,16 +590,16 @@ class MY_Model extends CI_Model
 		if ($this->use_last_update) {
 			$data['last_update'] = date('Y-m-d H:i:s');
 		}
-		
+
 		//$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
 
 		if ($this->override_column && $this->override_id) {
 			$data[$this->override_column] = $this->override_id;
 		}
 
-		$success = $this->db->replace($this->table_name, $data);
+		$success = $this->my_db->replace($this->table_name, $data);
 		if ($success) {
-			return $this->db->insert_id();
+			return $this->my_db->insert_id();
 		} else {
 			return FALSE;
 		}
@@ -607,7 +611,7 @@ class MY_Model extends CI_Model
 
 		if (!$properties) {
 			$table = $this->table_name;
-			$properties = $this->db->list_fields($table);
+			$properties = $this->my_db->list_fields($table);
 
 			$properties = array_flip($properties);
 			//array_splice($properties, 0);
