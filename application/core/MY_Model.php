@@ -423,6 +423,28 @@ class MY_Model extends CI_Model
 			return FALSE;
 		}
 	}
+
+	public function insert_bulk($rows)
+	{
+		if (empty($rows) || !is_array($rows)) {
+			return 0;
+		}
+
+		foreach ($rows as &$row) {
+			$row['last_update'] = date('Y-m-d H:i:s');
+			//$row['created_from_ip'] = $row['updated_from_ip'] = $this->input->ip_address();
+			//$row['client_id'] = $this->client_id;
+
+			if ($this->override_column && $this->override_id) {
+				$row[$this->override_column] = $this->override_id;
+			}
+		}
+
+		$this->db->insert_batch($this->table_name, $rows);
+
+		return $this->db->affected_rows();
+	}
+
 	public function update($data, $id)
 	{
 		$this->check_connect();
@@ -448,8 +470,9 @@ class MY_Model extends CI_Model
 		if (empty($where))
 			return false;
 
-		if ($this->where_override)
+		if ($this->where_override){
 			$this->my_db->where($this->where_override);
+		}
 
 		$this->my_db->where($where);
 
@@ -465,8 +488,9 @@ class MY_Model extends CI_Model
 		$this->check_connect();
 
 		if ($id) {
-			if ($this->update($data, $id))
+			if ($this->update($data, $id)){
 				return $id;
+			}
 		} else {
 			return $this->insert($data);
 		}
@@ -481,8 +505,9 @@ class MY_Model extends CI_Model
 		$row = $this->get_where($where);
 
 		if (!empty($row)) {
-			if ($this->update($data, $row->id));
-			return $row->id;
+			if ($this->update($data, $row->id)){
+				return $row->id;
+			}
 		} else {
 			return $this->insert(array_merge($data, $where, $insert_data));
 		}
@@ -496,8 +521,9 @@ class MY_Model extends CI_Model
 
 		$this->my_db->where($this->primary_key, $id);
 
-		if ($this->soft_delete == false)
+		if ($this->soft_delete == false){
 			return $this->my_db->delete($this->table_name);
+		}
 
 
 		if ($this->use_last_update) {

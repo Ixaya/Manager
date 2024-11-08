@@ -123,9 +123,7 @@ class MY_Controller extends CI_Controller
 		}
 
 		try {
-			//APPPATH
-			//FCPATH
-			$file_path = FCPATH . $relative_path;
+			$file_path = file_path($relative_path);
 			if (!file_exists($file_path))
 				mkdir($file_path, 0755, true);
 
@@ -251,10 +249,48 @@ class MY_Controller extends CI_Controller
 		return false;
 	}
 
-
-	public function display_image($file_path)
+	public function get_file_base64($relative_path)
 	{
+		if (empty($relative_path)) {
+			return null;
+		}
+
+		$file_path = file_path($relative_path);
+
+		if (!file_exists($file_path)) {
+			return null;
+		}
+
+		$file_data = file_get_contents($file_path);
+
+		$file_extension = pathinfo($file_path, PATHINFO_EXTENSION);
+
+		$base64 = base64_encode($file_data);
+
+		switch (strtolower($file_extension)) {
+			case 'jpeg':
+			case 'jpg':
+			case 'png':
+			case 'gif':
+				return 'data:image/' . $file_extension . ';base64,' . $base64;
+			case 'pdf':
+				return 'data:application/pdf;base64,' . $base64;
+			case 'xml':
+				return 'data:application/xml;base64,' . $base64;
+			default:
+				return null; // Si el archivo no es una imagen, pdf o xml, retornar null
+		}
+	}
+
+	public function display_image($relative_path)
+	{
+		if (empty($relative_path)) {
+			return null;
+		}
+
+		$file_path = file_path($relative_path);
 		$filename = basename($file_path);
+		
 		if (file_exists($file_path) && !empty($filename)) {
 			header('Content-Type: image/jpeg');
 			header('Cache-Control: private');
