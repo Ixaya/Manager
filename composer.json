@@ -21,6 +21,8 @@
 		"php": "^7.4 || ^8.0",
 		"nielbuys/framework": "dev-develop"
 	},
+	"minimum-stability": "dev",
+	"prefer-stable": true,
 	"extra": {
 		"branch-alias": {
 			"dev-master": "1.1.x-dev",
