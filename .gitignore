@@ -1,6 +1,4 @@
 .DS_Store
 .vscode
 composer.lock
-application/logs/*
-application/cache/*
 /vendor
