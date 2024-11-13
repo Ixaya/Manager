@@ -530,7 +530,7 @@ $config['rest_language'] = 'english';
 | will access it through a browser
 |
 */
-$config['check_cors'] = FALSE;
+$config['check_cors'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -589,3 +589,4 @@ $config['allow_any_cors_domain'] = FALSE;
 |
 */
 $config['allowed_cors_origins'] = [];
+// $config['allowed_cors_origins'][] = 'https://example.com';
