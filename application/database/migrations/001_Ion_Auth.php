@@ -179,8 +179,7 @@ class Migration_Ion_auth extends CI_Migration {
 			'first_name' => 'Admin',
 			'last_name' => 'istrator',
 			'company' => 'ADMIN',
-			'phone' => '0',
-			'client_id' => '0',
+			'phone' => '0'
 		);
 		$this->db->insert('user', $data);
 
