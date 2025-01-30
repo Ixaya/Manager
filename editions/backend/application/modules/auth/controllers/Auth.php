@@ -74,10 +74,10 @@ class Auth extends MY_Controller {
 			}
 			else
 			{
-				$this->load->model('admin/user');
+				$this->load->model('rest_user');
 
 				$user_id = $this->ion_auth->user()->row()->id;
-				$user_level = $this->user->get_highest_level($user_id);
+				$user_level = $this->rest_user->get_highest_level($user_id);
 				if ($user_level == LEVEL_ADMIN) {
 					redirect("/admin/dashboard", 'refresh');
 				} else if ($user_level == LEVEL_MEMBER) {

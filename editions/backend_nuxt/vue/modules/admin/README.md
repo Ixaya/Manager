@@ -38,7 +38,7 @@ Si corre de manera correcta en windows sale algo asi
 3. Build para production
 
 ```
-npm run build
+npm run build:prod
 
 Al ejecutar ese comando y todo sale bien en windows sale algo asi 
 

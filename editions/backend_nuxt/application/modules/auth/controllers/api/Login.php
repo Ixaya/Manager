@@ -37,11 +37,11 @@ class Login extends REST_Controller
 
 
 		if ($result != false) {
-			$this->load->model('admin/user');
+			$this->load->model('rest_user');
 			$groups = $this->ix_ion_auth->get_users_groups($result->id)->result();
 			$result->user_groups = array_column($groups, 'name');
 			$result->user_groups_id = array_column($groups, 'id');
-			$result->data = $this->user->get($result->id);
+			$result->data = $this->rest_user->get($result->id);
 			$json = $this->___processJSONResponse($result, null, $device_uuid);
 			$this->response($json, REST_Controller::HTTP_OK);
 		} else {
@@ -75,8 +75,8 @@ class Login extends REST_Controller
 			$result->user_groups = array_column($groups, 'name');
 			$result->user_groups_id = array_column($groups, 'id');
 
-			$this->load->model('admin/user');
-			$result->data = $this->user->get($result->id);
+			$this->load->model('rest_user');
+			$result->data = $this->rest_user->get($result->id);
 			$json = $this->___processJSONResponse($result);
 
 			$this->response($json, REST_Controller::HTTP_OK);

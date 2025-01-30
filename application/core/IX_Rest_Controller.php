@@ -118,10 +118,10 @@ class IX_Rest_Controller extends REST_Controller
 	public function validate_group($group, $url = NULL)
 	{
 		if (!isset($this->user)) {
-			$this->load->model('admin/user');
+			$this->load->model('rest_user');
 		}
 
-		return $this->user->validate_group($this->user_id, $group, $url);
+		return $this->rest_user->validate_group($this->user_id, $group, $url);
 	}
 
 	public function validate_access($level, $group)
@@ -135,10 +135,10 @@ class IX_Rest_Controller extends REST_Controller
 		}
 
 		if (!isset($this->user)) {
-			$this->load->model('admin/user');
+			$this->load->model('rest_user');
 		}
 
-		return $this->user->validate_group($this->user_id, $group, FALSE);
+		return $this->rest_user->validate_group($this->user_id, $group, FALSE);
 	}
 
 	public function print_log($object)
