@@ -56,6 +56,9 @@ class MY_Model extends CI_Model
 			$this->generate_table_name();
 		}
 
+		$time_zone = date_default_timezone_get();
+		$this->set_database_time_zone($time_zone);
+
 		$this->set_override();
 		$this->connected = TRUE;
 	}
@@ -985,5 +988,13 @@ class MY_Model extends CI_Model
 		$response['data'] = $list_results;
 
 		return $response;
+	}
+
+	public function set_database_time_zone($time_zone)
+	{
+		$offset = mngr_get_time_zone_offset($time_zone);
+		if ($offset !== false) {
+			$this->my_db->query("SET SESSION time_zone='$offset'");
+		}
 	}
 }

@@ -89,7 +89,7 @@ $autoload['drivers'] = [];
 |
 |	$autoload['helper'] = array('url', 'file');
 */
-$autoload['helper'] = ['manager_helper'];
+$autoload['helper'] = ['manager_helper', 'manager_timezone_helper'];
 
 /*
 | -------------------------------------------------------------------

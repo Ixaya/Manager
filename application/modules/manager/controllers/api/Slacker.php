@@ -9,14 +9,14 @@
 
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Slacker extends IX_Rest_Controller {
-	
+class Slacker extends IX_Rest_Controller
+{	
 	function __construct() {
-		parent::__construct();
-		
 		$this->methods['*']['level'] = 2;
+
+		parent::__construct();		
 	}
-	
+
 	function order_progress_post()
 	{   
 		$order = NULL;

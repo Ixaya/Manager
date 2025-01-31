@@ -5,6 +5,8 @@ class IX_Rest_Controller extends REST_Controller
 {
 	protected $user_id = '';
 	protected $group_methods = [];
+	protected $time_zone = null;
+
 	public $logged_in_level;
 	public $user_group;
 
@@ -12,27 +14,39 @@ class IX_Rest_Controller extends REST_Controller
 	{
 		parent::__construct();
 
-		date_default_timezone_set('UTC');
+		$this->time_zone = $this->config->item('rest_time_zone');
+		if (!empty($this->time_zone)) {
+			mngr_date_default_timezone_set($this->time_zone);
+		}
 
 		if (isset($this->_apiuser)) {
-			$this->rest->db->query("SET SESSION time_zone='-00:00'");
-
-			$this->user_id = $this->_apiuser->user_id;
-
-			$this->load->library(['user_agent', 'ion_auth']);
-
-			$now = new DateTime('now', new DateTimeZone('UTC'));
-			$data['last_activity_date'] = $now->format('Y-m-d H:i:s');
-			$data['last_activity_os'] = $this->getPlatform();
-
-			$this->rest->db->where('id', $this->user_id);
-			$this->rest->db->update('user', $data);
-
-			$user_groups = $this->ion_auth->get_users_groups($this->user_id)->result();
-			foreach ($user_groups as $user_group) {
-				if ($this->logged_in_level < $user_group->level)
-					$this->logged_in_level = $user_group->level;
+			$offset = mngr_get_time_zone_offset($this->time_zone);
+			if ($offset !== false) {
+				$this->rest->db->query("SET SESSION time_zone='$offset'");
 			}
+
+			$this->process_api_user();
+		}
+	}
+
+	protected function process_api_user()
+	{
+		$this->user_id = $this->_apiuser->user_id;
+
+		$this->load->library(['user_agent', 'ion_auth']);
+
+		$now = mngr_get_now_date_time();
+
+		$data['last_activity_date'] = $now->format('Y-m-d H:i:s');
+		$data['last_activity_os'] = $this->get_platform();
+
+		$this->rest->db->where('id', $this->user_id);
+		$this->rest->db->update('user', $data);
+
+		$user_groups = $this->ion_auth->get_users_groups($this->user_id)->result();
+		foreach ($user_groups as $user_group) {
+			if ($this->logged_in_level < $user_group->level)
+				$this->logged_in_level = $user_group->level;
 		}
 	}
 
@@ -73,29 +87,26 @@ class IX_Rest_Controller extends REST_Controller
 		parent::_remap($object_called, $arguments);
 	}
 
-	public function setupModel($model = false, $modelName = false)
+	public function setup_model($model, $model_name)
 	{
-		if ($modelName == false) {
-			$this->main_model->db->query("SET SESSION time_zone='-00:00'");
+		if (!isset($this->{$model_name})) {
+			$this->load->model($model);
+		}
 
-			if (is_a($this->main_model, 'API_Model'))
-				$this->main_model->user_id = $this->user_id;
-		} else {
-			$this->load->model($model, $modelName);
-			$this->{$modelName}->db->query("SET SESSION time_zone='-00:00'");
+		$this->{$model_name}->set_database_time_zone($this->time_zone);
 
-			if (is_a($this->{$modelName}, 'API_Model'))
-				$this->{$modelName}->user_id = $this->user_id;
+		if (is_a($this->{$model_name}, 'API_Model')) {
+			$this->{$model_name}->user_id = $this->user_id;
 		}
 	}
 
-	public function addAgentData(&$data)
+	public function add_agent_data(&$data)
 	{
 		$data['user_agent'] = $this->agent->agent_string();
-		$data['os_kind'] = $this->getPlatform();
+		$data['os_kind'] = $this->get_platform();
 	}
 
-	public function getPlatform()
+	public function get_platform()
 	{
 		$platform = $this->agent->platform();
 		if ($platform == 'iOS')
@@ -143,7 +154,8 @@ class IX_Rest_Controller extends REST_Controller
 
 	public function print_log($object)
 	{
-		$now = new DateTime('now', new DateTimeZone('UTC'));
+		$now = mngr_get_now_date_time();
+
 		$timestamp = $now->format('Y-m-d H:i:s');
 		echo (PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
 	}

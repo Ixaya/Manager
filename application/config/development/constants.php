@@ -90,12 +90,13 @@ defined('EXIT__AUTO_MAX')	  OR define('EXIT__AUTO_MAX', 125); // highest automat
 | Manager Constants
 |--------------------------------------------------------------------------
 */
-define('LEVEL_CUSTOMER', 0);
-define('LEVEL_MEMBER', 1);
-define('LEVEL_ADMIN', 10);
 
-define('GROUP_ADMIN', 'admin');
-define('GROUP_MEMBER', 'members');
+defined('LEVEL_CUSTOMER') or define('LEVEL_CUSTOMER', 0);
+defined('LEVEL_MEMBER') or define('LEVEL_MEMBER', 1);
+defined('LEVEL_ADMIN') or define('LEVEL_ADMIN', 10);
 
-define('GROUP_ADMIN_ID', '1');
-define('GROUP_MEMBER_ID', '2');
+defined('GROUP_ADMIN') or define('GROUP_ADMIN', 'admin');
+defined('GROUP_MEMBER') or define('GROUP_MEMBER', 'members');
+
+defined('GROUP_ADMIN_ID') or define('GROUP_ADMIN_ID', '1');
+defined('GROUP_MEMBER_ID') or define('GROUP_MEMBER_ID', '2');

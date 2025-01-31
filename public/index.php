@@ -323,8 +323,9 @@ switch (ENVIRONMENT)
 // date_default_timezone_set('UTC');
 //ini_set( 'date.timezone', 'America/Mexico_City' );
 /*
-if ( function_exists( 'date_default_timezone_set' ) )
+if ( function_exists( 'date_default_timezone_set' ) ){
 	date_default_timezone_set('America/Mexico_City');
+}
 */
 
 require_once BASEPATH.'core/CodeIgniter.php';

@@ -20,4 +20,7 @@ $config['copyright'] = '&copy;  Ixaya Business SA de CV 2020, All Rights Reserve
 $config['cache_enable'] = FALSE;
 $config['cache_time'] = 5;
 
+$config['rest_time_zone'] = null; //System default
+// $config['rest_time_zone'] = 'UTC'; //Specify UTC
+
 ?>
