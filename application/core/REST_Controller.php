@@ -1059,6 +1059,29 @@ abstract class REST_Controller extends MY_Controller
 	 */
 	protected function _log_request($authorized = FALSE)
 	{
+		$args = [];
+		$params_methods = $this->config->item('rest_logs_params_mode');
+		if (!empty($params_methods))
+			foreach ($params_methods as $method) {
+				$property = "_{$method}_args";
+				if (!empty($this->$property)) {
+					$args = array_merge($args, $this->$property);
+				}
+			}
+		else {
+			$args = $this->_args;
+		}
+
+		//Protect args keys
+		$protected_args = $this->config->item('rest_logs_params_protected');
+		if (!empty($protected_args)) {
+			foreach ($protected_args as $protected_arg) {
+				if (array_key_exists($protected_arg, $args)) {
+					$args[$protected_arg] = '';
+				}
+			}
+		}
+
 		// Insert the request into the log table
 		$is_inserted = $this->rest->db
 			->insert(
@@ -1066,7 +1089,7 @@ abstract class REST_Controller extends MY_Controller
 				[
 					'uri' => $this->uri->uri_string(),
 					'method' => $this->request->method,
-					'params' => $this->_args ? ($this->config->item('rest_logs_json_params') === TRUE ? json_encode($this->_args) : serialize($this->_args)) : NULL,
+					'params' => $args ? ($this->config->item('rest_logs_json_params') === TRUE ? json_encode($args) : serialize($args)) : NULL,
 					'api_key' => isset($this->rest->key) ? $this->rest->key : '',
 					'ip_address' => $this->input->ip_address(),
 					'time' => time(),

@@ -18,7 +18,8 @@ class Migration_Api_log extends CI_Migration {
 				'constraint' => 6
 			),
 			'params' => array(
-				'type' => 'TEXT'
+				'type' => 'TEXT',
+				'null' => TRUE
 			),
 			'api_key' => array(
 				'type' => 'VARCHAR',

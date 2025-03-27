@@ -436,6 +436,33 @@ $config['rest_access_table'] = 'access';
 
 /*
 |--------------------------------------------------------------------------
+| REST API Param Log Methods
+|--------------------------------------------------------------------------
+|
+| Define which request parameters to log in the database.
+| Options:
+| - []       : Log all request parameters.
+| - ['none'] : Disable parameter logging.
+| - ['get', 'post'] : Log only specific request methods.
+|
+*/
+$config['rest_logs_params_mode'] = ['get', 'post'];
+
+/*
+|--------------------------------------------------------------------------
+| REST API Protected Parameters Log
+|--------------------------------------------------------------------------
+|
+| Define which request parameters should be protected and not logged.
+| Add parameter names (case insensitive) to this list to replace their values with an empty string.
+| Example: ['password', 'token', 'secret']
+|
+*/
+
+$config['rest_logs_params_protected'] = ['password'];
+
+/*
+|--------------------------------------------------------------------------
 | REST API Param Log Format
 |--------------------------------------------------------------------------
 |
@@ -443,7 +470,7 @@ $config['rest_access_table'] = 'access';
 | Set to FALSE to log as serialized PHP
 |
 */
-$config['rest_logs_json_params'] = FALSE;
+$config['rest_logs_json_params'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
