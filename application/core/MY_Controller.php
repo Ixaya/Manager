@@ -116,190 +116,27 @@ class MY_Controller extends CI_Controller
 		die();
 	}
 
+	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = FALSE)
+	{
+		$this->load->library('ix_upload_lib');
+		return $this->ix_upload_lib->upload_file($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
+	}
+
 	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = FALSE)
 	{
-		if (empty($_FILES[$field_name]['name'])) {
-			return FALSE;
-		}
-
-		try {
-			$file_path = file_path($relative_path);
-			if (!file_exists($file_path))
-				mkdir($file_path, 0755, true);
-
-			if ($upload_config == NULL) {
-				$config['allowed_types']		= 'gif|jpg|png|jpeg|svg|pdf';
-				$config['max_size']					= 10048; //2MB (PHP Max in this config)
-				$config['max_width']				= 0; // no size restriction
-				$config['max_height']				= 0; // no size restriction
-			} else {
-				$config = $upload_config;
-			}
-
-			$config['upload_path']		  = $file_path;
-			$config['remove_spaces']  = true;
-			$config['detect_mime']   = true;
-
-			if ($desired_file_name) {
-				$config['file_name'] = $desired_file_name;
-				$config['overwrite'] = true;
-			} else {
-				$config['encrypt_name'] = true;
-			}
-
-			//initialize in second line in case you want to do multiple uploads on same instance
-			$this->load->library('upload');
-			$this->upload->initialize($config);
-			if ($this->upload->do_upload($field_name)) {
-				//$this->session->set_flashdata('message', 'Se subió el archivo');
-				$this->session->set_flashdata('message', 'Imagen agregada correctamente');
-				$this->session->set_flashdata('message_kind', 'success');
-
-				$upload_data = $this->upload->data();
-
-				$original_file_path = $upload_data['full_path'];
-				$file_ext = $upload_data['file_ext'];
-				$file_type = $upload_data['file_type'];
-
-				if (!$preserve_type) {
-					$file_ext = '.jpg';
-					$file_type = 'image/jpeg';
-				}
-
-				$new_file_name = $upload_data['raw_name'] . $file_ext;
-				$new_file_path = $file_path . $new_file_name;
-
-
-				if (!$preserve_type) {
-					//advanced convert to JPG that sets background to white
-					$input_image = imagecreatefromstring(file_get_contents($original_file_path));
-					list($width, $height) = getimagesize($original_file_path);
-					$output_image = imagecreatetruecolor($width, $height);
-					$white = imagecolorallocate($output_image,  255, 255, 255);
-					imagefilledrectangle($output_image, 0, 0, $width, $height, $white);
-					imagecopy($output_image, $input_image, 0, 0, 0, 0, $width, $height);
-					imagejpeg($output_image, $new_file_path);
-				}
-
-				$new_file_thumb = '';
-				if ($resolution !== FALSE && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
-					//create thumbnail
-					$new_file_thumb = $upload_data['raw_name'] . '_thumb' . $file_ext;
-					$img_config['image_library']  = 'gd2';
-					$img_config['source_image']   = $new_file_path;
-					$img_config['create_thumb']   = TRUE;
-					$img_config['maintain_ratio'] = TRUE;
-					$img_config['width']		  = $resolution[0];
-					$img_config['height']		 = $resolution[1];
-					$this->load->library('image_lib', $img_config);
-					$this->image_lib->resize();
-				}
-
-
-				//return thumbnail name and image_name
-				$v = '';
-				if ($desired_file_name) {
-					$v = dechex(time());
-					$v = "?v=$v";
-				}
-
-				if (strpos($relative_path, '/') !== 0) {
-					$relative_path = "/$relative_path";
-				}
-
-				$return_data['fullsize_name'] = $new_file_name . $v;
-				$return_data['fullsize_type'] = $file_type;
-				$return_data['fullsize_url']  = $relative_path . $new_file_name . $v;
-
-				$return_data['original_link'] = $upload_data['full_path'];
-				$return_data['original_name'] = $upload_data['file_name'] . $v;
-
-				$return_data['thumb_name']	  = $new_file_thumb . $v;
-				$return_data['thumb_url']     = $relative_path . $new_file_thumb . $v;
-
-				//Retro compativility keys (uncomment if needed)
-				// $return_data['thumb_image_name'] = $return_data['thumb_name'];
-				// $return_data['fullsize_image_name'] = $return_data['fullsize_name'];
-				// $return_data['url_image'] = $return_data['fullsize_url'];
-
-				//delete original image in case its not a jpg
-				if ($delete_original && !$preserve_type && $upload_data['file_ext'] != '.jpg') {
-					unlink($upload_data['full_path']);
-				}
-				
-				return $return_data;
-			} else {
-				if ($error === FALSE) {
-					$this->session->set_flashdata('message', $this->upload->display_errors()); //'Error al subir imagen');
-					$this->session->set_flashdata('message_kind', 'error');
-					log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
-				} else {
-					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
-				}
-			}
-		} catch (Exception $e) {
-			if ($error === FALSE) {
-				$this->session->set_flashdata('message', 'Error al subir imagen');
-				$this->session->set_flashdata('message_kind', 'error');
-				log_message('error', "Error uploading($file_path): " . $e->getMessage());
-			} else {
-				$error = 'Error al subir imagen';
-			}
-		}
-		return false;
+		$this->load->library('ix_upload_lib');
+		return $this->ix_upload_lib->upload_image($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
 	}
 
-	public function get_file_base64($relative_path)
+	public function get_file_base64($file_path, &$file_name = '', &$file_ext = '', &$file_mime = '')
 	{
-		if (empty($relative_path)) {
-			return null;
-		}
-
-		$file_path = file_path($relative_path);
-
-		if (!file_exists($file_path)) {
-			return null;
-		}
-
-		$file_data = file_get_contents($file_path);
-
-		$file_extension = pathinfo($file_path, PATHINFO_EXTENSION);
-
-		$base64 = base64_encode($file_data);
-
-		switch (strtolower($file_extension)) {
-			case 'jpeg':
-			case 'jpg':
-			case 'png':
-			case 'gif':
-				return 'data:image/' . $file_extension . ';base64,' . $base64;
-			case 'pdf':
-				return 'data:application/pdf;base64,' . $base64;
-			case 'xml':
-				return 'data:application/xml;base64,' . $base64;
-			default:
-				return null; // Si el archivo no es una imagen, pdf o xml, retornar null
-		}
+		$this->load->library('ix_upload_lib');
+		return $this->ix_upload_lib->get_file_base64($file_path, $file_name, $file_ext, $file_mime);
 	}
 
-	public function display_image($relative_path)
+	public function display_image($file_path)
 	{
-		if (empty($relative_path)) {
-			return null;
-		}
-
-		$file_path = file_path($relative_path);
-		$filename = basename($file_path);
-		
-		if (file_exists($file_path) && !empty($filename)) {
-			header('Content-Type: image/jpeg');
-			header('Cache-Control: private');
-			header("Content-Disposition: inline; filename='$filename'");
-
-			readfile($file_path);
-		} else {
-			header('Content-Type: image/png');
-			echo ("\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x01\x00\x00\x00\x01\x01\x03\x00\x00\x00\x25\xdb\x56\xca\x00\x00\x00\x03\x50\x4c\x54\x45\x00\x00\x00\xa7\x7a\x3d\xda\x00\x00\x00\x01\x74\x52\x4e\x53\x00\x40\xe6\xd8\x66\x00\x00\x00\x0a\x49\x44\x41\x54\x08\xd7\x63\x60\x00\x00\x00\x02\x00\x01\xe2\x21\xbc\x33\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82");
-		}
+		$this->load->library('ix_upload_lib');
+		$this->ix_upload_lib->display_image($file_path);
 	}
 }

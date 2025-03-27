@@ -111,17 +111,21 @@ class MY_Model extends CI_Model
 		$this->table_name = strtolower(get_class($this));
 	}
 
+	public function set_override_column($column_name)
+	{
+		$this->override_column = $column_name;
+		$this->set_override();
+	}
+
 	public function set_override()
 	{
 		if ($this->override_column && $this->where_override == null) {
+			if ($this->override_id == null && isset($_SESSION[$this->override_column])) {
+				$this->override_id = $_SESSION[$this->override_column];
+			}
+
 			if ($this->override_id != null) {
-				$this->where_override = array($this->table_name . '.' . $this->override_column => $this->override_id);
-			} else {
-				//log_message('ERROR', "override_column value: ". json_encode($_SESSION));
-				if (isset($_SESSION[$this->override_column])) {
-					$this->override_id = $_SESSION[$this->override_column];
-					$this->where_override = [$this->table_name . '.' . $this->override_column => $this->override_id];
-				}
+				$this->where_override = ["{$this->table_name}.{$this->override_column}" => $this->override_id];
 			}
 		}
 	}
@@ -988,6 +992,27 @@ class MY_Model extends CI_Model
 		$response['data'] = $list_results;
 
 		return $response;
+	}
+
+	public function get_hash($length = 13)
+	{
+		return mngr_generate_hash($length);
+	}
+
+	function get_unique_hash($length = 13, $field = 'hash')
+	{
+		$hash = mngr_generate_hash($length);
+		$row = $this->by_hash($hash, $field);
+		if (!empty($row)) {
+			return $this->get_unique_hash($length, $field);
+		}
+
+		return $hash;
+	}
+
+	public function by_hash($hash, $field = 'hash')
+	{
+		return $this->get_where("$field = '$hash'");
 	}
 
 	public function set_database_time_zone($time_zone)

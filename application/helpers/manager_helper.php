@@ -33,78 +33,52 @@ function secure_url($uri = '')
 }
 
 /**
- * Generate the full file path based on the URI, handling private and public files.
+ * Generates a secure random hexadecimal hash of the specified length.
  *
- * @param string $uri The file path to be processed.
- * @return string The full path to the file, either private or public.
+ * @param int $length The desired length of the hash. Default is 32.
+ * 
+ * @return string The generated hexadecimal hash.
  */
-
-function file_path($uri = '')
+function mngr_generate_hash($length = 32)
 {
-	clean_file_path($uri);
+	$bytes = random_bytes(ceil($length / 2));
 
-	if (strpos($uri, 'private/') === 0) {
-		return GET_APP_ROOT() . $uri;
-	} else {
-		return FCPATH . $uri;
-	}
+	return substr(bin2hex($bytes), 0, $length);
 }
+
 /**
- * Generate the full path for a private file, cleaning the URI and ensuring it starts with 'private/'.
+ * Formats a hexadecimal hash by grouping characters and separating them using a specified separator.
  *
- * @param string $uri The file path to be processed.
- * @return string The full path to the private file.
+ * @param string $hash The hash to format.
+ * @param int $group_by The number of characters per group.
+ * @param string $separator Optional. The separator to use between groups. Default is '-'.
+ * 
+ * @return string The formatted hash in uppercase with groups separated by the specified separator.
  */
-
-function private_file_path($uri = '')
+function mngr_format_hash($hash, $group_by, $separator = '-')
 {
-	clean_file_path($uri);
-
-	if (strpos($uri, 'private/') !== 0) {
-		$uri = "private/{$uri}";
+	if (empty($hash)) {
+		return '';
 	}
 
-	return GET_APP_ROOT() . $uri;
+	$folio = strtoupper($hash);
+	return implode($separator, str_split($folio, $group_by));
 }
+
 /**
- * Clean a file path by removing query strings and leading slashes.
+ * Removes the formatting from a formatted hash by removing the separator and joining the groups.
  *
- * @param string &$uri The file path to clean (passed by reference).
- * @return void
+ * @param string $folio The formatted hash to unformat.
+ * @param string $separator Optional. The separator used in the formatted hash. Default is '-'.
+ * 
+ * @return string The unformatted hash as a continuous string.
  */
-function clean_file_path(&$uri = '')
+function mngr_unformat_hash($folio, $separator = '-')
 {
-	if (($pos = strpos($uri, '?')) !== false) {
-		$uri = substr($uri, 0, $pos);
+	if (empty($folio)) {
+		return '';
 	}
 
-
-	if (strpos($uri, '/') === 0) {
-		$uri = ltrim($uri, '/');
-	}
-}
-/**
- * Get the application private directory.
- *
- * @return string The application root path or an empty string if not found.
- */
-function GET_PRIVATE_PATH()
-{
-	return GET_APP_ROOT() . "private/";
-}
-/**
- * Get the application root directory.
- *
- * @return string The application root path or an empty string if not found.
- */
-function GET_APP_ROOT()
-{
-	$app_path_pos = strpos(APPPATH, 'app/');
-
-	// Extract the base path including the 'app' folder
-	if ($app_path_pos !== false) {
-		return substr(APPPATH, 0, $app_path_pos + 4);
-	}
-
-	return '';
+	$hash = explode($separator, $folio);
+	return implode('', $hash);
 }
