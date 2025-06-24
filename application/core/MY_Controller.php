@@ -116,13 +116,13 @@ class MY_Controller extends CI_Controller
 		die();
 	}
 
-	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = FALSE)
+	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
 	{
 		$this->load->library('ix_upload_lib');
 		return $this->ix_upload_lib->upload_file($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 	}
 
-	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = FALSE)
+	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
 	{
 		$this->load->library('ix_upload_lib');
 		return $this->ix_upload_lib->upload_image($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);

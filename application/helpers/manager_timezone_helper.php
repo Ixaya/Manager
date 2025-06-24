@@ -7,15 +7,15 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @param string $time_zone The timezone identifier (e.g., "America/New_York").
  * @return void
  */
-function mngr_date_default_timezone_set($timezone)
+function mngr_date_default_timezone_set($time_zone)
 {
 	// Get the list of valid timezone identifiers
 	$valid_timezones = timezone_identifiers_list();
 
 	// Check if the provided timezone is valid
-	if (in_array($timezone, $valid_timezones)) {
-		ini_set('date.timezone', $timezone);
-		date_default_timezone_set($timezone);
+	if (in_array($time_zone, $valid_timezones)) {
+		ini_set('date.timezone', $time_zone);
+		date_default_timezone_set($time_zone);
 	}
 }
 

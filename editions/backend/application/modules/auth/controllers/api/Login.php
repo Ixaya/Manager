@@ -7,11 +7,13 @@
 //  Copyright © 2017 Ixaya. All rights reserved.
 //
 
-if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+if (! defined('BASEPATH')) exit('No direct script access allowed');
 
-class Login extends REST_Controller {
+class Login extends REST_Controller
+{
 
-	public function __construct() {
+	public function __construct()
+	{
 		$this->methods['*']['auth_override'] = 'none';
 
 		parent::__construct();
@@ -36,7 +38,7 @@ class Login extends REST_Controller {
 
 
 
-		if ($result != false){
+		if ($result != false) {
 			$json = $this->___processJSONResponse($result, null, $device_uuid);
 			$this->response($json, REST_Controller::HTTP_OK);
 		} else {
@@ -54,8 +56,7 @@ class Login extends REST_Controller {
 		$groups = [GROUP_MEMBER_ID];
 
 		$user_id = $this->ix_ion_auth->register($username, $password, $username, $extras, $groups);
-		if ($user_id != false)
-		{
+		if ($user_id != false) {
 			//Remove activate and login, if you wish to handle the activation by mail
 			// $this->response(['status' => 1, 'message' => "User succesfully registered."], REST_Controller::HTTP_OK);
 
@@ -72,22 +73,22 @@ class Login extends REST_Controller {
 
 	/**
 	 * cleanup user
-	 * @param type $objAcc
+	 * @param type|array $objAcc
 	 */
-	private function ___processJSONResponse($objAcc, $apiKey = false, $device_uuid = null) {
+	private function ___processJSONResponse($objAcc, $apiKey = false, $device_uuid = null)
+	{
+		if (is_array($objAcc)) {
+			$objAcc = (object) $objAcc;
+		}
 
 		//Clean up user info
 		unset($objAcc->password);
 		unset($objAcc->active);
 		unset($objAcc->last_login);
 
-		if ($apiKey == false){
-			if (is_array($objAcc))
-				$userID = $objAcc['id'];
-			else
-				$userID = $objAcc->id;
-			$this->load->model('Rest_key_model','api_key');
-			$apiKey = $this->api_key->get_user_key($userID, $device_uuid);
+		if ($apiKey == false) {
+			$this->load->model('Rest_key_model', 'api_key');
+			$apiKey = $this->api_key->get_user_key($objAcc->id, $device_uuid);
 		}
 
 

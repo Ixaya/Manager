@@ -31,7 +31,7 @@ class MY_Loader extends MX_Loader
 		}
 
 		// Return from array if a DSN string wasn't passed
-		if (is_string($params) && strpos($params, '://') === FALSE && !empty($params)) {
+		if (is_string($params) && strpos($params, '://') === FALSE) {
 			if (isset($this->_db_cache[$params]) && is_object($this->_db_cache[$params]) && ! empty($this->_db_cache[$params])) {
 				return $this->_db_cache[$params];
 			}

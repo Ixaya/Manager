@@ -176,7 +176,7 @@ class Rest_key_model extends CI_Model
 			$salt = base_convert(bin2hex($this->security->get_random_bytes(64)), 16, 36);
 
 			// If an error occurred, then fall back to the previous method
-			if ($salt === FALSE) {
+			if (empty($salt)) {
 				$salt = hash('sha256', time() . mt_rand());
 			}
 

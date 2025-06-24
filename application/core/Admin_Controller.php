@@ -6,7 +6,7 @@ class Admin_Controller extends MY_Controller {
 	//public $client_id; //
 	public $logged_in_name;
 	public $language_file;
-	private $group_needed = 'admin';
+	protected $group_needed = 'admin';
 	
 	
 

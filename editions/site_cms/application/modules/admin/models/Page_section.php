@@ -29,13 +29,7 @@ class Page_section extends MY_Model {
 	{
 		$query = 'SELECT count(id) as count FROM page_section WHERE kind = 1';
 		
-		//obtener en modo objeto
 		$result = $this->query($query);
 		return $result[0]->count;
-		
-		
-		//obtener en modo arreglo
-		$result = $this->query_as_array($query);
-		return $result[0]['count'];
 	}
 }

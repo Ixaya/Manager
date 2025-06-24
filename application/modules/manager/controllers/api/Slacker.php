@@ -20,7 +20,7 @@ class Slacker extends IX_Rest_Controller
 	function order_progress_post()
 	{   
 		$order = NULL;
-		$message 		= $this->post('message');
+		$message 		  = $this->post('message');
 		$order_id 		= $this->post('order_id');
 		
 		

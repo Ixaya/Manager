@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Private_Controller extends Site_controller {
+class Private_Controller extends Site_Controller {
 
 
 

@@ -99,6 +99,13 @@ function mngr_clean_file_s3_path(&$uri = '')
  */
 function mngr_get_temp_upload_path($field_name, &$file_extension = null, &$file_type = null, &$file_name = null)
 {
+	if (
+		!isset($_FILES[$field_name]) ||
+		$_FILES[$field_name]['error'] !== UPLOAD_ERR_OK
+	) {
+		return '';
+	}
+
 	$tmp_file_path = $_FILES[$field_name]['tmp_name'];
 
 	$file_name = $_FILES[$field_name]['name'];
@@ -123,6 +130,13 @@ function mngr_get_temp_upload_path($field_name, &$file_extension = null, &$file_
  */
 function mngr_get_temp_upload_path_key($field_name, $field_key, &$file_extension = null, &$file_type = null)
 {
+	if (
+		!isset($_FILES[$field_name]['tmp_name'][$field_key]) ||
+		$_FILES[$field_name]['error'][$field_key] !== UPLOAD_ERR_OK
+	) {
+		return '';
+	}
+
 	$tmp_file_path = $_FILES[$field_name]['tmp_name'][$field_key];
 
 	$tmp_file_name = $_FILES[$field_name]['name'][$field_key];
@@ -145,7 +159,11 @@ function mngr_get_temp_upload_path_key($field_name, $field_key, &$file_extension
  */
 function mngr_get_temp_upload_paths($field_name, &$file_extension = null, &$file_type = null)
 {
-	if (isset($_FILES[$field_name]['tmp_name']) && is_array($_FILES[$field_name]['tmp_name'])) {
+	if (!isset($_FILES[$field_name]['tmp_name'])) {
+		return '';
+	}
+	
+	if (is_array($_FILES[$field_name]['tmp_name'])) {
 		$temp_paths = [];
 		$extensions = [];
 		$types = [];
@@ -159,6 +177,7 @@ function mngr_get_temp_upload_paths($field_name, &$file_extension = null, &$file
 
 		$file_extension = $extensions;
 		$file_type = $types;
+
 		return $temp_paths;
 	} else {
 		$tmp_file_path = $_FILES[$field_name]['tmp_name'];

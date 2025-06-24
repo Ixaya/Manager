@@ -1,20 +1,21 @@
 <?php
+
 /**
  * @name		CodeIgniter Advanced Images
  * @author		Jens Segers
  * @link		http://www.jenssegers.be
  * @license		MIT License Copyright (c) 2012 Jens Segers
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,7 +28,8 @@
 if (!defined('BASEPATH'))
 	exit('No direct script access allowed');
 
-class MY_Image_lib extends CI_Image_lib {
+class MY_Image_lib extends CI_Image_lib
+{
 
 	var $user_width = 0;
 	var $user_height = 0;
@@ -38,10 +40,11 @@ class MY_Image_lib extends CI_Image_lib {
 	 * Initialize image preferences
 	 *
 	 * @access	public
-	 * @param	array
+	 * @param	array $props
 	 * @return	bool
 	 */
-	function initialize($props = []) {
+	function initialize($props = array())
+	{
 		// save user specified dimensions and axis positions before they are modified by the CI library
 		if (isset($props["width"])) {
 			$this->user_width = $props["width"];
@@ -67,13 +70,14 @@ class MY_Image_lib extends CI_Image_lib {
 	 * @access	public
 	 * @return	void
 	 */
-	function clear() {
+	function clear()
+	{
 		$this->user_width = 0;
 		$this->user_height = 0;
 		$this->user_x_axis = '';
 		$this->user_y_axis = '';
 
-		return parent::clear();
+		parent::clear();
 	}
 
 	/**
@@ -82,7 +86,8 @@ class MY_Image_lib extends CI_Image_lib {
 	 * @access	public
 	 * @return	bool
 	 */
-	function fit() {
+	function fit()
+	{
 		// overwrite the dimensions with the original user specified dimensions
 		$this->width = $this->user_width;
 		$this->height = $this->user_height;
@@ -96,9 +101,9 @@ class MY_Image_lib extends CI_Image_lib {
 		if ($this->user_width == 0 || $this->user_height == 0) {
 			// calculate missing dimension
 			if ($this->user_width == 0) {
-				$this->width = ceil($this->user_height * $this->orig_width / $this->orig_height);
+				$this->width = (int) ceil($this->user_height * $this->orig_width / $this->orig_height);
 			} else {
-				$this->height = ceil($this->user_width * $this->orig_height / $this->orig_width);
+				$this->height = (int) ceil($this->user_width * $this->orig_height / $this->orig_width);
 			}
 
 			// no cropping is needed, just resize
@@ -108,8 +113,8 @@ class MY_Image_lib extends CI_Image_lib {
 		// ------------------------------------------------------------------------------------------
 		// mode 2: resize and crop the image to fit both dimensions
 		// ------------------------------------------------------------------------------------------
-		$this->width = ceil($this->user_height * $this->orig_width / $this->orig_height);
-		$this->height = ceil($this->user_width * $this->orig_height / $this->orig_width);
+		$this->width = (int) ceil($this->user_height * $this->orig_width / $this->orig_height);
+		$this->height = (int) ceil($this->user_width * $this->orig_height / $this->orig_width);
 
 		if (($this->user_width != $this->width) && ($this->user_height != $this->height)) {
 			if ($this->master_dim == 'height') {
@@ -124,11 +129,15 @@ class MY_Image_lib extends CI_Image_lib {
 		$this->dynamic_output = FALSE;
 
 		// if dynamic output is requested we will use a temporary file to work on
-		$tempfile = FALSE;
+		$temp = false;
 		if ($dynamic_output) {
 			$temp = tmpfile();
-			$tempfile = array_search('uri', @array_flip(stream_get_meta_data($temp)));
-			$this->full_dst_path = $tempfile;
+			if ($temp !== false) {
+				$metadata = stream_get_meta_data($temp);
+				if (!empty($metadata['uri'])) {
+					$this->full_dst_path = $metadata['uri'];  // This is the actual temp file path like 'php://temp'
+				}
+			}			
 		}
 
 		// resize stage
@@ -138,13 +147,13 @@ class MY_Image_lib extends CI_Image_lib {
 
 		// axis settings
 		if (!is_numeric($this->user_x_axis)) {
-			$this->x_axis = floor(($this->width - $this->user_width) / 2);
+			$this->x_axis = (int) floor(($this->width - $this->user_width) / 2);
 		} else {
 			$this->x_axis = $this->user_x_axis;
 		}
 
 		if (!is_numeric($this->user_y_axis)) {
-			$this->y_axis = floor(($this->height - $this->user_height) / 2);
+			$this->y_axis = (int) floor(($this->height - $this->user_height) / 2);
 		} else {
 			$this->y_axis = $this->user_y_axis;
 		}
@@ -167,11 +176,10 @@ class MY_Image_lib extends CI_Image_lib {
 		}
 
 		// close (and remove) the temporary file
-		if ($tempfile) {
+		if ($temp !== false) {
 			fclose($temp);
 		}
 
 		return TRUE;
 	}
-
 }

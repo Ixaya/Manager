@@ -58,8 +58,8 @@ function mngr_get_date_option(string $option, $date = null): string
 		case Mngr_date_option::end_of_year:
 			return $date->format('Y') . '-12-31 23:59:59';
 		default:
-			return null;
-			throw new InvalidArgumentException("Invalid Option");;
+			return '';
+			// throw new InvalidArgumentException("Invalid Option");
 	}
 }
 
@@ -75,9 +75,7 @@ function mngr_create_date_time($date_string, $format = null)
 
 	try {
 		$date_time = new DateTime($date_string);
-		if ($date_time !== false) {
-			return $date_time;
-		}
+		return $date_time;
 	} catch (Exception $e) {
 		log_message('debug', "Error parsing date string: " . $e->getMessage());
 	}

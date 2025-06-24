@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Webpages extends Site_controller
+class Webpages extends Site_Controller
 {
 
 	public function index()

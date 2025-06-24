@@ -80,28 +80,28 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Limit
 	 *
-	 * @var string
+	 * @var string|null
 	 **/
 	public $_ion_limit = NULL;
 
 	/**
 	 * Offset
 	 *
-	 * @var string
+	 * @var string|null
 	 **/
 	public $_ion_offset = NULL;
 
 	/**
 	 * Order By
 	 *
-	 * @var string
+	 * @var string|null
 	 **/
 	public $_ion_order_by = NULL;
 
 	/**
 	 * Order
 	 *
-	 * @var string
+	 * @var string|null
 	 **/
 	public $_ion_order = NULL;
 
@@ -115,23 +115,23 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Response
 	 *
-	 * @var string
+	 * @var object
 	 **/
 	protected $response = NULL;
 
 	/**
 	 * message (uses lang file)
 	 *
-	 * @var string
+	 * @var array
 	 **/
-	protected $messages;
+	protected $messages = [];
 
 	/**
 	 * error message (uses lang file)
 	 *
-	 * @var string
+	 * @var array
 	 **/
-	protected $errors;
+	protected $errors = [];
 
 	/**
 	 * error start delimiter
@@ -264,13 +264,13 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Hashes the password to be stored in the database.
 	 *
-	 * @return void
+	 * @return string
 	 * @author Mathew
 	 **/
 	public function hash_password($password, $salt = false, $use_sha1_override = FALSE)
 	{
 		if (empty($password)) {
-			return FALSE;
+			return '';
 		}
 
 		// bcrypt
@@ -291,7 +291,7 @@ class Ion_auth_model extends CI_Model
 	 * This function takes a password and validates it
 	 * against an entry in the users table.
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Mathew
 	 **/
 	public function hash_password_db($id, $password, $use_sha1_override = FALSE)
@@ -342,7 +342,7 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Generates a random salt value for forgotten passwords or any other keys. Uses SHA1.
 	 *
-	 * @return void
+	 * @return string
 	 * @author Mathew
 	 **/
 	public function hash_code($password)
@@ -366,14 +366,8 @@ class Ion_auth_model extends CI_Model
 		$buffer = '';
 		$buffer_valid = false;
 
-		if (function_exists('mcrypt_create_iv') && !defined('PHALANGER')) {
-			$buffer = mcrypt_create_iv($raw_salt_len, MCRYPT_DEV_URANDOM);
-			if ($buffer) {
-				$buffer_valid = true;
-			}
-		}
 
-		if (!$buffer_valid && function_exists('openssl_random_pseudo_bytes')) {
+		if (function_exists('openssl_random_pseudo_bytes')) {
 			$buffer = openssl_random_pseudo_bytes($raw_salt_len);
 			if ($buffer) {
 				$buffer_valid = true;
@@ -388,9 +382,8 @@ class Ion_auth_model extends CI_Model
 				$read = strlen($buffer);
 			}
 			fclose($f);
-			if ($read >= $raw_salt_len) {
-				$buffer_valid = true;
-			}
+
+			$buffer_valid = true;
 		}
 
 		if (!$buffer_valid || strlen($buffer) < $raw_salt_len) {
@@ -779,7 +772,7 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Forgotten Password Complete
 	 *
-	 * @return string
+	 * @return string|null
 	 * @author Mathew
 	 **/
 	public function forgotten_password_complete($code, $salt = FALSE)
@@ -788,7 +781,7 @@ class Ion_auth_model extends CI_Model
 
 		if (empty($code)) {
 			$this->trigger_events(array('post_forgotten_password_complete', 'post_forgotten_password_complete_unsuccessful'));
-			return FALSE;
+			return NULL;
 		}
 
 		$profile = $this->where('forgotten_password_code', $code)->users()->row(); //pass the code to profile
@@ -802,7 +795,7 @@ class Ion_auth_model extends CI_Model
 					//it has expired
 					$this->set_error('forgot_password_expired');
 					$this->trigger_events(array('post_forgotten_password_complete', 'post_forgotten_password_complete_unsuccessful'));
-					return FALSE;
+					return NULL;
 				}
 			}
 
@@ -821,7 +814,7 @@ class Ion_auth_model extends CI_Model
 		}
 
 		$this->trigger_events(array('post_forgotten_password_complete', 'post_forgotten_password_complete_unsuccessful'));
-		return FALSE;
+		return NULL;
 	}
 
 	/**
@@ -1346,7 +1339,7 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * add_to_group
 	 *
-	 * @return bool
+	 * @return int
 	 * @author Ben Edmunds
 	 **/
 	public function add_to_group($group_ids, $user_id = false)
@@ -1842,13 +1835,13 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * delete_group
 	 *
-	 * @return bool
+	 * @return int|bool|null
 	 * @author aditya menon
 	 **/
 	public function delete_group($group_id = FALSE)
 	{
 		// bail if mandatory param not set
-		if (!$group_id || empty($group_id)) {
+		if (empty($group_id)) {
 			return FALSE;
 		}
 		$group = $this->group($group_id)->row();

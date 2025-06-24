@@ -14,8 +14,9 @@ class Language extends CI_Controller
 				$valid = $language;
 		}
 
-		if (empty($language_v))
+		if (empty($valid)){
 			$valid = $this->config->item('language');
+		}
 
 		$this->session->set_userdata('language', $valid);
 

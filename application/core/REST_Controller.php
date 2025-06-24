@@ -1,6 +1,6 @@
 <?php
 
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * CodeIgniter Rest Controller
@@ -293,16 +293,16 @@ abstract class REST_Controller extends MY_Controller
 	/**
 	 * The start of the response time from the server
 	 *
-	 * @var string
+	 * @var float
 	 */
-	protected $_start_rtime = '';
+	protected $_start_rtime = 0;
 
 	/**
 	 * The end of the response time from the server
 	 *
-	 * @var string
+	 * @var float
 	 */
-	protected $_end_rtime = '';
+	protected $_end_rtime = 0;
 
 	/**
 	 * List all supported methods, the first will be the default format
@@ -476,6 +476,9 @@ abstract class REST_Controller extends MY_Controller
 		$this->{'_parse_' . $this->request->method}();
 
 		// Now we know all about our request, let's try and parse the body if it exists
+
+		// Ignoring phpstan because the dynamic method of above can't be parsed.
+		// @phpstan-ignore-next-line greater.alwaysTrue
 		if ($this->request->format && $this->request->body) {
 			//IX-debug post
 			/*
@@ -486,7 +489,8 @@ abstract class REST_Controller extends MY_Controller
 			ob_end_clean();
 			
 			error_log("Post: ".$rawPost);
-*/
+			*/
+
 			$this->request->body = $this->format->factory($this->request->body, $this->request->format)->to_array();
 			// Assign payload arguments to proper method container
 			$this->{'_' . $this->request->method . '_args'} = $this->request->body;
@@ -529,14 +533,11 @@ abstract class REST_Controller extends MY_Controller
 		// Check if there is a specific auth type for the current class/method
 		// _auth_override_check could exit so we need $this->rest->db initialized before
 		$check_key_user = true;
-		$this->_auth_override = $this->_auth_override_check($check_key_user);
+		$this->_auth_override = $this->_auth_override_check($check_key_user); //check_key_user passed as reference
 
 		// Checking for keys? GET TO Work!
 		// Skip keys test for $config['auth_override_class_method']['class'['method'] = 'none'
 		if ($this->config->item('rest_enable_keys') && $check_key_user === TRUE) {
-			// if ($check_key_user === TRUE){
-			//     $api_key_allow = $this->_detect_api_key();
-			// }
 			$api_key_allow = $this->_detect_api_key();
 			$this->_allow = ($this->_auth_override !== TRUE) ? $api_key_allow : TRUE;
 		}
@@ -550,12 +551,10 @@ abstract class REST_Controller extends MY_Controller
 			], self::HTTP_NOT_ACCEPTABLE);
 		}
 
+		$rest_enable_keys_allowed = ($this->config->item('rest_enable_keys') && $this->_allow === TRUE);
+		$allow_auth_and_keys_allowed = ($this->config->item('allow_auth_and_keys') === TRUE && $this->_allow === TRUE);
 		// When there is no specific override for the current class/method, use the default auth value set in the config
-		if (
-			$this->_auth_override === FALSE &&
-			(! ($this->config->item('rest_enable_keys') && $this->_allow === TRUE) ||
-				($this->config->item('allow_auth_and_keys') === TRUE && $this->_allow === TRUE))
-		) {
+		if ($this->_auth_override === FALSE && (!$rest_enable_keys_allowed || $allow_auth_and_keys_allowed)) {
 			$rest_auth = strtolower($this->config->item('rest_auth'));
 			switch ($rest_auth) {
 				case 'basic':
@@ -733,7 +732,7 @@ abstract class REST_Controller extends MY_Controller
 	 * Takes mixed data and optionally a status code, then creates the response
 	 *
 	 * @access public
-	 * @param array|NULL $data Data to output to the user
+	 * @param array|object|string|NULL $data Data to output to the user
 	 * @param int|NULL $http_code HTTP status code
 	 * @param bool $continue TRUE to flush the response to the client and continue
 	 * running the script; otherwise, exit
@@ -1023,7 +1022,7 @@ abstract class REST_Controller extends MY_Controller
 	 * Preferred return language
 	 *
 	 * @access protected
-	 * @return string|NULL The language code
+	 * @return string|array|NULL The language code
 	 */
 	protected function _detect_lang()
 	{
@@ -1039,7 +1038,10 @@ abstract class REST_Controller extends MY_Controller
 			$return_langs = [];
 			foreach ($langs as $lang) {
 				// Remove weight and trim leading and trailing whitespace
-				list($lang) = explode(';', $lang);
+				if (strpos($lang, ';') !== FALSE) {
+					$lang = explode(';', $lang)[0];
+				}
+				
 				$return_langs[] = trim($lang);
 			}
 
@@ -1089,7 +1091,7 @@ abstract class REST_Controller extends MY_Controller
 				[
 					'uri' => $this->uri->uri_string(),
 					'method' => $this->request->method,
-					'params' => $args ? ($this->config->item('rest_logs_json_params') === TRUE ? json_encode($args) : serialize($args)) : NULL,
+					'params' => $args ? ($this->config->item('rest_logs_json_params') === TRUE ? json_encode($args) : serialize($args)) : '',
 					'api_key' => isset($this->rest->key) ? $this->rest->key : '',
 					'ip_address' => $this->input->ip_address(),
 					'time' => time(),
@@ -1434,10 +1436,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from a GET request
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the GET request
+	 * @param string|NULL $key Key to retrieve from the GET request
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the GET request; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the GET request; otherwise, NULL
 	 */
 	public function get($key = NULL, $xss_clean = NULL)
 	{
@@ -1452,10 +1454,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from a OPTIONS request
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the OPTIONS request.
+	 * @param string|NULL $key Key to retrieve from the OPTIONS request.
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the OPTIONS request; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the OPTIONS request; otherwise, NULL
 	 */
 	public function options($key = NULL, $xss_clean = NULL)
 	{
@@ -1470,10 +1472,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from a HEAD request
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the HEAD request
+	 * @param string|NULL $key Key to retrieve from the HEAD request
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the HEAD request; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the HEAD request; otherwise, NULL
 	 */
 	public function head($key = NULL, $xss_clean = NULL)
 	{
@@ -1488,10 +1490,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from a POST request
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the POST request
+	 * @param string|NULL $key Key to retrieve from the POST request
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the POST request; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the POST request; otherwise, NULL
 	 */
 	public function post($key = NULL, $xss_clean = NULL)
 	{
@@ -1506,10 +1508,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from a PUT request
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the PUT request
+	 * @param string|NULL $key Key to retrieve from the PUT request
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the PUT request; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the PUT request; otherwise, NULL
 	 */
 	public function put($key = NULL, $xss_clean = NULL)
 	{
@@ -1524,10 +1526,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from a DELETE request
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the DELETE request
+	 * @param string|NULL $key Key to retrieve from the DELETE request
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the DELETE request; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the DELETE request; otherwise, NULL
 	 */
 	public function delete($key = NULL, $xss_clean = NULL)
 	{
@@ -1542,10 +1544,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from a PATCH request
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the PATCH request
+	 * @param string|NULL $key Key to retrieve from the PATCH request
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the PATCH request; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the PATCH request; otherwise, NULL
 	 */
 	public function patch($key = NULL, $xss_clean = NULL)
 	{
@@ -1560,10 +1562,10 @@ abstract class REST_Controller extends MY_Controller
 	 * Retrieve a value from the query parameters
 	 *
 	 * @access public
-	 * @param NULL $key Key to retrieve from the query parameters
+	 * @param string|NULL $key Key to retrieve from the query parameters
 	 * If NULL an array of arguments is returned
-	 * @param NULL $xss_clean Whether to apply XSS filtering
-	 * @return array|string|NULL Value from the query parameters; otherwise, NULL
+	 * @param bool|NULL $xss_clean Whether to apply XSS filtering
+	 * @return array|mixed|null Value from the query parameters; otherwise, NULL
 	 */
 	public function query($key = NULL, $xss_clean = NULL)
 	{
@@ -1580,7 +1582,7 @@ abstract class REST_Controller extends MY_Controller
 	 *
 	 * @access protected
 	 * @param string $value Input data
-	 * @param bool $xss_clean Whether to apply XSS filtering
+	 * @param bool|null $xss_clean Whether to apply XSS filtering
 	 * @return string
 	 */
 	protected function _xss_clean($value, $xss_clean)
@@ -1633,7 +1635,7 @@ abstract class REST_Controller extends MY_Controller
 			'basedn' => $this->config->item('basedn', 'ldap'),
 		];
 
-		log_message('debug', 'LDAP Auth: Connect to ' . (isset($ldaphost) ? $ldaphost : '[ldap not configured]'));
+		log_message('debug', 'LDAP Auth: Connect to ' . (isset($ldap['host']) ? $ldap['host'] : '[ldap not configured]'));
 
 		// Connect to the ldap server
 		$ldapconn = ldap_connect($ldap['host'], $ldap['port']);
@@ -1733,7 +1735,7 @@ abstract class REST_Controller extends MY_Controller
 	 * @access protected
 	 * @param string $username The user's name
 	 * @param bool|string $password The user's password
-	 * @return bool
+	 * @return bool|string
 	 */
 	protected function _check_login($username = NULL, $password = FALSE)
 	{
@@ -1974,7 +1976,7 @@ abstract class REST_Controller extends MY_Controller
 	{
 		// fix CORS to option request error 
 		if (empty($this->rest->db)) {
-			return;
+			return FALSE;
 		}
 
 		$payload['rtime'] = $this->_end_rtime - $this->_start_rtime;

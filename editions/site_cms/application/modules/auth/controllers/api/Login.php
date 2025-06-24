@@ -72,9 +72,13 @@ class Login extends REST_Controller {
 
 	/**
 	 * cleanup user
-	 * @param type $objAcc
+	 * @param type|array $objAcc
 	 */
-	private function ___processJSONResponse($objAcc, $apiKey = false, $device_uuid = null) {
+	private function ___processJSONResponse($objAcc, $apiKey = false, $device_uuid = null)
+	{
+		if (is_array($objAcc)) {
+			$objAcc = (object) $objAcc;
+		}
 
 		//Clean up user info
 		unset($objAcc->password);
@@ -82,12 +86,8 @@ class Login extends REST_Controller {
 		unset($objAcc->last_login);
 
 		if ($apiKey == false){
-			if (is_array($objAcc))
-				$userID = $objAcc['id'];
-			else
-				$userID = $objAcc->id;
 			$this->load->model('Rest_key_model','api_key');
-			$apiKey = $this->api_key->get_user_key($userID, $device_uuid);
+			$apiKey = $this->api_key->get_user_key($objAcc->id, $device_uuid);
 		}
 
 

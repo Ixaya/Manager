@@ -91,7 +91,7 @@ class MX_Loader extends CI_Loader
 	{
 		if (is_array($helper)) return $this->helpers($helper);
 
-		if (isset($this->_ci_helpers[$helper]))	return;
+		if (isset($this->_ci_helpers[$helper]))	return $this;
 
 		list($path, $_helper) = Modules::find($helper . '_helper', $this->_module, 'helpers/');
 
@@ -132,7 +132,7 @@ class MX_Loader extends CI_Loader
 		if (isset($this->_ci_classes[$class]) && $_alias = $this->_ci_classes[$class])
 			return $this;
 
-		(!empty($object_name) && $_alias = strtolower($object_name)) or $_alias = $class;
+		$_alias = (!empty($object_name)) ? strtolower($object_name) : $class;
 
 		list($path, $_library) = Modules::find($library, $this->_module, 'libraries/');
 
@@ -169,7 +169,7 @@ class MX_Loader extends CI_Loader
 	{
 		if (is_array($model)) return $this->models($model);
 
-		($_alias = $object_name) or $_alias = basename($model);
+		$_alias = $object_name ?: basename($model);
 
 		if (in_array($_alias, $this->_ci_models, TRUE))
 			return $this;
@@ -213,7 +213,7 @@ class MX_Loader extends CI_Loader
 		if (is_array($module)) return $this->modules($module);
 
 		$_alias = strtolower(basename($module));
-		CI::$APP->$_alias = Modules::load(array($module => $params));
+		CI::$APP->$_alias = Modules::load($module, $params);
 		return $this;
 	}
 
@@ -263,64 +263,9 @@ class MX_Loader extends CI_Loader
 		return $this->_ci_load(array('_ci_view' => $view, '_ci_vars' => $this->_ci_object_to_array($vars), '_ci_return' => $return));
 	}
 
-	protected function &_ci_get_component($component)
-	{
-		return CI::$APP->$component;
-	}
-
 	public function __get($class)
 	{
 		return (isset($this->controller)) ? $this->controller->$class : CI::$APP->$class;
-	}
-
-	public function _ci_load($_ci_data)
-	{
-		extract($_ci_data);
-
-		if (isset($_ci_view)) {
-			$_ci_path = '';
-
-			/* add file extension if not provided */
-			$_ci_file = (pathinfo($_ci_view, PATHINFO_EXTENSION)) ? $_ci_view : $_ci_view . EXT;
-
-			foreach ($this->_ci_view_paths as $path => $cascade) {
-				if (file_exists($view = $path . $_ci_file)) {
-					$_ci_path = $view;
-					break;
-				}
-				if (! $cascade) break;
-			}
-		} elseif (isset($_ci_path)) {
-
-			$_ci_file = basename($_ci_path);
-			if (! file_exists($_ci_path)) $_ci_path = '';
-		}
-
-		if (empty($_ci_path))
-			show_error('Unable to load the requested file: ' . $_ci_file);
-
-		if (isset($_ci_vars))
-			$this->_ci_cached_vars = array_merge($this->_ci_cached_vars, (array) $_ci_vars);
-
-		extract($this->_ci_cached_vars);
-
-		ob_start();
-
-		if ((bool) @ini_get('short_open_tag') === FALSE && CI::$APP->config->item('rewrite_short_tags') == TRUE) {
-			echo eval('?>' . preg_replace("/;*\s*\?>/", "; ?>", str_replace('<?=', '<?php echo ', file_get_contents($_ci_path))));
-		} else {
-			include($_ci_path);
-		}
-
-		log_message('debug', 'File loaded: ' . $_ci_path);
-
-		if ($_ci_return == TRUE) return ob_get_clean();
-
-		if (ob_get_level() > $this->_ci_ob_level + 1) {
-			ob_end_flush();
-		} else {
-			CI::$APP->output->append_output(ob_get_clean());
-		}
 	}
 
 	/** Autoload module items **/

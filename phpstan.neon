@@ -1,0 +1,68 @@
+parameters:
+    # Set the level of strictness
+    level: 5
+
+    # Define the paths that PHPStan should analyze
+    paths:
+        - application/
+        # Manager only
+        # - editions/
+    scanDirectories:
+        - vendor/nielbuys/framework/system
+
+    scanFiles:
+        - public/index.php
+
+    # Include the vendor directory for autoloading and reflection
+    bootstrapFiles:
+        - vendor/autoload.php
+        
+
+    # Optionally, ignore errors in the vendor directory
+    excludePaths:
+        analyse:
+          - */views/*
+          - vendor/*
+
+    ignoreErrors:
+        # Level 1 – Critical (likely bugs or fatal issues)
+        # - identifier: arguments.count
+        # - identifier: assign.propertyType
+        # - identifier: binaryOp.invalid
+        # - identifier: constant.notFound
+        # - identifier: function.notFound
+        # - identifier: parameter.notFound
+        # - identifier: class.notFound
+        # - identifier: method.notFound
+        # - identifier: property.notFound
+        # - identifier: variable.undefined
+        # - identifier: argument.type
+
+        # Level 2 – High (logic issues, risky behavior)
+        # - identifier: booleanAnd.rightAlwaysFalse
+        # - identifier: booleanOr.alwaysTrue
+        # - identifier: greater.alwaysTrue
+        # - identifier: identical.alwaysTrue
+        # - identifier: identical.alwaysFalse
+        # - identifier: notIdentical.alwaysTrue
+        # - identifier: regexp.pattern
+        # - identifier: equal.invalid
+
+        # Level 3 – Medium (unused code, redundancy, maintainability)
+        # - identifier: booleanAnd.rightAlwaysTrue
+        # # - identifier: deadCode.unreachable
+        # - identifier: empty.variable
+        # - identifier: function.alreadyNarrowedType
+        # - identifier: new.static
+        # - identifier: parameterByRef.unusedType
+        # - identifier: phpDoc.parseError
+
+        # Level 4 – Low (style, clarity, optional improvement)
+        - identifier: isset.property
+        - identifier: isset.variable
+        - identifier: return.void
+        - identifier: method.void
+        # CI/Manager Baseline
+        - identifier: class.notFound
+        - identifier: method.notFound
+        - identifier: property.notFound

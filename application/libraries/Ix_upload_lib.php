@@ -4,6 +4,13 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class Ix_upload_lib
 {
 	/**
+	 * Whether to show flashdata in the response
+	 *
+	 * @var bool
+	 */
+	public $show_flashdata = FALSE;
+
+	/**
 	 * __get
 	 *
 	 * Enables the use of CI super-global without having to define an extra variable.
@@ -40,11 +47,11 @@ class Ix_upload_lib
 	 * @param string $field_name The form field name of the file input.
 	 * @param array|null $upload_config Optional configuration settings for the upload.
 	 * @param bool $encrypt_name Whether to encrypt the file name.
-	 * @param bool &$error Reference variable to store an error state.
-	 * @return array<int, array<string, mixed>> A two-dimensional array with file details.
+	 * @param null &$error Reference variable to store an error state.
+	 * @return array|bool A two-dimensional array with file details.
 	 * @throws RuntimeException If the upload fails.
 	 */
-	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = FALSE)
+	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
 	{
 		$validate_result = $this->validate_files_field($field_name);
 		if ($validate_result === null) {
@@ -58,7 +65,7 @@ class Ix_upload_lib
 			return $this->upload_file_local($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 		}
 	}
-	public function upload_file_local($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = FALSE)
+	public function upload_file_local($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
 	{
 		try {
 			$file_path = mngr_file_path($relative_path);
@@ -90,8 +97,10 @@ class Ix_upload_lib
 			$this->upload->initialize($config);
 
 			if ($this->upload->do_upload($field_name)) {
-				$this->session->set_flashdata('message', 'Archivo agregado correctamente');
-				$this->session->set_flashdata('message_kind', 'success');
+				if ($this->show_flashdata == TRUE){
+					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
+					$this->session->set_flashdata('message_kind', 'success');
+				}
 
 				$upload_data = $this->upload->data();
 
@@ -119,19 +128,21 @@ class Ix_upload_lib
 
 				return $return_data;
 			} else {
-				if ($error === FALSE) {
+				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
+
+				if ($this->show_flashdata == TRUE) {
 					$this->session->set_flashdata('message', $this->upload->display_errors());
 					$this->session->set_flashdata('message_kind', 'error');
-					log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
 				} else {
 					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
 				}
 			}
 		} catch (Exception $e) {
-			if ($error === FALSE) {
+			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
+
+			if ($this->show_flashdata == TRUE) {
 				$this->session->set_flashdata('message', 'Error al subir archivo');
 				$this->session->set_flashdata('message_kind', 'error');
-				log_message('error', "Error uploading($file_path): " . $e->getMessage());
 			} else {
 				$error = 'Error al subir archivo';
 			}
@@ -139,9 +150,8 @@ class Ix_upload_lib
 
 		return false;
 	}
-	private function upload_file_s3($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = FALSE)
+	private function upload_file_s3($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
 	{
-		$file_path = '';
 		try {
 			$v = '';
 			if ($desired_file_name) {
@@ -169,8 +179,10 @@ class Ix_upload_lib
 			$image_url = $this->amazon_aws->upload_file($original_file_path, $s3_file_path);
 
 			if ($image_url) {
-				$this->session->set_flashdata('message', 'Archivo agregado correctamente');
-				$this->session->set_flashdata('message_kind', 'success');
+				if ($this->show_flashdata == TRUE) {
+					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
+					$this->session->set_flashdata('message_kind', 'success');
+				}
 
 				if (strpos($relative_path, '/') !== 0) {
 					$relative_path = "/$relative_path";
@@ -188,19 +200,21 @@ class Ix_upload_lib
 
 				return $return_data;
 			} else {
-				if ($error === FALSE) {
+				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
+
+				if ($this->show_flashdata == TRUE) {
 					$this->session->set_flashdata('message', $this->upload->display_errors());
 					$this->session->set_flashdata('message_kind', 'error');
-					log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
 				} else {
 					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
 				}
 			}
 		} catch (Exception $e) {
-			if ($error === FALSE) {
+			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
+
+			if ($this->show_flashdata == TRUE) {
 				$this->session->set_flashdata('message', 'Error al subir archivo');
 				$this->session->set_flashdata('message_kind', 'error');
-				log_message('error', "Error uploading($file_path): " . $e->getMessage());
 			} else {
 				$error = 'Error al subir archivo';
 			}
@@ -209,7 +223,7 @@ class Ix_upload_lib
 		return false;
 	}
 
-	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = FALSE)
+	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
 	{
 		$validate_result = $this->validate_files_field($field_name);
 		if ($validate_result === null) {
@@ -223,7 +237,7 @@ class Ix_upload_lib
 			return $this->upload_image_local($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
 		}
 	}
-	public function upload_image_local($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = FALSE)
+	public function upload_image_local($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
 	{
 		try {
 			$file_path = mngr_file_path($relative_path);
@@ -255,9 +269,10 @@ class Ix_upload_lib
 			$this->load->library('upload');
 			$this->upload->initialize($config);
 			if ($this->upload->do_upload($field_name)) {
-				//$this->session->set_flashdata('message', 'Se subió el archivo');
-				$this->session->set_flashdata('message', 'Imagen agregada correctamente');
-				$this->session->set_flashdata('message_kind', 'success');
+				if ($this->show_flashdata == TRUE) {
+					$this->session->set_flashdata('message', 'Imagen agregada correctamente');
+					$this->session->set_flashdata('message_kind', 'success');
+				}
 
 				$upload_data = $this->upload->data();
 
@@ -333,28 +348,29 @@ class Ix_upload_lib
 				}
 				return $return_data;
 			} else {
-				if ($error === FALSE) {
+				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
+
+				if ($this->show_flashdata == TRUE) {
 					$this->session->set_flashdata('message', $this->upload->display_errors()); //'Error al subir imagen');
 					$this->session->set_flashdata('message_kind', 'error');
-					log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
 				} else {
 					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
 				}
 			}
 		} catch (Exception $e) {
-			if ($error === FALSE) {
+			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
+
+			if ($this->show_flashdata == TRUE) {
 				$this->session->set_flashdata('message', 'Error al subir imagen');
-				$this->session->set_flashdata('message_kind', 'error');
-				log_message('error', "Error uploading($file_path): " . $e->getMessage());
+				$this->session->set_flashdata('message_kind', 'error');	
 			} else {
 				$error = 'Error al subir imagen';
 			}
 		}
 		return false;
 	}
-	private function upload_image_s3($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = FALSE)
+	private function upload_image_s3($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
 	{
-		$file_path = '';
 		try {
 			$this->load->library('amazon_aws');
 
@@ -411,7 +427,7 @@ class Ix_upload_lib
 			$image_url = $this->amazon_aws->upload_file($base_file_path, $s3_file_path);
 			if (empty($image_url)) {
 				$s3_file_path = '';
-			} else {
+			} else if ($this->show_flashdata == TRUE) {
 				$this->session->set_flashdata('message', 'Imagen agregada correctamente');
 				$this->session->set_flashdata('message_kind', 'success');
 			}
@@ -437,8 +453,6 @@ class Ix_upload_lib
 					$s3_thumb_file_path = '';
 				}
 			}
-
-
 
 			$v = '';
 			if ($desired_file_name) {
@@ -468,10 +482,11 @@ class Ix_upload_lib
 
 			return $return_data;
 		} catch (Exception $e) {
-			if ($error === FALSE) {
+			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
+			
+			if ($this->show_flashdata == TRUE) {
 				$this->session->set_flashdata('message', 'Error al subir imagen');
 				$this->session->set_flashdata('message_kind', 'error');
-				log_message('error', "Error uploading($file_path): " . $e->getMessage());
 			} else {
 				$error = 'Error al subir imagen';
 			}
@@ -480,7 +495,10 @@ class Ix_upload_lib
 				unlink($thumb_file_path);
 			}
 
-			if ($base_file_path != $original_file_path && file_exists($base_file_path)) {
+			if ((!empty($original_file_path) && !empty($base_file_path)) &&
+				($base_file_path != $original_file_path) &&
+				file_exists($base_file_path)
+			) {
 				unlink($base_file_path);
 			}
 		}
@@ -497,7 +515,7 @@ class Ix_upload_lib
 	}
 	public function display_image_local($file_path)
 	{
-		if (file_exists($file_path) && !empty($filename)) {
+		if (file_exists($file_path)) {
 			$filename = basename($file_path);
 			$file_ext = pathinfo($file_path, PATHINFO_EXTENSION);
 

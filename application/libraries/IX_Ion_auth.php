@@ -176,10 +176,11 @@ class IX_Ion_auth
 	 * forgotten_password_complete
 	 *
 	 * @param $code
+	 * @param array $result
 	 * @author Mathew
 	 * @return bool
 	 */
-	public function forgotten_password_complete($code)
+	public function forgotten_password_complete($code, &$result = NULL)
 	{
 		$this->ix_ion_auth_model->trigger_events('pre_password_change');
 
@@ -195,16 +196,16 @@ class IX_Ion_auth
 		$new_password = $this->ix_ion_auth_model->forgotten_password_complete($code, $profile->salt);
 
 		if ($new_password) {
-			$data = array(
+			$result = array(
 				'identity'	 => $profile->{$identity},
 				'new_password' => $new_password
 			);
 			if (!$this->config->item('use_ci_email', 'ion_auth')) {
 				$this->set_message('password_change_successful');
 				$this->ix_ion_auth_model->trigger_events(array('post_password_change', 'password_change_successful'));
-				return $data;
+				return TRUE;
 			} else {
-				$message = $this->load->view($this->config->item('email_templates', 'ion_auth') . $this->config->item('email_forgot_password_complete', 'ion_auth'), $data, true);
+				$message = $this->load->view($this->config->item('email_templates', 'ion_auth') . $this->config->item('email_forgot_password_complete', 'ion_auth'), $result, true);
 
 				$this->email->clear();
 				$this->email->from($this->config->item('admin_email', 'ion_auth'), $this->config->item('site_title', 'ion_auth'));
@@ -231,11 +232,12 @@ class IX_Ion_auth
 	/**
 	 * forgotten_password_check
 	 *
-	 * @param $code
+	 * @param string $code
+	 * @param object $profile 
 	 * @author Michael
 	 * @return bool
 	 */
-	public function forgotten_password_check($code)
+	public function forgotten_password_check($code, &$profile = NULL)
 	{
 		$profile = $this->where('forgotten_password_code', $code)->users()->row(); //pass the code to profile
 
@@ -253,7 +255,7 @@ class IX_Ion_auth
 					return FALSE;
 				}
 			}
-			return $profile;
+			return TRUE;
 		}
 	}
 
@@ -266,7 +268,7 @@ class IX_Ion_auth
 	 * @param array $additional_data
 	 * @param array $group_ids
 	 * @author Mathew
-	 * @return bool
+	 * @return bool|array
 	 */
 	public function register($identity, $password, $email, $additional_data = [], $group_ids = []) //need to test email activation
 	{
@@ -353,11 +355,7 @@ class IX_Ion_auth
 
 		$identity = $this->config->item('identity', 'ion_auth');
 
-		if (substr(CI_VERSION, 0, 1) == '2') {
-			$this->session->unset_userdata(array($identity => '', 'id' => '', 'user_id' => ''));
-		} else {
-			$this->session->unset_userdata(array($identity, 'id', 'user_id'));
-		}
+		$this->session->unset_userdata(array($identity, 'id', 'user_id'));
 
 		// delete the remember me cookies if they exist
 		if (get_cookie($this->config->item('identity_cookie_name', 'ion_auth'))) {
@@ -371,14 +369,8 @@ class IX_Ion_auth
 		$this->session->sess_destroy();
 
 		//Recreate the session
-		if (substr(CI_VERSION, 0, 1) == '2') {
-			$this->session->sess_create();
-		} else {
-			if (version_compare(PHP_VERSION, '7.0.0') >= 0) {
-				session_start();
-			}
-			$this->session->sess_regenerate(TRUE);
-		}
+		session_start();
+		$this->session->sess_regenerate(TRUE);
 
 		$this->set_message('logout_successful');
 		return TRUE;
@@ -400,7 +392,7 @@ class IX_Ion_auth
 	/**
 	 * logged_in
 	 *
-	 * @return integer
+	 * @return integer|null
 	 * @author jrmadsen67
 	 **/
 	public function get_user_id()
@@ -414,7 +406,7 @@ class IX_Ion_auth
 	/**
 	 * client_id
 	 *
-	 * @return integer
+	 * @return integer|null
 	 * @author gumoz
 	 **/
 	public function get_client_id()
@@ -445,13 +437,13 @@ class IX_Ion_auth
 	/**
 	 * in_group
 	 *
-	 * @param mixed group(s) to check
-	 * @param bool user id
-	 * @param bool check if all groups is present, or any of the groups
+	 * @param mixed $check_group Group(s) to check
+	 * @param int|bool $id User ID
+	 * @param bool $check_all Check if all groups are present, or any of the groups
 	 *
 	 * @return bool
 	 * @author Phil Sturgeon
-	 **/
+	 */
 	public function in_group($check_group, $id = false, $check_all = false)
 	{
 		$this->ix_ion_auth_model->trigger_events('in_group');

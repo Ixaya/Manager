@@ -41,7 +41,8 @@ function secure_url($uri = '')
  */
 function mngr_generate_hash($length = 32)
 {
-	$bytes = random_bytes(ceil($length / 2));
+	$length = (int)ceil($length / 2);
+	$bytes = random_bytes($length);
 
 	return substr(bin2hex($bytes), 0, $length);
 }

@@ -24,6 +24,9 @@ class Amazon_aws
 	private $aws_accesskey;
 	private $aws_secretkey;
 
+	private $config;
+	private $config_key;
+
 	function __construct()
 	{
 		// parent::__construct();
@@ -38,13 +41,34 @@ class Amazon_aws
 
 		include($file_path);
 
-		$this->aws_bucket 		= $aws_bucket;
-		$this->aws_region 		= $aws_region;
-		$this->aws_cloud_front_id = $aws_cloud_front_id;
-		$this->aws_bucket_url = $aws_bucket_url;
+		if (!$this->config_key && isset($active_config)){
+			$this->config_key = $active_config;
+		}
 
-		$this->aws_accesskey 	= $aws_accesskey;
-		$this->aws_secretkey	= $aws_secretkey;
+		$this->config = isset($config) ? $config : []; 
+
+		if (!empty($config[$this->config_key]))
+		{
+			$this->load_config($config[$this->config_key]);
+		}
+	}
+
+	public function set_config_key($key)
+	{
+		if (!empty($this->config[$key])) {
+			$this->config_key = $key;
+			$this->load_config($this->config[$key]);
+		}
+	}
+
+	private function load_config($config){
+		$this->aws_bucket 		= $config['aws_bucket'] ?? '';
+		$this->aws_region 		= $config['aws_region'] ?? '';
+		$this->aws_cloud_front_id = $config['aws_cloud_front_id'] ?? '';
+		$this->aws_bucket_url = $config['aws_bucket_url'] ?? '';
+
+		$this->aws_accesskey 	= $config['aws_accesskey'] ?? '';
+		$this->aws_secretkey	= $config['aws_secretkey'] ?? '';
 	}
 
 	//managerizar
@@ -79,6 +103,10 @@ class Amazon_aws
 	public function upload_file($file_path, $s3_path = '', $invalidate_path = false)
 	{
 		try {
+			if (empty($file_path)){
+				return null;
+			}
+
 			$s3 = $this->build_s3_client();
 
 			$file_type = mime_content_type($file_path);
@@ -123,6 +151,9 @@ class Amazon_aws
 	public function save_file($file_name, $path)
 	{
 		try {
+			if (empty($file_name) || empty($path)) {
+				return null;
+			}
 
 			$s3 = $this->build_s3_client();
 

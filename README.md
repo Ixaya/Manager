@@ -90,6 +90,20 @@ Inside the modules folder you can have any folder that goes inside Application, 
 * `application/modules/{module}/....` and more
 
 
-Soon more Docs...
+## PHP Validations
+
+Run static code analysis using PHPStan:
+
+- **Standard analysis:**
+  ```bash
+  ./vendor/bin/phpstan analyse
+  ```
+
+- **With increased memory limit:**
+  ```bash
+  ./vendor/bin/phpstan analyse --memory-limit=512M
+  ```
+
+> **Tip:** Use the memory limit option if you encounter out-of-memory errors during analysis.
 
 

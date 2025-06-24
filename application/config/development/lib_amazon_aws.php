@@ -1,11 +1,13 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
-$aws_bucket = 'bucket-name';
-$aws_bucket_url = 'https://example.com/';
+$active_config = 'default';
 
-$aws_region = 'us-east-1';
-$aws_cloud_front_id = '';
+$config['default']['aws_bucket'] = 'bucket-name';
+$config['default']['aws_bucket_url'] = 'https://example.com/';
 
-$aws_accesskey = '';
-$aws_secretkey = '';
+$config['default']['aws_region'] = 'us-east-1';
+$config['default']['aws_cloud_front_id'] = '';
+
+$config['default']['aws_accesskey'] = '';
+$config['default']['aws_secretkey'] = '';

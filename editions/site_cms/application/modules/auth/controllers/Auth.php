@@ -3,7 +3,7 @@
 if (!defined('BASEPATH'))
 	exit('No direct script access allowed');
 
-class Auth extends Site_controller {
+class Auth extends Site_Controller {
 	private $use_levels = TRUE;
 
 	function __construct() {

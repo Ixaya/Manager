@@ -43,6 +43,9 @@ class Media extends CI_Controller {
 		if (!file_exists($original)) {
 			show_404($original);
 		}
+
+		$width = 0;
+		$height = 0;
 		
 		// load the allowed image sizes
 		$this->load->config("images");

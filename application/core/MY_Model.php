@@ -733,10 +733,8 @@ class MY_Model extends CI_Model
 					$where_like[] = implode(" OR ", $like);
 				}
 
-				if (count($where_like) > 0) {
-					$search_query = "( " . implode(") AND (", $where_like) . " )";
-					$where_array[] = $search_query;
-				}
+				$search_query = "( " . implode(") AND (", $where_like) . " )";
+				$where_array[] = $search_query;
 			}
 
 			$length = 10;
@@ -784,7 +782,7 @@ class MY_Model extends CI_Model
 				$urlreferences = [];
 
 				if ($custom != "") {
-					preg_match_all('#\modurl=(.+?)\]#s', $custom, $urlreferences);
+					preg_match_all('#modurl=(.+?)\]#s', $custom, $urlreferences);
 				}
 				$colNames = array_column($this->table_columns, 'column');
 				foreach ($result as $row) {
@@ -805,7 +803,7 @@ class MY_Model extends CI_Model
 
 							$columnreferences = [];
 							$url_current = $daturl;
-							preg_match_all('#\modcol=(.+?)\]#s', $daturl, $columnreferences);
+							preg_match_all('#modcol=(.+?)\]#s', $daturl, $columnreferences);
 
 							foreach ($columnreferences[1] as $datcol) {
 								$url_current = str_replace("[modcol=" . $datcol . "]", $row[$datcol], $url_current);
@@ -917,10 +915,8 @@ class MY_Model extends CI_Model
 				$where_like[] = implode(" OR ", $like);
 			}
 
-			if (count($where_like) > 0) {
-				$search_query = "( " . implode(") AND (", $where_like) . " )";
-				$where_array[] = $search_query;
-			}
+			$search_query = "( " . implode(") AND (", $where_like) . " )";
+			$where_array[] = $search_query;
 		}
 
 		$length = 10;
