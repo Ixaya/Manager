@@ -19,7 +19,7 @@ class Login extends REST_Controller
 		parent::__construct();
 
 		$this->load->database();
-		$this->load->library('IX_Ion_auth');
+		$this->load->library('ion_auth');
 	}
 
 	/**
@@ -33,7 +33,7 @@ class Login extends REST_Controller
 
 		$device_uuid = $this->post('device_uuid');
 
-		$result = $this->ix_ion_auth->login($username, $password, false, true);
+		$result = $this->ion_auth->login($username, $password, false, true);
 
 
 
@@ -55,14 +55,14 @@ class Login extends REST_Controller
 
 		$groups = [GROUP_MEMBER_ID];
 
-		$user_id = $this->ix_ion_auth->register($username, $password, $username, $extras, $groups);
+		$user_id = $this->ion_auth->register($username, $password, $username, $extras, $groups);
 		if ($user_id != false) {
 			//Remove activate and login, if you wish to handle the activation by mail
 			// $this->response(['status' => 1, 'message' => "User succesfully registered."], REST_Controller::HTTP_OK);
 
-			$this->ix_ion_auth->activate($user_id);
+			$this->ion_auth->activate($user_id);
 
-			$result = $this->ix_ion_auth->login($username, $password, false, true);
+			$result = $this->ion_auth->login($username, $password, false, true);
 			$json = $this->___processJSONResponse($result);
 
 			$this->response($json, REST_Controller::HTTP_OK);

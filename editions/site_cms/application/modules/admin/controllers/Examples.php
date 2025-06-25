@@ -40,7 +40,7 @@ class Examples extends Admin_Controller {
 			$data['example'] = $this->example->empty_object();
 
 
-		$this->load->helper(array('form','ui'));
+		$this->load->helper(['form','ui']);
 		$this->load_view('example/example', $data);
 	}
 

@@ -19,7 +19,7 @@ class Login extends REST_Controller
 		parent::__construct();
 
 		$this->load->database();
-		$this->load->library(array('IX_Ion_auth', 'ion_auth'));
+		$this->load->library(['ion_auth', 'ion_auth']);
 	}
 
 	/**
@@ -33,12 +33,12 @@ class Login extends REST_Controller
 
 		$device_uuid = $this->post('device_uuid');
 
-		$result = $this->ix_ion_auth->login($username, $password, false, true);
+		$result = $this->ion_auth->login($username, $password, false, true);
 
 
 		if ($result != false) {
 			$this->load->model('rest_user');
-			$groups = $this->ix_ion_auth->get_users_groups($result->id)->result();
+			$groups = $this->ion_auth->get_users_groups($result->id)->result();
 			$result->user_groups = array_column($groups, 'name');
 			$result->user_groups_id = array_column($groups, 'id');
 			$result->data = $this->rest_user->get($result->id);
@@ -63,15 +63,15 @@ class Login extends REST_Controller
 			'terms_accepted' => $this->post('terms_accepted') == 'true' ? 1 : 0
 		);
 
-		$user_id = $this->ix_ion_auth->register($username, $password, $username, $extras, [GROUP_MEMBER_ID]);
+		$user_id = $this->ion_auth->register($username, $password, $username, $extras, [GROUP_MEMBER_ID]);
 		if ($user_id != false) {
 			//Remove activate and login, if you wish to handle the activation by mail
 			// $this->response(['status' => 1, 'message' => "User succesfully registered."], REST_Controller::HTTP_OK);
 
-			$this->ix_ion_auth->activate($user_id);
+			$this->ion_auth->activate($user_id);
 
-			$result = $this->ix_ion_auth->login($username, $password, false, true);
-			$groups = $this->ix_ion_auth->get_users_groups($result->id)->result();
+			$result = $this->ion_auth->login($username, $password, false, true);
+			$groups = $this->ion_auth->get_users_groups($result->id)->result();
 			$result->user_groups = array_column($groups, 'name');
 			$result->user_groups_id = array_column($groups, 'id');
 

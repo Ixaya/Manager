@@ -57,9 +57,9 @@ class Ion_auth
 	public function __construct()
 	{
 		$this->load->config('ion_auth', TRUE);
-		$this->load->library(array('email'));
+		$this->load->library('email');
 		$this->lang->load('ion_auth');
-		$this->load->helper(array('cookie', 'language', 'url'));
+		$this->load->helper(['cookie', 'language', 'url']);
 
 		$this->load->library('session');
 
@@ -268,7 +268,7 @@ class Ion_auth
 	 * @param array $additional_data
 	 * @param array $group_ids
 	 * @author Mathew
-	 * @return bool|array
+	 * @return int|array|bool
 	 */
 	public function register($identity, $password, $email, $additional_data = [], $group_ids = []) //need to test email activation
 	{

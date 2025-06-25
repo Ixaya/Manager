@@ -23,4 +23,7 @@ $config['cache_time'] = 5;
 $config['rest_time_zone'] = null; //System default
 // $config['rest_time_zone'] = 'UTC'; //Specify UTC
 
+$config['captcha_site_key'] = '';
+$config['captcha_secret_key'] = '';
+
 ?>

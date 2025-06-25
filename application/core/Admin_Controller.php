@@ -22,7 +22,7 @@ class Admin_Controller extends MY_Controller {
 		
 		
 		
-		$this->load->library(array('ion_auth'));
+		$this->load->library('ion_auth');
 		if (!$this->ion_auth->logged_in()) {
 			$this->session->set_userdata('auth_redirect', uri_string());
 			redirect('/auth', 'refresh');

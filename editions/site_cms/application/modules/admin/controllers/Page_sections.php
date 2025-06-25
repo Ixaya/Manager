@@ -5,17 +5,17 @@ class Page_sections extends Admin_Controller {
 	function __construct() {
 		parent::__construct();
 
-		
+
 	}
 
 	public function index() {
-		
-		$this->load->model('webpage');
-		
-		$webpages = $this->webpage->get_all('id, title');
-		
 
-		//estructura sencilla para la lista		
+		$this->load->model('webpage');
+
+		$webpages = $this->webpage->get_all('id, title');
+
+
+		//estructura sencilla para la lista
 		$webpages_simple = [];
 		foreach($webpages as $wp)
 		{
@@ -26,7 +26,7 @@ class Page_sections extends Admin_Controller {
 
 		$this->load->model('page_section');
 		$this->page_section->set_override_column('webpage_id');
-		
+
 		$data['page_sections'] = $this->page_section->get_all();
 		$data['page_sections_count'] = $this->page_section->count_all();
 		$data['icon_sections'] 	= $this->page_section->count_all('kind = 1');
@@ -36,8 +36,8 @@ class Page_sections extends Admin_Controller {
 		$data['about_sections'] 	= $this->page_section->count_all('kind = 5');
 
 		$data['kinds'] = $this->page_section->kinds();
-		
-		
+
+
 		$this->load_view("page_section/page_sections", $data);
 	}
 
@@ -51,8 +51,8 @@ class Page_sections extends Admin_Controller {
 		$this->load->model('webpage');
 		$this->load->model('page_section');
 		$this->page_section->set_override_column('webpage_id');
-		
-		
+
+
 		if ($this->input->post('webpage_id')) {
 			$data['webpage_id'] = $this->input->post('webpage_id');
 			$data['kind'] = $this->input->post('kind');
@@ -65,7 +65,7 @@ class Page_sections extends Admin_Controller {
 				$data['create_date'] = date('Y-m-d H:i:s');
 				$id = $this->page_section->insert($data);
 			}
-			
+
 			if($this->input->post('webpage_id') != $_SESSION['webpage_id'])
 			{
 				$_SESSION['webpage_id'] = $this->input->post('webpage_id');
@@ -82,8 +82,8 @@ class Page_sections extends Admin_Controller {
 			$data['page_section'] = $this->page_section->empty_object();
 
 
-		$this->load->helper(array('form','ui'));
-		
+		$this->load->helper(['form','ui']);
+
 		//me traigo los kinds desde el modelo page_section
 		$data['kinds'] = $this->page_section->kinds();
 		$data['webpages'] = $this->webpage->get_all('id, title');

@@ -3,15 +3,15 @@
 class Webpages extends Admin_Controller {
 
 	function __construct() {
-		
+
 		$this->group_needed = 'members';
-		
+
 		parent::__construct();
 	}
 
 	public function index() {
 		$this->load->model('webpage');
-		
+
 		$data['webpages'] = $this->webpage->get_all();
 		$data['webpages_count'] = $this->webpage->count_all();
 		$data['frontend_count'] 	= $this->webpage->count_all('kind = 1');
@@ -30,7 +30,7 @@ class Webpages extends Admin_Controller {
 	{
 		//cargo el modelo
 		$this->load->model('webpage');
-		
+
 		if ($this->input->post('title')) {
 			$data['title'] = $this->input->post('title');
 			$data['slug'] = $this->input->post('slug');
@@ -54,18 +54,18 @@ class Webpages extends Admin_Controller {
 		}
 		else
 			$data['webpage'] = $this->webpage->empty_object();
-			
-		
 
 
-		$this->load->helper(array('form','ui'));
-		
+
+
+		$this->load->helper(['form','ui']);
+
 		//me traigo los kinds desde el modelo webpage
 		$data['kinds'] = $this->webpage->kinds();
-		
+
 		$this->load_view('webpages/webpage', $data);
-		
-		
+
+
 	}
 
 	public function delete($id) {

@@ -72,7 +72,7 @@ class Page_items extends Admin_Controller {
 		else
 			$data['page_item'] = $this->page_item->empty_object();
 
-		$this->load->helper(array('form','ui'));
+		$this->load->helper(['form','ui']);
 
 		//me traigo los kinds desde el modelo page_item
 		$data['kinds'] = $this->page_item->kinds();

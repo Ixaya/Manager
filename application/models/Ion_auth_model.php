@@ -820,7 +820,7 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * register
 	 *
-	 * @return bool
+	 * @return int|bool
 	 * @author Mathew
 	 **/
 	public function register($identity, $password, $email, $additional_data = [], $groups = [])
