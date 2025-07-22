@@ -41,10 +41,11 @@ function secure_url($uri = '')
  */
 function mngr_generate_hash($length = 32)
 {
-	$length = (int)ceil($length / 2);
-	$bytes = random_bytes($length);
+	$bytes_needed = (int)ceil($length / 2);
+	$bytes = random_bytes($bytes_needed);
+	$hex = bin2hex($bytes);
 
-	return substr(bin2hex($bytes), 0, $length);
+	return substr($hex, 0, $length);
 }
 
 /**

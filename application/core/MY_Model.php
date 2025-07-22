@@ -1011,6 +1011,17 @@ class MY_Model extends CI_Model
 		return $this->get_where("$field = '$hash'");
 	}
 
+	public function debug_query($return = false)
+	{
+		$last_query = $this->my_db->last_query();
+		if ($return){
+			log_message('debug',$last_query);
+			return $last_query;
+		}
+		
+		echo $last_query;
+	}
+
 	public function set_database_time_zone($time_zone)
 	{
 		$offset = mngr_get_time_zone_offset($time_zone);
