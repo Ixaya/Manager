@@ -53,9 +53,4 @@ class MX_Controller
 		/* autoload module items */
 		$this->load->_autoloader($this->autoload);
 	}
-
-	public function __get($class)
-	{
-		return CI::$APP->$class;
-	}
 }

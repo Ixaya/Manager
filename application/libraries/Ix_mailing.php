@@ -3,23 +3,19 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Ix_mailing
 {
-	protected $ci;
+	protected $config_name = null;
+	protected $bbc_address = null;
+	protected $bbc_enabled = null;
+	protected $from_name = null;
 
-	protected $config_name;
-	protected $bbc_address;
-	protected $bbc_enabled;
-	protected $from_name;
-
-	protected $email_config;
+	protected $email_config = null;
 
 	protected $view_module = 'mailing';
-	protected $view_theme;
-	protected $view_folder = 'frontend';
+	protected $view_theme = null;
+	protected $view_folder = null;
 
 	function __construct()
 	{
-		$this->ci = &get_instance();
-
 		// Is the config file in the environment folder?
 		if (
 			! file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/mailing.php')
@@ -31,8 +27,8 @@ class Ix_mailing
 		include($file_path);
 
 		if (!$this->view_theme) {
-			if (!empty($this->ci->_theme))
-				$this->view_theme = $this->ci->_theme;
+			if (!empty($CI->_theme))
+				$this->view_theme = $CI->_theme;
 			else
 				$this->view_theme = 'default';
 		}
@@ -73,32 +69,42 @@ class Ix_mailing
 			return;
 		}
 
-		$view_route = "{$this->view_module}/{$this->view_theme}/{$this->view_folder}/$view";
+		$CI = &get_instance();
+
+		//Build dynamic route, allowing for null components
+		$path_parts = array_filter([
+			$this->view_module,
+			$this->view_theme,
+			$this->view_folder
+		]);
+		$view_route = implode('/', $path_parts) . "/$view";
+
 		if (intval($view_only)) {
-			return $this->ci->load->view($view_route, $data, TRUE);
+			return $CI->load->view($view_route, $data, TRUE);
 		} else {
 			try {
-				$this->ci->load->library('email');
-				$this->ci->email->initialize($this->email_config);
-				$this->ci->email->from($this->email_config['smtp_user'], $this->from_name);
+				$CI->load->library('email');
+				$CI->email->initialize($this->email_config);
 
-				$this->ci->email->to($email);
+				$from_email = $email_config['email_from'] ?? $email_config['smtp_user'] ?? '';
+				$CI->email->from($from_email, $this->from_name);
+
+				$CI->email->to($email);
 
 				if ($this->bbc_enabled && !empty($this->bbc_address)) {
-					$this->ci->email->bcc($this->bbc_address);
+					$CI->email->bcc($this->bbc_address);
 				}
 
-				$this->ci->email->subject($subject);
+				$CI->email->subject($subject);
 
-				$message = $this->ci->load->view($view_route, $data, TRUE);
-				$this->ci->email->message($message);
+				$message = $CI->load->view($view_route, $data, TRUE);
+				$CI->email->message($message);
 
-				$result = @$this->ci->email->send(FALSE);
-				//Show debug warnings:
-				// $result = $this->ci->email->send(FALSE);
+				$result = $CI->email->send(FALSE);
 
-				if (!$result)
-					log_message('error', $this->ci->email->print_debugger(['headers']));
+				if (!$result){
+					log_message('error', $CI->email->print_debugger(['headers']));
+				}
 
 				return $result;
 			} catch (Exception $e) {

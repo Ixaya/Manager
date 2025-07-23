@@ -71,12 +71,6 @@ class Amazon_aws
 		$this->aws_secretkey	= $config['aws_secretkey'] ?? '';
 	}
 
-	//managerizar
-	public function __get($var)
-	{
-		return get_instance()->$var;
-	}
-
 	public function list_files()
 	{
 		try {

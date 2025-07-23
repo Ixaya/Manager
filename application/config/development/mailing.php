@@ -23,3 +23,4 @@ $email_base_config['newline']  = '\r\n';
 // $email_config['default']['smtp_crypto'] = 'ssl/tls/none';
 // $email_config['default']['smtp_user'] = '_user_';
 // $email_config['default']['smtp_pass'] = '_pass_';
+// $email_config['default']['email_from'] = null; //Leave null if smtp user is the email
