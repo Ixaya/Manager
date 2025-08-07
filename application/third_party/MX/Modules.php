@@ -1,8 +1,15 @@
 <?php (defined('BASEPATH')) OR exit('No direct script access allowed');
 
-(defined('EXT')) OR define('EXT', '.php');
+require_once dirname(__FILE__) . '/Config.php';
+
+(defined('EXT')) or define('EXT', '.php');
 
 global $CFG;
+
+if (! $CFG instanceof MX_Config) {
+	require_once dirname(__FILE__) . '/Config.php';
+	$CFG = new MX_Config;
+}
 
 /* get module locations from config settings or use the default module location and offset */
 is_array(Modules::$locations = $CFG->item('modules_locations')) OR Modules::$locations = array(
