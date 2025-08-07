@@ -10,7 +10,7 @@ class Migration_Manager_option extends CI_Migration
 				'type' => 'VARCHAR',
 				'constraint' => 64
 			],
-			'title' => [
+			'value' => [
 				'type' => 'VARCHAR',
 				'constraint' => 254
 			],

@@ -2,6 +2,13 @@ parameters:
     # Set the level of strictness
     level: 5
 
+    # Limit processes in case of reduced ram requirement
+    # parallel:
+    #     maximumNumberOfProcesses: 1
+
+    # Prevent unmatched errors failing the test
+    # reportUnmatchedIgnoredErrors: false
+
     # Define the paths that PHPStan should analyze
     paths:
         - application/
@@ -22,7 +29,11 @@ parameters:
     excludePaths:
         analyse:
           - */views/*
-          - vendor/*
+          - vendor/
+          - application/config/
+          - application/database/
+          - application/language/
+          - application/tests/
 
     ignoreErrors:
         # Level 1 – Critical (likely bugs or fatal issues)

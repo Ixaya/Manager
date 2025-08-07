@@ -86,7 +86,7 @@ class Ix_mailing
 				$CI->load->library('email');
 				$CI->email->initialize($this->email_config);
 
-				$from_email = $email_config['email_from'] ?? $email_config['smtp_user'] ?? '';
+				$from_email = $this->email_config['email_from'] ?? $this->email_config['smtp_user'] ?? '';
 				$CI->email->from($from_email, $this->from_name);
 
 				$CI->email->to($email);
