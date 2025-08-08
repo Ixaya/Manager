@@ -26,7 +26,7 @@ class Ix_upload_lib
 
 	public function split_files($temp_name, $field_name, $index)
 	{
-		if (empty($_FILES[$field_name]['name'][$index])){
+		if (empty($_FILES[$field_name]['name'][$index])) {
 			return;
 		}
 
@@ -97,7 +97,7 @@ class Ix_upload_lib
 			$this->upload->initialize($config);
 
 			if ($this->upload->do_upload($field_name)) {
-				if ($this->show_flashdata == TRUE){
+				if ($this->show_flashdata == TRUE) {
 					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
 					$this->session->set_flashdata('message_kind', 'success');
 				}
@@ -158,7 +158,7 @@ class Ix_upload_lib
 				$v = dechex(time());
 				$v = "?v=$v";
 			}
-			
+
 			if (empty($desired_file_name)) {
 				$desired_file_name = mngr_generate_hash($lenght = 32);
 			}
@@ -176,9 +176,9 @@ class Ix_upload_lib
 
 			$this->load->library('amazon_aws');
 
-			$image_url = $this->amazon_aws->upload_file($original_file_path, $s3_file_path);
+			$file_url = $this->amazon_aws->upload_file($original_file_path, $s3_file_path);
 
-			if ($image_url) {
+			if ($file_url) {
 				if ($this->show_flashdata == TRUE) {
 					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
 					$this->session->set_flashdata('message_kind', 'success');
@@ -191,7 +191,131 @@ class Ix_upload_lib
 				$return_data['file_type'] = $file_type;
 				$return_data['file_name'] = $s3_file_name . $v;
 				$return_data['file_url']  = $relative_path . $s3_file_name . $v;
-				$return_data['file_path'] = $image_url;
+				$return_data['file_path'] = $file_url;
+				$return_data['client_name'] = $file_name;
+
+				//Retro compativility keys
+				// $return_data['fullsize_image_name'] = $return_data['fullsize_name'];
+				// $return_data['url_file'] = $return_data['file_url'];
+
+				return $return_data;
+			} else {
+				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
+
+				if ($this->show_flashdata == TRUE) {
+					$this->session->set_flashdata('message', $this->upload->display_errors());
+					$this->session->set_flashdata('message_kind', 'error');
+				} else {
+					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
+				}
+			}
+		} catch (Exception $e) {
+			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
+
+			if ($this->show_flashdata == TRUE) {
+				$this->session->set_flashdata('message', 'Error al subir archivo');
+				$this->session->set_flashdata('message_kind', 'error');
+			} else {
+				$error = 'Error al subir archivo';
+			}
+		}
+
+		return false;
+	}
+
+	public function put_file($relative_path, $file_name, $data, &$error = NULL)
+	{
+		if (strpos($relative_path, 's3/') !== false) {
+			return $this->put_file_s3($relative_path, $file_name, $data, $error);
+		} else {
+			return $this->put_file_local($relative_path, $file_name, $data, $error);
+		}
+	}
+	public function put_file_local($relative_path, $file_name, $data, &$error = NULL)
+	{
+		try {
+			$file_path = mngr_file_path($relative_path);
+
+			if (!file_exists($file_path)) {
+				mkdir($file_path, 0755, true);
+			}
+
+			file_put_contents($file_path . $file_name, $data);
+
+			$v = '';
+			if ($file_name) {
+				$v = dechex(time());
+				$v = "?v=$v";
+			}
+
+			if (strpos($relative_path, '/') !== 0) {
+				$relative_path = "/$relative_path";
+			}
+
+			$mime_type = mngr_detect_mime_from_file($file_name);
+
+			$return_data['file_type'] = $mime_type;
+			$return_data['file_name'] = $file_name . $v;
+			$return_data['file_url']  = $relative_path . $file_name . $v;
+			$return_data['file_path'] = $file_path . $file_name;
+			$return_data['client_name'] = $file_name;
+
+			//Retro compativility keys
+			// $return_data['fullsize_image_name'] = $return_data['fullsize_name'];
+			// $return_data['url_file'] = $return_data['file_url'];
+
+			return $return_data;
+		} catch (Exception $e) {
+			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
+
+			if ($this->show_flashdata == TRUE) {
+				$this->session->set_flashdata('message', 'Error al subir archivo');
+				$this->session->set_flashdata('message_kind', 'error');
+			} else {
+				$error = 'Error al subir archivo';
+			}
+		}
+
+		return false;
+	}
+	private function put_file_s3($relative_path, $file_name, $data, &$error = NULL)
+	{
+		try {
+			$v = '';
+			if ($file_name) {
+				$v = dechex(time());
+				$v = "?v=$v";
+			}
+
+			$content_type = mngr_detect_mime_from_data($data);
+			$file_ext = mngr_file_extention($file_name, $content_type);
+
+			if (empty($file_name)) {
+				$file_name = mngr_generate_hash($lenght = 32) . $file_ext;
+			}
+
+			$s3_file_path = "{$relative_path}{$file_name}";
+
+			mngr_clean_file_s3_path($s3_file_path);
+
+			$this->load->library('amazon_aws');
+
+			$file_url = $this->amazon_aws->upload_data($data, $s3_file_path, $content_type);
+
+			if ($file_url) {
+				if ($this->show_flashdata == TRUE) {
+					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
+					$this->session->set_flashdata('message_kind', 'success');
+				}
+
+				if (strpos($relative_path, '/') !== 0) {
+					$relative_path = "/$relative_path";
+				}
+
+				$return_data['file_type'] = $content_type;
+				$return_data['file_name'] = $file_name . $v;
+				$return_data['file_url']  = $relative_path . $file_name . $v;
+				$return_data['file_path'] = $file_url;
 				$return_data['client_name'] = $file_name;
 
 				//Retro compativility keys
@@ -362,7 +486,7 @@ class Ix_upload_lib
 
 			if ($this->show_flashdata == TRUE) {
 				$this->session->set_flashdata('message', 'Error al subir imagen');
-				$this->session->set_flashdata('message_kind', 'error');	
+				$this->session->set_flashdata('message_kind', 'error');
 			} else {
 				$error = 'Error al subir imagen';
 			}
@@ -483,7 +607,7 @@ class Ix_upload_lib
 			return $return_data;
 		} catch (Exception $e) {
 			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
-			
+
 			if ($this->show_flashdata == TRUE) {
 				$this->session->set_flashdata('message', 'Error al subir imagen');
 				$this->session->set_flashdata('message_kind', 'error');
@@ -595,19 +719,18 @@ class Ix_upload_lib
 			case UPLOAD_ERR_OK:
 				return null;
 			case UPLOAD_ERR_NO_FILE:
-				return'No file sent.';
+				return 'No file sent.';
 			case UPLOAD_ERR_INI_SIZE:
 			case UPLOAD_ERR_FORM_SIZE:
-				return'Exceeded filesize limit.';
+				return 'Exceeded filesize limit.';
 			case UPLOAD_ERR_PARTIAL:
-				return'The uploaded file was only partially uploaded.';
+				return 'The uploaded file was only partially uploaded.';
 			case UPLOAD_ERR_CANT_WRITE:
-				return'Failed to write file to disk.';
+				return 'Failed to write file to disk.';
 			case UPLOAD_ERR_EXTENSION:
-				return'A PHP extension stopped the file upload.';
+				return 'A PHP extension stopped the file upload.';
 			default:
-				return'Unknown error.';
+				return 'Unknown error.';
 		}
 	}
 }
-

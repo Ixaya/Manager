@@ -43,10 +43,15 @@ function mngr_private_file_path($uri = '')
 function mngr_app_file_path()
 {
 	$app_path_pos = strpos(APPPATH, 'app/');
-
 	// Extract the base path including the 'app' folder
 	if ($app_path_pos !== false) {
 		return substr(APPPATH, 0, $app_path_pos + 4);
+	}
+
+	$application_path_pos = strpos(APPPATH, 'application/');
+	// Extract the base path up to (but not including) the 'application' folder
+	if ($application_path_pos !== false) {
+		return substr(APPPATH, 0, $application_path_pos);
 	}
 
 	return '';
@@ -162,7 +167,7 @@ function mngr_get_temp_upload_paths($field_name, &$file_extension = null, &$file
 	if (!isset($_FILES[$field_name]['tmp_name'])) {
 		return '';
 	}
-	
+
 	if (is_array($_FILES[$field_name]['tmp_name'])) {
 		$temp_paths = [];
 		$extensions = [];

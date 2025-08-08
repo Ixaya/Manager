@@ -46,12 +46,8 @@ class MY_Controller extends CI_Controller
 
 		//construct defaults in case no overrides are setup
 		if (empty($this->_theme)) {
-
 			// load from config file
 			$this->_theme = $this->config->item("{$this->_theme_kind}_theme");
-
-
-			//$this->_theme = 'default';
 		}
 
 		if (empty($this->_container)) {
@@ -102,6 +98,8 @@ class MY_Controller extends CI_Controller
 		//modify default layout after constructing the controller
 		if (empty($layout)) {
 			$layout = $this->_layout;
+		} else if (strpos($layout, '/') === false) {
+			$layout = "{$this->_container}/{$this->_theme}/$layout";
 		}
 
 		$data['page'] = $page;
@@ -126,6 +124,12 @@ class MY_Controller extends CI_Controller
 	{
 		$this->load->library('ix_upload_lib');
 		return $this->ix_upload_lib->upload_image($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
+	}
+
+	public function put_file($relative_path, $file_name, $data, &$error = NULL)
+	{
+		$this->load->library('ix_upload_lib');
+		return $this->ix_upload_lib->put_file($relative_path, $file_name, $data, $error);
 	}
 
 	public function get_file_base64($file_path, &$file_name = '', &$file_ext = '', &$file_mime = '')

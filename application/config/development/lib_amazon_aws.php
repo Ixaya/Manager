@@ -9,5 +9,7 @@ $config['default']['aws_bucket_url'] = 'https://example.com/';
 $config['default']['aws_region'] = 'us-east-1';
 $config['default']['aws_cloud_front_id'] = '';
 
+$config['default']['aws_bedrock_model_id'] = '';
+
 $config['default']['aws_accesskey'] = '';
 $config['default']['aws_secretkey'] = '';
