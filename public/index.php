@@ -65,6 +65,7 @@
  */
 switch (ENVIRONMENT)
 {
+	case 'local':
 	case 'development':
 		//Uncomment for php8.1 compatibility
 		// if (version_compare(PHP_VERSION, '8.1', '>=')) {

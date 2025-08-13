@@ -36,11 +36,29 @@ class Tools extends CI_Controller {
 	}
 
 	public function migrate($version = null) {
-		$this->load->library('migration');
+		$migration_databases = $this->config->item('migration_db') ?? ['default'];
+		foreach ($migration_databases as $database) {
+			$this->migrate_database($database, $version);
+		}
+	}
+
+	public function migrate_database($connection_name = 'default', $version = null)
+	{
+		$migration_path = 'migrations/' . $connection_name;
+
+		// Configuration for this specific migration
+		$migration_config = array(
+			'migration_path' => $migration_path,
+			'db_group' => $connection_name
+		);
+
+		// Load MY_Migration library with the specific config
+		$migration_lib_name = 'migration_' . $connection_name;
+		$this->load->library('migration', $migration_config, $migration_lib_name);
 
 		if ($version != null) {
-			if ($this->migration->version($version) === FALSE) {
-				show_error($this->migration->error_string());
+			if ($this->{$migration_lib_name}->version($version) === FALSE) {
+				echo $this->{$migration_lib_name}->error_string() . PHP_EOL;
 			} else {
 				echo "Migrations run successfully" . PHP_EOL;
 			}
@@ -48,13 +66,12 @@ class Tools extends CI_Controller {
 			return;
 		}
 
-		if ($this->migration->latest() === FALSE) {
-			show_error($this->migration->error_string());
+		if ($this->{$migration_lib_name}->latest() === FALSE) {
+			echo $this->{$migration_lib_name}->error_string() . PHP_EOL;
 		} else {
 			echo "Migrations run successfully" . PHP_EOL;
 		}
 	}
-
 	public function seeder($name) {
 		$this->make_seed_file($name);
 	}

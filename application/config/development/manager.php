@@ -26,4 +26,6 @@ $config['rest_time_zone'] = null; //System default
 $config['captcha_site_key'] = '';
 $config['captcha_secret_key'] = '';
 
+$config['migration_db'] = ['default'];
+
 ?>

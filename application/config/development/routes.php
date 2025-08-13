@@ -49,8 +49,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
-$route['default_controller'] = 'manager/api/errors';
-$route['404_override'] = 'manager/api/errors/not_found_get';
+if (!is_cli()) {
+	$route['default_controller'] = 'manager/api/errors';
+	$route['404_override'] = 'manager/api/errors/not_found_get';
+} else {
+	$route['default_controller'] = 'manager/errors';
+	$route['404_override'] = 'manager/errors/not_found';
+}
+
 $route['translate_uri_dashes'] = FALSE;
 
 

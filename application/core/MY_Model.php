@@ -161,17 +161,14 @@ class MY_Model extends CI_Model
 
 		return $this->my_db->get_where($this->table_name, $where)->row();
 	}
-	public function get_array($id, $table = null)
+	public function get_array($id)
 	{
 		$this->check_connect();
-
-		if (!$table)
-			$table = $this->table_name;
 
 		if ($this->where_override)
 			$this->my_db->where($this->where_override);
 
-		return $this->my_db->get_where($table, array($this->primary_key => $id))->row_array();
+		return $this->my_db->get_where($this->table_name, array($this->primary_key => $id))->row_array();
 	}
 
 
@@ -447,9 +444,9 @@ class MY_Model extends CI_Model
 			}
 		}
 
-		$this->db->insert_batch($this->table_name, $rows);
+		$this->my_db->insert_batch($this->table_name, $rows);
 
-		return $this->db->affected_rows();
+		return $this->my_db->affected_rows();
 	}
 
 	public function update($data, $id)
@@ -477,7 +474,7 @@ class MY_Model extends CI_Model
 		if (empty($where))
 			return false;
 
-		if ($this->where_override){
+		if ($this->where_override) {
 			$this->my_db->where($this->where_override);
 		}
 
@@ -495,7 +492,7 @@ class MY_Model extends CI_Model
 		$this->check_connect();
 
 		if ($id) {
-			if ($this->update($data, $id)){
+			if ($this->update($data, $id)) {
 				return $id;
 			}
 		} else {
@@ -512,7 +509,7 @@ class MY_Model extends CI_Model
 		$row = $this->get_where($where);
 
 		if (!empty($row)) {
-			if ($this->update($data, $row->id)){
+			if ($this->update($data, $row->id)) {
 				return $row->id;
 			}
 		} else {
@@ -522,13 +519,127 @@ class MY_Model extends CI_Model
 		return FALSE;
 	}
 
+	public function sync_update_insert($data, $where, $insert = true, $add_sync = false, $add_import = true, $extra_data = [], &$modified = false)
+	{
+		$this->check_connect();
+
+		$this->cleanup_columns($where, true);
+		$row = $this->my_db->get_where($this->table_name, $where)->row_array();
+
+		$this->cleanup_columns($data);
+		if (!empty($row)) {
+			$update_data = array();
+			foreach (array_keys($data) as $key) {
+				if ($row[$key] != $data[$key])
+					$update_data[$key] = $data[$key];
+			}
+
+
+			if (count($update_data) > 0) {
+				// echo($this->table_name.": ".$row['id']." ".json_encode($update_data)."\r\n");
+				$now = new DateTime();
+				$diff_data['last_update'] = $now->format('Y-m-d H:i:s');
+
+				$update_data = array_merge($extra_data, $update_data);
+			} else if (!$add_sync) {
+				return $row['id'];
+			}
+
+			if ($add_sync) {
+				$update_data['sync_enabled'] = 1;
+			}
+
+			$result = $this->my_db->update($this->table_name, $update_data, array('id' => $row['id']));
+			if ($result == true) {
+				$modified = true;
+				return $row['id'];
+			}
+		} else if ($insert) {
+			$now = new DateTime();
+			$data['last_update'] = $now->format('Y-m-d H:i:s');
+			if ($add_import)
+				$data['import_date'] = $data['last_update'];
+			if ($add_sync)
+				$data['sync_enabled'] = 1;
+
+			$result = $this->my_db->insert($this->table_name, array_merge($data, $where, $extra_data));
+			if ($result == true) {
+				$modified = true;
+				return $this->my_db->insert_id();
+			}
+		}
+
+		return false;
+	}
+
+	public function sync_update($id, $data, $timestamp = true, $row = false, $default_count = 0)
+	{
+		$this->check_connect();
+
+		$this->cleanup_columns($data);
+		if ($row != false) {
+			$update_data = array();
+			foreach (array_keys($data) as $key) {
+				if ($row[$key] != $data[$key])
+					$update_data[$key] = $data[$key];
+			}
+
+			if (!empty($update_data) > $default_count && $timestamp == true) {
+				//echo($this->table_name.": ".$row['id']." ".json_encode($update_data)."\r\n");
+				$now = new DateTime();
+				$update_data['last_update'] = $now->format('Y-m-d H:i:s');
+			}
+
+			if (count($update_data) > 0)
+				return $this->my_db->update($this->table_name, $update_data, array('id' => $row['id']));
+
+			return false;
+		}
+
+		if ($timestamp == true) {
+			$now = new DateTime();
+			$data['last_update'] = $now->format('Y-m-d H:i:s');
+		}
+		return $this->my_db->update($this->table_name, $data, array('id' => $id));
+	}
+	public function sync_update_enabled($id, $status)
+	{
+		$this->check_connect();
+
+		$query = "UPDATE {$this->table_name} SET sync_enabled = $status";
+		if ($id !== false)
+			$query = "$query WHERE id = $id";
+
+		return $this->my_db->query($query);
+	}
+	public function sync_commit_enabled()
+	{
+		$this->check_connect();
+
+		$now = new DateTime();
+		$query = "UPDATE $this->table_name SET enabled = sync_enabled, deleted = !sync_enabled, last_update = ? WHERE enabled != sync_enabled AND (enabled = 0 || enabled = 1)";
+
+		return $this->my_db->query($query, array($now->format('Y-m-d H:i:s')));
+	}
+	public function cleanup_columns(&$data, $only_trim = false)
+	{
+		foreach ($data as &$row) {
+			if (is_string($row)) {
+				$row = trim($row);
+			}
+
+			if (!$only_trim && $row != 0 && empty($row))
+				$row = NULL;
+		}
+	}
+
 	public function delete($id)
 	{
 		$this->check_connect();
 
 		$this->my_db->where($this->primary_key, $id);
 
-		if ($this->soft_delete == false){
+		if ($this->soft_delete == false) {
 			return $this->my_db->delete($this->table_name);
 		}
 
@@ -643,8 +754,7 @@ class MY_Model extends CI_Model
 		$this->check_connect();
 
 		if (!$properties) {
-			$table = $this->table_name;
-			$properties = $this->my_db->list_fields($table);
+			$properties = $this->my_db->list_fields($this->table_name);
 
 			$properties = array_flip($properties);
 			//array_splice($properties, 0);
@@ -1014,11 +1124,11 @@ class MY_Model extends CI_Model
 	public function debug_query($return = false)
 	{
 		$last_query = $this->my_db->last_query();
-		if ($return){
-			log_message('debug',$last_query);
+		if ($return) {
+			log_message('debug', $last_query);
 			return $last_query;
 		}
-		
+
 		echo $last_query;
 	}
 

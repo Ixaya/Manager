@@ -67,7 +67,7 @@ class Amazon_aws
 		$this->aws_region 		= $config['aws_region'] ?? '';
 		$this->aws_cloud_front_id = $config['aws_cloud_front_id'] ?? '';
 		$this->aws_bucket_url = $config['aws_bucket_url'] ?? '';
-		$this->aws_bucket_url = $config['aws_bedrock_model_id'] ?? '';
+		$this->aws_bedrock_model_id = $config['aws_bedrock_model_id'] ?? '';
 
 		$this->aws_accesskey 	= $config['aws_accesskey'] ?? '';
 		$this->aws_secretkey	= $config['aws_secretkey'] ?? '';
@@ -480,8 +480,6 @@ class Amazon_aws
 			} else {
 				return ['error' => 'No response from AWS'];
 			}
-
-			return $result->getMessages()[0]->getContent();;
 		} catch (AwsException $e) {
 			// Manejo de errores
 			log_message('ERROR', json_encode($e->getMessage()));

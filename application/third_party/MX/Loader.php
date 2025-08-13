@@ -164,7 +164,14 @@ class MX_Loader extends CI_Loader
 		return $this;
 	}
 
-	/** Load a module model **/
+	/**
+	 * Load a module model
+	 *
+	 * @param string|array $model 
+	 * @param string $object_name 
+	 * @param bool|string $connect 
+	 * @return mixed
+	 */
 	public function model($model, $object_name = NULL, $connect = FALSE)
 	{
 		if (is_array($model)) return $this->models($model);
