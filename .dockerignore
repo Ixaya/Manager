@@ -1,0 +1,24 @@
+# Carpetas generadas y dependencias
+vendor/
+node_modules/
+
+# Control de versiones y variables locales
+.git/
+.gitignore
+.env
+.env.*
+
+# Documentación y ficheros no requeridos para ejecutar la app
+README.md
+SECURITY.md
+phpunit.xml
+phpstan.neon
+
+# Archivos temporales
+*.log
+*.cache
+*.tmp
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
