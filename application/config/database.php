@@ -14,7 +14,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | EXPLANATION OF VARIABLES
 | -------------------------------------------------------------------
 |
-|	['dsn']      The full DSN string describe a connection to the database.
+|	['dsn']	  The full DSN string describe a connection to the database.
 |	['hostname'] The hostname of your database server.
 |	['username'] The username used to connect to the database
 |	['password'] The password used to connect to the database
@@ -44,9 +44,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |			'mysql' (deprecated), 'sqlsrv' and 'pdo/sqlsrv' drivers accept TRUE/FALSE
 |			'mysqli' and 'pdo/mysql' drivers accept an array with the following options:
 |
-|				'ssl_key'    - Path to the private key file
+|				'ssl_key'	- Path to the private key file
 |				'ssl_cert'   - Path to the public key certificate file
-|				'ssl_ca'     - Path to the certificate authority file
+|				'ssl_ca'	 - Path to the certificate authority file
 |				'ssl_capath' - Path to a directory containing trusted CA certificats in PEM format
 |				'ssl_cipher' - List of *allowed* ciphers to be used for the encryption, separated by colons (':')
 |				'ssl_verify' - TRUE/FALSE; Whether verify the server certificate or not ('mysqli' only)
@@ -74,23 +74,23 @@ $active_group = 'default';
 $query_builder = TRUE;
 
 $db['default'] = [
-	'dsn'      => '',
-	'hostname' => '127.0.0.1',
-	'username' => '',
-	'password' => '',
-	'database' => ':memory:', // For SQLite in-memory DB (dummy DB)
-	'dbdriver' => 'sqlite3',
+	'dsn'	=> '',
+	'hostname' => mngr_env('DB_HOST', 'localhost'),
+	'username' => mngr_env('DB_USER', 'root'),
+	'password' => mngr_env('DB_PASS', ''),
+	'database' => mngr_env('DB_NAME', ''),
+	'dbdriver' => mngr_env('DB_DRIVER', 'mysqli'),
 	'dbprefix' => '',
 	'pconnect' => FALSE,
-	'db_debug' => TRUE,
+	'db_debug' => (ENVIRONMENT !== 'production'),
 	'cache_on' => FALSE,
 	'cachedir' => '',
 	'char_set' => 'utf8',
 	'dbcollat' => 'utf8_general_ci',
 	'swap_pre' => '',
-	'encrypt'  => FALSE,
+	'encrypt' => FALSE,
 	'compress' => FALSE,
 	'stricton' => FALSE,
 	'failover' => [],
-	'save_queries' => TRUE,
+	'save_queries' => TRUE
 ];

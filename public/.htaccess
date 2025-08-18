@@ -1,7 +1,7 @@
 #production|development
-<IfModule mod_env.c>
-	SetEnv CI_ENV development
-</IfModule>
+# <IfModule mod_env.c>
+#   SetEnv CI_ENV development
+# </IfModule>
 
 
 RewriteEngine on

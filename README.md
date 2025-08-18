@@ -107,3 +107,22 @@ Run static code analysis using PHPStan:
 > **Tip:** Use the memory limit option if you encounter out-of-memory errors during analysis.
 
 
+**## PHP Unit Testing**
+Run unit tests using PHPUnit:
+- **Run all tests:**
+ ```bash
+./vendor/bin/phpunit
+ ```
+- **Run specific test file:**
+ ```bash
+./vendor/bin/phpunit tests/Unit/ExampleTest.php
+ ```
+- **Run tests with verbose output:**
+ ```bash
+./vendor/bin/phpunit --verbose
+ ```
+- **Run tests in specific group/category:**
+ ```bash
+./vendor/bin/phpunit --group unit
+ ```
+> **Tip:** Use `--testdox` flag for readable test output, or `--stop-on-failure` to halt execution on the first failed test.

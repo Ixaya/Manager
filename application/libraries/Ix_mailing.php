@@ -18,10 +18,10 @@ class Ix_mailing
 	{
 		// Is the config file in the environment folder?
 		if (
-			! file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/mailing.php')
-			&& ! file_exists($file_path = APPPATH . 'config/mailing.php')
+			! file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/lib_mailing.php')
+			&& ! file_exists($file_path = APPPATH . 'config/lib_mailing.php')
 		) {
-			show_error('The configuration file mailing.php does not exist.');
+			show_error('The configuration file lib_mailing.php does not exist.');
 		}
 
 		include($file_path);

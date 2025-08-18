@@ -2,3 +2,9 @@
 .vscode
 composer.lock
 /vendor
+
+# Ignore all .env files
+.env*
+# Except these
+!.env.sample*
+!.env.testing

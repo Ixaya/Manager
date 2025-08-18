@@ -446,8 +446,8 @@ $config['rest_access_table'] = 'access';
 | - ['get', 'post'] : Log only specific request methods.
 |
 */
-$config['rest_logs_params_mode'] = ['get', 'post'];
 
+$config['rest_logs_params_mode'] = mngr_env_array('REST_LOGS_PARAMS_MODE', ['get', 'post']);
 /*
 |--------------------------------------------------------------------------
 | REST API Protected Parameters Log
@@ -459,8 +459,7 @@ $config['rest_logs_params_mode'] = ['get', 'post'];
 |
 */
 
-$config['rest_logs_params_protected'] = ['password'];
-
+$config['rest_logs_params_protected'] = mngr_env_array('REST_LOGS_PARAMS_PROTECTED', ['password']);
 /*
 |--------------------------------------------------------------------------
 | REST API Param Log Format
@@ -470,7 +469,7 @@ $config['rest_logs_params_protected'] = ['password'];
 | Set to FALSE to log as serialized PHP
 |
 */
-$config['rest_logs_json_params'] = TRUE;
+$config['rest_logs_json_params'] = mngr_env_bool('REST_LOGS_JSON_PARAMS', true);
 
 /*
 |--------------------------------------------------------------------------
@@ -545,8 +544,7 @@ $config['rest_ajax_only'] = FALSE;
 | Language file to load from the language directory
 |
 */
-$config['rest_language'] = 'english';
-
+$config['rest_language'] = mngr_env_strict('REST_LANGUAGE', 'english');
 /*
 |--------------------------------------------------------------------------
 | CORS Check
@@ -557,8 +555,7 @@ $config['rest_language'] = 'english';
 | will access it through a browser
 |
 */
-$config['check_cors'] = TRUE;
-
+$config['check_cors'] = mngr_env_bool('REST_CHECK_CORS', true);
 /*
 |--------------------------------------------------------------------------
 | CORS Allowable Headers
@@ -603,6 +600,7 @@ $config['allowed_cors_methods'] = [
 |
 */
 $config['allow_any_cors_domain'] = FALSE;
+$config['allow_any_cors_domain'] = mngr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', false);
 
 /*
 |--------------------------------------------------------------------------
@@ -615,5 +613,4 @@ $config['allow_any_cors_domain'] = FALSE;
 | e.g. $config['allowed_origins'] = ['http://www.example.com', 'https://spa.example.com']
 |
 */
-$config['allowed_cors_origins'] = [];
-// $config['allowed_cors_origins'][] = 'https://example.com';
+$config['allowed_cors_origins'] = mngr_env_array('REST_ALLOWED_CORS', []); // 'https://example.com,https://example.net'

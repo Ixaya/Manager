@@ -24,14 +24,18 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |
 */
 
+$host = mngr_env('CF_HOST', null);
 if(is_cli()){
-	$config['base_url'] = '';
+	$config['base_url'] = "//$host";
 } else {
-	$host = $_SERVER['HTTP_HOST'];
+	if ($host == null){
+		$host = $_SERVER['HTTP_HOST'];
+	}
+	
 	$config['base_url'] = "//$host";
 }
 
-//$config['image_url'] = '';
+//$config['image_url'] = mngr_env('CF_IMAGE_URL', null);
 
 /*
 |--------------------------------------------------------------------------
@@ -226,7 +230,8 @@ $config['directory_trigger'] = 'd';
 | your log files will fill up very fast.
 |
 */
-$config['log_threshold'] = 1;
+
+$config['log_threshold'] = mngr_env_int('CF_LOG_THRESHOLD', 1);
 
 /*
 |--------------------------------------------------------------------------
@@ -237,7 +242,7 @@ $config['log_threshold'] = 1;
 | application/logs/ directory. Use a full server path with trailing slash.
 |
 */
-$config['log_path'] = '';
+$config['log_path'] = mngr_env('CF_LOG_PATH', '');
 
 /*
 |--------------------------------------------------------------------------
@@ -330,7 +335,7 @@ $config['cache_query_string'] = FALSE;
 | php public/index.php manager tools generate_enc_key
 |
 */
-$config['encryption_key'] = hex2bin('');
+$config['encryption_key'] = hex2bin(mngr_env('CF_ENCRYPTION_KEY', ''));
 
 /*
 |--------------------------------------------------------------------------
@@ -392,11 +397,10 @@ $config['sess_driver'] = 'database';
 $config['sess_save_path'] = 'ci_sessions';
 //Common sessions
 $config['sess_cookie_name'] = 'ci_session';
-$config['sess_expiration'] = 0;
-$config['sess_match_ip'] = FALSE;
-$config['sess_time_to_update'] = 300;
-$config['sess_regenerate_destroy'] = FALSE;
-
+$config['sess_expiration']         = mngr_env_int('SESS_EXPIRATION', 0);
+$config['sess_match_ip']           = mngr_env_bool('SESS_MATCH_IP', false);
+$config['sess_time_to_update']     = mngr_env_int('SESS_TIME_TO_UPDATE', 300);
+$config['sess_regenerate_destroy'] = mngr_env_bool('SESS_REGENERATE_DESTROY', false);
 /*
 |--------------------------------------------------------------------------
 | Cookie Related Variables
@@ -412,12 +416,11 @@ $config['sess_regenerate_destroy'] = FALSE;
 |	   'cookie_httponly') will also affect sessions.
 |
 */
-$config['cookie_prefix']	= '';
-$config['cookie_domain']	= '';
-$config['cookie_path']		= '/';
-$config['cookie_secure']	= FALSE;
-$config['cookie_httponly'] 	= FALSE;
-
+$config['cookie_prefix']   = mngr_env('CF_COOKIE_PREFIX', '');
+$config['cookie_domain']   = mngr_env('CF_COOKIE_DOMAIN', '');
+$config['cookie_path']     = mngr_env_strict('CF_COOKIE_PATH', '/');
+$config['cookie_secure']   = mngr_env_bool('CF_COOKIE_SECURE', false);
+$config['cookie_httponly'] = mngr_env_bool('CF_COOKIE_HTTPONLY', false);
 /*
 |--------------------------------------------------------------------------
 | Standardize newlines
@@ -500,8 +503,7 @@ $config['compress_output'] = FALSE;
 | helper' page of the user guide for information regarding date handling.
 |
 */
-// $config['time_reference'] = 'local';
-$config['time_reference'] = 'America/Mexico_City';
+$config['time_reference'] = mngr_env_strict('CF_TIME_REFERENCE', 'utc');
 //
 /*
 |--------------------------------------------------------------------------
