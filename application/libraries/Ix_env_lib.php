@@ -13,11 +13,11 @@ class Ix_env_lib
 		}
 
 		$file_path = Ix_env_lib::get_file_path($enviorment);
-		if ($file_path === null){
+		if ($file_path === null) {
 			return;
 		}
-		
-		
+
+
 		$lines = file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
 		foreach ($lines as $line) {
@@ -36,7 +36,7 @@ class Ix_env_lib
 				$value = trim($value, '"\'');
 
 				// Store internally
-				if (!empty($value)){
+				if (!empty($value)) {
 					self::$env_vars[$key] = $value;
 				}
 			}
@@ -47,15 +47,18 @@ class Ix_env_lib
 
 	public static function get($key, $default = null, $strict = false)
 	{
+		$value = getenv($key);
+		if ($value !== false) {
+			return self::process_value($value, $default, $strict);
+		}
+
+		if (isset($_ENV[$key])) {
+			return self::process_value($_ENV[$key], $default, $strict);
+		}
+
 		if (isset(self::$env_vars[$key])) {
 			$value = self::$env_vars[$key];
-
-			$use_strict = $strict || ($default === null);
-			if ($use_strict == true && is_string($value) && trim($value) === '') {
-				return $default;
-			}
-
-			return $value;
+			return self::process_value($value, $default, $strict);
 		}
 
 		return $default;
@@ -142,5 +145,15 @@ class Ix_env_lib
 		}
 
 		return null;
+	}
+
+	private static function process_value($value, $default, $strict)
+	{
+		$use_strict = $strict || ($default === null);
+		if ($use_strict == true && is_string($value) && trim($value) === '') {
+			return $default;
+		}
+
+		return $value;
 	}
 }
