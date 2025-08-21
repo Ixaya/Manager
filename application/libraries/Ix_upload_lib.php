@@ -54,7 +54,7 @@ class Ix_upload_lib
 	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
 	{
 		$validate_result = $this->validate_files_field($field_name);
-		if ($validate_result === null) {
+		if ($validate_result !== null) {
 			$error = $validate_result;
 			return false;
 		}
@@ -350,7 +350,7 @@ class Ix_upload_lib
 	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
 	{
 		$validate_result = $this->validate_files_field($field_name);
-		if ($validate_result === null) {
+		if ($validate_result !== null) {
 			$error = $validate_result;
 			return false;
 		}
@@ -711,11 +711,16 @@ class Ix_upload_lib
 
 	private function validate_files_field($field_name)
 	{
-		if (empty($_FILES[$field_name]['name']) || is_array($_FILES[$field_name]['name']) || $_FILES[$field_name]['error'] !== UPLOAD_ERR_OK) {
-			return null;
+		if (!isset($_FILES[$field_name])) {
+			return 'No file uploaded.';
 		}
 
-		switch ($_FILES[$field_name]) {
+		// Handle multiple files (not supported here)
+		if (is_array($_FILES[$field_name]['name'])) {
+			return 'Multiple file uploads are not supported.';
+		}
+
+		switch ($_FILES[$field_name]['error']) {
 			case UPLOAD_ERR_OK:
 				return null;
 			case UPLOAD_ERR_NO_FILE:

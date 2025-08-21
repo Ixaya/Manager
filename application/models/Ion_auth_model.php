@@ -163,6 +163,7 @@ class Ion_auth_model extends CI_Model
 
 	//Dynamic properties
 	private $identity_column;
+	private $identity_extra_columns;
 	private $store_salt;
 	private $salt_length;
 	private $join;
@@ -188,6 +189,7 @@ class Ion_auth_model extends CI_Model
 
 		//initialize data
 		$this->identity_column = $this->config->item('identity', 'ion_auth');
+		$this->identity_extra_columns = $this->config->item('identity_extra_columns', 'ion_auth');
 		$this->store_salt	  = $this->config->item('store_salt', 'ion_auth');
 		$this->salt_length	 = $this->config->item('salt_length', 'ion_auth');
 		$this->join			   = $this->config->item('join', 'ion_auth');
@@ -910,7 +912,13 @@ class Ion_auth_model extends CI_Model
 
 		$this->trigger_events('extra_where');
 
-		$query = $this->db->select($this->identity_column . ', email, id, password, active, last_login')
+		$extra_columns = '';
+		if (!empty($this->identity_extra_columns)) {
+			$extra_columns = ', ';
+			$extra_columns .= implode(', ', $this->identity_extra_columns);
+		}
+
+		$query = $this->db->select($this->identity_column . ', email, id, password, active, last_login' . $extra_columns)
 			->where($this->identity_column, $identity)
 			->limit(1)
 			->order_by('id', 'desc')

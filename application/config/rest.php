@@ -180,24 +180,6 @@ $config['auth_library_function'] = '';
 |
 */
 
-// ---Uncomment list line for the wildard unit test
-// $config['auth_override_class_method']['wildcard_test_cases']['*'] = 'basic';
-
-/*
-|--------------------------------------------------------------------------
-| Override auth types for specfic 'class/method/HTTP method'
-|--------------------------------------------------------------------------
-|
-| example:
-|
-|			$config['auth_override_class_method_http']['deals']['view']['get'] = 'none';
-|			$config['auth_override_class_method_http']['deals']['insert']['post'] = 'none';
-|			$config['auth_override_class_method_http']['deals']['*']['options'] = 'none';
-*/
-
-// ---Uncomment list line for the wildard unit test
-// $config['auth_override_class_method_http']['wildcard_test_cases']['*']['options'] = 'basic';
-
 /*
 |--------------------------------------------------------------------------
 | REST Login Usernames
@@ -219,7 +201,7 @@ $config['auth_library_function'] = '';
 | 1. Set to TRUE and select an auth option for extreme security (client's IP
 |	address must be in whitelist and they must also log in)
 | 2. Set to TRUE with auth set to FALSE to allow whitelisted IPs access with no login
-| 3. Set to FALSE but set 'auth_override_class_method' to 'whitelist' to
+| 3. Set to FALSE but set '$this->methods' to 'whitelist' to
 |	restrict certain methods to IPs in your whitelist
 |
 */

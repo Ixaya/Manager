@@ -480,17 +480,6 @@ abstract class REST_Controller extends MY_Controller
 		// Ignoring phpstan because the dynamic method of above can't be parsed.
 		// @phpstan-ignore-next-line greater.alwaysTrue
 		if ($this->request->format && $this->request->body) {
-			//IX-debug post
-			/*
-	        ob_start();
-			var_dump($this->request->body); 
-			var_dump($this->request->format);
-			$rawPost = ob_get_contents();
-			ob_end_clean();
-			
-			error_log("Post: ".$rawPost);
-			*/
-
 			$this->request->body = $this->format->factory($this->request->body, $this->request->format)->to_array();
 			// Assign payload arguments to proper method container
 			$this->{'_' . $this->request->method . '_args'} = $this->request->body;
@@ -536,7 +525,6 @@ abstract class REST_Controller extends MY_Controller
 		$this->_auth_override = $this->_auth_override_check($check_key_user); //check_key_user passed as reference
 
 		// Checking for keys? GET TO Work!
-		// Skip keys test for $config['auth_override_class_method']['class'['method'] = 'none'
 		if ($this->config->item('rest_enable_keys') && $check_key_user === TRUE) {
 			$api_key_allow = $this->_detect_api_key();
 			$this->_allow = ($this->_auth_override !== TRUE) ? $api_key_allow : TRUE;
@@ -690,9 +678,10 @@ abstract class REST_Controller extends MY_Controller
 				$response = [$this->config->item('rest_status_field_name') => FALSE, $this->config->item('rest_message_field_name') => $this->lang->line('text_rest_api_key_time_limit')];
 				$this->response($response, self::HTTP_UNAUTHORIZED);
 			}
-			// var_dump($this->methods[$controller_method]);
+
 			// If no level is set use 0, they probably aren't using permissions
-			$level = isset($this->methods[$controller_method]['level']) ? $this->methods[$controller_method]['level'] : 0;
+			$level = $this->methods[$controller_method]['level']
+				?? $this->methods['*']['level'] ?? 0;
 
 			// If no level is set, or it is lower than/equal to the key's level
 			$authorized = $level <= $this->rest->level;
@@ -1212,40 +1201,6 @@ abstract class REST_Controller extends MY_Controller
 	protected function _auth_override_check(&$check_key_user)
 	{
 		$check_key_user = false;
-
-		// Assign the class/method auth type override array from the config
-		$auth_override_class_method = $this->config->item('auth_override_class_method');
-		$auth_override_found = null;
-
-		// Check to see if the override array is even populated
-		if (! empty($auth_override_class_method)) {
-			// Check for wildcard flag for rules for classes
-			if (! empty($auth_override_class_method[$this->router->class]['*'])) // Check for class overrides
-			{
-				$auth_override_found = $auth_override_class_method[$this->router->class]['*'];
-			}
-
-			// Check to see if there's an override value set for the current class/method being called
-			if (! empty($auth_override_class_method[$this->router->class][$this->router->method])) {
-				$auth_override_found = $auth_override_class_method[$this->router->class][$this->router->method];
-			}
-		}
-
-		// Assign the class/method/HTTP-method auth type override array from the config
-		$auth_override_class_method_http = $this->config->item('auth_override_class_method_http');
-
-		// Check to see if the override array is even populated
-		if (! empty($auth_override_class_method_http)) {
-			// check for wildcard flag for rules for classes
-			if (! empty($auth_override_class_method_http[$this->router->class]['*'][$this->request->method])) {
-				$auth_override_found = $auth_override_class_method_http[$this->router->class]['*'][$this->request->method];
-			}
-
-			// Check to see if there's an override value set for the current class/method/HTTP-method being called
-			if (! empty($auth_override_class_method_http[$this->router->class][$this->router->method][$this->request->method])) {
-				$auth_override_found = $auth_override_class_method_http[$this->router->class][$this->router->method][$this->request->method];
-			}
-		}
 
 		// Check to see if the methods override array is even populated
 		if (! empty($this->methods)) {
