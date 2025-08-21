@@ -87,7 +87,8 @@ class Attachment_lib
             $error
         );
 
-        if ($upload_result === false || $error !== null) {
+        /** @var string|null $error */
+        if ($upload_result === false) {
             throw new RuntimeException('File upload failed: ' . ($error ?? 'Unknown error'));
         }
 
@@ -135,6 +136,7 @@ class Attachment_lib
             $error
         );
 
+        /** @var string|null $error */
         if ($upload_result === false || $error !== null) {
             throw new RuntimeException('File upload failed: ' . ($error ?? 'Unknown error'));
         }

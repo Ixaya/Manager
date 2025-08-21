@@ -1201,7 +1201,8 @@ abstract class REST_Controller extends MY_Controller
 	protected function _auth_override_check(&$check_key_user)
 	{
 		$check_key_user = false;
-
+		$auth_override_found = null;
+		
 		// Check to see if the methods override array is even populated
 		if (! empty($this->methods)) {
 			// Check for wildcard flag for rules for methods

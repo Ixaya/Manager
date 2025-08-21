@@ -40,16 +40,18 @@ class Ix_upload_lib
 	}
 
 	/**
-	 * Uploads a file and returns an array containing file details.
+	 * Uploads a file and returns an array with file details.
 	 *
-	 * @param string $relative_path The destination directory for the uploaded file.
+	 * @param string      $relative_path    Destination directory for the uploaded file.
 	 * @param string|null $desired_file_name Optional desired filename. If null, a name is generated.
-	 * @param string $field_name The form field name of the file input.
-	 * @param array|null $upload_config Optional configuration settings for the upload.
-	 * @param bool $encrypt_name Whether to encrypt the file name.
-	 * @param null &$error Reference variable to store an error state.
-	 * @return array|bool A two-dimensional array with file details.
-	 * @throws RuntimeException If the upload fails.
+	 * @param string      $field_name       The form field name of the file input.
+	 * @param array|null  $upload_config    Optional configuration settings for the upload.
+	 * @param bool        $encrypt_name     Whether to encrypt the file name.
+	 * @param string|null &$error           Reference variable to store an error message (null if no error).
+	 *
+	 * 
+	 * @return array|false Array with file details on success, false on failure.
+	 * 
 	 */
 	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
 	{
