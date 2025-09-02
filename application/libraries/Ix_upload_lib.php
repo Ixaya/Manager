@@ -428,16 +428,26 @@ class Ix_upload_lib
 
 				$new_file_thumb = '';
 				if ($resolution !== FALSE && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
-					//create thumbnail
-					$new_file_thumb = $upload_data['raw_name'] . '_thumb' . $file_ext;
-					$img_config['image_library']  = 'gd2';
-					$img_config['source_image']   = $new_file_path;
-					$img_config['create_thumb']   = TRUE;
-					$img_config['maintain_ratio'] = TRUE;
-					$img_config['width']		  = $resolution[0];
-					$img_config['height']		 = $resolution[1];
-					$this->load->library('image_lib', $img_config);
-					$this->image_lib->resize();
+					$image_info = getimagesize($new_file_path);
+					$original_width = $image_info[0];
+					$original_height = $image_info[1];
+
+					// Only resize if image is larger than desired resolution
+					if ($original_width > $resolution[0] || $original_height > $resolution[1]) {
+						// Create thumbnail
+						$new_file_thumb = $upload_data['raw_name'] . '_thumb' . $file_ext;
+						$img_config['image_library'] = 'gd2';
+						$img_config['source_image'] = $new_file_path;
+						$img_config['create_thumb'] = TRUE;
+						$img_config['maintain_ratio'] = TRUE;
+						$img_config['width'] = $resolution[0];
+						$img_config['height'] = $resolution[1];
+						$this->load->library('image_lib', $img_config);
+						$this->image_lib->resize();
+					} else {
+						// Image is already smaller, just use the original
+						$new_file_thumb = $upload_data['raw_name'] . $file_ext;
+					}
 				}
 
 
@@ -559,25 +569,44 @@ class Ix_upload_lib
 			}
 
 			if ($resolution !== FALSE && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
-				//create thumbnail
+				$image_info = getimagesize($base_file_path);
+				$original_width = $image_info[0];
+				$original_height = $image_info[1];
 
-				$thumb_file_path = "{$base_file_path}_thumb";
-				$img_config['image_library']  = 'gd2';
-				$img_config['source_image']   = $base_file_path;
-				$img_config['create_thumb']   = TRUE;
-				$img_config['maintain_ratio'] = TRUE;
-				$img_config['width']		  = $resolution[0];
-				$img_config['height']		 = $resolution[1];
-				$this->load->library('image_lib', $img_config);
-				$this->image_lib->resize();
+				// Only resize if image is larger than desired resolution
+				if ($original_width > $resolution[0] || $original_height > $resolution[1]) {
+					// Create thumbnail
+					$thumb_file_path = "{$base_file_path}_thumb";
+					$img_config['image_library']  = 'gd2';
+					$img_config['source_image']   = $base_file_path;
+					$img_config['create_thumb']   = TRUE;
+					$img_config['maintain_ratio'] = TRUE;
+					$img_config['width']		  = $resolution[0];
+					$img_config['height']		 = $resolution[1];
+					$this->load->library('image_lib', $img_config);
+					$this->image_lib->resize();
 
-				$s3_thumb_file_name = "{$desired_file_name}_thumb.{$file_ext}";
-				$s3_thumb_file_path = "{$s3_relative_path}{$s3_thumb_file_name}";
+					$s3_thumb_file_name = "{$desired_file_name}_thumb.{$file_ext}";
+					$s3_thumb_file_path = "{$s3_relative_path}{$s3_thumb_file_name}";
 
-				$thumb_image_url = $this->amazon_aws->upload_file($thumb_file_path, $s3_thumb_file_path);
-				if (empty($thumb_image_url)) {
-					$s3_thumb_file_path = '';
+					$thumb_image_url = $this->amazon_aws->upload_file($thumb_file_path, $s3_thumb_file_path);
+					if (empty($thumb_image_url)) {
+						$s3_thumb_file_path = '';
+					}
+
+					// Clean up local thumbnail file after S3 upload
+					if (file_exists($thumb_file_path)) {
+						unlink($thumb_file_path);
+					}
+				} else {
+					$s3_thumb_file_name = $s3_file_name;
+					$s3_thumb_file_path = "{$s3_relative_path}{$s3_thumb_file_name}";
 				}
+			}
+
+			//Clean up optimized image
+			if ($base_file_path != $original_file_path && file_exists($base_file_path)) {
+				unlink($base_file_path);
 			}
 
 			$v = '';
