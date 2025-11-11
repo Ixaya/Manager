@@ -7,8 +7,9 @@ class Profile extends IX_Rest_Controller
 {
     public function __construct()
     {
+        $this->group_methods['*']['level'] = LEVEL_MEMBER;
+
         parent::__construct();
-        $this->group_methods['*']['level'] = LEVEL_ADMIN;
         $this->load->library('ion_auth');
     }
 

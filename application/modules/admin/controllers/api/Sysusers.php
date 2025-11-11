@@ -217,7 +217,7 @@ class Sysusers extends IX_Rest_Controller
 
     public function details_get()
     {
-        $this->load->model('user', 'user_key', 'login_attempt');
+        $this->load->model(['user', 'user_key', 'login_attempt']);
 
         $id = $this->get('id');
         $response = [];
