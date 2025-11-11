@@ -321,14 +321,18 @@ class Datatables
 		$sSearch = $this->ci->db->escape_like_str(trim($search['value']));
 		$columns = array_values(array_diff($this->columns, $this->unset_columns));
 
-		if ($sSearch != '')
-			for ($i = 0; $i < count($mColArray); $i++)
-				if ($mColArray[$i]['searchable'] == 'true' && !array_key_exists($mColArray[$i]['data'], $this->add_columns))
-					if ($this->check_cType())
+		if ($sSearch != ''){
+			$mColArrayCount = count($mColArray);
+			for ($i = 0; $i < $mColArrayCount; $i++){
+				if ($mColArray[$i]['searchable'] == 'true' && !array_key_exists($mColArray[$i]['data'], $this->add_columns)){
+					if ($this->check_cType()){
 						$sWhere .= $this->select[$mColArray[$i]['data']] . " LIKE '%" . $sSearch . "%' OR ";
-					else
+					} else{
 						$sWhere .= $this->select[$this->columns[$i]] . " LIKE '%" . $sSearch . "%' OR ";
-
+					}
+				}
+			}
+		}
 
 		$sWhere = substr_replace($sWhere, '', -3);
 
@@ -461,7 +465,7 @@ class Datatables
 		if (isset($custom_val['replacement']) && is_array($custom_val['replacement'])) {
 			// Go through our array backwards, else $1 (foo) will replace $11, $12 etc with foo1, foo2 etc
 			$custom_val['replacement'] = array_reverse($custom_val['replacement'], true);
-			
+
 			//Added this line because when the replacement has over 10 elements replaced the variable "$1" first by the "$10"
 			$custom_val['replacement'] = array_reverse($custom_val['replacement'], true);
 			foreach ($custom_val['replacement'] as $key => $val) {
@@ -574,7 +578,7 @@ class Datatables
 			if (is_float($result)){
 				return strval(str_replace(',', '.', strval($result)));
 			}
-			
+
 			if (is_string($result)) {
 				static $jsonReplaces = array(array('\\', '/', '\n', '\t', '\r', '\b', '\f', '"'), array('\\\\', '\\/', '\\n', '\\t', '\\r', '\\b', '\\f', '\"'));
 				return '"' . str_replace($jsonReplaces[0], $jsonReplaces[1], $result) . '"';
@@ -584,8 +588,8 @@ class Datatables
 		}
 
 		$isList = TRUE;
-
-		for ($i = 0, reset($result); $i < count($result); $i++, next($result)) {
+		$result_count = count($result);
+		for ($i = 0, reset($result); $i < $result_count; $i++, next($result)) {
 			if (key($result) !== $i) {
 				$isList = FALSE;
 				break;

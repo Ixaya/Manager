@@ -72,10 +72,15 @@ class Login extends REST_Controller
 	}
 
 	/**
-	 * cleanup user
-	 * @param type|array $objAcc
+	 * Cleans and formats the JSON response for the given account data.
+	 *
+	 * @param array|object $objAcc      Account data to process.
+	 * @param string|false $apiKey      API key associated with the request, or false if not used.
+	 * @param string|null  $device_uuid Optional device identifier.
+	 *
+	 * @return array The processed JSON response data.
 	 */
-	private function ___processJSONResponse($objAcc, $apiKey = false, $device_uuid = null)
+	private function ___processJSONResponse($objAcc, $apiKey = null, $device_uuid = null)
 	{
 		if (is_array($objAcc)) {
 			$objAcc = (object) $objAcc;
@@ -86,18 +91,18 @@ class Login extends REST_Controller
 		unset($objAcc->active);
 		unset($objAcc->last_login);
 
-		if ($apiKey == false) {
+		if ($apiKey == null) {
 			$this->load->model('Rest_key_model', 'api_key');
 			$apiKey = $this->api_key->get_user_key($objAcc->id, $device_uuid);
 		}
 
 
-		$json = array(
+		$json = [
 			'status'		=> 1,
 			'info'   => $objAcc,
 			'api_key'  => $apiKey,
 			'device_uuid' => $device_uuid
-		);
+		];
 
 		return $json;
 	}

@@ -39,11 +39,11 @@ $config['tables']['login_attempts']  = 'login_attempt';
  | Joins from groups.id
  */
 $config['join']['users']  = 'user_id';
-$config['join']['groups'] = 'group_id'; 
+$config['join']['groups'] = 'group_id';
 
 /*
  | -------------------------------------------------------------------------
- | Hash Method (sha1 or bcrypt)
+ | Hash Method ( bcrypt)
  | -------------------------------------------------------------------------
  | Bcrypt is available in PHP 5.3+
  |
@@ -66,7 +66,7 @@ $config['join']['groups'] = 'group_id';
  | salt_prefix: Used for bcrypt. Versions of PHP before 5.3.7 only support "$2a$" as the salt prefix
  | Versions 5.3.7 or greater should use the default of "$2y$".
  */
-$config['hash_method']	= 'bcrypt';	// sha1 or bcrypt, bcrypt is STRONGLY recommended
+$config['hash_method']	= 'bcrypt';	// bcrypt
 $config['default_rounds'] = 8;		// This does not apply if random_rounds is set to true
 $config['random_rounds']  = FALSE;
 $config['min_rounds']	 = 5;

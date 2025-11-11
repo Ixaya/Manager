@@ -84,3 +84,31 @@ function mngr_unformat_hash($folio, $separator = '-')
 	$hash = explode($separator, $folio);
 	return implode('', $hash);
 }
+
+/**
+ * Processes an exception, logs the details and returns the message
+ * 
+ * @param Exception|Throwable $exception The exception to process
+ * @param string $context Additional context for the log (optional)
+ * @return string The exception message
+ */
+function mngr_process_exception($exception, $context = '')
+{
+	// Build log message
+	$log_message = sprintf(
+		"[EXCEPTION] %s | File: %s | Line: %d | Message: %s",
+		$context ? $context : 'Error',
+		$exception->getFile(),
+		$exception->getLine(),
+		$exception->getMessage()
+	);
+
+	// Log the error
+	log_message('error', $log_message);
+
+	// Optional: include stack trace
+	// log_message('error', 'Stack trace: ' . $exception->getTraceAsString());
+
+	// Return the message
+	return $exception->getMessage();
+}

@@ -473,9 +473,9 @@ class Ix_upload_lib
 				$return_data['thumb_url']     = $relative_path . $new_file_thumb . $v;
 
 				//Retro compativility keys
-				$return_data['thumb_image_name'] = $return_data['thumb_name'];
-				$return_data['fullsize_image_name'] = $return_data['fullsize_name'];
-				$return_data['url_image'] = $return_data['fullsize_url'];
+				// $return_data['thumb_image_name'] = $return_data['thumb_name'];
+				// $return_data['fullsize_image_name'] = $return_data['fullsize_name'];
+				// $return_data['url_image'] = $return_data['fullsize_url'];
 
 				//delete original image in case its not a jpg
 				if ($delete_original && !$preserve_type && $upload_data['file_ext'] != '.jpg') {

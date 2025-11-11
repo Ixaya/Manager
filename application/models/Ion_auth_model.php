@@ -162,7 +162,7 @@ class Ion_auth_model extends CI_Model
 	protected $_cache_groups = [];
 
 	//Dynamic properties
-	private $identity_column;
+	public $identity_column;
 	private $identity_extra_columns;
 	private $store_salt;
 	private $salt_length;
@@ -275,18 +275,10 @@ class Ion_auth_model extends CI_Model
 			return '';
 		}
 
-		// bcrypt
-		if ($use_sha1_override === FALSE && $this->hash_method == 'bcrypt') {
-			return $this->bcrypt->hash($password);
-		}
-
-
-		if ($this->store_salt && $salt) {
-			return  sha1($password . $salt);
-		} else {
-			$salt = $this->salt();
-			return  $salt . substr(sha1($salt . $password), 0, -$this->salt_length);
-		}
+		// CWE-916
+		// bcrypt handles salting internally
+    	// $salt and $use_sha1_override parameters are deprecated and ignored
+		return $this->bcrypt->hash($password);
 	}
 
 	/**
@@ -316,40 +308,29 @@ class Ion_auth_model extends CI_Model
 			return FALSE;
 		}
 
-		// bcrypt
-		if ($use_sha1_override === FALSE && $this->hash_method == 'bcrypt') {
-			if ($this->bcrypt->verify($password, $hash_password_db->password)) {
-				return TRUE;
-			}
-
-			return FALSE;
-		}
-
-		// sha1
-		if ($this->store_salt) {
-			$db_password = sha1($password . $hash_password_db->salt);
-		} else {
-			$salt = substr($hash_password_db->password, 0, $this->salt_length);
-
-			$db_password =  $salt . substr(sha1($salt . $password), 0, -$this->salt_length);
-		}
-
-		if ($db_password == $hash_password_db->password) {
+		// CWE-916
+		// bcrypt handles salting internally
+    	// $salt and $use_sha1_override parameters are deprecated and ignored
+		if ($this->bcrypt->verify($password, $hash_password_db->password)) {
 			return TRUE;
-		} else {
-			return FALSE;
 		}
+
+		return FALSE;
 	}
 
 	/**
-	 * Generates a random salt value for forgotten passwords or any other keys. Uses SHA1.
+	 * Generates a random salt value for forgotten passwords or any other keys. Uses SHA256.
 	 *
 	 * @return string
 	 * @author Mathew
 	 **/
-	public function hash_code($password)
+	public function hash_code($code)
 	{
-		return $this->hash_password($password, FALSE, TRUE);
+		if (empty($code)) {
+			return '';
+		}
+
+		return hash('sha256', $code);
 	}
 
 	/**
@@ -376,7 +357,7 @@ class Ion_auth_model extends CI_Model
 			}
 		}
 
-		if (!$buffer_valid && @is_readable('/dev/urandom')) {
+		if (!$buffer_valid && file_exists('/dev/urandom') && is_readable('/dev/urandom')){
 			$f = fopen('/dev/urandom', 'r');
 			$read = strlen($buffer);
 			while ($read < $raw_salt_len) {
@@ -496,13 +477,19 @@ class Ion_auth_model extends CI_Model
 			return FALSE;
 		}
 
-		$activation_code	   = sha1(md5(microtime()));
+		// Deprecated :: CWE-916 drop in replacement sha1;
+		try {
+			$activation_code = bin2hex(random_bytes(20));
+		} catch (Exception $e) {
+			$activation_code = bin2hex(sodium_randombytes_buf(20));
+		}
+
 		$this->activation_code = $activation_code;
 
-		$data = array(
+		$data = [
 			'activation_code' => $activation_code,
 			'active'		  => 0
-		);
+		];
 
 		$this->trigger_events('extra_where');
 		$this->db->update($this->tables['users'], $data, array('id' => $id));
@@ -736,7 +723,7 @@ class Ion_auth_model extends CI_Model
 		}
 
 		for ($i = 0; $i < 1024; $i++) {
-			$activation_code_part = sha1($activation_code_part . mt_rand() . microtime());
+			$activation_code_part = hash('sha256', $activation_code_part . mt_rand() . microtime());
 		}
 
 		$key = $this->hash_code($activation_code_part . $identity);

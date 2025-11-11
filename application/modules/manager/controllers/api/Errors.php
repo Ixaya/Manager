@@ -19,7 +19,10 @@ class Errors extends REST_Controller
 	}
 	public function index_get()
 	{
-		$this->response(['status' => -1, 'message' => "Unknown method"], REST_Controller::HTTP_BAD_REQUEST);
+		//Uncomment to send into frontend
+		//redirect('https://www.example.com');
+
+		$this->response(['status' => 1, 'message' => "API running"], REST_Controller::HTTP_OK);
 	}
 	public function not_found_get()
 	{
