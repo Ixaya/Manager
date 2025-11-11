@@ -12,11 +12,17 @@ class Ix_env_lib
 			return;
 		}
 
-		$file_path = Ix_env_lib::get_file_path($enviorment);
+		self::load_env($enviorment);
+		self::load_env($enviorment, true);
+
+		self::$loaded = true;
+	}
+	public static function load_env($enviorment = null, $private = false)
+	{
+		$file_path = Ix_env_lib::get_file_path($enviorment, $private);
 		if ($file_path === null) {
 			return;
 		}
-
 
 		$lines = file($file_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
@@ -41,8 +47,6 @@ class Ix_env_lib
 				}
 			}
 		}
-
-		self::$loaded = true;
 	}
 
 	public static function get($key, $default = null, $strict = false)
@@ -129,19 +133,21 @@ class Ix_env_lib
 		return $default;
 	}
 
-	private static function get_file_path($enviorment)
+	private static function get_file_path($enviorment, $private = false)
 	{
 		$file_path = FCPATH . '../.env';
+		$suffix = $private ? '.priv' : '';
 
 		if ($enviorment != null) {
-			$env_file_path = "{$file_path}.{$enviorment}";
+			$env_file_path = "{$file_path}.{$enviorment}{$suffix}";
 			if (file_exists($env_file_path)) {
 				return $env_file_path;
 			}
 		}
 
-		if (file_exists($file_path)) {
-			return $file_path;
+		$file_path_suffix = "{$file_path}{$suffix}";
+		if (file_exists($file_path_suffix)) {
+			return $file_path_suffix;
 		}
 
 		return null;
