@@ -1,5 +1,7 @@
-#development/production
-php_env=development
+#!/bin/sh
+
+#none/dev/prod
+php_env=
 #path to php bin
 php_bin=/usr/bin/php
 #path to website public folder
