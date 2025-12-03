@@ -1,6 +1,7 @@
 .DS_Store
 .vscode
 composer.lock
+patches.lock.json
 /vendor
 
 # Ignore all .env files
@@ -8,3 +9,4 @@ composer.lock
 # Except these
 !.env.sample*
 !.env.testing
+

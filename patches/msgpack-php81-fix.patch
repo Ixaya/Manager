@@ -1,0 +1,20 @@
+--- a/src/Packer.php	2025-12-03 12:58:00
++++ b/src/Packer.php	2025-12-03 12:59:51
+@@ -177,7 +177,7 @@
+                 return "\xcc".\chr($int);
+             }
+             if ($int <= 0xffff) {
+-                return "\xcd".\chr($int >> 8).\chr($int);
++                return "\xcd".\chr(($int >> 8) & 0xFF).\chr($int & 0xFF);
+             }
+             if ($int <= 0xffffffff) {
+                 return \pack('CN', 0xce, $int);
+@@ -193,7 +193,7 @@
+             return "\xd0".\chr($int);
+         }
+         if ($int >= -0x8000) {
+-            return "\xd1".\chr($int >> 8).\chr($int);
++            return "\xd1".\chr(($int >> 8) & 0xFF).\chr($int & 0xFF);
+         }
+         if ($int >= -0x80000000) {
+             return \pack('CN', 0xd2, $int);

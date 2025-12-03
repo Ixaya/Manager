@@ -19,7 +19,9 @@
 	},
 	"require": {
 		"php": "^7.4 || ^8.0",
-		"nielbuys/framework": "^3.1"
+		"nielbuys/framework": "^3.1",
+		"cweagans/composer-patches": "^2.0",
+		"rybakit/msgpack": "^0.9.1"
 	},
 	"require-dev": {
 		"phpunit/phpunit": "^12.0",
@@ -29,6 +31,16 @@
 		"branch-alias": {
 			"dev-master": "1.1.x-dev",
 			"dev-alpha": "1.2.x-dev"
+		},
+		"patches": {
+			"rybakit/msgpack": {
+				"Fix PHP 8.1 chr() deprecation": "patches/msgpack-php81-fix.patch"
+			}
+		}
+	},
+	"config": {
+		"allow-plugins": {
+			"cweagans/composer-patches": true
 		}
 	}
 }

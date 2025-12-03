@@ -112,3 +112,11 @@ function mngr_process_exception($exception, $context = '')
 	// Return the message
 	return $exception->getMessage();
 }
+
+function mngr_cache_key($prefix, $params)
+{
+	// $values = array_values($params);
+	// return $prefix . implode($values);
+	// return $prefix . md5(json_encode($params));
+	return $prefix . hash('sha256', json_encode($params, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}

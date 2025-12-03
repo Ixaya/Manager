@@ -6,7 +6,7 @@ $config['edition']        = mngr_env('MNGR_EDITION', 'dev');
 $config['languages']      = mngr_env_array('MNGR_LANGUAGES', ['english', 'spanish']);
 
 $config['cache_enable']   = mngr_env_bool('MNGR_CACHE_ENABLE', false);
-$config['cache_time']     = mngr_env_int('MNGR_CACHE_TIME', 5);
+$config['cache_time']     = mngr_env_int('MNGR_CACHE_TIME', 600);
 
 $config['rest_time_zone'] = mngr_env('MNGR_REST_TIME_ZONE', null); // UTC | null (System default)
 

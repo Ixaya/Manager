@@ -16,14 +16,6 @@ class Sysusers extends IX_Rest_Controller
 
     public function index_get()
     {
-        $params = [
-            'page' => $this->get('page') && is_numeric($this->get('page')) && $this->get('page') > 0 ? intval($this->get('page')) : 1,
-            'limit' => $this->get('limit') && is_numeric($this->get('limit')) && $this->get('limit') > 0 ? intval($this->get('limit')) : 10,
-            'search' => $this->get('searchQuery') ? trim($this->get('searchQuery')) : '',
-            'order' => $this->get('order') && in_array(strtoupper($this->get('order')), ['ASC', 'DESC']) ? strtoupper($this->get('order')) : 'ASC',
-            'order_by' => $this->get('order_by') ? trim($this->get('order_by')) : 'id'
-        ];
-
         $params = [];
 
         $page = $this->get('page');
@@ -32,7 +24,7 @@ class Sysusers extends IX_Rest_Controller
         $limit = $this->get('limit');
         $params['limit'] = ($limit && is_numeric($limit) && $limit > 0) ? intval($limit) : 10;
 
-        $search = $this->get('searchQuery');
+        $search = $this->get('search_query');
         $params['search'] = $search ? trim($search) : '';
 
         $order_input = strtoupper($this->get('order') ?? '');
@@ -40,6 +32,13 @@ class Sysusers extends IX_Rest_Controller
 
         $order_by = $this->get('order_by');
         $params['order_by'] = $order_by ? trim($order_by) : 'id';
+
+        $this->load->driver('cache');
+        $cache_key = mngr_cache_key("sysusersidx", $params);
+        $response = $this->cache->get($cache_key);
+        if (!empty($response)){
+            $this->response($response, REST_Controller::HTTP_OK);
+        }
 
         try {
             $this->load->model('user');
@@ -60,6 +59,8 @@ class Sysusers extends IX_Rest_Controller
 
                 ]
             ];
+
+            $this->cache->save($cache_key, $response);
 
             $this->response($response, REST_Controller::HTTP_OK);
         } catch (Exception $e) {

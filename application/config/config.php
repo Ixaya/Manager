@@ -393,14 +393,19 @@ $config['encryption_key'] = hex2bin(mngr_env('CF_ENCRYPTION_KEY', ''));
 // $config['sess_driver'] = 'files';
 // $config['sess_save_path'] = (session_save_path() ? session_save_path() : sys_get_temp_dir());
 //Database sessions
-$config['sess_driver'] = 'database';
-$config['sess_save_path'] = 'ci_sessions';
+// SESS_DRIVER = 'database';
+// SESS_SAVE_PATH = ci_sessions;
+//Redis sessions
+// SESS_DRIVER=redis
+// SESS_SAVE_PATH=127.0.0.1:6379?auth=yourpassword&database=1&timeout=10.0&prefix=mngr_
+$config['sess_driver'] = mngr_env('CF_SESS_DRIVER', 'database');
+$config['sess_save_path'] = mngr_env('CF_SESS_SAVE_PATH', 'ci_sessions');
 //Common sessions
-$config['sess_cookie_name'] = 'ci_session';
-$config['sess_expiration']         = mngr_env_int('SESS_EXPIRATION', 0);
-$config['sess_match_ip']           = mngr_env_bool('SESS_MATCH_IP', false);
-$config['sess_time_to_update']     = mngr_env_int('SESS_TIME_TO_UPDATE', 300);
-$config['sess_regenerate_destroy'] = mngr_env_bool('SESS_REGENERATE_DESTROY', false);
+$config['sess_cookie_name']        = mngr_env('CF_SESS_COOKIE_NAME', 'ci_sessions');
+$config['sess_expiration']         = mngr_env_int('CF_SESS_EXPIRATION', 0);
+$config['sess_match_ip']           = mngr_env_bool('CF_SESS_MATCH_IP', false);
+$config['sess_time_to_update']     = mngr_env_int('CF_SESS_TIME_TO_UPDATE', 300);
+$config['sess_regenerate_destroy'] = mngr_env_bool('CF_SESS_REGENERATE_DESTROY', false);
 /*
 |--------------------------------------------------------------------------
 | Cookie Related Variables
