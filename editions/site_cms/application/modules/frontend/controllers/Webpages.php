@@ -11,11 +11,6 @@ class Webpages extends Site_Controller
 
 	public function by_slug($slug)
 	{
-		if ($this->config->item('cache_time')) {
-			//Cache from config
-			$this->output->cache($this->config->item('cache_time'));
-		}
-
 		$sections = [];
 
 
@@ -51,7 +46,7 @@ class Webpages extends Site_Controller
 
 			if ($this->config->item('cache_enable')) {
 				// Save into the cache for 5 minutes
-				$this->cache->save("frontend/webpage/$slug", $data, 300);
+				$this->cache->save("frontend/webpage/$slug", $data, $this->config->item('cache_time'));
 			}
 		} else {
 			log_message('DEBUG', "Using frontend/webpage/$slug cache");

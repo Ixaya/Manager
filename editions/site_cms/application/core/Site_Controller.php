@@ -13,6 +13,7 @@ class Site_Controller extends MY_Controller {
 		//you can change the theme from here, or from manager.php inside /application/config/
 		//$this->_theme = 'default';
 		//$this->_theme = 'soon';
+		$this->session_enabled = true;
 		
 		parent::__construct();
 

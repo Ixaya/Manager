@@ -7,6 +7,8 @@ class Auth extends MY_Controller {
 	private $use_levels = TRUE;
 
 	function __construct() {
+		$this->session_enabled = true;
+		
 		parent::__construct();
 		$this->load->database();
 		$this->load->library(['ion_auth', 'form_validation','session']);

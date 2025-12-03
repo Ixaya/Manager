@@ -33,8 +33,6 @@ class IX_Rest_Controller extends REST_Controller
 	{
 		$this->user_id = $this->_apiuser->user_id;
 
-		$this->load->library(['user_agent', 'ion_auth']);
-
 		$now = mngr_get_now_date_time();
 
 		$data['last_activity_date'] = $now->format('Y-m-d H:i:s');
@@ -43,7 +41,8 @@ class IX_Rest_Controller extends REST_Controller
 		$this->rest->db->where('id', $this->user_id);
 		$this->rest->db->update('user', $data);
 
-		$user_groups = $this->ion_auth->get_users_groups($this->user_id)->result();
+		$this->load->model('ion_auth_model');
+		$user_groups = $this->ion_auth_model->get_users_groups($this->user_id)->result();
 		foreach ($user_groups as $user_group) {
 			if ($this->logged_in_level < $user_group->level)
 				$this->logged_in_level = $user_group->level;
@@ -102,12 +101,14 @@ class IX_Rest_Controller extends REST_Controller
 
 	public function add_agent_data(&$data)
 	{
-		$data['user_agent'] = $this->agent->agent_string();
 		$data['os_kind'] = $this->get_platform();
+		$data['user_agent'] = $this->agent->agent_string();
 	}
 
 	public function get_platform()
 	{
+		$this->load->library('user_agent');
+
 		$platform = $this->agent->platform();
 		if ($platform == 'iOS')
 			return 1;

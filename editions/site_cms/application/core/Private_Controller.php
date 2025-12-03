@@ -2,11 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Private_Controller extends Site_Controller {
-
-
-
 	function __construct() {
-
 		//you can change the theme from here, or from manager.php inside /application/config/
 		//$this->_theme = 'default';
 		//$this->_theme = 'soon';
@@ -17,5 +13,7 @@ class Private_Controller extends Site_Controller {
 		{
 			redirect('/');
 		}
+
+		$this->session->set_userdata('page_title', '');
 	}
 }

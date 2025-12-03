@@ -14,6 +14,7 @@ class MY_Controller extends CI_Controller
 
 	var $language_file = null;
 	var $language_enabled = false;
+	var $session_enabled = false;
 
 	var $_css_files = [];
 	var $_js_files = [];
@@ -59,20 +60,27 @@ class MY_Controller extends CI_Controller
 			$this->_layout = "{$this->_container}/{$this->_theme}/{$this->_layout}";
 		}
 
-		$this->load->library('session');
-		if (!empty($this->session->flashdata('message')) && empty($this->session->flashdata('message-kind'))) {
-			$this->session->set_flashdata('message-kind', 'info');
+		if ($this->session_enabled){
+			$this->load_session();
 		}
 
+		$this->load_language();
+	}
+
+	public function load_language()
+	{
 		if ($this->language_enabled) {
 			if (!$this->language_file) {
 				$this->load->helper('inflector');
 				$this->language_file = strtolower(get_class($this));
 			}
 
-			if (isset($_SESSION['language'])) {
+			if (isset($_GET['language'])) {
+				$this->config->set_item('language', $_GET['language']);
+			} else if (isset($_SESSION['language'])) {
 				$this->config->set_item('language', $_SESSION['language']);
 			}
+
 			if (is_array($this->language_file)) {
 				foreach ($this->language_file as $file) {
 					$this->lang->load($file);
@@ -83,9 +91,15 @@ class MY_Controller extends CI_Controller
 
 			$this->load->helper('language');
 		}
+	}
+	
+	public function load_session()
+	{
+		$this->load->library('session');
 
-		//Build WebPage Title and Breadcrume
-		$_SESSION['page_title'] = null;
+		if (!empty($this->session->flashdata('message')) && empty($this->session->flashdata('message-kind'))) {
+			$this->session->set_flashdata('message-kind', 'info');
+		}
 	}
 
 	public function load_clean_view($page, $data = [])
