@@ -113,6 +113,14 @@ function mngr_process_exception($exception, $context = '')
 	return $exception->getMessage();
 }
 
+/**
+ * Generate a cache key from a prefix and parameters
+ *
+ * @param string $prefix The cache key prefix (e.g., 'user_', 'product_')
+ * @param array|mixed $params The parameters to include in the cache key.
+ *
+ * @return string The generated cache key in the format: prefix + sha256_hash
+ */
 function mngr_cache_key($prefix, $params)
 {
 	// $values = array_values($params);
