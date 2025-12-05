@@ -7,7 +7,7 @@ if command -v dos2unix >/dev/null 2>&1; then
 fi
 
 # Espera a que la base de datos responda (opcional)
-if [[ "${WAIT_FOR_DB:-true}" = "true" && -n "${DB_HOST:-}" ]]; then
+if [[ "${WAIT_FOR_DB:-false}" = "true" && -n "${DB_HOST:-}" ]]; then
   echo "[entrypoint] Esperando a la base de datos en ${DB_HOST}:${DB_PORT:-3306}..."
   for i in {1..60}; do
     if php -r "error_reporting(0); @new PDO('mysql:host='.getenv('DB_HOST').';port='.getenv('DB_PORT').';dbname='.getenv('DB_NAME'), getenv('DB_USER'), getenv('DB_PASS'));" >/dev/null 2>&1; then

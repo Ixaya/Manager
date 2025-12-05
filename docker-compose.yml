@@ -11,26 +11,8 @@ services:
     container_name: manager_app
     ports:
       - "80:80"    # Mapea el puerto 80 del contenedor al 80 del host.
-    environment:
-      # Entorno de CodeIgniter. Cambia a "production" en despliegues reales.
-      APP_ENV: ${APP_ENV:-development}
-      # Configuración de base de datos externa. Ajusta estos valores según tu entorno.
-      # Para conectar con una base local en Mac/Windows puedes usar host.docker.internal.
-      DB_HOST: ${DB_HOST:-host.docker.internal}
-      DB_NAME: ${DB_NAME:-manager_dev}
-      DB_USER: ${DB_USER:-root}
-      DB_PASS: ${DB_PASS:-Laravel1532$}
-      DB_PORT: ${DB_PORT:-3306}
-      # Ejecuta las migraciones al arrancar si es "true".
-      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
-      # Espera a que la base de datos responda antes de arrancar Apache.
-      WAIT_FOR_DB: ${WAIT_FOR_DB:-true}
     env_file:
-      - .env
-    volumes:
-      # Monta el directorio de trabajo dentro del contenedor, excluyendo vendor.
-      - .:/var/www/html
-      - manager_vendor:/var/www/html/vendor  # preserva vendor de la imagen
+      - .env.docker
 
   # Servicio auxiliar para ejecutar tareas de línea de comandos (migraciones, seeds, jobs, etc.)
   cli:
@@ -39,20 +21,5 @@ services:
     working_dir: /var/www/html
     # Establece bash como entrypoint para poder ejecutar comandos arbitrarios.
     entrypoint: ["/bin/bash", "-lc"]
-    environment:
-      # Repetimos las variables de entorno porque este contenedor se ejecuta de forma independiente.
-      APP_ENV: ${APP_ENV:-development}
-      DB_HOST: ${DB_HOST:-host.docker.internal}
-      DB_NAME: ${DB_NAME:-manager_dev}
-      DB_USER: ${DB_USER:-root}
-      DB_PASS: ${DB_PASS:-Laravel1532$}
-      DB_PORT: ${DB_PORT:-3306}
     env_file:
-      - .env
-    volumes:
-      # Montamos el código igual que en app para que vea los mismos archivos, excluyendo vendor.
-      - .:/var/www/html
-      - manager_vendor:/var/www/html/vendor
-
-volumes:
-  manager_vendor:
+      - .env.docker

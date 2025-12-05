@@ -1,24 +1,23 @@
-# Carpetas generadas y dependencias
-vendor/
-node_modules/
+# Ignore everything
+*
 
-# Control de versiones y variables locales
-.git/
-.gitignore
-.env
-.env.*
+# Then allow specific folders
+!application/
+!public/
+!private/
+!bin/
+!patches/
+!docker/
 
-# Documentación y ficheros no requeridos para ejecutar la app
-README.md
-SECURITY.md
-phpunit.xml
-phpstan.neon
+#  System files
+**/.DS_Store
+**/Thumbs.db
 
-# Archivos temporales
-*.log
-*.cache
-*.tmp
+# Temp files
+**/*.log
+**/*.cache
+**/*.tmp
 
-# Archivos de sistema
-.DS_Store
-Thumbs.db
+# Extra files
+!composer.json
+!composer.lock

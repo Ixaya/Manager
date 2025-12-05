@@ -16,6 +16,14 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
  && docker-php-ext-enable opcache \
  && a2enmod rewrite
 
+ # Instalar Redis y MsgPack via PECL
+RUN pecl install redis msgpack \
+ && docker-php-ext-enable redis msgpack
+
+# Configurar el ServerName global
+RUN printf "ServerName localhost\n" > /etc/apache2/conf-available/servername.conf \
+    && a2enconf servername
+
 WORKDIR /var/www/html
 
 # ---- Instalar el binario de Composer en la imagen final ----
@@ -23,14 +31,11 @@ RUN php -r "copy('https://getcomposer.org/installer','composer-setup.php');" \
  && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
  && rm composer-setup.php
 
-# ---- Instalar dependencias en build (vendor/) ----
-# Copiamos sólo composer.json y (si existe) composer.lock para cachear capas
-COPY composer.json composer.lock* ./
-RUN composer install --no-dev --prefer-dist --no-interaction --no-ansi
-
-# Copiamos el resto del código
+# Copiamos el código
 COPY . /var/www/html
-RUN chown -R www-data:www-data /var/www/html
+
+# ---- Instalar dependencias en build (vendor/) ----
+RUN composer install --no-dev --prefer-dist --no-interaction --no-ansi
 
 # Vhost y entrypoint
 COPY docker/apache-site.conf /etc/apache2/sites-available/000-default.conf

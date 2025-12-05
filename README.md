@@ -126,6 +126,66 @@ Run the following command to install dependencies and apply patches:
 ```bash
 composer install
 ```
+## Docker Setup
+
+This project can be run using Docker with different configurations for development and production environments.
+
+### Configuration Files
+
+The project uses multiple Docker Compose files:
+
+- `docker-compose.yml` - Base configuration (shared settings)
+- `docker-compose.dev.yml` - Development overrides (code mounting, live changes)
+- `docker-compose.prod.yml` - Production overrides (no volumes, optimized)
+
+### Building and Running
+
+#### Basic Setup (Base Configuration Only)
+
+```bash
+# Build
+docker-compose build
+
+# Start
+docker-compose up -d
+
+# Rebuild and start (if Dockerfile changed)
+docker-compose up -d --build
+
+# Stop
+docker-compose down
+```
+
+#### Development Mode
+
+Uses live code mounting - changes are reflected immediately without rebuilding.
+
+```bash
+# Start
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d app
+```
+
+#### Production Mode
+
+Uses code copied into the image - requires rebuild for code changes.
+
+```bash
+# Start
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d app
+```
+
+### Useful Commands
+
+```bash
+# View all logs
+docker-compose logs -f
+
+# View logs for specific service
+docker-compose logs -f app
+
+# Enter the app container
+docker-compose exec app bash
+```
 
 ## Application Structure
 
