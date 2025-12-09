@@ -189,47 +189,100 @@ docker-compose exec app bash
 
 ## Application Structure
 
-### Root Folder structure
-We recomend you to create a folder named app and checkout the project inside.
+### Project Setup
 
-* `composer.jsn`
-* `application/`
-* `public/`
-* `bin/`
+We recommend creating a root folder named `app` and checking out the project inside it. The framework follows an HMVC (Hierarchical Model-View-Controller) architecture based on CodeIgniter.
 
-### Public Folder
-* `public/`
-* `public/media/` This is where you put all the files uploaded from your users
-* `public/assets/{module}/js`
-* `public/assets/{module}/css`
-* `public/assets/{module}/images`
-* `public/assets/{module}/videos`
+### Root Directory
 
-### Application Folder
-* `application/`
-* `application/views/` Global Views
-* `application/thid_party`
-* `application/modules` Where all your modules go
-* `application/models` Global Models
-* `application/migrations`
-* `application/libraries` Global Libraries
-* `application/language` Global Language
-* `application/hooks` Global Hooks
-* `application/helpers` Global Helpers
-* `application/database`
-* `application/controllers` Global Controllers
-* `application/config` Configuration of your App
-* `application/cache`
+```
+app/
+├── composer.json
+├── application/
+├── public/
+├── private/
+├── bin/
+└── patches/
+```
 
+### Public Directory
 
+The `public/` folder contains all publicly accessible files served by the web server.
 
-### Modules Folder
-Inside the modules folder you can have any folder that goes inside Application, like: Models, Views, Controllers
+```
+public/
+├── index.php                    # Application entry point
+├── media/                       # User-uploaded files
+└── assets/                      # Static assets organized by module
+    └── {module}/
+        ├── js/                  # JavaScript files
+        ├── css/                 # Stylesheets
+        ├── images/              # Images
+        └── videos/              # Video files
+```
 
-* `application/modules` 
-* `application/modules/{module}/views`
-* `application/modules/{module}/controllers`
-* `application/modules/{module}/models` 
-* `application/modules/{module}/libraries`
-* `application/modules/{module}/language` 
-* `application/modules/{module}/....` and more
+### Application Directory
+
+The `application/` folder contains the core application code and global resources.
+
+```
+application/
+├── cache/                       # Application cache
+├── config/                      # Application configuration files
+├── controllers/                 # Global controllers
+├── database/                    # Database configuration
+├── helpers/                     # Global helper functions
+├── hooks/                       # Global hooks
+├── language/                    # Global language files
+├── libraries/                   # Global libraries
+├── migrations/                  # Database migrations
+├── models/                      # Global models
+├── modules/                     # HMVC modules (see below)
+├── third_party/                 # Third-party libraries
+└── views/                       # Global views
+```
+
+### Modules (HMVC Structure)
+
+The framework uses HMVC architecture, allowing you to organize code into self-contained modules. Each module can have its own MVC structure and resources.
+
+```
+application/modules/
+└── {module}/
+    ├── controllers/             # Module-specific controllers
+    ├── models/                  # Module-specific models
+    ├── migrations/              # Module-specific migrations
+    ├── views/                   # Module-specific views
+    ├── libraries/               # Module-specific libraries
+    ├── helpers/                 # Module-specific helpers
+    ├── language/                # Module-specific language files
+    └── config/                  # Module-specific configuration
+```
+
+**Benefits of HMVC:**
+- **Modularity**: Each module is self-contained and reusable
+- **Organization**: Better code organization for large applications
+- **Separation**: Modules can be developed and tested independently
+- **Scalability**: Easy to add, remove, or replace modules
+
+**Example Module Structure:**
+
+```
+application/modules/blog/
+├── controllers/
+│   ├── Blog.php
+│   └── Admin.php
+├── models/
+│   └── Blog_model.php
+├── views/
+│   ├── index.php
+│   └── detail.php
+└── libraries/
+    └── Blog_helper.php
+```
+
+### Additional Directories
+
+- **`bin/`** - Command-line scripts and utilities
+- **`private/`** - Private files not accessible via web
+- **`patches/`** - Compatibility patches for dependencies
