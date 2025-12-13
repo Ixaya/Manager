@@ -4,6 +4,10 @@ class MY_Exceptions extends CI_Exceptions
 {
 	public function show_error($heading, $message, $template = 'error_general', $status_code = 500)
 	{
+		if (!$this->is_api_cli()) {
+			return parent::show_error($heading, $message, $template, $status_code);
+		}
+
 		$data = [
 			'status' => -1,
 			'error'  => $heading,
@@ -17,6 +21,10 @@ class MY_Exceptions extends CI_Exceptions
 
 	public function show_exception($exception)
 	{
+		if (!$this->is_api_cli()) {
+			return parent::show_exception($exception);
+		}
+
 		$data = [
 			'status'  => -1,
 			'error'   => get_class($exception),
@@ -30,11 +38,16 @@ class MY_Exceptions extends CI_Exceptions
 
 	public function show_php_error($severity, $message, $filepath, $line)
 	{
+		$filepath = $this->clean_file_path($filepath);
+		if (!$this->is_api_cli()) {
+			return parent::show_php_error($severity, $message, $filepath, $line);
+		}
+
 		$data = [
 			'status'   => -1,
 			'severity' => $severity,
 			'message'  => $message,
-			'file'     => $this->clean_file_path($filepath),
+			'file'     => $filepath,
 			'line'     => $line
 		];
 
@@ -64,5 +77,12 @@ class MY_Exceptions extends CI_Exceptions
 		}
 
 		return $filepath; // file outside project
+	}
+
+	private function is_api_cli()
+	{
+		$request_uri = $_SERVER['REQUEST_URI'] ?? '/api/';
+
+		return (strpos($request_uri, '/api/') !== false);
 	}
 }
