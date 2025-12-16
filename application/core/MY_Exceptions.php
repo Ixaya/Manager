@@ -49,8 +49,14 @@ class MY_Exceptions extends CI_Exceptions
 				echo $k . ': ' . $v . "\r\n";
 			}
 		} else {
-			header('Content-Type: application/json', true, $error_code);
-			echo json_encode($data);
+			$this->_add_cors();
+
+			if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+				http_response_code(200);
+			} else {
+				header('Content-Type: application/json', true, $error_code);
+				echo json_encode($data);
+			}
 		}
 
 		exit;
@@ -64,5 +70,32 @@ class MY_Exceptions extends CI_Exceptions
 		}
 
 		return $filepath; // file outside project
+	}
+
+	/**
+	 * Adds permissive CORS headers for HTTP access control (CORS)
+	 *
+	 * @access protected
+	 * @return void
+	 */
+	protected function _add_cors()
+	{
+		$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+		// No Origin header = same-origin request, no CORS needed
+		if (empty($origin)) {
+			return;
+		}
+		
+		header('Access-Control-Allow-Origin: *');
+
+		if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+			// Echo back requested headers (more compatible with older browsers)
+			header('Access-Control-Allow-Headers: ' . $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']);
+		} else {
+			header('Access-Control-Allow-Headers: *');
+		}
+
+		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
 	}
 }

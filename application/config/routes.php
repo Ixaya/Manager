@@ -49,16 +49,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
-if (!is_cli()) {
-	$route['default_controller'] = 'manager/api/errors';
-	$route['404_override'] = 'manager/api/errors/not_found_get';
-} else {
-	$route['default_controller'] = 'manager/errors';
-	$route['404_override'] = 'manager/errors/not_found';
-}
 
+$route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
+if (!is_cli()) {
+	$route['default_controller'] = 'manager/api/health_checks';
+	// $route['404_override'] = 'manager/api/health_checks/not_found_get';
+} else {
+	$route['default_controller'] = 'manager/health_checks';
+	// $route['404_override'] = 'manager/health_checks/not_found';
+}
 
 //examples routes
 /*

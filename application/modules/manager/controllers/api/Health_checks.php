@@ -1,15 +1,15 @@
 <?php
 //
-//  Errors.php
+//  Health_checks.php
 //  Ixaya
 //
 // Created by Humberto Olavarrieta on 2/3/17.
-//  Copyright © 2017 Ixaya. All rights reserved.
+// Copyright © 2017 Ixaya. All rights reserved.
 //
 
 if (! defined('BASEPATH')) exit('No direct script access allowed');
 
-class Errors extends REST_Controller
+class Health_checks extends REST_Controller
 {
 	public function __construct()
 	{
