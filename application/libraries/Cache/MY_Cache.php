@@ -115,13 +115,69 @@ class MY_Cache extends CI_Cache
 	 */
 	public function delete($id)
 	{
-		$id = $this->key_prefix . $id;
-
 		if ($this->enable_logging) {
 			log_message('debug', "Cache delete: {$id}");
 		}
 
 		return parent::delete($id);
+	}
+
+	/**
+	 * Publish a message to a channel
+	 * 
+	 * @param string $channel Channel name
+	 * @param mixed $message Message (will be JSON encoded if array)
+	 * @return int Number of subscribers that received the message
+	 */
+	public function publish($channel, $message)
+	{
+		if ($this->enable_logging) {
+			log_message('debug', "Cache publish: {$channel}");
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'publish')) {
+			return $this->{$this->_adapter}->publish($channel, $message);
+		}
+
+		return -1;
+	}
+
+	/**
+	 * Subscribe to one or more channels
+	 * This is a BLOCKING operation
+	 * 
+	 * @param array|string $channels Channel(s) to subscribe to
+	 * @param callable $callback Function to call when message received
+	 */
+	public function subscribe($channels, $callback)
+	{
+		if ($this->enable_logging) {
+			$debug_channels = (is_array($channels)) ? implode('-', $channels) : $channels;
+			log_message('debug', "Cache publish: {$debug_channels}");
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'subscribe')) {
+			return $this->{$this->_adapter}->subscribe($channels, $callback);
+		}
+	}
+
+	/**
+	 * Subscribe to channels matching a pattern
+	 * This is a BLOCKING operation
+	 * 
+	 * @param array|string $patterns Pattern(s) to match
+	 * @param callable $callback Function to call when message received
+	 */
+	public function psubscribe($patterns, $callback)
+	{
+		if ($this->enable_logging) {
+			$debug_patterns = (is_array($patterns)) ? implode('-', $patterns) : $patterns;
+			log_message('debug', "Cache publish: {$debug_patterns}");
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'psubscribe')){
+			return $this->{$this->_adapter}->psubscribe($patterns, $callback);
+		}
 	}
 
 	/**

@@ -581,7 +581,6 @@ $config['allowed_cors_methods'] = [
 | source domain
 |
 */
-$config['allow_any_cors_domain'] = FALSE;
 $config['allow_any_cors_domain'] = mngr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', false);
 
 /*
