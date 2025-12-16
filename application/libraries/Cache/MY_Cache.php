@@ -27,7 +27,7 @@ class MY_Cache extends CI_Cache
 
 		$this->serialization = isset($config['serialization'])
 			? $config['serialization']
-			: 'json';
+			: null;
 
 		$this->enable_logging = isset($config['enable_logging'])
 			? $config['enable_logging']
@@ -64,17 +64,14 @@ class MY_Cache extends CI_Cache
 		}
 
 		// Serialize the data
-		$serialized = $this->_serialize($data, $encoding);
+		$data = $this->_serialize($data, $encoding);
 
-		if ($serialized === FALSE) {
+		if ($data === FALSE) {
 			log_message('error', "Cache serialization failed for key: {$id}");
 			return FALSE;
 		}
 
-		// Store with encoding marker for retrieval
-		$stored_data = $serialized;
-
-		return parent::save($id, $stored_data, $ttl);
+		return parent::save($id, $data, $ttl);
 	}
 
 	/**
@@ -100,11 +97,8 @@ class MY_Cache extends CI_Cache
 		}
 
 		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
-		if ($encoding != NULL) {
-			return $this->_unserialize($data, $encoding);
-		}
 
-		return $data;
+		return $this->_unserialize($data, $encoding);
 	}
 
 	/**
@@ -175,7 +169,7 @@ class MY_Cache extends CI_Cache
 			log_message('debug', "Cache publish: {$debug_patterns}");
 		}
 
-		if (method_exists($this->{$this->_adapter}, 'psubscribe')){
+		if (method_exists($this->{$this->_adapter}, 'psubscribe')) {
 			return $this->{$this->_adapter}->psubscribe($patterns, $callback);
 		}
 	}
@@ -190,6 +184,10 @@ class MY_Cache extends CI_Cache
 	private function _serialize($data, $encoding)
 	{
 		try {
+			if ($encoding == null) {
+				return $data;
+			}
+
 			switch ($encoding) {
 				case 'json':
 					$result = json_encode($data);
@@ -238,6 +236,10 @@ class MY_Cache extends CI_Cache
 	private function _unserialize($data, $encoding)
 	{
 		try {
+			if (!is_string($data) || $encoding == null) {
+				return $data;
+			}
+
 			switch ($encoding) {
 				case 'json':
 					$result = json_decode($data, TRUE);
@@ -265,7 +267,7 @@ class MY_Cache extends CI_Cache
 						return msgpack_unpack($data);
 					}
 					if (class_exists('MessagePack\MessagePack')) {
-							return MessagePack\MessagePack::unpack($data);
+						return MessagePack\MessagePack::unpack($data);
 					}
 					log_message('error', 'msgpack extension not available');
 					return FALSE;
