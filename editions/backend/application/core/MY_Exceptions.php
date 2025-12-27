@@ -4,7 +4,7 @@ class MY_Exceptions extends CI_Exceptions
 {
 	public function show_error($heading, $message, $template = 'error_general', $status_code = 500)
 	{
-		if (!$this->is_api_cli()) {
+		if ($this->validate_html_accept()) {
 			return parent::show_error($heading, $message, $template, $status_code);
 		}
 
@@ -21,7 +21,7 @@ class MY_Exceptions extends CI_Exceptions
 
 	public function show_exception($exception)
 	{
-		if (!$this->is_api_cli()) {
+		if ($this->validate_html_accept()) {
 			return parent::show_exception($exception);
 		}
 
@@ -38,8 +38,7 @@ class MY_Exceptions extends CI_Exceptions
 
 	public function show_php_error($severity, $message, $filepath, $line)
 	{
-		$filepath = $this->clean_file_path($filepath);
-		if (!$this->is_api_cli()) {
+		if ($this->validate_html_accept()) {
 			return parent::show_php_error($severity, $message, $filepath, $line);
 		}
 
@@ -47,7 +46,7 @@ class MY_Exceptions extends CI_Exceptions
 			'status'   => -1,
 			'severity' => $severity,
 			'message'  => $message,
-			'file'     => $filepath,
+			'file'     => $this->clean_file_path($filepath),
 			'line'     => $line
 		];
 
@@ -62,8 +61,14 @@ class MY_Exceptions extends CI_Exceptions
 				echo $k . ': ' . $v . "\r\n";
 			}
 		} else {
-			header('Content-Type: application/json', true, $error_code);
-			echo json_encode($data);
+			$this->_add_cors();
+
+			if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+				http_response_code(200);
+			} else {
+				header('Content-Type: application/json', true, $error_code);
+				echo json_encode($data);
+			}
 		}
 
 		exit;
@@ -79,10 +84,38 @@ class MY_Exceptions extends CI_Exceptions
 		return $filepath; // file outside project
 	}
 
-	private function is_api_cli()
+	private function validate_html_accept()
 	{
-		$request_uri = $_SERVER['REQUEST_URI'] ?? '/api/';
+		$acceptHeader = isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '';
 
-		return (strpos($request_uri, '/api/') !== false);
+		// If the browser prefers HTML, call the parent method
+		return (strpos($acceptHeader, 'text/html') !== false);
+	}
+
+	/**
+	 * Adds permissive CORS headers for HTTP access control (CORS)
+	 *
+	 * @access protected
+	 * @return void
+	 */
+	protected function _add_cors()
+	{
+		$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+		// No Origin header = same-origin request, no CORS needed
+		if (empty($origin)) {
+			return;
+		}
+
+		header('Access-Control-Allow-Origin: *');
+
+		if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+			// Echo back requested headers (more compatible with older browsers)
+			header('Access-Control-Allow-Headers: ' . $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']);
+		} else {
+			header('Access-Control-Allow-Headers: *');
+		}
+
+		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
 	}
 }

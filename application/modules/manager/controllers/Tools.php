@@ -9,8 +9,6 @@ class Tools extends CI_Controller {
 		if (!$this->input->is_cli_request()) {
 			exit('Direct access is not allowed. This is a command line tool, use the terminal');
 		}
-
-		$this->load->dbforge();
 	}
 
 	public function message($to = 'World') {
@@ -44,6 +42,8 @@ class Tools extends CI_Controller {
 
 	public function migrate_database($connection_name = 'default', $version = null)
 	{
+		$this->load->dbforge();
+		
 		$migration_path = 'migrations/' . $connection_name;
 
 		// Configuration for this specific migration
