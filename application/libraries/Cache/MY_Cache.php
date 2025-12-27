@@ -64,14 +64,14 @@ class MY_Cache extends CI_Cache
 		}
 
 		// Serialize the data
-		$data = $this->_serialize($data, $encoding);
+		$serialized = $this->_serialize($data, $encoding);
 
-		if ($data === FALSE) {
+		if ($serialized === FALSE) {
 			log_message('error', "Cache serialization failed for key: {$id}");
 			return FALSE;
 		}
 
-		return parent::save($id, $data, $ttl);
+		return parent::save($id, $serialized, $ttl);
 	}
 
 	/**

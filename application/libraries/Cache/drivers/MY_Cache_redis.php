@@ -66,7 +66,7 @@ class MY_Cache_redis extends CI_Cache_redis
 		}
 
 		// Auto-encode arrays/objects to JSON
-		if (is_array($message) || is_object($message)) {
+		if (!is_string($message)) {
 			$message = json_encode($message);
 		}
 
@@ -101,9 +101,9 @@ class MY_Cache_redis extends CI_Cache_redis
 			$channels = [$channels];
 		}
 
-		if ($this->channelPrefix != ''){
+		if ($this->channelPrefix != '') {
 			foreach ($channels as &$channel) {
-					$channel = $this->channelPrefix . $channel;
+				$channel = $this->channelPrefix . $channel;
 			}
 			unset($channel);
 		}
@@ -139,7 +139,7 @@ class MY_Cache_redis extends CI_Cache_redis
 			$patterns = [$patterns];
 		}
 
-		if ($this->channelPrefix != ''){
+		if ($this->channelPrefix != '') {
 			foreach ($patterns as &$pattern) {
 				$pattern = $this->channelPrefix . $pattern;
 			}
@@ -148,7 +148,7 @@ class MY_Cache_redis extends CI_Cache_redis
 
 		try {
 			$this->_redis->psubscribe($patterns, function ($redis, $pattern, $channel, $message) use ($callback) {
-				if ($this->channelPrefix != ''){
+				if ($this->channelPrefix != '') {
 					if (strpos($pattern, $this->channelPrefix) === 0) {
 						$pattern = substr($pattern, strlen($this->channelPrefix));
 					}
@@ -156,7 +156,7 @@ class MY_Cache_redis extends CI_Cache_redis
 					if (strpos($channel, $this->channelPrefix) === 0) {
 						$channel = substr($channel, strlen($this->channelPrefix));
 					}
-				}				
+				}
 
 				call_user_func($callback, $channel, $message, $pattern);
 			});
