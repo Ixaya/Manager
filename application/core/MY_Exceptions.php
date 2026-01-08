@@ -2,8 +2,19 @@
 
 class MY_Exceptions extends CI_Exceptions
 {
+	// 404 logging is intentionally disabled (we rely on server logs).
+	// Uncomment if you want CodeIgniter to log 404 errors.
+	public function show_404($page = '', $log_error = FALSE)
+	{
+		parent::show_404($page, FALSE);
+	}
+
 	public function show_error($heading, $message, $template = 'error_general', $status_code = 500)
 	{
+		if ($this->validate_html_accept()) { 
+			return parent::show_error($heading, $message, $template, $status_code);
+		}
+
 		$data = [
 			'status' => -1,
 			'error'  => $heading,
@@ -17,6 +28,10 @@ class MY_Exceptions extends CI_Exceptions
 
 	public function show_exception($exception)
 	{
+		if ($this->validate_html_accept()) {
+			return parent::show_exception($exception);
+		}
+
 		$data = [
 			'status'  => -1,
 			'error'   => get_class($exception),
@@ -30,6 +45,10 @@ class MY_Exceptions extends CI_Exceptions
 
 	public function show_php_error($severity, $message, $filepath, $line)
 	{
+		if ($this->validate_html_accept()) {
+			return parent::show_php_error($severity, $message, $filepath, $line);
+		}
+
 		$data = [
 			'status'   => -1,
 			'severity' => $severity,
@@ -70,6 +89,14 @@ class MY_Exceptions extends CI_Exceptions
 		}
 
 		return $filepath; // file outside project
+	}
+
+	private function validate_html_accept()
+	{
+		$acceptHeader = isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '';
+
+		// If the browser prefers HTML, call the parent method
+		return (strpos($acceptHeader, 'text/html') !== false);
 	}
 
 	/**
