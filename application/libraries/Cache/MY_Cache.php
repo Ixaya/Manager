@@ -229,7 +229,7 @@ class MY_Cache extends CI_Cache
 	/**
 	 * Unserialize data based on encoding type
 	 *
-	 * @param string $data
+	 * @param mixed $data
 	 * @param string $encoding
 	 * @return mixed|false
 	 */

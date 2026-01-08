@@ -46,7 +46,8 @@ class MY_Exceptions extends CI_Exceptions
 	public function show_php_error($severity, $message, $filepath, $line)
 	{
 		if ($this->validate_html_accept()) {
-			return parent::show_php_error($severity, $message, $filepath, $line);
+			parent::show_php_error($severity, $message, $filepath, $line);
+			return;
 		}
 
 		$data = [
