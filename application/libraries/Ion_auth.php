@@ -61,7 +61,8 @@ class Ion_auth
 		$this->lang->load('ion_auth');
 		$this->load->helper(['cookie', 'language', 'url']);
 
-		$this->load->library('session');
+		// Delay load session until used only
+		// $this->load->library('session');
 
 		$this->load->model('ion_auth_model');
 
@@ -355,6 +356,8 @@ class Ion_auth
 
 		$identity = $this->config->item('identity', 'ion_auth');
 
+		$this->load->library('session');
+		
 		$this->session->unset_userdata(array($identity, 'id', 'user_id'));
 
 		// delete the remember me cookies if they exist
@@ -386,6 +389,8 @@ class Ion_auth
 	{
 		$this->ion_auth_model->trigger_events('logged_in');
 
+		$this->load->library('session');
+
 		return (bool) $this->session->userdata('identity');
 	}
 
@@ -397,6 +402,8 @@ class Ion_auth
 	 **/
 	public function get_user_id()
 	{
+		$this->load->library('session');
+
 		$user_id = $this->session->userdata('user_id');
 		if (!empty($user_id)) {
 			return $user_id;
@@ -411,6 +418,8 @@ class Ion_auth
 	 **/
 	public function get_client_id()
 	{
+		$this->load->library('session');
+
 		$client_id = $this->session->userdata('client_id');
 		if (!empty($client_id)) {
 			return $client_id;
@@ -448,7 +457,7 @@ class Ion_auth
 	{
 		$this->ion_auth_model->trigger_events('in_group');
 
-		$id || $id = $this->session->userdata('user_id');
+		$id || $id = $this->get_user_id();
 
 		if (!is_array($check_group)) {
 			$check_group = array($check_group);

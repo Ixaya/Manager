@@ -1745,7 +1745,8 @@ abstract class REST_Controller extends MY_Controller
 	{
 		// Get the auth_source config item
 		$key = $this->config->item('auth_source');
-
+		$this->load->library('session');
+		
 		// If falsy, then the user isn't logged in
 		if (! $this->session->userdata($key)) {
 			// Display an error response
