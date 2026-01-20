@@ -35,15 +35,6 @@ class MY_Cache extends CI_Cache
 	}
 
 	/**
-	 * Save data to cache
-	 *
-	 * @param string $id Cache ID
-	 * @param mixed $data Data to cache
-	 * @param int|null $ttl Time to live (NULL = use default)
-	 * @param string|null $encoding Serialization method (NULL = use default)
-	 * @return bool
-	 */
-	/**
 	 * Cache Save
 	 *
 	 * @param	string	$id	Cache ID
@@ -54,7 +45,6 @@ class MY_Cache extends CI_Cache
 	 * @return	bool	TRUE on success, FALSE on failure
 	 */
 	public function save($id, $data, $ttl = NULL, $raw = FALSE, $encoding = NULL)
-	// public function save($id, $data, $ttl = NULL, $encoding = NULL)
 	{
 		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
 		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
@@ -63,15 +53,15 @@ class MY_Cache extends CI_Cache
 			log_message('debug', "Cache save: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
 		}
 
-		// Serialize the data
-		$serialized = $this->_serialize($data, $encoding);
-
-		if ($serialized === FALSE) {
-			log_message('error', "Cache serialization failed for key: {$id}");
-			return FALSE;
+		if ($encoding !== NULL && $encoding !== 'none') {
+			$data = $this->_serialize($data, $encoding);
+			if ($data === FALSE) {
+				log_message('error', "Cache serialization failed for key: {$id}");
+				return FALSE;
+			}
 		}
 
-		return parent::save($id, $serialized, $ttl);
+		return parent::save($id, $data, $ttl, $raw);
 	}
 
 	/**
@@ -98,7 +88,11 @@ class MY_Cache extends CI_Cache
 
 		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
 
-		return $this->_unserialize($data, $encoding);
+		if ($encoding !== NULL && $encoding !== 'none') {
+			return $this->_unserialize($data, $encoding);
+		}
+
+		return $data;
 	}
 
 	/**
@@ -190,23 +184,14 @@ class MY_Cache extends CI_Cache
 
 			switch ($encoding) {
 				case 'json':
-					$result = json_encode($data);
-					if (json_last_error() !== JSON_ERROR_NONE) {
-						log_message('error', 'JSON encode error: ' . json_last_error_msg());
-						return FALSE;
-					}
-					return $result;
+					return json_encode($data, JSON_THROW_ON_ERROR);
 
 				case 'json_gzip':
-					$json = json_encode($data);
-					if (json_last_error() !== JSON_ERROR_NONE) {
-						log_message('error', 'JSON encode error: ' . json_last_error_msg());
-						return FALSE;
-					}
+					$json = json_encode($data, JSON_THROW_ON_ERROR);
 					return gzcompress($json, 6);
 
 				case 'msgpack':
-					if (!function_exists('msgpack_pack')) {
+					if (function_exists('msgpack_pack')) {
 						return msgpack_pack($data);
 					}
 					if (class_exists('MessagePack\MessagePack')) {
@@ -217,8 +202,10 @@ class MY_Cache extends CI_Cache
 					return json_encode($data);
 
 				case 'php':
-				default:
 					return serialize($data);
+
+				default:
+					return $data;
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Cache serialization exception: ' . $e->getMessage());
@@ -236,18 +223,13 @@ class MY_Cache extends CI_Cache
 	private function _unserialize($data, $encoding)
 	{
 		try {
-			if (!is_string($data) || $encoding == null) {
+			if ($data === '' || !is_string($data) || $encoding == null) {
 				return $data;
 			}
 
 			switch ($encoding) {
 				case 'json':
-					$result = json_decode($data, TRUE);
-					if (json_last_error() !== JSON_ERROR_NONE) {
-						log_message('error', 'JSON decode error: ' . json_last_error_msg());
-						return FALSE;
-					}
-					return $result;
+					return json_decode($data, true, 512, JSON_THROW_ON_ERROR);
 
 				case 'json_gzip':
 					$decompressed = gzuncompress($data);
@@ -255,15 +237,10 @@ class MY_Cache extends CI_Cache
 						log_message('error', 'gzip decompression failed');
 						return FALSE;
 					}
-					$result = json_decode($decompressed, TRUE);
-					if (json_last_error() !== JSON_ERROR_NONE) {
-						log_message('error', 'JSON decode error: ' . json_last_error_msg());
-						return FALSE;
-					}
-					return $result;
+					return json_decode($decompressed, true, 512, JSON_THROW_ON_ERROR);
 
 				case 'msgpack':
-					if (!function_exists('msgpack_unpack')) {
+					if (function_exists('msgpack_unpack')) {
 						return msgpack_unpack($data);
 					}
 					if (class_exists('MessagePack\MessagePack')) {
@@ -273,8 +250,10 @@ class MY_Cache extends CI_Cache
 					return FALSE;
 
 				case 'php':
-				default:
 					return unserialize($data);
+
+				default:
+					return $data;
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Cache unserialization exception: ' . $e->getMessage());

@@ -16,6 +16,9 @@ defined('BASEPATH') or exit('No direct script access allowed');
  */
 class MY_Cache_redis extends CI_Cache_redis
 {
+	// const SERIALIZE_PREFIX = "\x00PHP_SER\x00"; // Magic header for PHP serialize
+	const SERIALIZE_PREFIX = "~PHP~"; // Magic header for PHP serialize
+
 	/** @var String */
 	private $channelPrefix;
 
@@ -50,6 +53,57 @@ class MY_Cache_redis extends CI_Cache_redis
 		}
 
 		$this->channelPrefix = $config['channel_prefix'] ?? '';
+	}
+
+	/**
+	 * Save cache
+	 * Fix: recognize ttl < 1 and set without expiry
+	 *
+	 * @param	string	$id	Cache ID
+	 * @param	mixed	$data	Data to save
+	 * @param	int	$ttl	Time to live in seconds
+	 * @param	bool	$raw	Whether to store the raw value (unused)
+	 * @return	bool	TRUE on success, FALSE on failure
+	 */
+	public function save($id, $data, $ttl = 60, $raw = FALSE)
+	{
+		if (is_array($data) or is_object($data)) {
+			$data = self::SERIALIZE_PREFIX . serialize($data);
+		}
+
+		if ($ttl < 1) {
+			return $this->_redis->set($id, $data);
+		}
+
+		return $this->_redis->set($id, $data, $ttl);
+	}
+
+	/**
+	 * Delete from cache
+	 *
+	 * @param	string	$key	Cache key
+	 * @return	bool
+	 */
+	public function delete($key)
+	{
+		return ($this->_redis->{static::$_delete_name}($key) !== 1);
+	}
+
+	/**
+	 * Get cache
+	 *
+	 * @param	string	$key	Cache ID
+	 * @return	mixed
+	 */
+	public function get($key)
+	{
+		$value = $this->_redis->get($key);
+
+		if (str_starts_with($value, self::SERIALIZE_PREFIX)) {
+			return unserialize(substr($value, strlen(self::SERIALIZE_PREFIX)));
+		}
+
+		return $value;
 	}
 
 	/**
