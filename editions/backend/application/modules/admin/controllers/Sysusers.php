@@ -1,8 +1,10 @@
 <?php
 
-class Sysusers extends Admin_Controller {
+class Sysusers extends Admin_Controller
+{
 
-	function __construct() {
+	function __construct()
+	{
 		parent::__construct();
 
 		$group = 'admin';
@@ -10,15 +12,15 @@ class Sysusers extends Admin_Controller {
 
 		$this->load->helper('form');
 
-		if (!$this->ion_auth->in_group($group))
-		{
+		if (!$this->ion_auth->in_group($group)) {
 			$this->session->set_flashdata('message', 'You must be an administrator to view the users page.');
 			redirect('admin/dashboard');
 		}
 		$this->load->helper(array('form', 'url'));
 	}
 
-	public function index() {
+	public function index()
+	{
 		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date, last_activity_date');
 		//print_r($users);
 
@@ -26,17 +28,19 @@ class Sysusers extends Admin_Controller {
 		$this->load_view('sysusers/sysusers_list', $data);
 	}
 
-	public function index_ajax() {
-		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date,last_activity_date',null,null,10);
+	public function index_ajax()
+	{
+		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date,last_activity_date', null, null, 10);
 		$this->json_response($users);
 	}
 
-	public function create() {
+	public function create()
+	{
 		if ($this->input->post('username')) {
 			$username = $this->input->post('username');
 			$password = $this->input->post('password');
 			$email = $this->input->post('email');
-			$group_id = array( $this->input->post('group_id'));
+			$group_id = array($this->input->post('group_id'));
 
 			$additional_data = array(
 				'first_name' => $this->input->post('first_name'),
@@ -47,14 +51,11 @@ class Sysusers extends Admin_Controller {
 
 			$user = $this->ion_auth->register($email, $password, $email, $additional_data, $group_id);
 
-			if(!$user)
-			{
+			if (!$user) {
 				$errors = $this->ion_auth->errors();
 				echo $errors;
 				die('done');
-			}
-			else
-			{
+			} else {
 				if ($this->input->post('active') == 1)
 					$this->ion_auth->activate($user);
 
@@ -67,7 +68,8 @@ class Sysusers extends Admin_Controller {
 		$this->load_view('sysusers/sysusers_create', $data);
 	}
 
-	public function edit($id) {
+	public function edit($id)
+	{
 		if ($this->input->post('first_name')) {
 			$data['username'] = $this->input->post('username');
 			$data['first_name'] = $this->input->post('first_name');
@@ -76,7 +78,7 @@ class Sysusers extends Admin_Controller {
 			$data['company'] = $this->input->post('company');
 
 			$newPassword = $this->input->post('password');
-			if(!empty($newPassword)){
+			if (!empty($newPassword)) {
 				//if you use: ion_auth->update there is no need to encrypt it, else it will double crypt it.
 				$data['password'] = $newPassword;
 			}
@@ -99,11 +101,10 @@ class Sysusers extends Admin_Controller {
 		$this->load->model('user_key');
 		$api_key_obj = $this->user_key->get_where("user_id=$id");
 		$api_key = "User doesn't have an API Key";
-		if(!empty($api_key_obj))
-		{
+		if (!empty($api_key_obj)) {
 			$api_key = $api_key_obj->key;
 		}
-			
+
 		$data['groups'] = $this->ion_auth->groups()->result();
 		$data['user'] = $this->ion_auth->user($id)->row();
 		$data['api_key'] = $api_key;
@@ -112,7 +113,8 @@ class Sysusers extends Admin_Controller {
 		$this->load_view('sysusers/sysusers_edit', $data);
 	}
 
-	public function delete($id) {
+	public function delete($id)
+	{
 		$this->ion_auth->delete_user($id);
 
 		redirect('/admin/sysusers', 'refresh');
@@ -121,30 +123,28 @@ class Sysusers extends Admin_Controller {
 
 	public function do_upload($id)
 	{
-			$config['upload_path']		  = '_base_route_/app/public/media/user';
-			$config['allowed_types']		= 'gif|jpg|png';
-			$config['max_size']			 = 2048; //2MB (PHP Max in this config)
-//			 $config['max_width']			= 1024;
-//			 $config['max_height']		   = 1024;
-			$config['max_width']			= 0; // no size restriction
-			$config['max_height']		   = 0; // no size restriction
+		$config['upload_path']		  = '_base_route_/app/public/media/user';
+		$config['allowed_types']		= 'gif|jpg|png';
+		$config['max_size']			 = 2048; //2MB (PHP Max in this config)
+		//			 $config['max_width']			= 1024;
+		//			 $config['max_height']		   = 1024;
+		$config['max_width']			= 0; // no size restriction
+		$config['max_height']		   = 0; // no size restriction
 
-			$config['encrypt_name']			= true;
-			$config['remove_spaces']		= true;
+		$config['encrypt_name']			= true;
+		$config['remove_spaces']		= true;
 
-			$this->load->library('upload', $config);
+		$this->load->library('upload', $config);
 
-			if (!$this->upload->do_upload('userfile'))
-			{
-					$this->session->set_flashdata('message', $this->upload->display_errors());
-					$this->edit($id);
-			}
-			else
-			{		$upload_data = $this->upload->data();
-					$data['image_url']   = base_url("/media/user/".$upload_data['file_name']);
-					$data['image_name']  = $upload_data['file_name'];
-					$this->user->update($data, $id);
-					redirect('/admin/sysusers', 'refresh');
-			}
+		if (!$this->upload->do_upload('userfile')) {
+			$this->session->set_flashdata('message', $this->upload->display_errors());
+			$this->edit($id);
+		} else {
+			$upload_data = $this->upload->data();
+			$data['image_url']   = base_url("/media/user/" . $upload_data['file_name']);
+			$data['image_name']  = $upload_data['file_name'];
+			$this->user->update($data, $id);
+			redirect('/admin/sysusers', 'refresh');
+		}
 	}
 }

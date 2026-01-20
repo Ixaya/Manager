@@ -2,9 +2,6 @@
 
 class Admin extends Admin_Controller
 {
-
-
-
 	function __construct()
 	{
 
