@@ -144,29 +144,29 @@ class MY_Model extends CI_Model
 		$this->override_id = NULL;
 	}
 
-	public function get($id)
+	public function get($id, $fields = null)
 	{
-		$this->apply_common_filters();
+		$this->apply_common_filters($fields);
 
 		$this->my_db->where($this->primary_key, $id);
 		return $this->execute_row();
 	}
-	public function get_where($where)
+	public function get_where($where, $fields = null)
 	{
-		$this->apply_common_filters();
+		$this->apply_common_filters($fields);
 
 		$this->my_db->where($where);
 		return $this->execute_row();
 	}
 
-	public function get_all($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
+	public function get_all($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '', $table = '')
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
 		return $this->excecute_list($table);
 	}
 
-	public function get_all_join($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left')
+	public function get_all_join($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left', $table = '')
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
@@ -186,7 +186,7 @@ class MY_Model extends CI_Model
 		return $this->excecute_list($table);
 	}
 
-	public function get_all_like($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '')
+	public function get_all_like($fields = '', $where = array(), $limit = '', $order_by = '', $group_by = '', $table = '')
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
@@ -197,7 +197,7 @@ class MY_Model extends CI_Model
 		return $this->excecute_list($table);
 	}
 
-	public function get_all_or_like($fields = '', $where = [], $table = '', $limit = '', $order_by = '')
+	public function get_all_or_like($fields = '', $where = [], $limit = '', $order_by = '', $table = '')
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by);
 
@@ -208,7 +208,7 @@ class MY_Model extends CI_Model
 		return $this->excecute_list($table);
 	}
 
-	public function get_all_in($field, $values = [], $table = '', $limit = '', $order_by = '')
+	public function get_all_in($field, $values = [], $limit = '', $order_by = '', $table = '')
 	{
 		$this->apply_list_filters('', [], $limit, $order_by);
 
@@ -219,17 +219,17 @@ class MY_Model extends CI_Model
 		return $this->excecute_list($table);
 	}
 
-	public function get_all_updated($last_update, $fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
+	public function get_all_updated($last_update, $fields = '', $where = [], $limit = '', $order_by = '', $group_by = '', $table = '')
 	{
 		$where = ['last_update >' => $last_update];
-		return $this->get_all($fields, $where, $table, $limit, $order_by, $group_by);
+		return $this->get_all($fields, $where, $limit, $order_by, $group_by, $table);
 	}
 
 	public function count_all($where = NULL)
 	{
 		$this->apply_common_filters();
 
-		
+
 		$this->my_db->select('count(id) AS count', FALSE);
 
 		if (!empty($where)) {
@@ -293,7 +293,7 @@ class MY_Model extends CI_Model
 	}
 	public function update_where($data, $where)
 	{
-		if (empty($where)){
+		if (empty($where)) {
 			return false;
 		}
 
@@ -323,7 +323,7 @@ class MY_Model extends CI_Model
 		$row = $this->get_where($where);
 
 		if (empty($row)) {
-			return $this->insert(array_merge($data, $where, $insert_data));	
+			return $this->insert(array_merge($data, $where, $insert_data));
 		}
 
 		if ($this->update($data, $row['id'])) {
@@ -369,10 +369,10 @@ class MY_Model extends CI_Model
 		} else if ($insert) {
 			$this->set_alter_keys($data);
 
-			if ($add_import){
+			if ($add_import) {
 				$data['import_date'] = $data['last_update'];
 			}
-			if ($add_sync){
+			if ($add_sync) {
 				$data['sync_enabled'] = 1;
 			}
 
@@ -405,7 +405,7 @@ class MY_Model extends CI_Model
 				return false;
 			}
 
-			if ($timestamp === true && $update_count <= $default_count){
+			if ($timestamp === true && $update_count <= $default_count) {
 				$timestamp = false;
 			}
 
@@ -462,7 +462,7 @@ class MY_Model extends CI_Model
 		if ($this->soft_delete == false) {
 			return $this->my_db->delete($this->table_name);
 		}
-		
+
 		$this->set_alter_keys($data, $delete = true);
 
 		return $this->my_db->update($this->table_name, $data);
@@ -610,11 +610,16 @@ class MY_Model extends CI_Model
 	 * - Override conditions from $this->where_override (e.g., tenant filtering, user scope)
 	 * - Soft delete filter to exclude deleted records (if enabled)
 	 * 
+	 * @param string $fields Comma-separated field names for SELECT clause (empty = SELECT *)
 	 * @return void
 	 */
-	private function apply_common_filters()
+	private function apply_common_filters($fields = '')
 	{
 		$this->check_connect();
+
+		if ($fields != '') {
+			$this->my_db->select($fields);
+		}
 
 		if ($this->where_override) {
 			$this->my_db->where($this->where_override);
@@ -638,7 +643,11 @@ class MY_Model extends CI_Model
 	 */
 	private function apply_list_filters($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '')
 	{
-		$this->apply_common_filters();
+		$this->apply_common_filters($fields);
+
+		if (!empty($where)) {
+			$this->my_db->where($where);
+		}
 
 		if ($limit != '') {
 			$this->my_db->limit($limit);
@@ -650,14 +659,6 @@ class MY_Model extends CI_Model
 
 		if ($group_by != '') {
 			$this->my_db->group_by($group_by);
-		}
-
-		if ($fields != '') {
-			$this->my_db->select($fields);
-		}
-
-		if (!empty($where)) {
-			$this->my_db->where($where);
 		}
 	}
 
@@ -683,7 +684,7 @@ class MY_Model extends CI_Model
 			$data['last_update'] = date('Y-m-d H:i:s');
 		}
 
-		if ($delete === true){
+		if ($delete === true) {
 			$data['deleted'] = 1;
 			$data['enabled'] = 0;
 			// $data['deleted_by'] = $this->user_id;
@@ -702,12 +703,12 @@ class MY_Model extends CI_Model
 	 */
 	private function execute_row($table = '')
 	{
-		if ($table !== ''){
+		if ($table !== '') {
 			$Q = $this->my_db->get($table);
 		} else {
 			$Q = $this->my_db->get($this->table_name);
 		}
-		
+
 
 		if ($Q === false) {
 			return null;

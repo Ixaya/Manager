@@ -14,8 +14,8 @@ class Webpages extends Admin_Controller {
 
 		$data['webpages'] = $this->webpage->get_all();
 		$data['webpages_count'] = $this->webpage->count_all();
-		$data['frontend_count'] 	= $this->webpage->count_all('kind = 1');
-		$data['private_count']  	= $this->webpage->count_all('kind = 2');
+		$data['frontend_count'] 	= $this->webpage->count_all(['kind' > 1]);
+		$data['private_count']  	= $this->webpage->count_all(['kind' => 2]);
 		$data['admin_count'] 	= $this->webpage->count_all('kind = 3');
 
 		$data['kinds'] = $this->webpage->kinds();

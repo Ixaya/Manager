@@ -9,21 +9,23 @@ class Webpages extends Private_Controller
 
 		$this->output->cache(10);
 
-		//cargar el webpage referidop
+		//cargar el webpage referido
 		$this->load->model('admin/webpage');
-		$webpage = $this->webpage->get_all('', "slug = '$slug' and kind = 2");
+		$where = ['slug' => $slug, 'kind' => 1];
+		$webpage = $this->webpage->get_all('', $where);
 
 		if (!empty($webpage)) {
 			//cargar la sección referida en el webpage
 			$webpage_id = $webpage[0]['id'];
 			$this->load->model('admin/page_section');
-			$sections =  $this->page_section->get_all('', "webpage_id = '$webpage_id'");
+			$where = ['webpage_id' => $webpage_id];
+			$sections =  $this->page_section->get_all('', $where);
 		}
 		//cargar los page_items de esa seccion
 		$this->load->model('admin/page_item');
 		foreach ($sections as &$section) {
 			$page_section_id = $section['id'];
-			$section['page_items'] = $this->page_item->get_all('', "page_section_id = $page_section_id");
+			$section['page_items'] = $this->page_item->get_all('', ["page_section_id" => $page_section_id]);
 			//$section['page_items'] = [];
 		}
 		$data['sections'] = $sections;

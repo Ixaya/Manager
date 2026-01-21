@@ -128,3 +128,20 @@ function mngr_cache_key($prefix, $params)
 	// return $prefix . md5(json_encode($params));
 	return $prefix . hash('sha256', json_encode($params, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
+
+/**
+ * Generate a LIMIT/OFFSET clause based on pagination.
+ *
+ * Intended for CI3-style limit strings ("limit, offset").
+ *
+ * @param int $limit Number of rows per page
+ * @param int $page  Page number (starts at 1)
+ *
+ * @return string LIMIT clause in "limit, offset" format
+ */
+function mngr_build_limit_page($limit, $page)
+{
+	$offset = ($page - 1) * $limit;
+
+	return "{$limit}, {$offset}";
+}

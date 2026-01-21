@@ -30,8 +30,8 @@ class Site_Controller extends MY_Controller {
 			$this->load->model('admin/page_item');
 
 			$footer_data = [];
-			$footer_data['social_networks'] = $this->page_item->get_all('','kind = 4');
-			$footer_data['footer_links'] = $this->page_item->get_all('','kind = 6');
+			$footer_data['social_networks'] = $this->page_item->get_all('',['kind' => 4]);
+			$footer_data['footer_links'] = $this->page_item->get_all('',['kind' => 6]);
 			if ($this->config->item('cache_enable')) {
 				$this->cache->save("footer_data", $footer_data, 300);
 			}
