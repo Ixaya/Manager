@@ -70,7 +70,7 @@ class Page_items extends Admin_Controller {
 		if ($id)
 			$data['page_item'] = $this->page_item->get($id);
 		else
-			$data['page_item'] = $this->page_item->empty_object();
+			$data['page_item'] = $this->page_item->empty_row();
 
 		$this->load->helper(['form','ui']);
 

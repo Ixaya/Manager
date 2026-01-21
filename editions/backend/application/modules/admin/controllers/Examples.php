@@ -37,7 +37,7 @@ class Examples extends Admin_Controller {
 		if ($id)
 			$data['example'] = $this->example->get($id);
 		else
-			$data['example'] = $this->example->empty_object();
+			$data['example'] = $this->example->empty_row();
 
 
 		$this->load->helper(['form','ui']);

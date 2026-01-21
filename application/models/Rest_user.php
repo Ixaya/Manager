@@ -40,7 +40,7 @@ class Rest_user extends MY_Model
 		$query = "SELECT g.name FROM user_group
 		 					LEFT JOIN `group` AS g ON g.id = user_group.group_id
 							WHERE user_id = ? ";
-		$user_groups = $this->query_as_array_auto($query, [$user_id]);
+		$user_groups = $this->query($query, [$user_id]);
 
 		$result = [];
 		foreach ($user_groups as $row) {
@@ -56,7 +56,7 @@ class Rest_user extends MY_Model
 							WHERE user_id = ?
 							ORDER BY g.level DESC
 							LIMIT 1";
-		$user_group = $this->query_as_array_auto($query, [$user_id]);
+		$user_group = $this->query($query, [$user_id]);
 
 		if (!empty($user_group))
 			return $user_group[0]['level'];

@@ -27,9 +27,6 @@ class Page_item extends MY_Model {
 	
 	public function count_icons()
 	{
-		$query = 'SELECT count(id) as count FROM page_item WHERE kind = 1';
-		
-		$result = $this->query($query);
-		return $result[0]->count;
+		return $this->count_all(['kind' => 1]);
 	}
 }

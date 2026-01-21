@@ -24,6 +24,9 @@ class MY_Model extends CI_Model
 	protected $lazy_connect = false;
 	protected $connected = false;
 
+	// Uncomment for legacy mode
+	// protected $legacy_mode = false;
+
 	public function __construct()
 	{
 		$this->load->helper('inflector');
@@ -117,16 +120,20 @@ class MY_Model extends CI_Model
 		$this->set_override();
 	}
 
-	public function set_override()
+	public function set_override($id = null)
 	{
-		if ($this->override_column && $this->where_override == null) {
-			if ($this->override_id == null && isset($_SESSION[$this->override_column])) {
-				$this->override_id = $_SESSION[$this->override_column];
-			}
+		if (!$this->override_column || $this->where_override !== null) {
+			return;
+		}
 
-			if ($this->override_id != null) {
-				$this->where_override = ["{$this->table_name}.{$this->override_column}" => $this->override_id];
-			}
+		if ($id !== null) {
+			$this->override_id = $id;
+		}
+		if ($this->override_id === null && isset($_SESSION[$this->override_column])) {
+			$this->override_id = $_SESSION[$this->override_column];
+		}
+		if ($this->override_id !== null) {
+			$this->where_override = ["{$this->table_name}.{$this->override_column}" => $this->override_id];
 		}
 	}
 
@@ -139,112 +146,31 @@ class MY_Model extends CI_Model
 
 	public function get($id)
 	{
-		$this->check_connect();
+		$this->apply_common_filters();
 
-		if ($this->where_override)
-			$this->my_db->where($this->where_override);
-
-		if ($this->soft_delete == false)
-			return $this->my_db->get_where($this->table_name, array($this->primary_key => $id))->row();
-
-		return $this->my_db->get_where($this->table_name, array($this->primary_key => $id, 'deleted' => 0))->row();
+		$this->my_db->where($this->primary_key, $id);
+		return $this->execute_row();
 	}
 	public function get_where($where)
 	{
-		$this->check_connect();
+		$this->apply_common_filters();
 
-		if ($this->where_override)
-			$this->my_db->where($this->where_override);
-
-		if ($this->soft_delete)
-			$this->my_db->where('deleted', 0);
-
-		return $this->my_db->get_where($this->table_name, $where)->row();
+		$this->my_db->where($where);
+		return $this->execute_row();
 	}
-	public function get_array($id)
-	{
-		$this->check_connect();
-
-		if ($this->where_override)
-			$this->my_db->where($this->where_override);
-
-		return $this->my_db->get_where($this->table_name, array($this->primary_key => $id))->row_array();
-	}
-
 
 	public function get_all($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
 	{
-		$this->check_connect();
+		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
-		$data = [];
-		if ($fields != '') {
-			$this->my_db->select($fields);
-		}
-
-		if ($this->where_override)
-			$this->my_db->where($this->where_override);
-
-		if ($this->soft_delete)
-			$this->my_db->where('deleted', 0);
-
-		if (!empty($where)) {
-			$this->my_db->where($where);
-		}
-
-		if ($table != '') {
-			$this->table_name = $table;
-		}
-
-		if ($limit != '') {
-			$this->my_db->limit($limit);
-		}
-
-		if ($order_by != '') {
-			$this->my_db->order_by($order_by);
-		}
-
-		if ($group_by != '') {
-			$this->my_db->group_by($group_by);
-		}
-
-		$Q = $this->my_db->get($this->table_name);
-
-		if ($Q->num_rows() > 0) {
-			foreach ($Q->result_array() as $row) {
-				$data[] = $row;
-			}
-		}
-		$Q->free_result();
-
-		return $data;
+		return $this->excecute_list($table);
 	}
 
 	public function get_all_join($fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left')
 	{
-		$this->check_connect();
-
-		$data = [];
-		if ($fields != '') {
-			$this->my_db->select($fields);
-		}
-
-		if ($this->where_override) {
-			$this->my_db->where($this->where_override);
-		}
-
-		if ($this->soft_delete)
-			$this->my_db->where('deleted', 0);
-
-		if (!empty($where)) {
-			$this->my_db->where($where);
-		}
-
-		if ($table != '') {
-			$this->table_name = $table;
-		}
+		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
 		if ($join_table != '' && $join_where != '') {
-
 			$i = 0;
 			if (is_array($join_table) && is_array($join_where)) {
 
@@ -257,152 +183,62 @@ class MY_Model extends CI_Model
 			}
 		}
 
-		if ($limit != '') {
-			$this->my_db->limit($limit);
-		}
-
-		if ($order_by != '') {
-			$this->my_db->order_by($order_by);
-		}
-
-		if ($group_by != '') {
-			$this->my_db->group_by($group_by);
-		}
-
-		$Q = $this->my_db->get($this->table_name);
-
-		if ($Q->num_rows() > 0) {
-			foreach ($Q->result_array() as $row) {
-				$data[] = $row;
-			}
-		}
-		$Q->free_result();
-
-		return $data;
+		return $this->excecute_list($table);
 	}
 
 	public function get_all_like($fields = '', $where = array(), $table = '', $limit = '', $order_by = '', $group_by = '')
 	{
-		$this->check_connect();
-
-		$data = array();
-		if ($fields != '') {
-			$this->my_db->select($fields);
-		}
-
-		if ($this->where_override)
-			$this->my_db->where($this->where_override);
+		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
 		if (!empty($where)) {
 			$this->my_db->like($where);
 		}
 
-		if ($table != '') {
-			$this->table_name = $table;
+		return $this->excecute_list($table);
+	}
+
+	public function get_all_or_like($fields = '', $where = [], $table = '', $limit = '', $order_by = '')
+	{
+		$this->apply_list_filters($fields, [], $limit, $order_by);
+
+		if (!empty($where)) {
+			$this->my_db->or_like($where);
 		}
 
-		if ($limit != '') {
-			$this->my_db->limit($limit);
+		return $this->excecute_list($table);
+	}
+
+	public function get_all_in($field, $values = [], $table = '', $limit = '', $order_by = '')
+	{
+		$this->apply_list_filters('', [], $limit, $order_by);
+
+		if (!empty($values)) {
+			$this->my_db->where_in($field, $values);
 		}
 
-		if ($order_by != '') {
-			$this->my_db->order_by($order_by);
-		}
+		return $this->excecute_list($table);
+	}
 
-		if ($group_by != '') {
-			$this->my_db->group_by($group_by);
-		}
-
-		$Q = $this->my_db->get($this->table_name);
-
-		if ($Q->num_rows() > 0) {
-			foreach ($Q->result_array() as $row) {
-				$data[] = $row;
-			}
-		}
-		$Q->free_result();
-
-		return $data;
+	public function get_all_updated($last_update, $fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
+	{
+		$where = ['last_update >' => $last_update];
+		return $this->get_all($fields, $where, $table, $limit, $order_by, $group_by);
 	}
 
 	public function count_all($where = NULL)
 	{
-		$this->check_connect();
+		$this->apply_common_filters();
 
-		$count = 0;
+		
 		$this->my_db->select('count(id) AS count', FALSE);
 
 		if (!empty($where)) {
 			$this->my_db->where($where);
 		}
 
-		if ($this->where_override) {
-			$this->my_db->where($this->where_override);
-		}
+		$data = $this->excecute_list();
 
-		if ($this->soft_delete) {
-			$this->my_db->where('deleted', 0);
-		}
-
-		$Q = $this->my_db->get($this->table_name);
-
-		if ($Q->num_rows() > 0) {
-			$count = $Q->result_array()[0]['count'];
-		}
-
-		$Q->free_result();
-
-		return $count;
-	}
-
-	public function get_all_updated($last_update, $fields = '', $where = [], $table = '', $limit = '', $order_by = '', $group_by = '')
-	{
-		$this->check_connect();
-
-		$data = [];
-		if ($fields != '') {
-			$this->my_db->select($fields);
-		}
-
-		if ($this->where_override)
-			$this->my_db->where($this->where_override);
-
-		if ($this->soft_delete)
-			$this->my_db->where('deleted', 0);
-
-		$this->my_db->where(array('last_update >' => $last_update));
-
-
-		if (!empty($where)) {
-			$this->my_db->where($where);
-		}
-
-		if ($table != '') {
-			$this->table_name = $table;
-		}
-
-		if ($limit != '') {
-			$this->my_db->limit($limit);
-		}
-
-		if ($order_by != '') {
-			$this->my_db->order_by($order_by);
-		}
-
-		if ($group_by != '') {
-			$this->my_db->group_by($group_by);
-		}
-
-		$Q = $this->my_db->get($this->table_name);
-
-		if ($Q->num_rows() > 0) {
-			foreach ($Q->result_array() as $row) {
-				$data[] = $row;
-			}
-		}
-		$Q->free_result();
-
-		return $data;
+		return (int)($data[0]['count'] ?? 0);
 	}
 
 
@@ -410,11 +246,7 @@ class MY_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		if ($this->use_last_update) {
-			$data['last_update'] = date('Y-m-d H:i:s');
-		}
-
-		//$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
+		$this->set_alter_keys($data);
 
 		if ($this->override_column && $this->override_id) {
 			$data[$this->override_column] = $this->override_id;
@@ -435,9 +267,7 @@ class MY_Model extends CI_Model
 		}
 
 		foreach ($rows as &$row) {
-			$row['last_update'] = date('Y-m-d H:i:s');
-			//$row['created_from_ip'] = $row['updated_from_ip'] = $this->input->ip_address();
-			//$row['client_id'] = $this->client_id;
+			$this->set_alter_keys($row);
 
 			if ($this->override_column && $this->override_id) {
 				$row[$this->override_column] = $this->override_id;
@@ -451,46 +281,32 @@ class MY_Model extends CI_Model
 
 	public function update($data, $id)
 	{
-		$this->check_connect();
+		$this->apply_alter_filters();
+		$this->set_alter_keys($data);
 
-		if ($this->use_last_update) {
-			$data['last_update'] = date('Y-m-d H:i:s');
-		}
-
-		if ($this->where_override)
-			$this->my_db->where($this->where_override);
-
-		//$data['updated_from_ip'] = $this->input->ip_address();
 		if (is_array($id))
 			$this->my_db->where_in($this->primary_key, $id);
 		else
 			$this->my_db->where($this->primary_key, $id);
+
 		return $this->my_db->update($this->table_name, $data);
 	}
 	public function update_where($data, $where)
 	{
-		$this->check_connect();
-
-		if (empty($where))
+		if (empty($where)){
 			return false;
-
-		if ($this->where_override) {
-			$this->my_db->where($this->where_override);
 		}
+
+		$this->apply_alter_filters();
+		$this->set_alter_keys($data);
 
 		$this->my_db->where($where);
-
-		if ($this->use_last_update) {
-			$data['last_update'] = date('Y-m-d H:i:s');
-		}
 
 		return $this->my_db->update($this->table_name, $data);
 	}
 
 	public function upsert($data, $id = null)
 	{
-		$this->check_connect();
-
 		if ($id) {
 			if ($this->update($data, $id)) {
 				return $id;
@@ -504,16 +320,14 @@ class MY_Model extends CI_Model
 
 	public function upsert_where($data, $where, $insert_data = [])
 	{
-		$this->check_connect();
-
 		$row = $this->get_where($where);
 
-		if (!empty($row)) {
-			if ($this->update($data, $row->id)) {
-				return $row->id;
-			}
-		} else {
-			return $this->insert(array_merge($data, $where, $insert_data));
+		if (empty($row)) {
+			return $this->insert(array_merge($data, $where, $insert_data));	
+		}
+
+		if ($this->update($data, $row['id'])) {
+			return $row['id'];
 		}
 
 		return FALSE;
@@ -524,21 +338,18 @@ class MY_Model extends CI_Model
 		$this->check_connect();
 
 		$this->cleanup_columns($where, true);
-		$row = $this->my_db->get_where($this->table_name, $where)->row_array();
+		$row = $this->get_where($where);
 
 		$this->cleanup_columns($data);
 		if (!empty($row)) {
-			$update_data = array();
+			$update_data = [];
 			foreach (array_keys($data) as $key) {
 				if ($row[$key] != $data[$key])
 					$update_data[$key] = $data[$key];
 			}
 
-
 			if (count($update_data) > 0) {
-				// echo($this->table_name.": ".$row['id']." ".json_encode($update_data)."\r\n");
-				$now = new DateTime();
-				$diff_data['last_update'] = $now->format('Y-m-d H:i:s');
+				$this->set_alter_keys($update_data);
 
 				$update_data = array_merge($extra_data, $update_data);
 			} else if (!$add_sync) {
@@ -549,18 +360,21 @@ class MY_Model extends CI_Model
 				$update_data['sync_enabled'] = 1;
 			}
 
+			$this->apply_alter_filters();
 			$result = $this->my_db->update($this->table_name, $update_data, array('id' => $row['id']));
 			if ($result == true) {
 				$modified = true;
 				return $row['id'];
 			}
 		} else if ($insert) {
-			$now = new DateTime();
-			$data['last_update'] = $now->format('Y-m-d H:i:s');
-			if ($add_import)
+			$this->set_alter_keys($data);
+
+			if ($add_import){
 				$data['import_date'] = $data['last_update'];
-			if ($add_sync)
+			}
+			if ($add_sync){
 				$data['sync_enabled'] = 1;
+			}
 
 			$result = $this->my_db->insert($this->table_name, array_merge($data, $where, $extra_data));
 			if ($result == true) {
@@ -575,32 +389,38 @@ class MY_Model extends CI_Model
 	public function sync_update($id, $data, $timestamp = true, $row = false, $default_count = 0)
 	{
 		$this->check_connect();
-
 		$this->cleanup_columns($data);
-		if ($row != false) {
-			$update_data = array();
+
+		if ($row !== false) {
+			$update_data = [];
+
 			foreach (array_keys($data) as $key) {
-				if ($row[$key] != $data[$key])
+				if ($row[$key] != $data[$key]) {
 					$update_data[$key] = $data[$key];
+				}
 			}
 
-			if (!empty($update_data) > $default_count && $timestamp == true) {
-				//echo($this->table_name.": ".$row['id']." ".json_encode($update_data)."\r\n");
-				$now = new DateTime();
-				$update_data['last_update'] = $now->format('Y-m-d H:i:s');
+			$update_count = count($update_data);
+			if ($update_count == 0) {
+				return false;
 			}
 
-			if (count($update_data) > 0)
-				return $this->my_db->update($this->table_name, $update_data, array('id' => $row['id']));
+			if ($timestamp === true && $update_count <= $default_count){
+				$timestamp = false;
+			}
 
-			return false;
+			$id =  $row['id'];
+			$data = $update_data;
 		}
 
-		if ($timestamp == true) {
-			$now = new DateTime();
-			$data['last_update'] = $now->format('Y-m-d H:i:s');
+		if ($this->use_last_update && $timestamp === true) {
+			$data['last_update'] = date('Y-m-d H:i:s');
 		}
-		return $this->my_db->update($this->table_name, $data, array('id' => $id));
+
+		$this->apply_alter_filters();
+		$this->my_db->where('id', $id);
+
+		return $this->my_db->update($this->table_name, $data);
 	}
 	public function sync_update_enabled($id, $status)
 	{
@@ -616,10 +436,10 @@ class MY_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		$now = new DateTime();
 		$query = "UPDATE $this->table_name SET enabled = sync_enabled, deleted = !sync_enabled, last_update = ? WHERE enabled != sync_enabled AND (enabled = 0 || enabled = 1)";
 
-		return $this->my_db->query($query, array($now->format('Y-m-d H:i:s')));
+		$now = date('Y-m-d H:i:s');
+		return $this->my_db->query($query, [$now]);
 	}
 	public function cleanup_columns(&$data, $only_trim = false)
 	{
@@ -635,41 +455,19 @@ class MY_Model extends CI_Model
 
 	public function delete($id)
 	{
-		$this->check_connect();
+		$this->apply_alter_filters();
 
 		$this->my_db->where($this->primary_key, $id);
 
 		if ($this->soft_delete == false) {
 			return $this->my_db->delete($this->table_name);
 		}
-
-
-		if ($this->use_last_update) {
-			$data['last_update'] = date('Y-m-d H:i:s');
-		}
-
-		$data['deleted'] = 1;
-		$data['enabled'] = 0;
-		// $data['deleted_by'] = $this->user_id;
+		
+		$this->set_alter_keys($data, $delete = true);
 
 		return $this->my_db->update($this->table_name, $data);
 	}
 
-	public function delete_array($params)
-	{
-		$this->check_connect();
-
-		$this->my_db->where($params);
-
-		if ($this->soft_delete == false)
-			return $this->my_db->delete($this->table_name);
-
-		$params['deleted'] = 1;
-		$params['status'] = 0;
-		$params['last_update'] = date('Y-m-d H:i:s');
-
-		return $this->my_db->update($this->table_name, $params);
-	}
 	public function delete_where($where)
 	{
 		$this->check_connect();
@@ -677,18 +475,14 @@ class MY_Model extends CI_Model
 		if (empty($where))
 			return false;
 
+		$this->apply_alter_filters();
 		$this->my_db->where($where);
 
 		if ($this->soft_delete == false)
 			return $this->my_db->delete($this->table_name);
 
-		if ($this->use_last_update) {
-			$data['last_update'] = date('Y-m-d H:i:s');
-		}
-
-		$data['deleted'] = 1;
-		$data['enabled'] = 0;
-		//$data['delete_by'] = $this->user_id;
+		$data = [];
+		$this->set_alter_keys($data, $delete = true);
 
 		return $this->my_db->update($this->table_name, $data);
 	}
@@ -697,49 +491,25 @@ class MY_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		$query = $this->my_db->query($query, $arguments);
+		$Q = $this->my_db->query($query, $arguments);
 
-		if ($query === true)
-			return true;
+		if (is_object($Q)) {
+			$data = $Q->result_array();
+			$Q->free_result();
+			return $data;
+		}
 
-		if (empty($query))
-			return [];
+		if ($Q === true) {
+			return $this->my_db->affected_rows();
+		}
 
-		return $query->result();
-	}
-	public function query_auto($query, $arguments = NULL)
-	{
-		return $this->query($query, $arguments);
-	}
-
-	public function query_as_array($query, $arguments = NULL)
-	{
-		$this->check_connect();
-
-		$query = $this->my_db->query($query, $arguments);
-		if (empty($query))
-			return [];
-
-		return $query->result_array();
-	}
-	public function query_as_array_auto($query, $arguments = NULL)
-	{
-		return $this->query_as_array($query, $arguments);
+		return false;
 	}
 
 	public function replace($data)
 	{
-		$this->check_connect();
-
-		if ($this->use_last_update) {
-			$data['last_update'] = date('Y-m-d H:i:s');
-		}
-
-		//$data['created_from_ip'] = $data['updated_from_ip'] = $this->input->ip_address();
-
-		if ($this->override_column && $this->override_id) {
-			$data[$this->override_column] = $this->override_id;
-		}
+		$this->apply_alter_filters();
+		$this->set_alter_keys($data);
 
 		$success = $this->my_db->replace($this->table_name, $data);
 		if ($success) {
@@ -749,25 +519,25 @@ class MY_Model extends CI_Model
 		}
 	}
 
-	public function empty_object($properties = null, $include_id = TRUE)
+	public function empty_row($properties = null, $include_id = true)
 	{
 		$this->check_connect();
 
 		if (!$properties) {
 			$properties = $this->my_db->list_fields($this->table_name);
-
 			$properties = array_flip($properties);
-			//array_splice($properties, 0);
-			if (!$include_id) {
-				if (in_array('id', $properties)) {
-					unset($properties['id']);
-				}
+
+			if (!$include_id && isset($properties['id'])) {
+				unset($properties['id']);
 			}
 		}
-		//clean any value from array
-		$properties = array_fill_keys(array_keys($properties), '');
-		$obj = (object)$properties;
-		return $obj;
+
+		return array_fill_keys(array_keys($properties), '');
+	}
+
+	public function empty_object($properties = null, $include_id = true)
+	{
+		return (object) $this->empty_row($properties, $include_id);
 	}
 
 	public function clean_string($text)
@@ -1105,7 +875,7 @@ class MY_Model extends CI_Model
 		return mngr_generate_hash($length);
 	}
 
-	function get_unique_hash($length = 13, $field = 'hash')
+	public function get_unique_hash($length = 13, $field = 'hash')
 	{
 		$hash = mngr_generate_hash($length);
 		$row = $this->by_hash($hash, $field);
@@ -1118,7 +888,7 @@ class MY_Model extends CI_Model
 
 	public function by_hash($hash, $field = 'hash')
 	{
-		return $this->get_where("$field = '$hash'");
+		return $this->get_where([$field => $hash]);
 	}
 
 	public function debug_query($return = false)
@@ -1138,5 +908,152 @@ class MY_Model extends CI_Model
 		if ($offset !== false) {
 			$this->my_db->query("SET SESSION time_zone='$offset'");
 		}
+	}
+
+	/**
+	 * Apply common filters to all queries
+	 * 
+	 * Ensures database connection is established and applies standard WHERE conditions
+	 * that should be present in all queries:
+	 * - Override conditions from $this->where_override (e.g., tenant filtering, user scope)
+	 * - Soft delete filter to exclude deleted records (if enabled)
+	 * 
+	 * @return void
+	 */
+	private function apply_common_filters()
+	{
+		$this->check_connect();
+
+		if ($this->where_override) {
+			$this->my_db->where($this->where_override);
+		}
+
+		if ($this->soft_delete) {
+			$this->my_db->where('deleted', 0);
+		}
+	}
+
+	/**
+	 * Apply common filters for list/collection queries
+	 * Includes field selection, where conditions, pagination, sorting, and grouping
+	 * 
+	 * @param string $fields Comma-separated field names for SELECT clause (empty = SELECT *)
+	 * @param array $where Additional WHERE conditions as associative array
+	 * @param string $limit LIMIT clause (e.g., "10" or "10, 20" for offset)
+	 * @param string $order_by ORDER BY clause (e.g., "created_at DESC")
+	 * @param string $group_by GROUP BY clause (e.g., "category_id")
+	 * 
+	 */
+	private function apply_list_filters($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '')
+	{
+		$this->apply_common_filters();
+
+		if ($limit != '') {
+			$this->my_db->limit($limit);
+		}
+
+		if ($order_by != '') {
+			$this->my_db->order_by($order_by);
+		}
+
+		if ($group_by != '') {
+			$this->my_db->group_by($group_by);
+		}
+
+		if ($fields != '') {
+			$this->my_db->select($fields);
+		}
+
+		if (!empty($where)) {
+			$this->my_db->where($where);
+		}
+	}
+
+	/**
+	 * Apply WHERE conditions for UPDATE/DELETE operations
+	 *
+	 * Ensures operations respect override column for data isolation
+	 * Also applies where_override if set
+	 * 
+	 */
+	private function apply_alter_filters()
+	{
+		$this->check_connect();
+
+		if ($this->where_override) {
+			$this->my_db->where($this->where_override);
+		}
+	}
+
+	private function set_alter_keys(&$data, $delete = false)
+	{
+		if ($this->use_last_update) {
+			$data['last_update'] = date('Y-m-d H:i:s');
+		}
+
+		if ($delete === true){
+			$data['deleted'] = 1;
+			$data['enabled'] = 0;
+			// $data['deleted_by'] = $this->user_id;
+		}
+	}
+
+	/**
+	 * Execute a single-row query and return result safely
+	 * 
+	 * Executes the built query on the specified table, handles query failures gracefully,
+	 * frees memory after fetching the result, and returns data as an associative array.
+	 * This is a helper method for get* methods that fetch a single record.
+	 * 
+	 * @param string $table The table name to query
+	 * @return array|object|null Associative array of the row, null if not found or query fails
+	 */
+	private function execute_row($table = '')
+	{
+		if ($table !== ''){
+			$Q = $this->my_db->get($table);
+		} else {
+			$Q = $this->my_db->get($this->table_name);
+		}
+		
+
+		if ($Q === false) {
+			return null;
+		}
+
+		// Uncomment for legacy mode
+		// $row = $this->legacy_mode ? $Q->row() : $Q->row_array();
+		$row = $Q->row();
+
+		$Q->free_result();
+		return $row;
+	}
+
+	/**
+	 * Execute a list query and return results safely
+	 * 
+	 * Executes the built query on the specified table, handles query failures gracefully,
+	 * frees memory after fetching results, and returns data as an array.
+	 * This is a helper method for get_all* methods that need to execute queries
+	 * with different WHERE conditions (LIKE, IN, BETWEEN, etc.)
+	 * 
+	 * @param string $table The table name to query
+	 * @return array Array of result rows, empty array if query fails or no results found
+	 */
+	private function excecute_list($table = '')
+	{
+		if ($table !== '') {
+			$Q = $this->my_db->get($table);
+		} else {
+			$Q = $this->my_db->get($this->table_name);
+		}
+		if ($Q === false) {
+			return [];
+		}
+
+		$data = $Q->result_array();
+		$Q->free_result();
+
+		return $data;
 	}
 }

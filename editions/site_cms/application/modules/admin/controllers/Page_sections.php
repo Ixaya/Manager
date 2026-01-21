@@ -79,7 +79,7 @@ class Page_sections extends Admin_Controller {
 			$_SESSION['page_section_id'] = $id;
 		}
 		else
-			$data['page_section'] = $this->page_section->empty_object();
+			$data['page_section'] = $this->page_section->empty_row();
 
 
 		$this->load->helper(['form','ui']);

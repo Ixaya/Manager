@@ -18,29 +18,9 @@ class Profile extends IX_Rest_Controller
         $this->load->model('user');
 
         $response = [];
-        $profile = [];
 
         try {
-            $result = $this->user->get($this->user_id);
-
-            if (!empty($result)) {
-                $profile = [
-                    'id' => $result->id,
-                    'email' => $result->email,
-                    'first_name' => $result->first_name,
-                    'last_name' => $result->last_name,
-                    'username' => $result->username,
-                    'company' => $result->company,
-                    'phone' => $result->phone,
-                    'status' => $result->active,
-                    'user_group' => $this->ion_auth->get_users_groups($this->user_id)->row(),
-                    'ip_address' => $result->ip_address,
-                    'image_url' => $result->image_url ? 'https://' . ltrim(base_url($result->image_url), '/') : null,
-                    'last_update' => $result->last_update,
-                ];
-            }
-
-            $response['profile'] = $profile;
+            $response['profile'] = $this->get_profile();
             $this->response([
                 'status' => 1,
                 'message' => 'Perfil recuperado con éxito',
@@ -59,7 +39,6 @@ class Profile extends IX_Rest_Controller
         $this->load->model('user');
 
         $response = [];
-        $profile = [];
 
         $data = [
             'first_name' => $this->post('first_name'),
@@ -99,22 +78,8 @@ class Profile extends IX_Rest_Controller
                     $this->user->update($data, $this->user_id);
                 }
             }
-
-            $profile = $this->user->get($this->user_id);
-            $user_groups = $this->ion_auth->get_users_groups($this->user_id)->row();
             
-            $response['profile'] = [
-                'id' => $profile->id,
-                'email' => $profile->email,
-                'username' => $profile->username,
-                'first_name' => $profile->first_name,
-                'last_name' => $profile->last_name,
-                'full_name' => $profile->first_name . ' ' . $profile->last_name,
-                'image' => $this->get_file_base64($profile->image_url),
-                'user_groups' => [
-                    $user_groups->name
-                ]
-            ];
+            $response['profile'] = $this->get_profile();
 
             $this->response([
                 'status' => 1,
@@ -126,5 +91,30 @@ class Profile extends IX_Rest_Controller
                 'message' => 'Error: ' . $e->getMessage()
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private function get_profile()
+    {
+        $user = $this->user->get($this->user_id);
+        $user_groups = $this->ion_auth->get_users_groups($this->user_id)->row();
+
+        if (!empty($user)) {
+            return [
+                'id' => $user['id'],
+                'email' => $user['email'],
+                'first_name' => $user['first_name'],
+                'last_name' => $user['last_name'],
+                'username' => $user['username'],
+                'company' => $user['company'],
+                'phone' => $user['phone'],
+                'status' => $user['active'],
+                'user_group' => $user_groups,
+                'ip_address' => $user['ip_address'],
+                'image_url' => $user['image_url'] ? 'https://' . ltrim(base_url($user['image_url']), '/') : null,
+                'last_update' => $user['last_update'],
+            ];
+        }
+
+        return null;
     }
 }

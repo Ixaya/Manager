@@ -24,8 +24,8 @@ class Manager_option extends MY_Model
 	{
 		if (!empty($key)) {
 			$result = $this->get($key);
-			if (!empty($result->value)){
-				return $result->value;
+			if (!empty($result['value'])){
+				return $result['value'];
 			}
 		}
 

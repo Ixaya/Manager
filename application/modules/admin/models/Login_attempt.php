@@ -35,7 +35,7 @@ class Login_attempt extends MY_Model
         }
 
 
-        $query = "SELECT 
+        $query = "SELECT
                         COALESCE(u.id, 0) AS id,
                         la.login,
                         COUNT(*) AS attempts,
@@ -44,7 +44,7 @@ class Login_attempt extends MY_Model
                     LEFT JOIN user AS u ON u.email = la.login
                     WHERE $where
                     GROUP BY la.login, u.id";
-        
+
         if (!empty($order)) {
 			$query .= " order by $order ";
 		}
@@ -55,7 +55,7 @@ class Login_attempt extends MY_Model
                 $query .= " offset $offset ";
         }
 
-        return $this->query_as_array_auto($query, $bindings);
+        return $this->query($query, $bindings);
     }
 
     public function get_by_user($id){
@@ -65,8 +65,8 @@ class Login_attempt extends MY_Model
                         INNER JOIN user AS u ON u.email = la.login
                     WHERE
                         u.id = ?";
-        
-        return $this->query_as_array_auto($query, [$id]);
+
+        return $this->query($query, [$id]);
     }
-    
+
 }

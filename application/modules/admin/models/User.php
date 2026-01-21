@@ -7,13 +7,13 @@ class User extends MY_Model
 		$limit = $params['limit'];
 		$offset = ($params['page'] - 1) * $limit;
 
-		$query = "SELECT SQL_CALC_FOUND_ROWS 
-                 u.id, 
-                 MAX(u.last_update) AS last_activity_date, 
+		$query = "SELECT SQL_CALC_FOUND_ROWS
+                 u.id,
+                 MAX(u.last_update) AS last_activity_date,
 				 MAx(FROM_UNIXTIME(u.created_on)) AS created_on_date,
-				 MAX(u.ip_address) AS ip_address, 
-                 MAX(u.email) AS email, 
-                 MAX(u.first_name) AS first_name, 
+				 MAX(u.ip_address) AS ip_address,
+                 MAX(u.email) AS email,
+                 MAX(u.first_name) AS first_name,
 				 MAX(u.last_name) AS last_name
           FROM user AS u
           WHERE 1=1 ";
@@ -32,10 +32,10 @@ class User extends MY_Model
 		$binds[] = $limit;
 		$binds[] = $offset;
 
-		$data = $this->query_as_array_auto($query, $binds);
+		$data = $this->query($query, $binds);
 
-		$total = $this->query_as_array_auto("SELECT FOUND_ROWS() AS total");
-		$total = $total[0]['total'];
+		$total = $this->query("SELECT FOUND_ROWS() AS total");
+		$total = isset($total[0]['total']) ? $total[0]['total'] : 0;
 
 		return ['data' => $data, 'total' => $total];
 	}

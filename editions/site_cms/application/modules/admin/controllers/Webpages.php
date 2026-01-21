@@ -53,7 +53,7 @@ class Webpages extends Admin_Controller {
 			$_SESSION['webpage_id'] = $id;
 		}
 		else
-			$data['webpage'] = $this->webpage->empty_object();
+			$data['webpage'] = $this->webpage->empty_row();
 
 
 

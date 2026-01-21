@@ -40,7 +40,7 @@ class MY_Controller extends CI_Controller
 					$this->load->model('ix_theme');
 
 					$theme_row = $this->ix_theme->get($domain->theme_id);
-					$this->_theme = $theme_row->shortname;
+					$this->_theme = $theme_row['shortname'];
 				}
 			}
 		}
