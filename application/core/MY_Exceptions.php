@@ -2,6 +2,8 @@
 
 class MY_Exceptions extends CI_Exceptions
 {
+	protected $api_only = true;
+
 	// 404 logging is intentionally disabled (we rely on server logs).
 	// Uncomment if you want CodeIgniter to log 404 errors.
 	public function show_404($page = '', $log_error = FALSE)
@@ -11,7 +13,7 @@ class MY_Exceptions extends CI_Exceptions
 
 	public function show_error($heading, $message, $template = 'error_general', $status_code = 500)
 	{
-		if ($this->validate_html_accept()) { 
+		if ($this->validate_html_accept()) {
 			return parent::show_error($heading, $message, $template, $status_code);
 		}
 
@@ -69,6 +71,12 @@ class MY_Exceptions extends CI_Exceptions
 				echo $k . ': ' . $v . "\r\n";
 			}
 		} else {
+			// If something already wrote to the output buffer, do not emit again.
+			// Prevents multiple JSON payloads in the response.
+			if (ob_get_length() > 0) {
+				return;
+			}
+
 			$this->_add_cors();
 
 			if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -79,6 +87,7 @@ class MY_Exceptions extends CI_Exceptions
 			}
 		}
 
+		// Stop normal execution; shutdown handlers may still run.
 		exit;
 	}
 
@@ -94,6 +103,10 @@ class MY_Exceptions extends CI_Exceptions
 
 	private function validate_html_accept()
 	{
+		if ($this->api_only === true) {
+			return false;
+		}
+
 		$acceptHeader = isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '';
 
 		// If the browser prefers HTML, call the parent method
@@ -114,7 +127,7 @@ class MY_Exceptions extends CI_Exceptions
 		if (empty($origin)) {
 			return;
 		}
-		
+
 		header('Access-Control-Allow-Origin: *');
 
 		if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
