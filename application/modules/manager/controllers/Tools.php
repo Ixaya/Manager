@@ -229,4 +229,15 @@ class $name extends MY_Model {
 
 		echo "$path model has successfully been created." . PHP_EOL;
 	}
+
+	public function cli_exec($module, $library, $function, $identifier = '')
+	{
+		if (!is_cli()) {
+			show_error('CLI only', 403);
+		}
+
+		$this->load->library('async_exec_lib');
+
+		$this->async_exec_lib->run_library_call($module, $library, $function, $identifier);
+	}
 }

@@ -3,6 +3,11 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 use Ahc\Jwt\JWT;
 
+/** 
+ * Add the following packages to composer:
+ * "adhocore/jwt": "^1.1"
+ */
+
 class Jwt_lib
 {
 	protected $jwt;

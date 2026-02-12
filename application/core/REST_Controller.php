@@ -1704,7 +1704,9 @@ abstract class REST_Controller extends MY_Controller
 		$valid_logins = $this->config->item('rest_valid_logins');
 
 		if (! $this->config->item('auth_source') && $rest_auth === 'digest') {
-			// For digest we do not have a password passed as argument
+			// Computes HA1 as required by RFC 2617 Section 3.2.2 for HTTP Digest Authentication.
+			// HA1 = MD5(username:realm:password) — this is the expected stored credential format,
+			// not a general-purpose password hash. MD5 is mandated by the protocol here.
 			return md5($username . ':' . $this->config->item('rest_realm') . ':' . (isset($valid_logins[$username]) ? $valid_logins[$username] : ''));
 		}
 
@@ -1831,6 +1833,7 @@ abstract class REST_Controller extends MY_Controller
 			$this->_force_login($unique_id);
 		}
 
+		// MD5 is required by RFC 7616 (HTTP Digest Authentication) — not used for password storage
 		$md5 = md5(strtoupper($this->request->method) . ':' . $digest['uri']);
 		$valid_response = md5($username . ':' . $digest['nonce'] . ':' . $digest['nc'] . ':' . $digest['cnonce'] . ':' . $digest['qop'] . ':' . $md5);
 
@@ -1908,6 +1911,8 @@ abstract class REST_Controller extends MY_Controller
 			header('WWW-Authenticate: Basic realm="' . $rest_realm . '"');
 		} elseif (strtolower($rest_auth) === 'digest') {
 			// See http://tools.ietf.org/html/rfc2617#page-18
+			// md5 used per RFC 2617 to generate the opaque token field — not security-sensitive,
+			// realm is already transmitted in plaintext in the same header
 			header(
 				'WWW-Authenticate: Digest realm="' . $rest_realm
 					. '", qop="auth", nonce="' . $nonce

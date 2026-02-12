@@ -48,6 +48,12 @@ function mngr_app_file_path()
 		return substr(APPPATH, 0, $app_path_pos + 4);
 	}
 
+	$public_path_pos = strpos(FCPATH, 'public/');
+	// Extract the base path including the 'public' folder
+	if ($public_path_pos !== false) {
+		return substr(FCPATH, 0, $public_path_pos);
+	}
+
 	$application_path_pos = strpos(APPPATH, 'application/');
 	// Extract the base path up to (but not including) the 'application' folder
 	if ($application_path_pos !== false) {
@@ -159,37 +165,36 @@ function mngr_get_temp_upload_path_key($field_name, $field_key, &$file_extension
  * @param string $field_name The name of the input field from the $_FILES array.
  * @param array|string|null &$file_extension Optional. Will be set to the file extension(s).
  * @param array|string|null &$file_type Optional. Will be set to the file MIME type(s).
- * 
- * @return array|string The temporary file path(s) of the uploaded file(s).
+ * @return array The temporary file path(s) of the uploaded file(s).
  */
 function mngr_get_temp_upload_paths($field_name, &$file_extension = null, &$file_type = null)
 {
-	if (!isset($_FILES[$field_name]['tmp_name'])) {
-		return '';
+	if (!isset($_FILES[$field_name]['tmp_name']) || empty($_FILES[$field_name]['tmp_name'])) {
+		return [];
 	}
 
-	if (is_array($_FILES[$field_name]['tmp_name'])) {
-		$temp_paths = [];
-		$extensions = [];
-		$types = [];
+	$temp_paths = [];
+	$extensions = [];
+	$types = [];
 
+	if (is_array($_FILES[$field_name]['tmp_name'])) {
 		foreach ($_FILES[$field_name]['tmp_name'] as $key => $tmp_file_path) {
+			if (empty($tmp_file_path)) continue;
+
 			$tmp_file_name = $_FILES[$field_name]['name'][$key];
 			$extensions[] = pathinfo($tmp_file_name, PATHINFO_EXTENSION);
 			$types[] = $_FILES[$field_name]['type'][$key];
 			$temp_paths[] = $tmp_file_path;
 		}
-
-		$file_extension = $extensions;
-		$file_type = $types;
-
-		return $temp_paths;
 	} else {
-		$tmp_file_path = $_FILES[$field_name]['tmp_name'];
 		$tmp_file_name = $_FILES[$field_name]['name'];
-		$file_extension = pathinfo($tmp_file_name, PATHINFO_EXTENSION);
-		$file_type = $_FILES[$field_name]['type'];
-
-		return $tmp_file_path;
+		$extensions[] = pathinfo($tmp_file_name, PATHINFO_EXTENSION);
+		$types[] = $_FILES[$field_name]['type'];
+		$temp_paths[] = $_FILES[$field_name]['tmp_name'];
 	}
+
+	$file_extension = $extensions;
+	$file_type = $types;
+
+	return $temp_paths;
 }

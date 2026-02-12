@@ -21,6 +21,11 @@ use function Amp\trapSignal;
 use function Amp\ByteStream\getStdout;
 use function Amp\Redis\createRedisConnector;
 
+final class Websocket_channel_regex
+{
+	public const ALLOWED = '/^[a-zA-Z0-9_\-:|]+$/';
+	public const SANITIZE = '/[^a-zA-Z0-9_\-:|]/';
+}
 
 /** 
  * Add the following packages to composer:
@@ -28,6 +33,7 @@ use function Amp\Redis\createRedisConnector;
  * "amphp/log": "^2.0",
  * "amphp/redis": "^2.0"
  */
+
 class Websocket_lib
 {
 	/** @var WebsocketClientGateway[] */
@@ -58,6 +64,8 @@ class Websocket_lib
 
 	public function generateLink($user_identifier = null, $channel = null)
 	{
+		$channel = preg_replace(Websocket_channel_regex::SANITIZE, '', $channel);
+
 		$jwtAudience = $this->config['jwt_audience'] ?? 'websocket';
 		$baseURL = $this->config['url'] ?? '';
 
@@ -67,7 +75,9 @@ class Websocket_lib
 		$_ci->load->library('jwt_lib');
 		$token = $_ci->jwt_lib->generate_token($user_identifier, $jwtAudience, ['user'], $channels);
 
-		return "{$baseURL}?channel={$channel}&token={$token}";
+		$channel_encoded = urlencode($channel);
+
+		return "{$baseURL}?channel={$channel_encoded}&token={$token}";
 	}
 
 	/**
@@ -351,6 +361,15 @@ class WebsocketsClientHandler implements WebsocketClientHandler
 			}
 
 			$channel = $this->sanitizeChannelName($params['channel']);
+			if ($channel == '') {
+				$this->sendMessage($client, [
+					'type' => 'error',
+					'message' => 'Invalid channel name',
+					'code' => 'INVALID_CHANNEL'
+				]);
+				$client->close();
+				return;
+			}
 
 			$token = $params['token'] ?? '';
 			if (!$this->validateToken($token, $channel)) {
@@ -473,8 +492,13 @@ class WebsocketsClientHandler implements WebsocketClientHandler
 	 */
 	private function sanitizeChannelName(string $channel): string
 	{
-		// Allow only alphanumeric, hyphens, and underscores
-		return preg_replace('/[^a-zA-Z0-9_-]/', '', $channel);
+		$channel = urldecode($channel);
+		// Allow only alphanumeric characters, hyphens, underscores, colons, and pipes
+		if (!preg_match(Websocket_channel_regex::ALLOWED, $channel)) {
+			return '';
+		}
+		
+		return $channel;
 	}
 
 	/**
