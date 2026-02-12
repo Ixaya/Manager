@@ -1,8 +1,10 @@
 <?php
 
-class Tools extends CI_Controller {
+class Tools extends CI_Controller
+{
 
-	public function __construct() {
+	public function __construct()
+	{
 		parent::__construct();
 
 		// can only be called from the command line
@@ -11,11 +13,13 @@ class Tools extends CI_Controller {
 		}
 	}
 
-	public function message($to = 'World') {
+	public function message($to = 'World')
+	{
 		echo "Hello {$to}!" . PHP_EOL;
 	}
 
-	public function help() {
+	public function help()
+	{
 		$result = "The following are the available command line interface commands\n\n";
 		$result .= "php index.php tools migration \"file_name\"		 Create new migration file\n";
 		$result .= "php index.php tools migrate [\"version_number\"]	Run all migrations. The version number is optional.\n";
@@ -24,16 +28,26 @@ class Tools extends CI_Controller {
 
 		echo $result . PHP_EOL;
 	}
-	public function generate_enc_key($length = 16){
+	public function generate_migration_timestamp(string $name)
+	{
+		$timestamp = date('YmdHis');
+
+		echo $timestamp . '_' . $name . ".php\r\n";
+	}
+
+	public function generate_enc_key($length = 16)
+	{
 		$this->load->library('encryption');
 		$key = bin2hex($this->encryption->create_key($length));
 		die($key);
 	}
-	public function migration($name) {
+	public function migration($name)
+	{
 		$this->make_migration_file($name);
 	}
 
-	public function migrate($version = null) {
+	public function migrate($version = null)
+	{
 		$migration_databases = $this->config->item('migration_db') ?? ['default'];
 		foreach ($migration_databases as $database) {
 			$this->migrate_database($database, $version);
@@ -43,7 +57,7 @@ class Tools extends CI_Controller {
 	public function migrate_database($connection_name = 'default', $version = null)
 	{
 		$this->load->dbforge();
-		
+
 		$migration_path = 'migrations/' . $connection_name;
 
 		// Configuration for this specific migration
@@ -72,30 +86,46 @@ class Tools extends CI_Controller {
 			echo "Migrations run successfully" . PHP_EOL;
 		}
 	}
-	public function seeder($name) {
+	public function seeder($name)
+	{
 		$this->make_seed_file($name);
 	}
 
-	public function seed($name) {
-		//Note: add "fzaninotto/faker" to composer
-		$this->faker = Faker\Factory::create();
+	public function seed($name)
+	{
+		//Note: add "fzaninotto/faker" to composer and uncomment
+		// $this->faker = Faker\Factory::create();
 
-		$seeder = new Seeder();
+		// $seeder = new Seeder();
 
-		$seeder->call($name);
+		// $seeder->call($name);
 	}
 
-	public function model($name) {
+	public function model($name)
+	{
 		$this->make_model_file($name);
 	}
 
-	protected function make_migration_file($name) {
+	protected function make_migration_file($name, $database = 'default', $module = '')
+	{
 		$date = new DateTime();
 		$timestamp = $date->format('YmdHis');
 
 		$table_name = strtolower($name);
 
-		$path = APPPATH . "database/migrations/$timestamp" . "_" . "$name.php";
+		if ($module == '') {
+			$base_path = APPPATH . "database/migrations/$database";
+		} else {
+			$base_path = APPPATH . "modules/$module/migrations/$database";
+		}
+
+		if (!is_dir($base_path)) {
+			if (!mkdir($base_path, 0755, true) && !is_dir($base_path)) {
+				throw new \RuntimeException('Unable to create migrations directory: ' . $base_path);
+			}
+		}
+
+		$path = "$base_path/{$timestamp}_{$name}.php";
 
 		$my_migration = fopen($path, "w") or die("Unable to create migration file!");
 
@@ -104,13 +134,13 @@ class Tools extends CI_Controller {
 class Migration_$name extends CI_Migration {
 
 	public function up() {
-		\$this->dbforge->add_field(array(
-			'id' => array(
+		\$this->dbforge->add_field([
+			'id' => [
 				'type' => 'INT',
 				'constraint' => 11,
 				'auto_increment' => TRUE
 			)
-		));
+		]];
 		\$this->dbforge->add_key('id', TRUE);
 		\$this->dbforge->create_table('$table_name');
 	}
@@ -128,7 +158,8 @@ class Migration_$name extends CI_Migration {
 		echo "$path migration has successfully been created." . PHP_EOL;
 	}
 
-	protected function make_seed_file($name) {
+	protected function make_seed_file($name)
+	{
 		$path = APPPATH . "database/seeds/$name.php";
 
 		$my_seed = fopen($path, "w") or die("Unable to create seed file!");
@@ -176,7 +207,8 @@ class $name extends Seeder {
 		echo "$path seeder has successfully been created." . PHP_EOL;
 	}
 
-	protected function make_model_file($name) {
+	protected function make_model_file($name)
+	{
 		$path = APPPATH . "modules/admin/models/$name.php";
 
 		$my_model = fopen($path, "w") or die("Unable to create model file!");
@@ -197,5 +229,4 @@ class $name extends MY_Model {
 
 		echo "$path model has successfully been created." . PHP_EOL;
 	}
-
 }

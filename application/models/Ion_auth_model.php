@@ -59,21 +59,21 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Where
 	 *
-	 * @var array
+	 * @var array|null
 	 **/
 	public $_ion_where = [];
 
 	/**
 	 * Select
 	 *
-	 * @var array
+	 * @var array|null
 	 **/
 	public $_ion_select = [];
 
 	/**
 	 * Like
 	 *
-	 * @var array
+	 * @var array|null
 	 **/
 	public $_ion_like = [];
 
@@ -338,7 +338,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Salt generation code taken from https://github.com/ircmaxell/password_compat/blob/master/lib/password.php
 	 *
-	 * @return void
+	 * @return string
 	 * @author Anthony Ferrera
 	 **/
 	public function salt()
@@ -406,7 +406,7 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * activate
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Mathew
 	 **/
 	public function activate($id, $code = false)
@@ -465,7 +465,7 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Deactivate
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Mathew
 	 **/
 	public function deactivate($id = NULL)
@@ -1220,7 +1220,7 @@ class Ion_auth_model extends CI_Model
 			}
 
 			// join and then run a where_in against the group ids
-			if (isset($groups) && !empty($groups)) {
+			if (!empty($groups)) {
 				$this->db->distinct();
 				$this->db->join(
 					$this->tables['users_groups'],
@@ -1922,7 +1922,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Set the message delimiters
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Ben Edmunds
 	 **/
 	public function set_message_delimiters($start_delimiter, $end_delimiter)
@@ -1938,7 +1938,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Set the error delimiters
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Ben Edmunds
 	 **/
 	public function set_error_delimiters($start_delimiter, $end_delimiter)
@@ -1954,7 +1954,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Set a message
 	 *
-	 * @return void
+	 * @return string
 	 * @author Ben Edmunds
 	 **/
 	public function set_message($message)
@@ -1971,7 +1971,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Get the messages
 	 *
-	 * @return void
+	 * @return string
 	 * @author Ben Edmunds
 	 **/
 	public function messages()
@@ -2013,7 +2013,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Clear messages
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Ben Edmunds
 	 **/
 	public function clear_messages()
@@ -2029,7 +2029,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Set an error message
 	 *
-	 * @return void
+	 * @return string
 	 * @author Ben Edmunds
 	 **/
 	public function set_error($error)
@@ -2044,7 +2044,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Get the error message
 	 *
-	 * @return void
+	 * @return string
 	 * @author Ben Edmunds
 	 **/
 	public function errors()
@@ -2086,7 +2086,7 @@ class Ion_auth_model extends CI_Model
 	 *
 	 * Clear Errors
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Ben Edmunds
 	 **/
 	public function clear_errors()

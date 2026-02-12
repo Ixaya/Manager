@@ -323,9 +323,9 @@ abstract class REST_Controller extends MY_Controller
 	/**
 	 * Information about the current API user
 	 *
-	 * @var object
+	 * @var object|null
 	 */
-	protected $_apiuser;
+	protected $_apiuser = null;
 
 	/**
 	 * Whether or not to perform a CORS check and apply CORS headers to the request

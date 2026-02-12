@@ -19,6 +19,13 @@
  *
  */
 
+/**
+ * @method $this where(array|string $key, mixed $value = null)
+ * @method string set_messagesss($message)
+ * @method bool set_error($error)
+ * @method bool clear_forgotten_password_code($code)
+ * @method object user($groups = NULL)
+ */
 class Ion_auth
 {
 	/**
@@ -347,7 +354,7 @@ class Ion_auth
 	/**
 	 * logout
 	 *
-	 * @return void
+	 * @return bool
 	 * @author Mathew
 	 **/
 	public function logout()

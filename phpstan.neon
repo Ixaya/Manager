@@ -1,10 +1,12 @@
 parameters:
     # Set the level of strictness
     level: 5
+    # Set a specific php version
+    # phpVersion: 80200
 
     # Limit processes in case of reduced ram requirement
     # parallel:
-    #     maximumNumberOfProcesses: 1
+    #      maximumNumberOfProcesses: 1
 
     # Prevent unmatched errors failing the test
     # reportUnmatchedIgnoredErrors: false
@@ -27,6 +29,8 @@ parameters:
 
     # Optionally, ignore errors in the vendor directory
     excludePaths:
+        analyseAndScan:
+            - vendor/*/system/core/compat/*
         analyse:
           - */views/*
           - vendor/
@@ -69,11 +73,12 @@ parameters:
         # - identifier: phpDoc.parseError
 
         # Level 4 – Low (style, clarity, optional improvement)
-        - identifier: isset.property
-        - identifier: isset.variable
-        - identifier: return.void
-        - identifier: method.void
+        ##- identifier: isset.property
+        ##- identifier: isset.variable
+        ##- identifier: return.void
+        ##- identifier: method.void
         # CI/Manager Baseline
+        ##- identifier: method.notFound
         - identifier: class.notFound
-        - identifier: method.notFound
+        - '#Call to an undefined method Ion_auth::.*#'
         - identifier: property.notFound

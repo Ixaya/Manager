@@ -1,0 +1,25 @@
+#/lib/systemd/system/websocket-{username}.service
+[Unit]
+Description=WebSocket Server for CI3
+After=network.target
+
+[Service]
+Type=simple
+User={username}
+Group={username}
+WorkingDirectory=/home/{username}/app
+ExecStart=/home/{username}/app/bin/cli_run.sh manager websockets serve
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=websocket
+
+# Security (optional but recommended)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

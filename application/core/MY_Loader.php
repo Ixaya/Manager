@@ -5,10 +5,10 @@ require APPPATH . "third_party/MX/Loader.php";
 class MY_Loader extends MX_Loader
 {
 	/** Load a module view **/
-	public $header_vars = false;
+	public $header_vars = [];
 	public function view($view, $vars = [], $return = FALSE)
 	{
-		if ($this->header_vars != false)
+		if ($this->header_vars !== [])
 			$vars = array_merge($vars, $this->header_vars);
 
 		list($path, $_view) = Modules::find($view, $this->_module, 'views/');

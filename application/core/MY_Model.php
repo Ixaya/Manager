@@ -19,7 +19,7 @@ class MY_Model extends CI_Model
 
 	protected $save_history = false;
 	protected $soft_delete = false;
-	protected $use_last_update = TRUE;
+	protected $use_last_update = true;
 
 	protected $lazy_connect = false;
 	protected $connected = false;
@@ -144,14 +144,16 @@ class MY_Model extends CI_Model
 		$this->override_id = NULL;
 	}
 
-	public function get($id, $fields = null)
+	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
+	public function get($id, $fields = null): ?array
 	{
 		$this->apply_common_filters($fields);
 
 		$this->my_db->where($this->primary_key, $id);
 		return $this->execute_row();
 	}
-	public function get_where($where, $fields = null)
+	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
+	public function get_where($where, $fields = null): ?array
 	{
 		$this->apply_common_filters($fields);
 
@@ -159,14 +161,41 @@ class MY_Model extends CI_Model
 		return $this->execute_row();
 	}
 
-	public function get_all($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '', $table = '')
+	/**
+	 * Get MIN and MAX values for a single field
+	 * 
+	 * @param string $field Field name to get min/max for
+	 * @param array $where Optional WHERE conditions
+	 * @return array<string, mixed> Object with min_{field} and max_{field} properties, or null if no results
+	 * 
+	 */
+	public function get_min_max($field, $where = [], $field_alias = ''): ?array
+	{
+		if ($field_alias === '') {
+			$field_alias = $field;
+		}
+
+		$fields = "MIN({$field}) as min_{$field_alias}, MAX({$field}) as max_{$field_alias}";
+
+		$this->apply_common_filters($fields);
+
+		if (!empty($where)) {
+			$this->my_db->where($where);
+		}
+
+		return $this->execute_row();
+	}
+
+	/* @return array Array of result rows, empty array if query fails or no results found */
+	public function get_all($fields = '', $where = [], $limit = '', $order_by = '', $group_by = ''): array
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
-		return $this->excecute_list($table);
+		return $this->excecute_list();
 	}
 
-	public function get_all_join($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left', $table = '')
+	/* @return array Array of result rows, empty array if query fails or no results found */
+	public function get_all_join($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '', $join_table = '', $join_where = '', $join_method = 'left'): array
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
@@ -183,10 +212,11 @@ class MY_Model extends CI_Model
 			}
 		}
 
-		return $this->excecute_list($table);
+		return $this->excecute_list();
 	}
 
-	public function get_all_like($fields = '', $where = array(), $limit = '', $order_by = '', $group_by = '', $table = '')
+	/* @return array Array of result rows, empty array if query fails or no results found */
+	public function get_all_like($fields = '', $where = array(), $limit = '', $order_by = '', $group_by = ''): array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
@@ -194,10 +224,11 @@ class MY_Model extends CI_Model
 			$this->my_db->like($where);
 		}
 
-		return $this->excecute_list($table);
+		return $this->excecute_list();
 	}
 
-	public function get_all_or_like($fields = '', $where = [], $limit = '', $order_by = '', $table = '')
+	/* @return array Array of result rows, empty array if query fails or no results found */
+	public function get_all_or_like($fields = '', $where = [], $limit = '', $order_by = ''): array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by);
 
@@ -205,10 +236,11 @@ class MY_Model extends CI_Model
 			$this->my_db->or_like($where);
 		}
 
-		return $this->excecute_list($table);
+		return $this->excecute_list();
 	}
 
-	public function get_all_in($field, $values = [], $limit = '', $order_by = '', $table = '')
+	/* @return array Array of result rows, empty array if query fails or no results found */
+	public function get_all_in($field, $values = [], $limit = '', $order_by = ''): array
 	{
 		$this->apply_list_filters('', [], $limit, $order_by);
 
@@ -216,16 +248,17 @@ class MY_Model extends CI_Model
 			$this->my_db->where_in($field, $values);
 		}
 
-		return $this->excecute_list($table);
+		return $this->excecute_list();
 	}
 
-	public function get_all_updated($last_update, $fields = '', $where = [], $limit = '', $order_by = '', $group_by = '', $table = '')
+	/* @return array Array of result rows, empty array if query fails or no results found */
+	public function get_all_updated($last_update, $fields = '', $where = [], $limit = '', $order_by = '', $group_by = ''): array
 	{
 		$where = ['last_update >' => $last_update];
-		return $this->get_all($fields, $where, $limit, $order_by, $group_by, $table);
+		return $this->get_all($fields, $where, $limit, $order_by, $group_by);
 	}
 
-	public function count_all($where = NULL)
+	public function count_all($where = NULL): int
 	{
 		$this->apply_common_filters();
 
@@ -242,7 +275,7 @@ class MY_Model extends CI_Model
 	}
 
 
-	public function insert($data)
+	public function insert($data): int|bool
 	{
 		$this->check_connect();
 
@@ -260,7 +293,7 @@ class MY_Model extends CI_Model
 		}
 	}
 
-	public function insert_bulk($rows)
+	public function insert_bulk($rows): int
 	{
 		if (empty($rows) || !is_array($rows)) {
 			return 0;
@@ -279,7 +312,7 @@ class MY_Model extends CI_Model
 		return $this->my_db->affected_rows();
 	}
 
-	public function update($data, $id)
+	public function update($data, $id): int|bool
 	{
 		$this->apply_alter_filters();
 		$this->set_alter_keys($data);
@@ -291,7 +324,7 @@ class MY_Model extends CI_Model
 
 		return $this->my_db->update($this->table_name, $data);
 	}
-	public function update_where($data, $where)
+	public function update_where($data, $where): int|bool
 	{
 		if (empty($where)) {
 			return false;
@@ -305,7 +338,7 @@ class MY_Model extends CI_Model
 		return $this->my_db->update($this->table_name, $data);
 	}
 
-	public function upsert($data, $id = null)
+	public function upsert($data, $id = null): int|bool
 	{
 		if ($id) {
 			if ($this->update($data, $id)) {
@@ -318,7 +351,7 @@ class MY_Model extends CI_Model
 		return FALSE;
 	}
 
-	public function upsert_where($data, $where, $insert_data = [])
+	public function upsert_where($data, $where, $insert_data = []): int|bool
 	{
 		$row = $this->get_where($where);
 
@@ -562,12 +595,12 @@ class MY_Model extends CI_Model
 		return preg_replace("/[^A-Za-z0-9_]/", '', $clean); // Remove special characters
 	}
 
-	public function get_hash($length = 13)
+	public function get_hash($length = 13): string
 	{
 		return mngr_generate_hash($length);
 	}
 
-	public function get_unique_hash($length = 13, $field = 'hash')
+	public function get_unique_hash($length = 13, $field = 'hash'): string
 	{
 		$hash = mngr_generate_hash($length);
 		$row = $this->by_hash($hash, $field);
@@ -577,13 +610,13 @@ class MY_Model extends CI_Model
 
 		return $hash;
 	}
-
-	public function by_hash($hash, $field = 'hash')
+	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
+	public function by_hash($hash, $field = 'hash'): ?array
 	{
 		return $this->get_where([$field => $hash]);
 	}
 
-	public function debug_query($return = false)
+	public function debug_query($return = false): ?string
 	{
 		$last_query = $this->my_db->last_query();
 		if ($return) {
@@ -592,6 +625,7 @@ class MY_Model extends CI_Model
 		}
 
 		echo $last_query;
+		return null;
 	}
 
 	public function set_database_time_zone($time_zone)
@@ -699,9 +733,9 @@ class MY_Model extends CI_Model
 	 * This is a helper method for get* methods that fetch a single record.
 	 * 
 	 * @param string $table The table name to query
-	 * @return array|object|null Associative array of the row, null if not found or query fails
+	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
-	private function execute_row($table = '')
+	private function execute_row($table = ''): ?array
 	{
 		if ($table !== '') {
 			$Q = $this->my_db->get($table);
@@ -716,7 +750,7 @@ class MY_Model extends CI_Model
 
 		// Uncomment for legacy mode
 		// $row = $this->legacy_mode ? $Q->row() : $Q->row_array();
-		$row = $Q->row();
+		$row = $Q->row_array();
 
 		$Q->free_result();
 		return $row;
@@ -733,7 +767,7 @@ class MY_Model extends CI_Model
 	 * @param string $table The table name to query
 	 * @return array Array of result rows, empty array if query fails or no results found
 	 */
-	private function excecute_list($table = '')
+	private function excecute_list($table = ''): array
 	{
 		if ($table !== '') {
 			$Q = $this->my_db->get($table);

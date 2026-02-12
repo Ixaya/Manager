@@ -30,7 +30,7 @@ class Rest_key_model extends CI_Model
 	 * Insert a key into the database
 	 *
 	 * @access public
-	 * @return void
+	 * @return bool
 	 */
 	public function add_key($data = [], $level = false, $returnKey = false, $device_uuid = null)
 	{
@@ -67,7 +67,7 @@ class Rest_key_model extends CI_Model
 	 * Remove a key from the database to stop it working
 	 *
 	 * @access public
-	 * @return void
+	 * @return bool
 	 */
 	public function delete_key($key)
 	{
@@ -87,7 +87,7 @@ class Rest_key_model extends CI_Model
 	 * Change the level
 	 *
 	 * @access public
-	 * @return void
+	 * @return bool
 	 */
 	public function set_key_level($key, $new_level)
 	{
@@ -106,7 +106,7 @@ class Rest_key_model extends CI_Model
 	 * Suspend a key
 	 *
 	 * @access public
-	 * @return void
+	 * @return bool
 	 */
 	public function suspend_key($key)
 	{
@@ -125,7 +125,7 @@ class Rest_key_model extends CI_Model
 	 * Regenerate a key
 	 *
 	 * @access public
-	 * @return void
+	 * @return bool
 	 */
 	public function regenerate_post($old_key)
 	{
