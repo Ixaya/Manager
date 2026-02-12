@@ -37,7 +37,7 @@ class MY_Cache_redis extends CI_Cache_redis
 	{
 		parent::__construct(); // runs all upstream logic
 
-		if (!isset($this->_redis)) {
+		if ($this->_redis === null) {
 			return;
 		}
 
@@ -69,13 +69,134 @@ class MY_Cache_redis extends CI_Cache_redis
 	{
 		if (is_array($data) or is_object($data)) {
 			$data = self::SERIALIZE_PREFIX . serialize($data);
-		}
-
+		}		
 		if ($ttl < 1) {
 			return $this->_redis->set($id, $data);
 		}
 
 		return $this->_redis->set($id, $data, $ttl);
+	}
+
+	/**
+	 * Save one or more items to a list (append-only).
+	 * TTL is reset on every call.
+	 *
+	 * @param string $id      Cache key
+	 * @param mixed  $data    Single string or array of strings
+	 * @param int    $ttl     Seconds (0 = no expiry)
+	 * @param bool   $prepend If true, add to beginning (lPush), if false add to end (rPush)
+	 * @return bool
+	 */
+	public function save_list($id, $data, $ttl = 60, $prepend = false)
+	{
+		$items = is_array($data) ? $data : [$data];
+
+		if ($prepend) {
+			$result = $this->_redis->lPush($id, ...$items);
+		} else {
+			$result = $this->_redis->rPush($id, ...$items);
+		}
+
+		if ($result === FALSE) {
+			return FALSE;
+		}
+
+		if ($ttl > 0) {
+			$this->_redis->expire($id, $ttl);
+		}
+
+		return TRUE;
+	}
+
+	/**
+	 * Save one or more items to a set (append-only).
+	 * TTL is reset on every call.
+	 *
+	 * @param string $id    Cache key
+	 * @param mixed  $data  Single string or array of strings
+	 * @param int    $ttl   Seconds (0 = no expiry)
+	 * @return bool
+	 */
+	public function save_set($id, $data, $ttl = 60)
+	{
+		$items = is_array($data) ? $data : [$data];
+		$result = $this->_redis->sAdd($id, ...$items);
+
+		if ($result === FALSE) {
+			return FALSE;
+		}
+
+		if ($ttl > 0) {
+			$this->_redis->expire($id, $ttl);
+		}
+
+		return TRUE;
+	}
+
+	/**
+	 * Add one or more members to a sorted set with explicit scores (append-only).
+	 * TTL is reset on every call.
+	 *
+	 * $data can be:
+	 *   - a single pair:  ['value' => 'foo', 'score' => 1.5]
+	 *   - multiple pairs: [['value' => 'foo', 'score' => 1.5], ['value' => 'bar', 'score' => 2.0]]
+	 *
+	 * @param string $id   Cache key
+	 * @param mixed  $data Single pair array or array of pairs
+	 * @param int    $ttl  Seconds (0 = no expiry)
+	 * @return bool
+	 */
+	public function save_zset($id, $data, $ttl = 60)
+	{
+		// Normalize: if it's a single ['value'=>..., 'score'=>...] wrap it
+		$items = isset($data['value']) ? [$data] : $data;
+
+		$result = TRUE;
+		foreach ($items as $item) {
+			if (! isset($item['value'], $item['score'])) {
+				return FALSE;
+			}
+
+			$result = $this->_redis->zAdd($id, (float) $item['score'], $item['value']) !== FALSE && $result;
+		}
+
+		if ($result === FALSE) {
+			return FALSE;
+		}
+
+		if ($ttl > 0) {
+			$this->_redis->expire($id, $ttl);
+		}
+
+		return TRUE;
+	}
+
+	/**
+	 * Set one or more fields in a hash (append-only, fields are upserted).
+	 * TTL is reset on every call.
+	 *
+	 * @param string $id   Cache key
+	 * @param array  $data Field map or single field pair
+	 * @param int    $ttl  Seconds (0 = no expiry)
+	 * @return bool
+	 */
+	public function save_hash($id, array $data, $ttl = 60)
+	{
+		if (empty($data)) {
+			return FALSE;
+		}
+
+		$result = $this->_redis->hMSet($id, $data);
+
+		if ($result === FALSE) {
+			return FALSE;
+		}
+
+		if ($ttl > 0) {
+			$this->_redis->expire($id, $ttl);
+		}
+
+		return TRUE;
 	}
 
 	/**
@@ -86,7 +207,73 @@ class MY_Cache_redis extends CI_Cache_redis
 	 */
 	public function delete($key)
 	{
-		return ($this->_redis->{static::$_delete_name}($key) !== 1);
+		return ($this->_redis->del($key) === 1);
+	}
+
+	/**
+	 * Remove one or more items from a collection (list/set/zset/hash).
+	 * Auto-detects the Redis type. Ignores string types (use delete() for those).
+	 * TTL is not modified.
+	 *
+	 * @param string $id    Cache key
+	 * @param mixed  $data  For list/set/zset: value(s) to remove
+	 *                      For hash: field name(s) to remove
+	 * @return int|false    Number of items removed, or FALSE on error
+	 */
+	public function delete_from($id, $data)
+	{
+		$type = $this->_redis->type($id);
+		$items = is_array($data) ? $data : [$data];
+
+		switch ($type) {
+			case Redis::REDIS_LIST:
+				$removed = 0;
+				foreach ($items as $item) {
+					$count = $this->_redis->lRem($id, $item, 0);
+					if ($count === FALSE) {
+						return FALSE;
+					}
+					$removed += $count;
+				}
+				return $removed;
+
+			case Redis::REDIS_SET:
+				return $this->_redis->sRem($id, ...$items);
+
+			case Redis::REDIS_ZSET:
+				return $this->_redis->zRem($id, ...$items);
+
+			case Redis::REDIS_HASH:
+			case Redis::REDIS_STRING:
+			case Redis::REDIS_NOT_FOUND:
+				return FALSE;
+
+			default:
+				return FALSE;
+		}
+	}
+
+	/**
+	 * Remove one or more fields from a hash.
+	 * TTL is not modified.
+	 *
+	 * @param string $id     Cache key
+	 * @param array  $fields Field names to remove
+	 * @return int|false     Number of fields removed, or FALSE on error
+	 */
+	public function delete_hash_fields($id, $fields)
+	{
+		$type = $this->_redis->type($id);
+		switch ($type) {
+			case Redis::REDIS_HASH:
+				return $this->_redis->hDel($id, ...$fields);
+
+			case Redis::REDIS_NOT_FOUND:
+				return 0;  // Key doesn't exist, nothing to delete
+
+			default:
+				return FALSE;  // Wrong type
+		}
 	}
 
 	/**
@@ -97,13 +284,40 @@ class MY_Cache_redis extends CI_Cache_redis
 	 */
 	public function get($key)
 	{
-		$value = $this->_redis->get($key);
+		$type = $this->_redis->type($key);
 
-		if (str_starts_with($value, self::SERIALIZE_PREFIX)) {
-			return unserialize(substr($value, strlen(self::SERIALIZE_PREFIX)));
+		switch ($type) {
+
+			case Redis::REDIS_STRING:
+				$value = $this->_redis->get($key);
+
+				if (
+					is_string($value) &&
+					str_starts_with($value, self::SERIALIZE_PREFIX)
+				) {
+					return unserialize(
+						substr($value, strlen(self::SERIALIZE_PREFIX))
+					);
+				}
+
+				return $value;
+
+			case Redis::REDIS_HASH:
+				return $this->_redis->hGetAll($key);
+
+			case Redis::REDIS_LIST:
+				return $this->_redis->lRange($key, 0, -1);
+
+			case Redis::REDIS_SET:
+				return $this->_redis->sMembers($key);
+
+			case Redis::REDIS_ZSET:
+				return $this->_redis->zRange($key, 0, -1, true);
+				// returns member => score
+
+			default:
+				return null;
 		}
-
-		return $value;
 	}
 
 	/**
@@ -115,7 +329,7 @@ class MY_Cache_redis extends CI_Cache_redis
 	 */
 	public function publish($channel, $message)
 	{
-		if (!isset($this->_redis)) {
+		if ($this->_redis === null) {
 			return -1;
 		}
 
@@ -147,7 +361,7 @@ class MY_Cache_redis extends CI_Cache_redis
 	 */
 	public function subscribe($channels, $callback)
 	{
-		if (!isset($this->_redis)) {
+		if ($this->_redis === null) {
 			return;
 		}
 
@@ -185,7 +399,7 @@ class MY_Cache_redis extends CI_Cache_redis
 	 */
 	public function psubscribe($patterns, $callback)
 	{
-		if (!isset($this->_redis)) {
+		if ($this->_redis === null) {
 			return;
 		}
 

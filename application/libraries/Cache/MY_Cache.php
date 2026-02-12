@@ -53,15 +53,143 @@ class MY_Cache extends CI_Cache
 			log_message('debug', "Cache save: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
 		}
 
-		if ($encoding !== NULL && $encoding !== 'none') {
+		if ($encoding !== 'none') {
 			$data = $this->_serialize($data, $encoding);
 			if ($data === FALSE) {
-				log_message('error', "Cache serialization failed for key: {$id}");
 				return FALSE;
 			}
 		}
 
 		return parent::save($id, $data, $ttl, $raw);
+	}
+
+	/**
+	 * Save one or more items to a list (append-only).
+	 * TTL is reset on every call.
+	 *
+	 * @param string $id       Cache key
+	 * @param mixed  $data     Single item or array of items
+	 * @param int    $ttl      Seconds (0 = no expiry, NULL = use default)
+	 * @param string $encoding Serialization method (NULL = use default, 'none' = no serialization)
+	 * @param bool   $prepend If true, add to beginning (lPush), if false add to end (rPush)
+	 * @return bool
+	 */
+	public function save_list($id, $data, $ttl = NULL, $encoding = NULL, $prepend = false)
+	{
+		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
+		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+
+		if ($this->enable_logging) {
+			log_message('debug', "Cache save_list: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
+		}
+
+		$items = $this->_serialize_collection($data, $encoding);
+
+		if ($items === FALSE) {
+			return FALSE;
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'save_list')) {
+			return $this->{$this->_adapter}->save_list($id, $items, $ttl, $prepend);
+		}
+
+		log_message('error', "Driver does not support save_list method");
+		return FALSE;
+	}
+
+	/**
+	 * Save one or more items to a set (append-only).
+	 * TTL is reset on every call.
+	 *
+	 * @param string $id       Cache key
+	 * @param mixed  $data     Single item or array of items
+	 * @param int    $ttl      Seconds (0 = no expiry, NULL = use default)
+	 * @param string $encoding Serialization method (NULL = use default, 'none' = no serialization)
+	 * @return bool
+	 */
+	public function save_set($id, $data, $ttl = NULL, $encoding = NULL)
+	{
+		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
+		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+
+		if ($this->enable_logging) {
+			log_message('debug', "Cache save_set: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
+		}
+
+		$items = $this->_serialize_collection($data, $encoding);
+
+		if ($items === FALSE) {
+			return FALSE;
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'save_set')) {
+			return $this->{$this->_adapter}->save_set($id, $items, $ttl);
+		}
+
+		log_message('error', "Driver does not support save_set method");
+		return FALSE;
+	}
+
+	/**
+	 * Save one or more items to a zset with auto-timestamp scores (append-only).
+	 * TTL is reset on every call.
+	 *
+	 * @param string $id       Cache key
+	 * @param mixed  $data     Single item or array of items
+	 * @param int    $ttl      Seconds (0 = no expiry, NULL = use default)
+	 * @param string $encoding Serialization method (NULL = use default, 'none' = no serialization)
+	 * @return bool
+	 */
+	public function save_zset($id, $data, $ttl = NULL, $encoding = NULL)
+	{
+		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
+		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+
+		if ($this->enable_logging) {
+			log_message('debug', "Cache save_zset: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
+		}
+
+		$items = $this->_serialize_collection($data, $encoding);
+
+		if ($items === FALSE) {
+			return FALSE;
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'save_zset')) {
+			return $this->{$this->_adapter}->save_zset($id, $items, 'zset', $ttl);
+		}
+
+		log_message('error', "Driver does not support save_zset method");
+		return FALSE;
+	}
+
+	/**
+	 * Set one or more fields in a hash (append-only, fields are upserted).
+	 * TTL is reset on every call.
+	 *
+	 * @param string $id   Cache key
+	 * @param array  $data Field map or single field pair
+	 * @param int    $ttl  Seconds (0 = no expiry)
+	 * @return bool
+	 */
+	public function save_hash($id, array $data, $ttl = NULL)
+	{
+		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
+
+		if ($this->enable_logging) {
+			log_message('debug', "Cache save_hash: {$id}, TTL: {$ttl}");
+		}
+
+		if (empty($data)) {
+			return FALSE;
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'save_hash')) {
+			return $this->{$this->_adapter}->save_hash($id, $data, $ttl);
+		}
+
+		log_message('error', "Driver does not support save_hash method");
+		return FALSE;
 	}
 
 	/**
@@ -108,6 +236,55 @@ class MY_Cache extends CI_Cache
 		}
 
 		return parent::delete($id);
+	}
+
+	/**
+	 * Remove one or more items from a collection (list/set/zset).
+	 * Auto-detects the Redis type. Values are serialized before removal.
+	 * TTL is not modified.
+	 *
+	 * @param string $id       Cache key
+	 * @param mixed  $data     Value(s) to remove
+	 * @param string $encoding Serialization method (NULL = use default, 'none' = no serialization)
+	 * @return int|false       Number of items removed, or FALSE on error
+	 */
+	public function delete_from($id, $data, $encoding = NULL)
+	{
+		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+
+		// Serialize the values we're looking for (must match what was stored)
+		$items = $this->_serialize_collection($data, $encoding);
+
+		if ($items === FALSE) {
+			return FALSE;
+		}
+
+		if (method_exists($this->{$this->_adapter}, 'delete_from')) {
+			return $this->{$this->_adapter}->delete_from($id, $items);
+		}
+
+		log_message('error', "Driver does not support delete_from method");
+		return FALSE;
+	}
+
+	/**
+	 * Remove one or more fields from a hash.
+	 * TTL is not modified.
+	 *
+	 * @param string $id     Cache key
+	 * @param mixed  $fields Single field name or array of field names (strings)
+	 * @return int|false     Number of fields removed, or FALSE on error
+	 */
+	public function delete_hash_fields($id, $fields)
+	{
+		$fields = is_array($fields) ? $fields : [$fields];
+		
+		if (method_exists($this->{$this->_adapter}, 'delete_hash_fields')) {
+			return $this->{$this->_adapter}->delete_hash_fields($id, $fields);
+		}
+
+		log_message('error', "Driver does not support delete_hash_fields method");
+		return FALSE;
 	}
 
 	/**
@@ -169,6 +346,33 @@ class MY_Cache extends CI_Cache
 	}
 
 	/**
+	 * Serialize all items in a collection.
+	 *
+	 * @param mixed  $data    Array of items to serialize
+	 * @param string $encoding Serialization method
+	 * @return array|false     Serialized items array, or FALSE on error
+	 */
+	private function _serialize_collection($data, $encoding)
+	{
+		$items = (is_array($data) && array_is_list($data)) ? $data : [$data];
+
+		if ($encoding === 'none') {
+			return $items;
+		}
+
+		$serialized = [];
+		foreach ($items as $item) {
+			$serialized_item = $this->_serialize($item, $encoding);
+			if ($serialized_item === FALSE) {
+				return FALSE;
+			}
+			$serialized[] = $serialized_item;
+		}
+
+		return $serialized;
+	}
+
+	/**
 	 * Serialize data based on encoding type
 	 *
 	 * @param mixed $data
@@ -178,7 +382,7 @@ class MY_Cache extends CI_Cache
 	private function _serialize($data, $encoding)
 	{
 		try {
-			if ($encoding == null) {
+			if ($data === '' || $encoding === 'none') {
 				return $data;
 			}
 
@@ -198,8 +402,7 @@ class MY_Cache extends CI_Cache
 						return MessagePack\MessagePack::pack($data);
 					}
 
-					log_message('error', 'msgpack extension not available, falling back to JSON');
-					return json_encode($data);
+					throw new RuntimeException('msgpack extension not available. Install with: pecl install msgpack');
 
 				case 'php':
 					return serialize($data);
@@ -223,7 +426,7 @@ class MY_Cache extends CI_Cache
 	private function _unserialize($data, $encoding)
 	{
 		try {
-			if ($data === '' || !is_string($data) || $encoding == null) {
+			if ($data === '' || !is_string($data) || $encoding === 'none') {
 				return $data;
 			}
 
@@ -246,8 +449,8 @@ class MY_Cache extends CI_Cache
 					if (class_exists('MessagePack\MessagePack')) {
 						return MessagePack\MessagePack::unpack($data);
 					}
-					log_message('error', 'msgpack extension not available');
-					return FALSE;
+
+					throw new RuntimeException('msgpack extension not available. Install with: pecl install msgpack');
 
 				case 'php':
 					return unserialize($data);
@@ -257,7 +460,7 @@ class MY_Cache extends CI_Cache
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Cache unserialization exception: ' . $e->getMessage());
-			return FALSE;
+			return $data;
 		}
 	}
 }
