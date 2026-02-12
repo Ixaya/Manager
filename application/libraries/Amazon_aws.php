@@ -477,9 +477,11 @@ class Amazon_aws
 
 			if (isset($result['output']['message']['content'][0]['text'])) {
 				return $result['output']['message']['content'][0]['text'];
-			} else {
-				return ['error' => 'No response from AWS'];
+			} else if (!empty($result->getMessages()[0]->getContent())) {
+				return $result->getMessages()[0]->getContent();
 			}
+
+			return ['error' => 'No response from AWS'];
 		} catch (AwsException $e) {
 			// Manejo de errores
 			log_message('ERROR', json_encode($e->getMessage()));
@@ -521,42 +523,42 @@ class Amazon_aws
 
 	private function build_s3_client()
 	{
-		return new S3Client([
-			'version' => 'latest',
-			'region'  => $this->aws_region,
-			'credentials' => $this->build_credentials()
-		]);
+		return new S3Client($this->build_config());
 	}
 
 	private function build_textract_client()
 	{
-		return new TextractClient([
-			'version' => 'latest',
-			'region'  => $this->aws_region,
-			'credentials' => $this->build_credentials()
-		]);
+		return new TextractClient($this->build_config());
 	}
 
 	private function build_bedrock_client()
 	{
-		return new BedrockRuntimeClient([
-			'version' => 'latest',
-			'region'  => $this->aws_region,
-			'credentials' => $this->build_credentials()
-		]);
+		return new BedrockRuntimeClient($this->build_config());
 	}
 
 	private function build_cf_client()
 	{
-		return new CloudFrontClient([
-			'version'     => 'latest',
-			'region'      => $this->aws_region,
-			'credentials' => $this->build_credentials()
-		]);
+		return new CloudFrontClient($this->build_config());
 	}
+	private function build_config()
+	{
+		$config = [
+			'version' => 'latest',
+			'region'  => $this->aws_region,
+		];
 
+		if ($credentials = $this->build_credentials()) {
+			$config['credentials'] = $credentials;
+		}
+
+		return $config;
+	}
 	private function build_credentials()
 	{
-		return new Credentials($this->aws_accesskey, $this->aws_secretkey);
+		if (!empty($this->aws_accesskey) && !empty($this->aws_secretkey)) {
+			return new Credentials($this->aws_accesskey, $this->aws_secretkey);
+		}
+
+		return null;
 	}
 }

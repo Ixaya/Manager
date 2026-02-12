@@ -11,5 +11,6 @@ $config['default']['aws_cloud_front_id']  = mngr_env('LIB_AWS_CLOUD_FRONT_ID', n
 
 $config['default']['aws_bedrock_model_id'] = mngr_env('LIB_AWS_BEDROCK_MODEL_ID', null);
 
+// Leave null if using EC2 AMI Role
 $config['default']['aws_accesskey']       = mngr_env('LIB_AWS_ACCESSKEY', null);
 $config['default']['aws_secretkey']       = mngr_env('LIB_AWS_SECRETKEY', null);
