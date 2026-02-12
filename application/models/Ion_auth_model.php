@@ -22,6 +22,11 @@
 class Ion_auth_model extends CI_Model
 {
 	/**
+	 * Max password size constant
+	 */
+	const MAX_PASSWORD_SIZE_BYTES = 4096;
+
+	/**
 	 * Holds an array of tables used
 	 *
 	 * @var array
@@ -162,18 +167,15 @@ class Ion_auth_model extends CI_Model
 	protected $_cache_groups = [];
 
 	//Dynamic properties
-	public $identity_column;
-	private $identity_extra_columns;
-	private $store_salt;
-	private $salt_length;
-	private $join;
-	private $hash_method;
-	private $default_rounds;
-	private $random_rounds;
-	private $min_rounds;
-	private $max_rounds;
-	private $message_start_delimiter;
-	private $message_end_delimiter;
+	public  string $identity_column;
+	private ?array $identity_extra_columns;
+	private bool $store_salt;
+	private int $salt_length;
+	private array $join;
+	private string $hash_method;
+	private ?array $hash_config;
+	private string $message_start_delimiter;
+	private string $message_end_delimiter;
 
 	public function __construct()
 	{
@@ -197,10 +199,7 @@ class Ion_auth_model extends CI_Model
 
 		// initialize hash method options (Bcrypt)
 		$this->hash_method = $this->config->item('hash_method', 'ion_auth');
-		$this->default_rounds = $this->config->item('default_rounds', 'ion_auth');
-		$this->random_rounds = $this->config->item('random_rounds', 'ion_auth');
-		$this->min_rounds = $this->config->item('min_rounds', 'ion_auth');
-		$this->max_rounds = $this->config->item('max_rounds', 'ion_auth');
+		$this->hash_config = $this->config->item('hash_config', 'ion_auth');
 
 
 		// initialize messages and error
@@ -236,19 +235,6 @@ class Ion_auth_model extends CI_Model
 		// initialize our hooks object
 		$this->_ion_hooks = new stdClass;
 
-		// load the bcrypt class if needed
-		if ($this->hash_method == 'bcrypt') {
-			if ($this->random_rounds) {
-				$rand = rand($this->min_rounds, $this->max_rounds);
-				$params = array('rounds' => $rand);
-			} else {
-				$params = array('rounds' => $this->default_rounds);
-			}
-
-			$params['salt_prefix'] = $this->config->item('salt_prefix', 'ion_auth');
-			$this->load->library('bcrypt', $params);
-		}
-
 		$this->trigger_events('model_constructor');
 	}
 
@@ -266,19 +252,24 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Hashes the password to be stored in the database.
 	 *
-	 * @return string
+	 * @return false|string
 	 * @author Mathew
 	 **/
 	public function hash_password($password, $salt = false, $use_sha1_override = FALSE)
 	{
-		if (empty($password)) {
-			return '';
+		// Check for empty password, or password containing null char, or password above limit
+		// Null char may pose issue: http://php.net/manual/en/function.password-hash.php#118603
+		// Long password may pose DOS issue (note: strlen gives size in bytes and not in multibyte symbol)
+		if (
+			empty($password) || strpos($password, "\0") !== false ||
+			strlen($password) > self::MAX_PASSWORD_SIZE_BYTES
+		) {
+			return false;
 		}
 
-		// CWE-916
-		// bcrypt handles salting internally
-    	// $salt and $use_sha1_override parameters are deprecated and ignored
-		return $this->bcrypt->hash($password);
+		$hash_method = $this->get_hash_method_const();
+		$hash_config = $this->hash_config ?? [];
+		return password_hash($password, $hash_method, $hash_config);
 	}
 
 	/**
@@ -302,20 +293,24 @@ class Ion_auth_model extends CI_Model
 			->order_by('id', 'desc')
 			->get($this->tables['users']);
 
-		$hash_password_db = $query->row();
+		$hash_password_row = $query->row();
 
 		if ($query->num_rows() !== 1) {
 			return FALSE;
 		}
 
-		// CWE-916
-		// bcrypt handles salting internally
-    	// $salt and $use_sha1_override parameters are deprecated and ignored
-		if ($this->bcrypt->verify($password, $hash_password_db->password)) {
-			return TRUE;
+		$hash_password_db = $hash_password_row->password;
+		// Check for empty id or password, or password containing null char, or password above limit
+		// Null char may pose issue: http://php.net/manual/en/function.password-hash.php#118603
+		// Long password may pose DOS issue (note: strlen gives size in bytes and not in multibyte symbol)
+		if (
+			empty($hash_password_db) || strpos($password, "\0") !== false
+			|| strlen($password) > self::MAX_PASSWORD_SIZE_BYTES
+		) {
+			return false;
 		}
 
-		return FALSE;
+		return password_verify($password, $hash_password_db);
 	}
 
 	/**
@@ -357,7 +352,7 @@ class Ion_auth_model extends CI_Model
 			}
 		}
 
-		if (!$buffer_valid && file_exists('/dev/urandom') && is_readable('/dev/urandom')){
+		if (!$buffer_valid && file_exists('/dev/urandom') && is_readable('/dev/urandom')) {
 			$f = fopen('/dev/urandom', 'r');
 			$read = strlen($buffer);
 			while ($read < $raw_salt_len) {
@@ -934,14 +929,15 @@ class Ion_auth_model extends CI_Model
 					return FALSE;
 				}
 
-				if ($returnUser)
-					return $user;
-
-				$this->set_session($user);
-
 				$this->update_last_login($user->id);
 
 				$this->clear_login_attempts($identity);
+
+				if ($returnUser){
+					return $user;
+				}
+
+				$this->set_session($user);
 
 				if ($remember && $this->config->item('remember_users', 'ion_auth')) {
 					$this->remember_user($user->id);
@@ -1296,12 +1292,12 @@ class Ion_auth_model extends CI_Model
 	 * @return object
 	 * @author Ben Edmunds
 	 **/
-	public function user($id = NULL)
+	public function user($id)
 	{
 		$this->trigger_events('user');
 
 		// if no id was passed use the current users id
-		$id = isset($id) ? $id : $this->session->userdata('user_id');
+		$id = $id;
 
 		$this->limit(1);
 		$this->order_by($this->tables['users'] . '.id', 'desc');
@@ -1318,12 +1314,9 @@ class Ion_auth_model extends CI_Model
 	 * @return array
 	 * @author Ben Edmunds
 	 **/
-	public function get_users_groups($id = FALSE)
+	public function get_users_groups($id)
 	{
 		$this->trigger_events('get_users_group');
-
-		// if no id was passed use the current users id
-		$id || $id = $this->session->userdata('user_id');
 
 		return $this->db->select($this->tables['users_groups'] . '.' . $this->join['groups'] . ' as id, ' . $this->tables['groups'] . '.name, ' . $this->tables['groups'] . '.level, ' . $this->tables['groups'] . '.description')
 			->where($this->tables['users_groups'] . '.' . $this->join['users'], $id)
@@ -1337,12 +1330,9 @@ class Ion_auth_model extends CI_Model
 	 * @return int
 	 * @author Ben Edmunds
 	 **/
-	public function add_to_group($group_ids, $user_id = false)
+	public function add_to_group($group_ids, $user_id)
 	{
 		$this->trigger_events('add_to_group');
-
-		// if no id was passed use the current users id
-		$user_id || $user_id = $this->session->userdata('user_id');
 
 		if (!is_array($group_ids)) {
 			$group_ids = array($group_ids);
@@ -2117,5 +2107,23 @@ class Ion_auth_model extends CI_Model
 	{
 		// just return the string IP address now for better compatibility
 		return $ip_address;
+	}
+
+	/**
+	 * Retrieve hash algorithm according to options
+	 *
+	 * @return string|null
+	 */
+	protected function get_hash_method_const(): string|null
+	{
+		switch ($this->hash_method) {
+			case 'bcrypt':
+				return PASSWORD_BCRYPT;
+
+			case 'argon2':
+				return PASSWORD_ARGON2ID;
+		}
+
+		return null;
 	}
 }

@@ -24,7 +24,6 @@
  * @method string set_messagesss($message)
  * @method bool set_error($error)
  * @method bool clear_forgotten_password_code($code)
- * @method object user($groups = NULL)
  */
 class Ion_auth
 {
@@ -434,6 +433,18 @@ class Ion_auth
 		return null;
 	}
 
+	/**
+	 * user
+	 *
+	 * @return object
+	 * @author Ben Edmunds
+	 **/
+	public function user(?int $id = null)
+	{
+		$id = $id ?? $this->get_user_id();
+
+		return $this->ion_auth_model->user($id);
+	}
 
 	/**
 	 * is_admin
@@ -441,8 +452,10 @@ class Ion_auth
 	 * @return bool
 	 * @author Ben Edmunds
 	 **/
-	public function is_admin($id = false)
+	public function is_admin(?int $id = null)
 	{
+		$id = $id ?? $this->get_user_id();
+
 		$this->ion_auth_model->trigger_events('is_admin');
 
 		$admin_group = $this->config->item('admin_group', 'ion_auth');
@@ -454,17 +467,17 @@ class Ion_auth
 	 * in_group
 	 *
 	 * @param mixed $check_group Group(s) to check
-	 * @param int|bool $id User ID
+	 * @param int|null $id User ID
 	 * @param bool $check_all Check if all groups are present, or any of the groups
 	 *
 	 * @return bool
 	 * @author Phil Sturgeon
 	 */
-	public function in_group($check_group, $id = false, $check_all = false)
+	public function in_group($check_group, ?int $id = null, $check_all = false)
 	{
 		$this->ion_auth_model->trigger_events('in_group');
 
-		$id || $id = $this->get_user_id();
+		$id = $id ?? $this->get_user_id();
 
 		if (!is_array($check_group)) {
 			$check_group = array($check_group);
