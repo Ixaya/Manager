@@ -1,5 +1,17 @@
 <?php (defined('BASEPATH')) or exit('No direct script access allowed');
 
+class MY_Model_Clause
+{
+	public const EQUAL = 'equal';
+	public const OR_EQUAL = 'or_equal';
+	public const LIKE = 'like';
+	public const OR_LIKE = 'or_like';
+	public const WHERE_IN = 'where_in';
+	public const OR_WHERE_IN = 'or_where_in';
+	public const GROUP = 'group';
+	public const OR_GROUP = 'or_group';
+}
+
 class MY_Model extends CI_Model
 {
 	protected $my_db = null;
@@ -163,11 +175,11 @@ class MY_Model extends CI_Model
 
 	/**
 	 * Get MIN and MAX values for a single field
-	 * 
+	 *
 	 * @param string $field Field name to get min/max for
 	 * @param array $where Optional WHERE conditions
 	 * @return array<string, mixed> Object with min_{field} and max_{field} properties, or null if no results
-	 * 
+	 *
 	 */
 	public function get_min_max($field, $where = [], $field_alias = ''): ?array
 	{
@@ -246,6 +258,41 @@ class MY_Model extends CI_Model
 
 		if (!empty($values)) {
 			$this->my_db->where_in($field, $values);
+		}
+
+		return $this->excecute_list();
+	}
+
+	/* @return array Array of result rows, empty array if query fails or no results found */
+	public function get_all_dynamic($fields = '', $where = [], $limit = '', $order_by = ''): array
+	{
+		$this->apply_list_filters($fields, [], $limit, $order_by);
+
+		if (!empty($where)) {
+			foreach ($where as $kind => $data) {
+				switch ($kind) {
+					case MY_Model_Clause::GROUP:
+						$this->my_db->group_start(); // Opens (
+						foreach ($data as $kind => $fields) {
+							$this->apply_where_condition($kind, $fields);
+						}
+						$this->my_db->group_end(); // Closes )
+						break;
+
+					case MY_Model_Clause::OR_GROUP:
+						$this->my_db->or_group_start(); // Opens OR (
+						foreach ($data as $kind => $fields) {
+							$this->apply_where_condition($kind, $fields);
+						}
+						$this->my_db->group_end();
+						break;
+
+					default:
+						// Regular conditions without grouping
+						$this->apply_where_condition($kind, $data);
+						break;
+				}
+			}
 		}
 
 		return $this->excecute_list();
@@ -638,12 +685,12 @@ class MY_Model extends CI_Model
 
 	/**
 	 * Apply common filters to all queries
-	 * 
+	 *
 	 * Ensures database connection is established and applies standard WHERE conditions
 	 * that should be present in all queries:
 	 * - Override conditions from $this->where_override (e.g., tenant filtering, user scope)
 	 * - Soft delete filter to exclude deleted records (if enabled)
-	 * 
+	 *
 	 * @param string $fields Comma-separated field names for SELECT clause (empty = SELECT *)
 	 * @return void
 	 */
@@ -667,13 +714,13 @@ class MY_Model extends CI_Model
 	/**
 	 * Apply common filters for list/collection queries
 	 * Includes field selection, where conditions, pagination, sorting, and grouping
-	 * 
+	 *
 	 * @param string $fields Comma-separated field names for SELECT clause (empty = SELECT *)
 	 * @param array $where Additional WHERE conditions as associative array
 	 * @param string $limit LIMIT clause (e.g., "10" or "10, 20" for offset)
 	 * @param string $order_by ORDER BY clause (e.g., "created_at DESC")
 	 * @param string $group_by GROUP BY clause (e.g., "category_id")
-	 * 
+	 *
 	 */
 	private function apply_list_filters($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '')
 	{
@@ -701,7 +748,7 @@ class MY_Model extends CI_Model
 	 *
 	 * Ensures operations respect override column for data isolation
 	 * Also applies where_override if set
-	 * 
+	 *
 	 */
 	private function apply_alter_filters()
 	{
@@ -727,11 +774,11 @@ class MY_Model extends CI_Model
 
 	/**
 	 * Execute a single-row query and return result safely
-	 * 
+	 *
 	 * Executes the built query on the specified table, handles query failures gracefully,
 	 * frees memory after fetching the result, and returns data as an associative array.
 	 * This is a helper method for get* methods that fetch a single record.
-	 * 
+	 *
 	 * @param string $table The table name to query
 	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
@@ -758,12 +805,12 @@ class MY_Model extends CI_Model
 
 	/**
 	 * Execute a list query and return results safely
-	 * 
+	 *
 	 * Executes the built query on the specified table, handles query failures gracefully,
 	 * frees memory after fetching results, and returns data as an array.
 	 * This is a helper method for get_all* methods that need to execute queries
 	 * with different WHERE conditions (LIKE, IN, BETWEEN, etc.)
-	 * 
+	 *
 	 * @param string $table The table name to query
 	 * @return array Array of result rows, empty array if query fails or no results found
 	 */
@@ -782,5 +829,41 @@ class MY_Model extends CI_Model
 		$Q->free_result();
 
 		return $data;
+	}
+
+	/**
+	 * Apply a where condition based on MY_Model_Clause type
+	 */
+	private function apply_where_condition(string $kind, $fields): void
+	{
+		switch ($kind) {
+			case MY_Model_Clause::EQUAL:
+				$this->my_db->where($fields);
+				break;
+
+			case MY_Model_Clause::OR_EQUAL:
+				$this->my_db->or_where($fields);
+				break;
+
+			case MY_Model_Clause::LIKE:
+				$this->my_db->like($fields);
+				break;
+
+			case MY_Model_Clause::OR_LIKE:
+				$this->my_db->or_like($fields);
+				break;
+
+			case MY_Model_Clause::WHERE_IN:
+				foreach ($fields as $field => $values) {
+					$this->my_db->where_in($field, $values);
+				}
+				break;
+
+			case MY_Model_Clause::OR_WHERE_IN:
+				foreach ($fields as $field => $values) {
+					$this->my_db->or_where_in($field, $values);
+				}
+				break;
+		}
 	}
 }

@@ -145,3 +145,30 @@ function mngr_build_limit_page($limit, $page)
 
 	return "{$limit}, {$offset}";
 }
+
+/**
+ * Build ORDER BY clause with validation
+ * 
+ * @param string|null $order_column Column name to order by
+ * @param string|null $order_direction Sort direction (ASC/DESC)
+ * @param array|null $order_columns Allowed columns (associative for aliases, indexed for direct)
+ * @return string Formatted ORDER BY clause (e.g., 'id ASC' or 'created_at DESC')
+ */
+function mngr_build_order_by(?string $order_column, ?string $order_direction, ?array $order_columns = null): string
+{
+	$column = $order_column ?? 'id';
+
+	if (!empty($order_columns)) {
+		if (array_is_list($order_columns)) {
+			// Indexed array: ['name', 'email']
+			$column = in_array($order_column, $order_columns, true) ? $order_column : 'id';
+		} else {
+			// Associative array: ['created_at' => 'u.created_at']
+			$column = $order_columns[$order_column] ?? 'id';
+		}
+	}
+	
+	$direction = (strtoupper($order_direction ?? '') === 'DESC') ? 'DESC' : 'ASC';
+
+	return $column . ' ' . $direction;
+}

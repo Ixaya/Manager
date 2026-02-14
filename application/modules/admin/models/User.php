@@ -4,39 +4,52 @@ class User extends MY_Model
 {
 	public function get_list($params)
 	{
-		$limit = $params['limit'];
-		$offset = ($params['page'] - 1) * $limit;
+		$fields = [
+			'id',
+			'ip_address',
+			'email',
+			'first_name',
+			'last_name',
+			'last_activity_date',
+			'FROM_UNIXTIME(created_on) AS created_on'
+		];
 
-		$query = "SELECT SQL_CALC_FOUND_ROWS
-                 u.id,
-                 MAX(u.last_update) AS last_activity_date,
-				 MAx(FROM_UNIXTIME(u.created_on)) AS created_on_date,
-				 MAX(u.ip_address) AS ip_address,
-                 MAX(u.email) AS email,
-                 MAX(u.first_name) AS first_name,
-				 MAX(u.last_name) AS last_name
-          FROM user AS u
-          WHERE 1=1 ";
-
-		$binds = [];
-
+		$where = [];
 		if (!empty($params['search'])) {
-			$query .= " AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.id LIKE ?) ";
-			$binds[] = "%" . $params['search'] . "%";
-			$binds[] = "%" . $params['search'] . "%";
-			$binds[] = "%" . $params['search'] . "%";
-			$binds[] = "%" . $params['search'] . "%";
+			$seach = [];
+			$seach[MY_Model_Clause::OR_LIKE] = [
+				'first_name' => $params['search'],
+				'last_name' => $params['search'],
+				'email' => $params['search']
+			];
+			$seach[MY_Model_Clause::OR_EQUAL] = [
+				'id' => $params['search']
+			];
+
+			$where[MY_Model_Clause::OR_GROUP] = $seach;
 		}
 
-		$query .= " GROUP BY u.id ORDER BY " . $params['order_by'] . " " . $params['order'] . " LIMIT ? OFFSET ? ";
-		$binds[] = $limit;
-		$binds[] = $offset;
+		if ($params['active']) {
+			$where[MY_Model_Clause::EQUAL] = ['active' => $params['active']];
+		}
 
-		$data = $this->query($query, $binds);
+		$allowed_order = [
+			'ip_address',
+			'email',
+			'first_name',
+			'last_name',
+			'last_activity_date',
+			'created_on'
+		];
+		$limit_page = mngr_build_limit_page($params['limit'], $params['page']);
+		$order_by = mngr_build_order_by($params['order_by'], $params['order'], $allowed_order);
 
-		$total = $this->query("SELECT FOUND_ROWS() AS total");
-		$total = isset($total[0]['total']) ? $total[0]['total'] : 0;
+		$rows = $this->get_all_dynamic($fields, $where, $limit_page, $order_by);
+		$this->debug_query();
+		$count_rows = $this->get_all_dynamic('count(*) AS count', $where);
 
-		return ['data' => $data, 'total' => $total];
+		$total = isset($count_rows[0]['count']) ? $count_rows[0]['count'] : 0;
+
+		return ['data' => $rows, 'total' => $total];
 	}
 }
