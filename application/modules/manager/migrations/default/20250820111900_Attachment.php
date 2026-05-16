@@ -1,48 +1,27 @@
 <?php
 
-class Migration_Attachment extends CI_Migration {
+class Migration_Attachment extends MGR_Migration
+{
+	public function up()
+	{
+		$this->dbforge->add_field([
+			...$this->field_id('id'),
+			...$this->field(name: 'title', type: MgrFieldType::VarChar, length: 100),
+			...$this->field(name: 'full_path', type: MgrFieldType::VarChar, length: 350),
+			...$this->field(name: 'file_name', type: MgrFieldType::VarChar, length: 100),
+			...$this->field(name: 'type', type: MgrFieldType::VarChar, length: 128),
+			...$this->field(name: 'model_name', type: MgrFieldType::VarChar, length: 32),
+			...$this->field(name: 'model_hash', type: MgrFieldType::VarChar, length: 32),
+			...$this->field_timestamps()
+		]);
 
-    public function up() {
-        $this->dbforge->add_field(array(
-            'id' => array(
-                'type' => 'INT',
-                'constraint' => 11,
-                'auto_increment' => TRUE
-            ),
-            'title' => array(
-                'type' => 'VARCHAR',
-                'constraint' => 100
-            )
-            ,
-            'full_path' => array(
-                'type' => 'VARCHAR',
-                'constraint' => 350
-            ),
-            'file_name' => array(
-                'type' => 'VARCHAR',
-                'constraint' => 100
-            ),
-			'type' => array(
-                'type' => 'VARCHAR',
-                'constraint' => 128
-            ),
-			'model_name' => array(
-                'type' => 'VARCHAR',
-                'constraint' => 32
-            ),
-			'model_hash' => array(
-                'type' => 'VARCHAR',
-                'constraint' => 32
-            ),
-            'last_update' => array(
-                'type' => 'TIMESTAMP'
-            )
-        ));
-        $this->dbforge->add_key('id', TRUE);
-        $this->dbforge->create_table('attachment');
-    }
+		$this->dbforge->add_key('id', true);
+		$this->dbforge->add_key(['model_hash', 'model_name']);
+		$this->dbforge->create_table('attachment');
+	}
 
-    public function down() {
-        $this->dbforge->drop_table('attachment');
-    }
+	public function down()
+	{
+		$this->dbforge->drop_table('attachment');
+	}
 }

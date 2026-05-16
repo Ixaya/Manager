@@ -1,62 +1,28 @@
 <?php
 
-class Migration_User_key extends CI_Migration {
+class Migration_User_key extends MGR_Migration
+{
+	public function up()
+	{
+		$this->dbforge->add_field([
+			...$this->field_id('id'),
+			...$this->field(name: 'user_id', type: MgrFieldType::Int, unsigned: true),
+			...$this->field(name: 'key', type: MgrFieldType::VarChar, length: 40),
+			...$this->field(name: 'level', type: MgrFieldType::TinyInt),
+			...$this->field(name: 'activated', type: MgrFieldType::TinyInt, nullable: true),
+			...$this->field(name: 'ip_addresses', type: MgrFieldType::Text, nullable: true),
+			...$this->field(name: 'user_agent', type: MgrFieldType::Text, nullable: true),
+			...$this->field(name: 'device_uuid', type: MgrFieldType::Uuid, nullable: true),
+			...$this->field(name: 'date_created', type: MgrFieldType::BigInt)
+		]);
 
-	public function up() {
-		$this->dbforge->add_field(array(
-			'id' => array(
-				'type' => 'INT',
-				'constraint' => 11,
-				'auto_increment' => TRUE
-			),
-			'user_id' => array(
-				'type' => 'INT',
-				'constraint' => 11
-			),
-			'key' => array(
-				'type' => 'VARCHAR',
-				'constraint' => 40
-			),
-			'level' => array(
-				'type' => 'INT',
-				'constraint' => 2
-			),
-			'ignore_limits' => array(
-				'type' => 'TINYINT',
-				'constraint' => 1
-			),
-			'is_private_key' => array(
-				'type' => 'TINYINT',
-				'constraint' => 1
-			),
-			'activated' => array(
-				'type' => 'TINYINT',
-				'constraint' => 1
-			),
-			'ip_addresses' => array(
-				'type' => 'TEXT'
-			),
-			'user_agent' => [
-				'type' => 'VARCHAR',
-				'constraint' => '128'
-			],
-			'device_uuid' => [
-				'type' => 'VARCHAR',
-				'constraint' => '36'
-			],
-			'date_created' => array(
-				'type' => 'INT',
-				'constraint' => 11
-			)
-		));
-
-		$this->dbforge->add_key('id', TRUE);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->add_key('key');
 		$this->dbforge->create_table('user_key');
 	}
 
-	public function down() {
+	public function down()
+	{
 		$this->dbforge->drop_table('user_key');
 	}
-
 }

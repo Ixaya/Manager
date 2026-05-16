@@ -1,29 +1,25 @@
-<?php defined('BASEPATH') or exit('No direct script access allowed');
+<?php
 
-class Migration_Manager_option extends CI_Migration
+defined('BASEPATH') or exit('No direct script access allowed');
+
+class Migration_Manager_option extends MGR_Migration
 {
-
 	public function up()
 	{
-		$this->dbforge->add_field(array(
-			'key' => [
-				'type' => 'VARCHAR',
-				'constraint' => 64
-			],
-			'value' => [
-				'type' => 'VARCHAR',
-				'constraint' => 254
-			],
-			'last_update' => [
-				'type' => 'TIMESTAMP'
-			]
-		));
+		$this->dbforge->add_field([
+			...$this->field(name: 'key', type: MgrFieldType::VarChar, length: 64),
+			...$this->field(name: 'value', type: MgrFieldType::VarChar, length: 254),
+			...$this->field(name: 'last_update', type: MgrFieldType::Timestamp)
+		]);
+
 		$this->dbforge->add_key('key', true);
 		$this->dbforge->create_table('manager_option');
+
+		$this->modify_field_timestamp('manager_option', 'last_update');
 	}
 
 	public function down()
 	{
-		$this->dbforge->drop_table('manager_option', TRUE);
+		$this->dbforge->drop_table('manager_option', true);
 	}
 }
