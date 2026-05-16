@@ -10,7 +10,7 @@ class User extends MY_Model
 			'email',
 			'first_name',
 			'last_name',
-			'last_activity_date',
+			'last_api_date',
 			'FROM_UNIXTIME(created_on) AS created_on'
 		];
 

@@ -35,8 +35,8 @@ class IX_Rest_Controller extends REST_Controller
 
 		$now = mngr_get_now_date_time();
 
-		$data['last_activity_date'] = $now->format('Y-m-d H:i:s');
-		$data['last_activity_os'] = $this->get_platform();
+		$data['last_api_date'] = $now->format('Y-m-d H:i:s');
+		$data['last_api_os'] = $this->get_platform();
 
 		$this->rest->db->where('id', $this->user_id);
 		$this->rest->db->update('user', $data);

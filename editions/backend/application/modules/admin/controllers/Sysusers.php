@@ -21,7 +21,7 @@ class Sysusers extends Admin_Controller
 
 	public function index()
 	{
-		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date, last_activity_date');
+		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date, last_api_date');
 		//print_r($users);
 
 		$data['users'] = $users;
@@ -30,7 +30,7 @@ class Sysusers extends Admin_Controller
 
 	public function index_ajax()
 	{
-		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date,last_activity_date', [], 10);
+		$users = $this->user->get_all('id,first_name,last_name,email,ip_address,FROM_UNIXTIME(created_on) as created_on_date,last_api_date', [], 10);
 		$this->json_response($users);
 	}
 

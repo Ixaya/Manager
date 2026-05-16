@@ -1,170 +1,167 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed');
+<?php
 
-class Migration_Ion_auth extends CI_Migration {
+defined('BASEPATH') or exit('No direct script access allowed');
 
+class Migration_Ion_auth extends CI_Migration
+{
 	public function up()
 	{
 		// Drop table 'group' if it exists
-		$this->dbforge->drop_table('group', TRUE);
+		$this->dbforge->drop_table('group', true);
 
 		// Table structure for table 'group'
-		$this->dbforge->add_field(array(
-			'id' => array(
-				'type' => 'MEDIUMINT',
-				'constraint' => '8',
-				'unsigned' => TRUE,
-				'auto_increment' => TRUE
-			),
-			'name' => array(
+		$this->dbforge->add_field([
+			'id' => [
+				'type' => 'INT',
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'name' => [
 				'type' => 'VARCHAR',
 				'constraint' => '20',
-			),
-			'description' => array(
+			],
+			'description' => [
 				'type' => 'VARCHAR',
 				'constraint' => '100',
-			),
-			'level' => array(
+			],
+			'level' => [
 				'type' => 'MEDIUMINT',
 				'constraint' => '8',
-				'unsigned' => TRUE
-			)
-		));
-		$this->dbforge->add_key('id', TRUE);
+				'unsigned' => true
+			]
+		]);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('group');
 
 		// Dumping data for table 'group'
-		$data = array(
-			array(
+		$data = [
+			[
 				'id' => '1',
 				'name' => 'admin',
 				'level' => '10',
 				'description' => 'Administrator'
-			),
-			array(
+			],
+			[
 				'id' => '2',
 				'name' => 'members',
 				'level' => '1',
 				'description' => 'General User'
-			)
-		);
+			]
+		];
 		$this->db->insert_batch('group', $data);
 
 
 		// Drop table 'user' if it exists
-		$this->dbforge->drop_table('user', TRUE);
+		$this->dbforge->drop_table('user', true);
 
 		// Table structure for table 'user'
-		$this->dbforge->add_field(array(
-			'id' => array(
-				'type' => 'MEDIUMINT',
-				'constraint' => '8',
-				'unsigned' => TRUE,
-				'auto_increment' => TRUE
-			),
-			'ip_address' => array(
+		$this->dbforge->add_field([
+			'id' => [
+				'type' => 'INT',
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'ip_address' => [
 				'type' => 'VARCHAR',
 				'constraint' => '16'
-			),
-			'username' => array(
+			],
+			'username' => [
 				'type' => 'VARCHAR',
 				'constraint' => '100',
-			),
-			'password' => array(
+			],
+			'password' => [
 				'type' => 'VARCHAR',
 				'constraint' => '80',
-			),
-			'salt' => array(
+			],
+			'salt' => [
 				'type' => 'VARCHAR',
 				'constraint' => '40'
-			),
-			'email' => array(
+			],
+			'email' => [
 				'type' => 'VARCHAR',
 				'constraint' => '100'
-			),
-			'activation_code' => array(
+			],
+			'activation_code' => [
 				'type' => 'VARCHAR',
 				'constraint' => '40',
-				'null' => TRUE
-			),
-			'forgotten_password_code' => array(
+				'null' => true
+			],
+			'forgotten_password_code' => [
 				'type' => 'VARCHAR',
 				'constraint' => '40',
-				'null' => TRUE
-			),
-			'forgotten_password_time' => array(
+				'null' => true
+			],
+			'forgotten_password_time' => [
 				'type' => 'INT',
-				'constraint' => '11',
-				'unsigned' => TRUE,
-				'null' => TRUE
-			),
-			'remember_code' => array(
+				'unsigned' => true,
+				'null' => true
+			],
+			'remember_code' => [
 				'type' => 'VARCHAR',
 				'constraint' => '40',
-				'null' => TRUE
-			),
-			'created_on' => array(
+				'null' => true
+			],
+			'created_on' => [
 				'type' => 'INT',
-				'constraint' => '11',
-				'unsigned' => TRUE,
-			),
-			'last_login' => array(
+				'unsigned' => true,
+			],
+			'last_login' => [
 				'type' => 'INT',
-				'constraint' => '11',
-				'unsigned' => TRUE,
-				'null' => TRUE
-			),
-			'active' => array(
+				'unsigned' => true,
+				'null' => true
+			],
+			'active' => [
 				'type' => 'TINYINT',
 				'constraint' => '1',
-				'unsigned' => TRUE,
-				'null' => TRUE
-			),
-			'first_name' => array(
+				'unsigned' => true,
+				'null' => true
+			],
+			'first_name' => [
 				'type' => 'VARCHAR',
 				'constraint' => '50',
-				'null' => TRUE
-			),
-			'last_name' => array(
+				'null' => true
+			],
+			'last_name' => [
 				'type' => 'VARCHAR',
 				'constraint' => '50',
-				'null' => TRUE
-			),
-			'company' => array(
+				'null' => true
+			],
+			'company' => [
 				'type' => 'VARCHAR',
 				'constraint' => '100',
-				'null' => TRUE
-			),
-			'phone' => array(
+				'null' => true
+			],
+			'phone' => [
 				'type' => 'VARCHAR',
 				'constraint' => '20',
-				'null' => TRUE
-			),
-			'image_name' => array(
+				'null' => true
+			],
+			'image_name' => [
 				'type' => 'VARCHAR',
 				'constraint' => '128',
-				'null' => TRUE
-			),
-			'image_url' => array(
+				'null' => true
+			],
+			'image_url' => [
 				'type' => 'VARCHAR',
 				'constraint' => '254',
-				'null' => TRUE
-			),
+				'null' => true
+			],
 			'last_update timestamp DEFAULT current_timestamp ON UPDATE current_timestamp',
-			'last_activity_date' => array(
+			'last_api_date' => [
 				'type' => 'TIMESTAMP',
-				'null' => TRUE
-			),
-			'last_activity_os' => array(
+				'null' => true
+			],
+			'last_api_os' => [
 				'type' => 'TINYINT',
 				'constraint' => '1',
-				'unsigned' => TRUE
-			)
-		));
-		$this->dbforge->add_key('id', TRUE);
+				'unsigned' => true
+			]
+		]);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('user');
 
 		// Dumping data for table 'users'
-		$data = array(
+		$data = [
 			'id' => '1',
 			'ip_address' => '127.0.0.1',
 			'username' => 'admin@admin.com',
@@ -172,7 +169,7 @@ class Migration_Ion_auth extends CI_Migration {
 			'salt' => '',
 			'email' => 'admin@admin.com',
 			'activation_code' => '',
-			'forgotten_password_code' => NULL,
+			'forgotten_password_code' => null,
 			'created_on' => '1268889823',
 			'last_login' => '1268889823',
 			'active' => '1',
@@ -180,88 +177,83 @@ class Migration_Ion_auth extends CI_Migration {
 			'last_name' => 'istrator',
 			'company' => 'ADMIN',
 			'phone' => '0'
-		);
+		];
 		$this->db->insert('user', $data);
 
 
 		// Drop table 'user_group' if it exists
-		$this->dbforge->drop_table('user_group', TRUE);
+		$this->dbforge->drop_table('user_group', true);
 
 		// Table structure for table 'user_group'
-		$this->dbforge->add_field(array(
-			'id' => array(
-				'type' => 'MEDIUMINT',
-				'constraint' => '8',
-				'unsigned' => TRUE,
-				'auto_increment' => TRUE
-			),
-			'user_id' => array(
-				'type' => 'MEDIUMINT',
-				'constraint' => '8',
-				'unsigned' => TRUE
-			),
-			'group_id' => array(
-				'type' => 'MEDIUMINT',
-				'constraint' => '8',
-				'unsigned' => TRUE
-			)
-		));
-		$this->dbforge->add_key('id', TRUE);
+		$this->dbforge->add_field([
+			'id' => [
+				'type' => 'INT',
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'user_id' => [
+				'type' => 'INT',
+				'unsigned' => true
+			],
+			'group_id' => [
+				'type' => 'INT',
+				'unsigned' => true
+			]
+		]);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('user_group');
 
 		// Dumping data for table 'user_group'
-		$data = array(
-			array(
+		$data = [
+			[
 				'id' => '1',
 				'user_id' => '1',
 				'group_id' => '1',
-			),
-			array(
+			],
+			[
 				'id' => '2',
 				'user_id' => '1',
 				'group_id' => '2',
-			)
-		);
+			]
+		];
 		$this->db->insert_batch('user_group', $data);
 
 
 		// Drop table 'login_attempts' if it exists
-		$this->dbforge->drop_table('login_attempt', TRUE);
+		$this->dbforge->drop_table('login_attempt', true);
 
 		// Table structure for table 'login_attempt'
-		$this->dbforge->add_field(array(
-			'id' => array(
-				'type' => 'MEDIUMINT',
-				'constraint' => '8',
-				'unsigned' => TRUE,
-				'auto_increment' => TRUE
-			),
-			'ip_address' => array(
+		$this->dbforge->add_field([
+			'id' => [
+				'type' => 'INT',
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'ip_address' => [
 				'type' => 'VARCHAR',
 				'constraint' => '16'
-			),
-			'login' => array(
+			],
+			'login' => [
 				'type' => 'VARCHAR',
 				'constraint' => '100',
-				'null', TRUE
-			),
-			'time' => array(
-				'type' => 'INT',
-				'constraint' => '11',
-				'unsigned' => TRUE,
-				'null' => TRUE
-			)
-		));
-		$this->dbforge->add_key('id', TRUE);
+				'null',
+				true
+			],
+			'time' => [
+				'type' => 'BIGINT',
+				'unsigned' => true,
+				'null' => true
+			]
+		]);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('login_attempt');
-
 	}
 
 	public function down()
 	{
-		$this->dbforge->drop_table('user', TRUE);
-		$this->dbforge->drop_table('group', TRUE);
-		$this->dbforge->drop_table('user_group', TRUE);
-		$this->dbforge->drop_table('login_attempt', TRUE);
+		$this->dbforge->drop_table('user', true);
+		$this->dbforge->drop_table('group', true);
+		$this->dbforge->drop_table('user_group', true);
+		$this->dbforge->drop_table('login_attempt', true);
 	}
 }

@@ -86,32 +86,63 @@ function mngr_get_date_option_obj(string $option, $date = null): ?DateTime
 	}
 }
 
+function mngr_get_date_option_unix(string $option, $date = null): ?int
+{
+	$dateObj = mngr_get_date_option_obj($option, $date);
+	return $dateObj ? $dateObj->getTimestamp() : null;
+}
+
 function mngr_get_date_option(string $option, $date = null): string
 {
 	$dateObj = mngr_get_date_option_obj($option, $date);
 	return (!empty($dateObj)) ? $dateObj->format('Y-m-d H:i:s') : '';
 }
 
-function mngr_create_date_time($date_string, $format = null)
+/**
+ * Create DateTime object from various string formats
+ * 
+ * @param string|null $date_string Date string to parse
+ * @param string|null $format Specific format to expect (e.g., 'Y-m-d H:i:s')
+ * @return DateTime|null DateTime object or null if parsing fails
+ */
+function mngr_create_date_time(?string $date_string = null, ?string $format = null): ?DateTime
 {
-	if ($format != null) {
+	if (empty($date_string)) new DateTime();
+
+	if ($format !== null) {
 		$date_time = DateTime::createFromFormat($format, $date_string);
+
 		if ($date_time !== false) {
-			return $date_time;
+			$errors = DateTime::getLastErrors();
+			if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+				log_message('debug', "Date format warnings/errors for '{$date_string}' with format '{$format}'");
+			} else {
+				return $date_time;
+			}
 		}
 	}
 
 	try {
-		$date_time = new DateTime($date_string);
-		return $date_time;
+		return new DateTime($date_string);
 	} catch (Exception $e) {
-		log_message('debug', "Error parsing date string: " . $e->getMessage());
+		log_message('error', "Failed to parse date string '{$date_string}': " . $e->getMessage());
+		return null;
 	}
+}
 
-	$timestamp = strtotime($date_string);
-	if ($timestamp !== false) {
-		return (new DateTime())->setTimestamp($timestamp);
-	}
+/**
+ * Standardizes any input into a Unix Timestamp for BIGINT columns.
+ * Reuses mngr_create_date_time to ensure consistent parsing.
+ */
+function mngr_to_unix($date): ?int
+{
+	if (empty($date)) return null;
 
-	return null;
+	// If it's already an integer (Unix time), just return it
+	if (is_numeric($date)) return (int) $date;
+
+	// Use your existing robust parsing logic
+	$dateObj = ($date instanceof DateTime) ? $date : mngr_create_date_time($date);
+
+	return ($dateObj) ? $dateObj->getTimestamp() : null;
 }
