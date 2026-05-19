@@ -22,6 +22,7 @@ $config->setRules([
 	'no_whitespace_before_comma_in_array' => true,
 	'whitespace_after_comma_in_array' => true,
 	'trim_array_spaces' => true,
+	'no_break_comment' => false,
 ])
 	->setRiskyAllowed(true)
 	->setIndent("\t")

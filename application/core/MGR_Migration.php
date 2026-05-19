@@ -15,41 +15,30 @@ enum MgrFieldType: string
 	/** 1-byte int. MySQL: TINYINT. PostgreSQL: SMALLINT (no native TINYINT). */
 	case TinyInt	 = 'TINYINT';
 	/** 2-byte int. */
-	// no break
 	case SmallInt	= 'SMALLINT';
 	/** 4-byte int — most common. */
-	// no break
 	case Int		  = 'INT';
 	/** 8-byte int. */
-	// no break
 	case BigInt	  = 'BIGINT';
 
 	// ── Decimals ─────────────────────────────────────────────────────────────
 	/** Exact decimal. Use $precision + $scale params on field(). */
-	// no break
 	case Decimal	 = 'DECIMAL';
 	/** 4-byte float. */
-	// no break
 	case Float		= 'FLOAT';
 	/** 8-byte float. MySQL: DOUBLE. PostgreSQL: DOUBLE PRECISION. */
-	// no break
 	case Double	  = 'DOUBLE';
 
 	// ── Strings ──────────────────────────────────────────────────────────────
 	/** Fixed-length string. Requires $length. */
-	// no break
 	case Char		 = 'CHAR';
 	/** Variable-length string. Requires $length. Max 65,535 bytes MySQL; 1GB PgSQL. */
-	// no break
 	case VarChar	 = 'VARCHAR';
 	/** Unlimited text. */
-	// no break
 	case Text		 = 'TEXT';
 	/** MySQL: MEDIUMTEXT (~16MB). PostgreSQL/others: TEXT. */
-	// no break
 	case MediumText = 'MEDIUMTEXT';
 	/** MySQL: LONGTEXT (~4GB). PostgreSQL/others: TEXT. */
-	// no break
 	case LongText	= 'LONGTEXT';
 
 	// ── Binary ───────────────────────────────────────────────────────────────
@@ -57,13 +46,10 @@ enum MgrFieldType: string
 	 * Binary blob.
 	 * MySQL: BLOB. PostgreSQL: BYTEA. SQLite: BLOB. SQL Server: VARBINARY(MAX).
 	 */
-	// no break
 	case Blob		 = 'BLOB';
 	/** MySQL: MEDIUMBLOB. PostgreSQL: BYTEA. Others: largest binary equivalent. */
-	// no break
 	case MediumBlob = 'MEDIUMBLOB';
 	/** MySQL: LONGBLOB. PostgreSQL: BYTEA. Others: largest binary equivalent. */
-	// no break
 	case LongBlob	= 'LONGBLOB';
 
 	// ── Boolean ───────────────────────────────────────────────────────────────
@@ -71,24 +57,18 @@ enum MgrFieldType: string
 	 * Boolean.
 	 * MySQL/MariaDB: TINYINT(1). PostgreSQL: BOOLEAN. SQLite: INTEGER. SQL Server: BIT.
 	 */
-	// no break
 	case Bool		 = 'BOOL';
 
 	// ── Date / Time ───────────────────────────────────────────────────────────
 	/** Date only (YYYY-MM-DD). */
-	// no break
 	case Date		 = 'DATE';
 	/** Time only (HH:MM:SS). */
-	// no break
 	case Time		 = 'TIME';
 	/** Date + time, no timezone. MySQL: DATETIME. PostgreSQL: TIMESTAMP. */
-	// no break
 	case DateTime	= 'DATETIME';
 	/** Timestamp. MySQL: TIMESTAMP. PostgreSQL: TIMESTAMP. */
-	// no break
 	case Timestamp  = 'TIMESTAMP';
 	/** Year only. MySQL: YEAR. PostgreSQL/SQL Server: SMALLINT. SQLite: INTEGER. */
-	// no break
 	case Year		 = 'YEAR';
 
 	// ── JSON ──────────────────────────────────────────────────────────────────
@@ -96,7 +76,6 @@ enum MgrFieldType: string
 	 * JSON document.
 	 * MySQL 8+/MariaDB: JSON. PostgreSQL: JSONB (binary, indexed). Others: text fallback.
 	 */
-	// no break
 	case Json		 = 'JSON';
 
 	// ── UUID ──────────────────────────────────────────────────────────────────
@@ -104,7 +83,6 @@ enum MgrFieldType: string
 	 * UUID/GUID.
 	 * MySQL/MariaDB: CHAR(36). PostgreSQL: UUID (native). SQL Server: UNIQUEIDENTIFIER. SQLite: TEXT.
 	 */
-	// no break
 	case Uuid		 = 'UUID';
 
 	// ── Enum ──────────────────────────────────────────────────────────────────
@@ -113,7 +91,6 @@ enum MgrFieldType: string
 	 * MySQL/MariaDB: native ENUM('a','b',...). PostgreSQL/SQLite: VARCHAR(max_len). SQL Server: NVARCHAR(max_len).
 	 * Requires $enum_values param on field().
 	 */
-	// no break
 	case Enum		 = 'ENUM';
 
 	// ── Helpers ───────────────────────────────────────────────────────────────
@@ -398,7 +375,7 @@ final class MgrFieldBuilder
 			case MgrFieldType::Enum:
 				if ($this->driver->isMysqlFamily()) {
 					$quoted = array_map(
-						static fn (string $v): string => "'" . addslashes($v) . "'",
+						static fn(string $v): string => "'" . addslashes($v) . "'",
 						$this->enum_values
 					);
 					$type	= 'ENUM(' . implode(',', $quoted) . ')';
@@ -622,7 +599,7 @@ class MGR_Migration
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql) {
 				$table_ident   = '`' . $table . '`';
-				$columns_ident = implode(', ', array_map(fn ($c) => '`' . $c . '`', $columns));
+				$columns_ident = implode(', ', array_map(fn($c) => '`' . $c . '`', $columns));
 				$this->db->query("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");
 			})(),
 			default => null,
