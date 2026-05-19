@@ -22,8 +22,17 @@
 		"nielbuys/framework": "^3.1"
 	},
 	"require-dev": {
-		"phpunit/phpunit": "^12.0",
-		"phpstan/phpstan": "^2.1"
+		"amphp/websocket-server": "^4.0",
+		"amphp/log": "^2.0",
+		"amphp/redis": "^2.0",
+		"adhocore/jwt": "^1.1",
+		"aws/aws-sdk-php": "^3.0",
+		"phpoffice/phpspreadsheet": "^5.0"
+	},
+	"suggest": {
+		"amphp/websocket-server": "Required to use the built-in Websocket Server features.",
+		"amphp/redis": "Required for Redis-backed Websocket scaling.",
+		"adhocore/jwt": "Required for Websocket authentication."
 	},
 	"extra": {
 		"branch-alias": {

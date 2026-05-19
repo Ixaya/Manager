@@ -1,6 +1,6 @@
 <img src="https://www.ixaya.com/assets/frontend/default/images/logo_ixaya.png">
 
-# Ixaya / Manager 
+# Ixaya / Manager
 
 HMVC Code Igniter based Framework for creating backends and complete websites
 
@@ -26,7 +26,7 @@ HMVC Code Igniter based Framework for creating backends and complete websites
 
 ## How to Install
 
-To Install **Manager** you need to  
+To Install **Manager** you need to
 
 ### Step by Step guide on OSX
 * Install Homebew `/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"`
@@ -46,86 +46,81 @@ To Install **Manager** you need to
 
 ## PHP Validations
 
-Run static code analysis using PHPStan:
+### PHP Static Code Analysis
+Run using PHPStan:
 
-- **Standard analysis:**
-  ```bash
-  ./vendor/bin/phpstan analyse
-  ```
+**First time, install PHPStan:**
+```bash
+composer require --dev phpstan/phpstan
+```
+**Standard analysis:**
+```bash
+./vendor/bin/phpstan analyse
+```
 
-- **With increased memory limit:**
-  ```bash
-  ./vendor/bin/phpstan analyse --memory-limit=512M
-  ```
+**With increased memory limit:**
+```bash
+./vendor/bin/phpstan analyse --memory-limit=512M
+```
 
 > **Tip:** Use the memory limit option if you encounter out-of-memory errors during analysis.
 
 
-**## PHP Unit Testing**
-Run unit tests using PHPUnit:
-- **Run all tests:**
- ```bash
+### PHP Unit Testing
+Run using PHPUnit
+
+**First time, install PHPUnit:**
+```bash
+composer require --dev phpunit/phpunit
+```
+**Run all tests:**
+```bash
 ./vendor/bin/phpunit
- ```
-- **Run specific test file:**
- ```bash
+```
+**Run specific test file:**
+```bash
 ./vendor/bin/phpunit tests/Unit/ExampleTest.php
- ```
-- **Run tests with verbose output:**
- ```bash
+```
+**Run tests with verbose output:**
+```bash
 ./vendor/bin/phpunit --verbose
- ```
-- **Run tests in specific group/category:**
- ```bash
+```
+**Run tests in specific group/category:**
+```bash
 ./vendor/bin/phpunit --group unit
- ```
+```
+
 > **Tip:** Use `--testdox` flag for readable test output, or `--stop-on-failure` to halt execution on the first failed test.
 
-## MsgPack Support
 
-This package can use MsgPack for faster cache and payload serialization. While the native PHP MsgPack extension (installed via `pecl` or system packages) offers the best performance, not all servers have it available.
+### PHP Code Formatting
+Fix using PHP CS Fixer
 
-### 1. Install the PHP MsgPack Fallback Library
-
-Add the pure PHP implementation to your project:
-
+*First time, install PHP CS Fixer:**
 ```bash
-composer require rybakit/msgpack
+composer require --dev php-cs-fixer/shim
 ```
 
-### 2. Enable the Composer Patches Plugin
-
-If your project doesn't already have `composer-patches` installed:
-
+**Fix code formatting:**
 ```bash
-composer require cweagans/composer-patches
+./vendor/bin/php-cs-fixer fix
 ```
 
-### 3. Apply the PHP 8.1+ Compatibility Patch
-
-Add the following configuration to your root `composer.json`:
-
-```json
-{
-  ...
-    "extra": {
-        "patches": {
-            "rybakit/msgpack": {
-                "Fix PHP 8.1 chr() deprecation": "vendor/ixaya/manager/patches/msgpack-php81-fix.patch"
-            }
-        }
-    }
-  ...
-}
-```
-
-### 4. Apply the Changes
-
-Run the following command to install dependencies and apply patches:
-
+**Dry run (preview changes without applying):**
 ```bash
-composer install
+./vendor/bin/php-cs-fixer fix --dry-run
 ```
+
+**Dry run with diff (preview exact changes):**
+```bash
+./vendor/bin/php-cs-fixer fix --dry-run --diff
+```
+
+**Power user — pinned PHP version (macOS Homebrew):**
+```bash
+/opt/homebrew/opt/php@8.3/bin/php /opt/homebrew/bin/php-cs-fixer fix
+```
+
 ## Docker Setup
 
 This project can be run using Docker with different configurations for development and production environments.
@@ -185,6 +180,45 @@ docker-compose logs -f app
 
 # Enter the app container
 docker-compose exec app bash
+```
+
+## MsgPack Support
+
+This package can use MsgPack for faster cache and payload serialization. While the native PHP MsgPack extension (installed via `pecl` or system packages) offers the best performance, not all servers have it available.
+
+### Install the PHP MsgPack Fallback Library
+
+Add the pure PHP implementation to your project, along the composer patcher:
+
+```bash
+composer require rybakit/msgpack
+composer require cweagans/composer-patches
+```
+
+### Apply the PHP 8.1+ Compatibility Patch
+
+Add the following configuration to your root `composer.json`:
+
+```json
+{
+  ...
+    "extra": {
+        "patches": {
+            "rybakit/msgpack": {
+                "Fix PHP 8.1 chr() deprecation": "vendor/ixaya/manager/patches/msgpack-php81-fix.patch"
+            }
+        }
+    }
+  ...
+}
+```
+
+### Apply the Changes
+
+Run the following command to install dependencies and apply patches:
+
+```bash
+composer install
 ```
 
 ## Application Structure
