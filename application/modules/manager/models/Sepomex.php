@@ -1,8 +1,11 @@
-<?php (defined('BASEPATH')) OR exit('No direct script access allowed');
+<?php
 
-class Sepomex extends MY_Model {
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
-	public function __construct() {
+class Sepomex extends MY_Model
+{
+	public function __construct()
+	{
 		//overrides
 		//$this->connection_name = 'catalog';
 		//$this->campus_id = 1;
@@ -17,28 +20,28 @@ class Sepomex extends MY_Model {
 	public function get_all_states()
 	{
 		$query = "select distinct idEstado, estado from sepomex";
-		return $this->query($query, NULL);
+		return $this->query($query, null);
 	}
 	public function get_cities_by_state_id($state_id)
 	{
 		$query = "select distinct idMunicipio, municipio from sepomex where idEstado=? order by idMunicipio";
-		return $this->query($query, array($state_id));
+		return $this->query($query, [$state_id]);
 	}
 	public function get_cities_by_state($state)
 	{
 		$query = "select distinct idMunicipio, municipio from sepomex where estado=? order by idMunicipio";
 		error_log("Query: ".$query);
-		return $this->query($query, array($state));
+		return $this->query($query, [$state]);
 	}
 	public function get_neighborhoods_by_cp($cp)
 	{
 		$query = "select distinct estado, municipio, asentamiento from sepomex where cp=?";
-		return $this->query($query, array($cp));
+		return $this->query($query, [$cp]);
 	}
 	public function get_neighborhoods_by_city($city)
 	{
 		$query = "select distinct asentamiento from sepomex where municipio=? order by asentamiento asc";
-		return $this->query($query, array($city));
+		return $this->query($query, [$city]);
 	}
 	public function get_cp_by_city_and_neighborhood($city, $neighborhood)
 	{
@@ -49,12 +52,11 @@ class Sepomex extends MY_Model {
 
 
 		$query = "select distinct cp from sepomex where municipio=? and asentamiento=? order by cp asc";
-		$result = $this->query($query, array($city,$neighborhood));
-		if(sizeof($result) > 0)
-		{
+		$result = $this->query($query, [$city, $neighborhood]);
+		if (sizeof($result) > 0) {
 			return $result[0]['cp'];
-					}
-		return NULL;
+		}
+		return null;
 	}
 
 

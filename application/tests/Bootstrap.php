@@ -1,4 +1,5 @@
 <?php
+
 $_SERVER['CI_ENV'] = 'testing';
 
 $_SERVER['REQUEST_METHOD'] = 'GET';

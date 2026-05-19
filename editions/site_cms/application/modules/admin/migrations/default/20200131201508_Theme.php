@@ -1,45 +1,46 @@
 <?php
 
-class Migration_Theme extends CI_Migration {
-
-	public function up() {
-		$this->dbforge->add_field(array(
-			'id' => array(
+class Migration_Theme extends CI_Migration
+{
+	public function up()
+	{
+		$this->dbforge->add_field([
+			'id' => [
 				'type' => 'INT',
-				'constraint' => 11,
-				'auto_increment' => TRUE
-			),
-			'kind' => array(
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'kind' => [
 				'type' => 'INT',
 				'constraint' => 11
-			),
-			'shortname' => array(
+			],
+			'shortname' => [
 				'type' => 'VARCHAR',
 				'constraint' => 120
-			),
-			'title' => array(
+			],
+			'title' => [
 				'type' => 'VARCHAR',
 				'constraint' => 120
-			),
-			'description' => array(
+			],
+			'description' => [
 				'type' => 'VARCHAR',
 				'constraint' => 120
-			),
-			'image_url' => array(
+			],
+			'image_url' => [
 				'type' => 'VARCHAR',
 				'constraint' => 120
-			),
-			'last_update' => array(
+			],
+			'last_update' => [
 				'type' => 'TIMESTAMP'
-			)
-		));
+			]
+		]);
 
-		$this->dbforge->add_key('id', TRUE);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('theme');
 	}
 
-	public function down() {
+	public function down()
+	{
 		$this->dbforge->drop_table('theme');
 	}
-
 }

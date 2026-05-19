@@ -1,8 +1,11 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
 
-class Webpage extends MY_Model {
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
-	public function __construct() {
+class Webpage extends MY_Model
+{
+	public function __construct()
+	{
 		//overrides
 		//$this->connection_name = '';
 		//$this->table_name = '';
@@ -19,6 +22,6 @@ class Webpage extends MY_Model {
 		$kinds[2] = 'Private';
 		$kinds[3] = 'Admin';
 		return $kinds;
-		
+
 	}
 }

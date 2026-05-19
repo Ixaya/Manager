@@ -1,4 +1,8 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php
+
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 /**
 * Name:  Auth Lang - Japanese
 *
@@ -158,4 +162,3 @@ $lang['email_forgot_password_link']	   = 'パスワードをリセットして�
 // New Password Email
 $lang['email_new_password_heading']	= '新しいパスワード： %s';
 $lang['email_new_password_subheading'] = 'パスワードをリセットすることができました： %s';
-

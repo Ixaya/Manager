@@ -9,7 +9,7 @@ class MX_Migration extends CI_Migration
 	 */
 	public function find_migrations()
 	{
-		$migrations = array();
+		$migrations = [];
 
 		// Check if the migration path is absolute for backward compatibility
 		if (strpos($this->_migration_path, APPPATH) === 0) {

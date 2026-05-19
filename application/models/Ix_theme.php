@@ -1,8 +1,9 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
+
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
 class Ix_theme extends MY_Model
 {
-
 	public function __construct()
 	{
 		$this->table_name = 'theme';

@@ -2,7 +2,7 @@
 
 class Admin extends Admin_Controller
 {
-	function __construct()
+	public function __construct()
 	{
 
 		$this->group_needed = 'members';

@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
@@ -71,7 +72,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 | the query builder class.
 */
 $active_group = 'default';
-$query_builder = TRUE;
+$query_builder = true;
 
 $db['default'] = [
 	'dsn'	=> '',
@@ -81,16 +82,16 @@ $db['default'] = [
 	'database' => mngr_env('DB_NAME', ''),
 	'dbdriver' => mngr_env('DB_DRIVER', 'mysqli'),
 	'dbprefix' => '',
-	'pconnect' => FALSE,
+	'pconnect' => false,
 	'db_debug' => (ENVIRONMENT !== 'production'),
-	'cache_on' => FALSE,
+	'cache_on' => false,
 	'cachedir' => '',
 	'char_set' => mngr_env('DB_CHAR_SET', 'utf8mb4'),
 	'dbcollat' => mngr_env('DB_COLLATION', ''),
 	'swap_pre' => '',
-	'encrypt' => FALSE,
-	'compress' => FALSE,
-	'stricton' => FALSE,
+	'encrypt' => false,
+	'compress' => false,
+	'stricton' => false,
 	'failover' => [],
-	'save_queries' => TRUE
+	'save_queries' => true
 ];

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * System messages translation for CodeIgniter(tm)
  *
@@ -7,7 +8,7 @@
  * @license	http://opensource.org/licenses/MIT	MIT License
  * @link	https://codeigniter.com
  */
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 $lang['db_invalid_connection_str'] = '指定された接続文字列では、データベース設定を特定できません。';
 $lang['db_unable_to_connect'] = '指定された設定でデータベースサーバに接続できません。';

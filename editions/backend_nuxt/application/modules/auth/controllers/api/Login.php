@@ -1,4 +1,5 @@
 <?php
+
 //
 //  Login.php
 //  Ixaya
@@ -7,11 +8,12 @@
 //  Copyright © 2017 Ixaya. All rights reserved.
 //
 
-if (! defined('BASEPATH')) exit('No direct script access allowed');
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 
 class Login extends REST_Controller
 {
-
 	public function __construct()
 	{
 		$this->methods['*']['auth_override'] = 'none';
@@ -55,13 +57,13 @@ class Login extends REST_Controller
 		$username  = $this->post('email');
 		$password  = $this->post('password');
 
-		$extras	= array(
+		$extras	= [
 			'first_name' => $this->post('first_name'),
 			'last_name'  => $this->post('last_name'),
 			'company'    => $this->post('company'),
 			'phone'      => $this->post('phone'),
 			'terms_accepted' => $this->post('terms_accepted') == 'true' ? 1 : 0
-		);
+		];
 
 		$user_id = $this->ion_auth->register($username, $password, $username, $extras, [GROUP_MEMBER_ID]);
 		if ($user_id != false) {
@@ -82,7 +84,7 @@ class Login extends REST_Controller
 			$this->response($json, REST_Controller::HTTP_OK);
 		}
 
-		$this->response(array('status' => -1, 'message' => "Usuario ya registrado."), REST_Controller::HTTP_BAD_REQUEST);
+		$this->response(['status' => -1, 'message' => "Usuario ya registrado."], REST_Controller::HTTP_BAD_REQUEST);
 	}
 	/**
 	 * cleanup user
@@ -90,7 +92,7 @@ class Login extends REST_Controller
 	 */
 	private function ___processJSONResponse($objAcc, $apiKey = false, $device_uuid = null)
 	{
-		if (is_array($objAcc)){
+		if (is_array($objAcc)) {
 			$objAcc = (object) $objAcc;
 		}
 
@@ -112,12 +114,12 @@ class Login extends REST_Controller
 			$apiKey = $this->api_key->get_user_key($objAcc->id, $device_uuid);
 		}
 
-		$json = array(
+		$json = [
 			'status'	  => 1,
 			'info'        => $objAcc,
 			'api_key'     => $apiKey,
 			'device_uuid' => $device_uuid
-		);
+		];
 
 		return $json;
 	}

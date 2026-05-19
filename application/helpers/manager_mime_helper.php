@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 function mngr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
@@ -29,15 +30,14 @@ function mngr_file_extention($filepath = '', $mime_type = '')
 			return strtolower($extension);
 		}
 	}
-	
+
 	if ($mime_type == '') {
 		return false;
 	}
 
 	// Fallback: extract extension from filename/path
 	static $mimes;
-	if (!is_array($mimes))
-	{
+	if (!is_array($mimes)) {
 		$mimes = get_mimes();
 		if (empty($mimes)) {
 			return false;
@@ -77,14 +77,14 @@ if (!function_exists('mngr_mime_extention')) {
 /**
  * Detect MIME type from file path
  *
- * @param string $file_path Path to the file to analyze  
+ * @param string $file_path Path to the file to analyze
  * @return string|false MIME type string or false on error
  */
 
 if (!function_exists('mngr_detect_mime_from_file')) {
 	function mngr_detect_mime_from_file($file_path)
 	{
-		if (!file_exists($file_path)){
+		if (!file_exists($file_path)) {
 			return false;
 		}
 

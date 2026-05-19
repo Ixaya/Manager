@@ -1,4 +1,5 @@
 <?php
+
 //
 //  Webpages.php
 //  Ixaya
@@ -7,60 +8,60 @@
 //  Copyright © 2021 Ixaya. All rights reserved.
 //
 
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
-class Webpages extends IX_Rest_Controller {
-	
-	function __construct() {
+class Webpages extends IX_Rest_Controller
+{
+	public function __construct()
+	{
 		parent::__construct();
-		
+
 		$this->methods['create']['level'] = 2;
 		$this->methods['delete']['level'] = 2;
 	}
-	
-	
+
+
 	public function create_post()
 	{
 		$data['title'] = $this->post('title');
 		$data['slug'] = $this->post('slug');
 		$data['kind'] = $this->post('kind');
-		
+
 		$this->load->model('admin/webpage');
 		$webpage_id = $this->webpage->insert($data);
-		
+
 		$response['webpage_id'] = $webpage_id;
-		
-		
+
+
 		$result['status'] = 1;
 		$result['response'] = $response;
 		$result['message'] = 'Webpage created successfully';
 		$this->set_response($result, REST_Controller::HTTP_OK);
 	}
-	
+
 	public function delete_post()
 	{
 		$webpage_id = $this->post('webpage_id');
-		
-		if(!empty($webpage_id))
-		{
-			
+
+		if (!empty($webpage_id)) {
+
 			$this->load->model('admin/webpage');
 			$webpage_id = $this->webpage->delete($webpage_id);
-			
+
 			$response['webpage_id'] = $webpage_id;
-			
+
 			$result['status'] = 1;
 			$result['response'] = $response;
 			$result['message'] = 'Webpage deleted successfully';
 			$this->set_response($result, REST_Controller::HTTP_OK);
 		}
-		
+
 		$result['status'] = -1;
 		$result['response'] = null;
 		$result['message'] = "webpage_id is empty";
-		$this->set_response($result, REST_Controller::HTTP_OK);		
+		$this->set_response($result, REST_Controller::HTTP_OK);
 	}
-	
+
 	public function list_get()
 	{
 		$this->load->model('admin/webpage');
@@ -69,7 +70,7 @@ class Webpages extends IX_Rest_Controller {
 		$result['response'] = $webpages;
 		$this->set_response($result, REST_Controller::HTTP_OK);
 	}
-	
+
 	public function list_kinds()
 	{
 		$this->load->model('admin/webpage');

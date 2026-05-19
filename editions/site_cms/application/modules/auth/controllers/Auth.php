@@ -1,15 +1,18 @@
 <?php
 
-if (!defined('BASEPATH'))
+if (!defined('BASEPATH')) {
 	exit('No direct script access allowed');
+}
 
-class Auth extends Site_Controller {
-	private $use_levels = TRUE;
+class Auth extends Site_Controller
+{
+	private $use_levels = true;
 
-	function __construct() {
+	public function __construct()
+	{
 		parent::__construct();
 		$this->load->database();
-		$this->load->library(['ion_auth', 'form_validation','session']);
+		$this->load->library(['ion_auth', 'form_validation', 'session']);
 		$this->load->helper(['url', 'language']);
 
 		$this->form_validation->set_error_delimiters($this->config->item('error_start_delimiter', 'ion_auth'), $this->config->item('error_end_delimiter', 'ion_auth'));
@@ -17,7 +20,8 @@ class Auth extends Site_Controller {
 		log_message('debug', 'Admin : Auth class loaded');
 	}
 
-	public function index() {
+	public function index()
+	{
 
 		if ($this->ion_auth->logged_in()) {
 			$this->_redirect_to_area();
@@ -26,7 +30,8 @@ class Auth extends Site_Controller {
 		}
 	}
 
-	public function login() {
+	public function login()
+	{
 		$this->form_validation->set_rules('email', 'Email', 'required');
 		$this->form_validation->set_rules('password', 'Password', 'required');
 
@@ -48,7 +53,8 @@ class Auth extends Site_Controller {
 		}
 	}
 
-	public function logout() {
+	public function logout()
+	{
 		$this->load->library('session');
 
 		$this->ion_auth->logout();
@@ -63,24 +69,21 @@ class Auth extends Site_Controller {
 			$this->session->unset_userdata('auth_redirect');
 			redirect($redirect_url, 'refresh');
 		} else {
-			if (empty($this->use_levels))
-			{
+			if (empty($this->use_levels)) {
 				if ($this->ion_auth->is_admin()) {
 					log_message('debug', 'Is Admin');
 					redirect("/admin/dashboard", 'refresh');
 				} else {
 					redirect("/", 'refresh');
 				}
-			}
-			else
-			{
+			} else {
 				$this->load->model('rest_user');
 
 				$user_id = $this->ion_auth->user()->row()->id;
 				$user_level = $this->rest_user->get_highest_level($user_id);
 				if ($user_level == LEVEL_ADMIN) {
 					redirect("/admin/dashboard", 'refresh');
-				} else if ($user_level == LEVEL_MEMBER) {
+				} elseif ($user_level == LEVEL_MEMBER) {
 					redirect("/private/profile", 'refresh');
 				}
 
@@ -99,26 +102,23 @@ class Auth extends Site_Controller {
 
 
 		$message = null;
-		try
-		{
-			if($password != $password_confirmation)
-			{
+		try {
+			if ($password != $password_confirmation) {
 				throw new Exception('The passwords do not match');
 				//si no falla ninguna validación previa, proceder
 			}
 
-			$additional_data = array(
+			$additional_data = [
 				'first_name' => $first_name,
 				'last_name' => $last_name,
 				'username' 	=> $email,
 				'company' 	=> ''
-			);
+			];
 
 			$groups_id = [GROUP_MEMBER_ID];
 			$user = $this->ion_auth->register($email, $password, $email, $additional_data, $groups_id);
 
-			if(!$user)
-			{
+			if (!$user) {
 				$errors = $this->ion_auth->errors();
 				throw new Exception($errors);
 			}
@@ -132,17 +132,16 @@ class Auth extends Site_Controller {
 			$this->session->set_flashdata('message_kind', 'success');
 
 			//redirect('/', 'refresh');
-		}
-		catch (Exception $ex)
-		{
+		} catch (Exception $ex) {
 			$message = $ex->getMessage();
 			log_message('debug', $message);
 
 
 		} finally {
 			// en caso de que queramos algún código de finalizar
-			if($message)
+			if ($message) {
 				$this->session->set_flashdata('message', $message);
+			}
 
 			redirect('/auth', 'refresh');
 		}

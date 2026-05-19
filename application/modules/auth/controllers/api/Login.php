@@ -1,4 +1,5 @@
 <?php
+
 //
 //  Login.php
 //  Ixaya
@@ -7,11 +8,12 @@
 //  Copyright © 2017 Ixaya. All rights reserved.
 //
 
-if (! defined('BASEPATH')) exit('No direct script access allowed');
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 
 class Login extends REST_Controller
 {
-
 	public function __construct()
 	{
 		$this->methods['*']['auth_override'] = 'none';
@@ -30,6 +32,10 @@ class Login extends REST_Controller
 
 		$username   = $this->post('username');
 		$password   = $this->post('password');
+
+		if (empty($username) || empty($password)) {
+			$this->response(['status' => -1, 'message' => "Username/password incorrect"], REST_Controller::HTTP_OK);
+		}
 
 		$device_uuid = $this->post('device_uuid');
 
@@ -69,6 +75,19 @@ class Login extends REST_Controller
 		}
 
 		$this->response(['status' => -1, 'message' => "User previously registered."], REST_Controller::HTTP_OK);
+	}
+
+	public function password_recovery_post()
+	{
+		$username  = $this->post('username');
+
+		$data = $this->ion_auth->forgotten_password($username);
+
+		//Implement send email using
+		//$data['forgottenPasswordCode'];
+		//$data['email'];
+
+		$this->response(['status' => 1, 'message' => "Email succesfully sent."], REST_Controller::HTTP_OK);
 	}
 
 	/**

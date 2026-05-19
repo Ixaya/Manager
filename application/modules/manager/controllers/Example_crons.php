@@ -2,7 +2,6 @@
 
 class Example_crons extends CI_Controller
 {
-
 	public function __construct()
 	{
 		parent::__construct();
@@ -64,11 +63,11 @@ class Example_crons extends CI_Controller
 			} else {
 				$this->manager_option->save_value($id_key, $last_id);
 			}
-		} else if (!empty($result['error'])) {
+		} elseif (!empty($result['error'])) {
 
 			echo "## Errors: " . json_encode($result['error']);
 		}
 
-		echo ('++ ' . date('Y-m-d H:i:s') . " Got(clients): $total Processed: $processed Last: $last_id\r\n");
+		echo('++ ' . date('Y-m-d H:i:s') . " Got(clients): $total Processed: $processed Last: $last_id\r\n");
 	}
 }

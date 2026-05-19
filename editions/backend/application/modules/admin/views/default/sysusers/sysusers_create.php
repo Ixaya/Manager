@@ -65,7 +65,7 @@
 								<br />
 								<div class="form-group">
 									<label>Activate</label>
-									<?=form_dropdown('active', array(1=>'True',0=>'False'), 1, 'class="form-control" id="active"')?>
+									<?=form_dropdown('active', [1 => 'True', 0 => 'False'], 1, 'class="form-control" id="active"')?>
 								</div>
 								<br/>
 								<button type="submit" class="btn btn-primary">Save</button>

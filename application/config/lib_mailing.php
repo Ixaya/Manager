@@ -1,5 +1,6 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+
+defined('BASEPATH') or exit('No direct script access allowed');
 
 $email_active_config = mngr_env('LIB_MAIL_ACTIVE_CONFIG', 'default');
 $email_from_name     = mngr_env('LIB_MAIL_FROM_NAME', null); // "_from_name_"
@@ -7,7 +8,7 @@ $email_bbc_enabled   = mngr_env_bool('LIB_MAIL_BBC_ENABLED', false);
 
 $email_base_config['useragent'] = mngr_env('LIB_MAIL_USERAGENT', null); // "_user_agent_"
 $email_base_config['mailtype'] = 'html';
-$email_base_config['wordwrap'] = TRUE;
+$email_base_config['wordwrap'] = true;
 $email_base_config['charset']  = 'utf-8';
 $email_base_config['newline']  = '\r\n';
 

@@ -1,25 +1,29 @@
-<?php if (!defined('BASEPATH'))  exit('No direct script access allowed');
+<?php
+
+if (!defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 
 class MY_Controller extends CI_Controller
 {
-	var $_theme;
-	var $_container;
-	var $_layout;
+	public $_theme;
+	public $_container;
+	public $_layout;
 
-	var $_use_domain = false;
-	var $_domain_id = 0;
-	var $domain_client_id;
+	public $_use_domain = false;
+	public $_domain_id = 0;
+	public $domain_client_id;
 
-	var $_theme_kind = 'frontend';
+	public $_theme_kind = 'frontend';
 
-	var $language_file = null;
-	var $language_enabled = false;
-	var $session_enabled = false;
+	public $language_file = null;
+	public $language_enabled = false;
+	public $session_enabled = false;
 
-	var $_css_files = [];
-	var $_js_files = [];
+	public $_css_files = [];
+	public $_js_files = [];
 
-	function __construct()
+	public function __construct()
 	{
 		parent::__construct();
 		$this->load->helper('url');
@@ -30,8 +34,9 @@ class MY_Controller extends CI_Controller
 			$domain_name = $_SERVER['HTTP_HOST'];
 			$domain = $this->ix_domain->get_where("domain_name = '$domain_name'");
 			if ($domain) {
-				if (!empty($domain->redirect_url))
+				if (!empty($domain->redirect_url)) {
 					redirect($domain->redirect_url);
+				}
 
 				$this->_domain_id = $domain->id;
 				$this->domain_client_id = $domain->client_id;
@@ -60,7 +65,7 @@ class MY_Controller extends CI_Controller
 			$this->_layout = "{$this->_container}/{$this->_theme}/{$this->_layout}";
 		}
 
-		if ($this->session_enabled){
+		if ($this->session_enabled) {
 			$this->load_session();
 		}
 
@@ -77,7 +82,7 @@ class MY_Controller extends CI_Controller
 
 			if (isset($_GET['language'])) {
 				$this->config->set_item('language', $_GET['language']);
-			} else if (isset($_SESSION['language'])) {
+			} elseif (isset($_SESSION['language'])) {
 				$this->config->set_item('language', $_SESSION['language']);
 			}
 
@@ -92,7 +97,7 @@ class MY_Controller extends CI_Controller
 			$this->load->helper('language');
 		}
 	}
-	
+
 	public function load_session()
 	{
 		$this->load->library('session');
@@ -112,7 +117,7 @@ class MY_Controller extends CI_Controller
 		//modify default layout after constructing the controller
 		if (empty($layout)) {
 			$layout = $this->_layout;
-		} else if (strpos($layout, '/') === false) {
+		} elseif (strpos($layout, '/') === false) {
 			$layout = "{$this->_container}/{$this->_theme}/$layout";
 		}
 
@@ -124,23 +129,23 @@ class MY_Controller extends CI_Controller
 	{
 		header('Content-Type: application/json');
 
-		echo (json_encode($data));
+		echo(json_encode($data));
 		die();
 	}
 
-	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
+	public function upload_file($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
 	{
 		$this->load->library('ix_upload_lib');
 		return $this->ix_upload_lib->upload_file($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 	}
 
-	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
+	public function upload_image($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
 	{
 		$this->load->library('ix_upload_lib');
 		return $this->ix_upload_lib->upload_image($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
 	}
 
-	public function put_file($relative_path, $file_name, $data, &$error = NULL)
+	public function put_file($relative_path, $file_name, $data, &$error = null)
 	{
 		$this->load->library('ix_upload_lib');
 		return $this->ix_upload_lib->put_file($relative_path, $file_name, $data, $error);

@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 $config['url'] = mngr_env('WEBSOCKET_URL', 'ws://localhost:9000');

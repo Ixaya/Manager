@@ -1,6 +1,8 @@
 <?php
 
-if (! defined('BASEPATH')) exit('No direct script access allowed');
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 /**
  * Name:    Ion Auth
  *
@@ -112,12 +114,12 @@ class Ion_auth
 			throw new Exception('Undefined method Ion_auth::' . $method . '() called');
 		}
 		if ($method == 'create_user') {
-			return call_user_func_array(array($this, 'register'), $arguments);
+			return call_user_func_array([$this, 'register'], $arguments);
 		}
 		if ($method == 'update_user') {
-			return call_user_func_array(array($this, 'update'), $arguments);
+			return call_user_func_array([$this, 'update'], $arguments);
 		}
-		return call_user_func_array(array($this->ion_auth_model, $method), $arguments);
+		return call_user_func_array([$this->ion_auth_model, $method], $arguments);
 	}
 
 	/**
@@ -230,11 +232,11 @@ class Ion_auth
 		if (!$email_activation) {
 			if ($id !== false) {
 				$this->set_message('account_creation_successful');
-				$this->ion_auth_model->trigger_events(array('post_account_creation', 'post_account_creation_successful'));
+				$this->ion_auth_model->trigger_events(['post_account_creation', 'post_account_creation_successful']);
 				return $id;
 			} else {
 				$this->set_error('account_creation_unsuccessful');
-				$this->ion_auth_model->trigger_events(array('post_account_creation', 'post_account_creation_unsuccessful'));
+				$this->ion_auth_model->trigger_events(['post_account_creation', 'post_account_creation_unsuccessful']);
 				return false;
 			}
 		} else {

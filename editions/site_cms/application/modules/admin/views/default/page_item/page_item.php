@@ -102,7 +102,7 @@
 								<ul class="list-group mb-3">
 						        	<li class="list-group-item d-flex justify-content-between lh-condensed">
 										<div>
-						                <h6 class="my-0"><?= (empty($page_item->image_name))? 'No Picture' : 'Current Picture'?></h6>
+						                <h6 class="my-0"><?= (empty($page_item->image_name)) ? 'No Picture' : 'Current Picture'?></h6>
 						<!--                 <small class="text-muted">Upload new Picture</small> -->
 										</div>
 										<span class="text-muted"></span>

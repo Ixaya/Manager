@@ -2,8 +2,7 @@
 
 class Sysusers extends Admin_Controller
 {
-
-	function __construct()
+	public function __construct()
 	{
 		parent::__construct();
 
@@ -16,7 +15,7 @@ class Sysusers extends Admin_Controller
 			$this->session->set_flashdata('message', 'You must be an administrator to view the users page.');
 			redirect('admin/dashboard');
 		}
-		$this->load->helper(array('form', 'url'));
+		$this->load->helper(['form', 'url']);
 	}
 
 	public function index()
@@ -40,14 +39,14 @@ class Sysusers extends Admin_Controller
 			$username = $this->input->post('username');
 			$password = $this->input->post('password');
 			$email = $this->input->post('email');
-			$group_id = array($this->input->post('group_id'));
+			$group_id = [$this->input->post('group_id')];
 
-			$additional_data = array(
+			$additional_data = [
 				'first_name' => $this->input->post('first_name'),
 				'last_name' => $this->input->post('last_name'),
 				'username' 	=> $this->input->post('username'),
 				'company' 	=> $this->input->post('company'),
-			);
+			];
 
 			$user = $this->ion_auth->register($email, $password, $email, $additional_data, $group_id);
 
@@ -56,8 +55,9 @@ class Sysusers extends Admin_Controller
 				echo $errors;
 				die('done');
 			} else {
-				if ($this->input->post('active') == 1)
+				if ($this->input->post('active') == 1) {
 					$this->ion_auth->activate($user);
+				}
 
 				redirect('/admin/sysusers', 'refresh');
 			}
@@ -83,10 +83,11 @@ class Sysusers extends Admin_Controller
 				$data['password'] = $newPassword;
 			}
 
-			if ($this->input->post('active') == 1)
+			if ($this->input->post('active') == 1) {
 				$this->ion_auth->activate($id);
-			else
+			} else {
 				$this->ion_auth->deactivate($id);
+			}
 
 			$this->ion_auth->remove_from_group('', $id);
 			$this->ion_auth->add_to_group($this->input->post('group_id'), $id);

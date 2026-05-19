@@ -1,59 +1,60 @@
 <?php
 
-class Migration_Page_Item extends CI_Migration {
-
-	public function up() {
-		$this->dbforge->add_field(array(
-			'id' => array(
+class Migration_Page_Item extends CI_Migration
+{
+	public function up()
+	{
+		$this->dbforge->add_field([
+			'id' => [
 				'type' => 'INT',
-				'constraint' => 11,
-				'auto_increment' => TRUE
-			),
-			'title' => array(
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'title' => [
 				'type' => 'VARCHAR',
 				'constraint' => 32
-			),
-			'description' => array(
+			],
+			'description' => [
 				'type' => 'VARCHAR',
 				'constraint' => 128,
-				'null' => TRUE
-			),
-			'url' => array(
+				'null' => true
+			],
+			'url' => [
 				'type' => 'VARCHAR',
 				'constraint' => 128,
-				'null' => TRUE
-			),
-			'kind' => array(
+				'null' => true
+			],
+			'kind' => [
 				'type' => 'INTEGER',
 				'constraint' => 11
-			),
-			'faicon' => array(
+			],
+			'faicon' => [
 				'type' => 'VARCHAR',
 				'constraint' => 32,
-				'null' => TRUE
-			),
-			'page_section_id' => array(
-				'type' => 'INTEGER',
-				'constraint' => 11,
 				'null' => true
-			),			
-			'image_name' => array(
+			],
+			'page_section_id' => [
+				'type' => 'INT',
+				'unsigned' => true,
+				'null' => true
+			],
+			'image_name' => [
 				'type' => 'VARCHAR',
 				'constraint' => 32,
-				'null' => TRUE
-			),
-			'last_update' => array(
+				'null' => true
+			],
+			'last_update' => [
 				'type' => 'TIMESTAMP'
-			),
-			'create_date' => array(
+			],
+			'create_date' => [
 				'type' => 'TIMESTAMP'
-			)
-		));
+			]
+		]);
 
-		$this->dbforge->add_key('id', TRUE);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('page_item');
-		
-		
+
+
 		$data['title'] = 'Composer Upgradable';
 		$data['description'] = 'CodeIgniter upgradeable through Composer (always use latest version)';
 		$data['url'] = '';
@@ -80,7 +81,7 @@ class Migration_Page_Item extends CI_Migration {
 		$data['page_section_id'] = '1';
 		$data['image_name'] = '';
 		$this->db->insert('page_item', $data);
-		
+
 		$data['title'] = 'About';
 		$data['description'] = 'About';
 		$data['url'] = 'about';
@@ -89,7 +90,7 @@ class Migration_Page_Item extends CI_Migration {
 		$data['page_section_id'] = '3';
 		$data['image_name'] = '';
 		$this->db->insert('page_item', $data);
-		
+
 		$data['title'] = 'Humberto';
 		$data['description'] = 'Easy Very easy to maintain.';
 		$data['url'] = '';
@@ -98,7 +99,7 @@ class Migration_Page_Item extends CI_Migration {
 		$data['page_section_id'] = '3';
 		$data['image_name'] = '';
 		$this->db->insert('page_item', $data);
-		
+
 		$data['title'] = 'Gustavo';
 		$data['description'] = 'A Joy to use.';
 		$data['url'] = '';
@@ -107,7 +108,7 @@ class Migration_Page_Item extends CI_Migration {
 		$data['page_section_id'] = '3';
 		$data['image_name'] = '';
 		$this->db->insert('page_item', $data);
-		
+
 		$data['title'] = 'Leonardo';
 		$data['description'] = 'Easy to do multi-language sites.';
 		$data['url'] = '';
@@ -118,7 +119,8 @@ class Migration_Page_Item extends CI_Migration {
 		$this->db->insert('page_item', $data);
 	}
 
-	public function down() {
+	public function down()
+	{
 		$this->dbforge->drop_table('page_item');
 	}
 }

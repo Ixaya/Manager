@@ -18,14 +18,17 @@ class MainTest extends TestCase
 	// 	return get_instance()->$var;
 	// }
 
-	public static function setUpBeforeClass(): void {}
+	public static function setUpBeforeClass(): void
+	{
+	}
 
 	public function test_main(): void
 	{
 		$example = 1;
-		if ($example == 1)
+		if ($example == 1) {
 			$this->assertTrue(true);
-		else
+		} else {
 			$this->assertFalse(false);
+		}
 	}
 }

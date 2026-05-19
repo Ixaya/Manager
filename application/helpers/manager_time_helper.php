@@ -1,21 +1,22 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Mngr_date_option
 {
-	const start_of_next_seven_days = 'start_of_next_seven_days';
-	const start_of_day = 'start_of_day';
-	const end_of_day = 'end_of_day';
-	const start_of_week = 'start_of_week';
-	const end_of_week = 'end_of_week';
-	const start_of_last_six_days = 'start_of_last_six_days';
-	const start_of_last_seven_days = 'start_of_last_seven_days';
-	const start_of_last_week = 'start_of_last_week';
-	const end_of_last_week = 'end_of_last_week';
-	const start_of_month = 'start_of_month';
-	const end_of_month = 'end_of_month';
-	const start_of_year = 'start_of_year';
-	const end_of_year = 'end_of_year';
+	public const start_of_next_seven_days = 'start_of_next_seven_days';
+	public const start_of_day = 'start_of_day';
+	public const end_of_day = 'end_of_day';
+	public const start_of_week = 'start_of_week';
+	public const end_of_week = 'end_of_week';
+	public const start_of_last_six_days = 'start_of_last_six_days';
+	public const start_of_last_seven_days = 'start_of_last_seven_days';
+	public const start_of_last_week = 'start_of_last_week';
+	public const end_of_last_week = 'end_of_last_week';
+	public const start_of_month = 'start_of_month';
+	public const end_of_month = 'end_of_month';
+	public const start_of_year = 'start_of_year';
+	public const end_of_year = 'end_of_year';
 }
 
 function mngr_get_date_option_obj(string $option, $date = null): ?DateTime
@@ -100,14 +101,16 @@ function mngr_get_date_option(string $option, $date = null): string
 
 /**
  * Create DateTime object from various string formats
- * 
+ *
  * @param string|null $date_string Date string to parse
  * @param string|null $format Specific format to expect (e.g., 'Y-m-d H:i:s')
  * @return DateTime|null DateTime object or null if parsing fails
  */
 function mngr_create_date_time(?string $date_string = null, ?string $format = null): ?DateTime
 {
-	if (empty($date_string)) new DateTime();
+	if (empty($date_string)) {
+		new DateTime();
+	}
 
 	if ($format !== null) {
 		$date_time = DateTime::createFromFormat($format, $date_string);
@@ -136,10 +139,14 @@ function mngr_create_date_time(?string $date_string = null, ?string $format = nu
  */
 function mngr_to_unix($date): ?int
 {
-	if (empty($date)) return null;
+	if (empty($date)) {
+		return null;
+	}
 
 	// If it's already an integer (Unix time), just return it
-	if (is_numeric($date)) return (int) $date;
+	if (is_numeric($date)) {
+		return (int) $date;
+	}
 
 	// Use your existing robust parsing logic
 	$dateObj = ($date instanceof DateTime) ? $date : mngr_create_date_time($date);

@@ -1,15 +1,17 @@
 <?php
 
-class Webpages extends Admin_Controller {
-
-	function __construct() {
+class Webpages extends Admin_Controller
+{
+	public function __construct()
+	{
 
 		$this->group_needed = 'members';
 
 		parent::__construct();
 	}
 
-	public function index() {
+	public function index()
+	{
 		$this->load->model('webpage');
 
 		$data['webpages'] = $this->webpage->get_all();
@@ -22,11 +24,12 @@ class Webpages extends Admin_Controller {
 		$this->load_view("webpages/webpages", $data);
 	}
 
-	public function create() {
+	public function create()
+	{
 		$this->edit();
 	}
 
-	public function edit($id = NULL)
+	public function edit($id = null)
 	{
 		//cargo el modelo
 		$this->load->model('webpage');
@@ -37,9 +40,9 @@ class Webpages extends Admin_Controller {
 			$data['kind'] = $this->input->post('kind');
 			$data['content'] = $this->input->post('content');
 
-			if ($id){
+			if ($id) {
 				$this->webpage->update($data, $id);
-			} else{
+			} else {
 				$data['create_date'] = date('Y-m-d H:i:s');
 				$id = $this->webpage->insert($data);
 			}
@@ -47,18 +50,17 @@ class Webpages extends Admin_Controller {
 			redirect("/admin/webpages/edit/$id", 'refresh');
 		}
 
-		if ($id)
-		{
+		if ($id) {
 			$data['webpage'] = $this->webpage->get($id);
 			$_SESSION['webpage_id'] = $id;
-		}
-		else
+		} else {
 			$data['webpage'] = $this->webpage->empty_row();
+		}
 
 
 
 
-		$this->load->helper(['form','ui']);
+		$this->load->helper(['form', 'ui']);
 
 		//me traigo los kinds desde el modelo webpage
 		$data['kinds'] = $this->webpage->kinds();
@@ -68,8 +70,9 @@ class Webpages extends Admin_Controller {
 
 	}
 
-	public function delete($id) {
-			$this->load->model('webpage');
+	public function delete($id)
+	{
+		$this->load->model('webpage');
 		$this->webpage->delete($id);
 
 		redirect('/admin/webpages', 'refresh');

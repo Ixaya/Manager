@@ -1,14 +1,16 @@
 <?php
 
-class Page_items extends Admin_Controller {
-
-	function __construct() {
+class Page_items extends Admin_Controller
+{
+	public function __construct()
+	{
 		parent::__construct();
 
 
 	}
 
-	public function index() {
+	public function index()
+	{
 		$this->load->model('page_item');
 		$this->page_item->set_override_column('page_section_id');
 		$data['page_items'] = $this->page_item->get_all();
@@ -23,11 +25,12 @@ class Page_items extends Admin_Controller {
 		$this->load_view("page_item/page_items", $data);
 	}
 
-	public function create() {
+	public function create()
+	{
 		$this->edit();
 	}
 
-	public function edit($id = NULL)
+	public function edit($id = null)
 	{
 		//cargo el modelo
 		$this->load->model('page_item');
@@ -46,20 +49,19 @@ class Page_items extends Admin_Controller {
 
 
 			//save profile picture image
-// 			$relative_path = "../private/user/";
+			// 			$relative_path = "../private/user/";
 			$relative_path = "media/page_item/";
 			$result = $this->upload_image($relative_path);
-			if(!empty($result['thumb_name']))
-			{
+			if (!empty($result['thumb_name'])) {
 				$data['image_name'] = $result['thumb_name'];
-// 				$data['image_url'] = base_url('private/profile/picture');
+				// 				$data['image_url'] = base_url('private/profile/picture');
 			}
 
 
 
-			if ($id){
+			if ($id) {
 				$this->page_item->update($data, $id);
-			} else{
+			} else {
 				$data['create_date'] = date('Y-m-d H:i:s');
 				$id = $this->page_item->insert($data);
 			}
@@ -67,23 +69,25 @@ class Page_items extends Admin_Controller {
 			redirect("/admin/page_items/edit/$id", 'refresh');
 		}
 
-		if ($id)
+		if ($id) {
 			$data['page_item'] = $this->page_item->get($id);
-		else
+		} else {
 			$data['page_item'] = $this->page_item->empty_row();
+		}
 
-		$this->load->helper(['form','ui']);
+		$this->load->helper(['form', 'ui']);
 
 		//me traigo los kinds desde el modelo page_item
 		$data['kinds'] = $this->page_item->kinds();
 		$columns = 'page_section.id, page_section.webpage_id, webpage.title, order, page_section.content, slug, page_section.kind';
-// 		$columns = '';
-		$data['page_sections'] = $this->page_section->get_all_join($columns,'','','','','','webpage','webpage.id = page_section.webpage_id');
+		// 		$columns = '';
+		$data['page_sections'] = $this->page_section->get_all_join($columns, '', '', '', '', '', 'webpage', 'webpage.id = page_section.webpage_id');
 		$this->load_view('page_item/page_item', $data);
 	}
 
-	public function delete($id) {
-			$this->load->model('page_item');
+	public function delete($id)
+	{
+		$this->load->model('page_item');
 		$this->page_item->delete($id);
 
 		redirect('/admin/page_items', 'refresh');

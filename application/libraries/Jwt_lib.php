@@ -1,9 +1,10 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 use Ahc\Jwt\JWT;
 
-/** 
+/**
  * Add the following packages to composer:
  * "adhocore/jwt": "^1.1"
  */
@@ -61,7 +62,7 @@ class Jwt_lib
 
 	private function setup_jws()
 	{
-		if (empty($this->secret)){
+		if (empty($this->secret)) {
 			return;
 		}
 
@@ -75,7 +76,7 @@ class Jwt_lib
 
 	/**
 	 * Generate JWT token for authenticated user
-	 * 
+	 *
 	 * @param int $user_id User database ID
 	 * @param string $aud Token audience identifier
 	 * @param array $scopes User permissions/roles
@@ -84,7 +85,7 @@ class Jwt_lib
 	 */
 	public function generate_token($user_id, $aud, $scopes = ['user'], $extra = [])
 	{
-		if (!isset($this->jwt)){
+		if (!isset($this->jwt)) {
 			return '';
 		}
 
@@ -104,7 +105,7 @@ class Jwt_lib
 
 	/**
 	 * Decode and validate JWT token
-	 * 
+	 *
 	 * @param string $token JWT token
 	 * @param string $aud Token audience identifier
 	 * @return object|false Payload object or false on failure

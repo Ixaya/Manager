@@ -1,8 +1,11 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
 
-class Example extends MY_Model {
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
-	public function __construct() {
+class Example extends MY_Model
+{
+	public function __construct()
+	{
 		//overrides
 		//$this->connection_name = '';
 		//$this->table_name = '';

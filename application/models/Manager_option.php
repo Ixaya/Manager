@@ -1,4 +1,6 @@
-<?php defined('BASEPATH') or exit('No direct script access allowed');
+<?php
+
+defined('BASEPATH') or exit('No direct script access allowed');
 
 class Manager_option extends MY_Model
 {
@@ -17,14 +19,14 @@ class Manager_option extends MY_Model
 			return $this->replace($data);
 		}
 
-		return NULL;
+		return null;
 	}
 
-	public function get_value($key, $default = NULL)
+	public function get_value($key, $default = null)
 	{
 		if (!empty($key)) {
 			$result = $this->get($key);
-			if (!empty($result['value'])){
+			if (!empty($result['value'])) {
 				return $result['value'];
 			}
 		}

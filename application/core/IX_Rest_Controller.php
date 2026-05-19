@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class IX_Rest_Controller extends REST_Controller
@@ -44,8 +45,9 @@ class IX_Rest_Controller extends REST_Controller
 		$this->load->model('ion_auth_model');
 		$user_groups = $this->ion_auth_model->get_users_groups($this->user_id)->result();
 		foreach ($user_groups as $user_group) {
-			if ($this->logged_in_level < $user_group->level)
+			if ($this->logged_in_level < $user_group->level) {
 				$this->logged_in_level = $user_group->level;
+			}
 		}
 	}
 
@@ -59,7 +61,7 @@ class IX_Rest_Controller extends REST_Controller
 			$level = 0;
 			if (isset($this->group_methods[$controller_method]['level'])) {
 				$level = $this->group_methods[$controller_method]['level'];
-			} else if (isset($this->group_methods['*']['level'])) {
+			} elseif (isset($this->group_methods['*']['level'])) {
 				$level = $this->group_methods['*']['level'];
 			}
 
@@ -68,7 +70,7 @@ class IX_Rest_Controller extends REST_Controller
 			$group = null;
 			if (isset($this->group_methods[$controller_method]['group'])) {
 				$group = $this->group_methods[$controller_method]['group'];
-			} else if (isset($this->group_methods['*']['group'])) {
+			} elseif (isset($this->group_methods['*']['group'])) {
 				$group = $this->group_methods['*']['group'];
 			}
 
@@ -76,9 +78,9 @@ class IX_Rest_Controller extends REST_Controller
 				if (!$this->validate_level($level) && !$this->validate_group($group)) {
 					$this->response(['status' => 0, 'message' => 'User not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
 				}
-			} else if ($level > 0 && !$this->validate_level($level)) {
+			} elseif ($level > 0 && !$this->validate_level($level)) {
 				$this->response(['status' => 0, 'message' => 'User level not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
-			} else if ($group != null && !$this->validate_group($group)) {
+			} elseif ($group != null && !$this->validate_group($group)) {
 				$this->response(['status' => 0, 'message' => 'User group not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
 			}
 		}
@@ -110,10 +112,12 @@ class IX_Rest_Controller extends REST_Controller
 		$this->load->library('user_agent');
 
 		$platform = $this->agent->platform();
-		if ($platform == 'iOS')
+		if ($platform == 'iOS') {
 			return 1;
-		if ($platform == 'Android')
+		}
+		if ($platform == 'Android') {
 			return 2;
+		}
 
 		return 0;
 	}
@@ -127,7 +131,7 @@ class IX_Rest_Controller extends REST_Controller
 		return true;
 	}
 
-	public function validate_group($group, $url = NULL)
+	public function validate_group($group, $url = null)
 	{
 		if (!isset($this->user)) {
 			$this->load->model('rest_user');
@@ -138,19 +142,19 @@ class IX_Rest_Controller extends REST_Controller
 
 	public function validate_access($level, $group)
 	{
-		if ($level !== FALSE && $this->logged_in_level >= $level) {
-			return TRUE;
+		if ($level !== false && $this->logged_in_level >= $level) {
+			return true;
 		}
 
-		if ($group == FALSE) {
-			return FALSE;
+		if ($group == false) {
+			return false;
 		}
 
 		if (!isset($this->user)) {
 			$this->load->model('rest_user');
 		}
 
-		return $this->rest_user->validate_group($this->user_id, $group, FALSE);
+		return $this->rest_user->validate_group($this->user_id, $group, false);
 	}
 
 	public function print_log($object)
@@ -158,6 +162,6 @@ class IX_Rest_Controller extends REST_Controller
 		$now = mngr_get_now_date_time();
 
 		$timestamp = $now->format('Y-m-d H:i:s');
-		echo (PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
+		echo(PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
 	}
 }

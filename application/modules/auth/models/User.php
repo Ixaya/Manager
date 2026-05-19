@@ -1,3 +1,7 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
 
-class User extends MY_Model { }
+(defined('BASEPATH')) or exit('No direct script access allowed');
+
+class User extends MY_Model
+{
+}

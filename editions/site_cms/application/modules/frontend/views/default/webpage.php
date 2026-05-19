@@ -42,8 +42,8 @@
 
 							
 
-	  <?php switch($section['kind']):
-		  case 1: ?>
+	  <?php switch ($section['kind']):
+	  	case 1: ?>
 		  <!-- Icons Grid -->
 		  <section class="features-icons bg-light text-center">
 		    <div class="container">
@@ -74,8 +74,8 @@
 			  <?php $odd = false; ?>
 			  <?php foreach ($section['page_items'] as $item): ?>
 		      <div class="row no-gutters">
-		        <div class="col-lg-6 <?= ($odd)?'order-lg-2':'';?> text-white showcase-img" style="background-image: url(<?= base_url('media/page_item/' . $item['image_name'] . '.jpg'); ?>);" alt="<?= $item['title'] ?>"></div>
-		        <div class="col-lg-6 <?= ($odd)?'order-lg-1':'';?> my-auto showcase-text">
+		        <div class="col-lg-6 <?= ($odd) ? 'order-lg-2' : '';?> text-white showcase-img" style="background-image: url(<?= base_url('media/page_item/' . $item['image_name'] . '.jpg'); ?>);" alt="<?= $item['title'] ?>"></div>
+		        <div class="col-lg-6 <?= ($odd) ? 'order-lg-1' : '';?> my-auto showcase-text">
 			        
 			     <?= (!empty($item['url'])) ? "<a href=" . $item['url'] .">" : '' ?>			        
 		          <h2><?= $item['title'] ?></h2>
@@ -83,7 +83,7 @@
 		          <p class="lead mb-0"><?= $item['description'] ?></p>
 		        </div>
 		      </div>
-		      <?php ($odd) ? $odd = FALSE : $odd = TRUE; ?>
+		      <?php ($odd) ? $odd = false : $odd = true; ?>
 		      
 		      <?php endforeach; ?>
 		

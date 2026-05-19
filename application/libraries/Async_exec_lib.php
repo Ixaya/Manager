@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Async_exec_lib
@@ -38,7 +39,7 @@ class Async_exec_lib
 	 *
 	 * The URI is treated as a routing path (e.g. "module/api/v1/controller/method")
 	 * and is split into individual routing segments.
-	 * 
+	 *
 	 * When not explicitly provided, the log file base name is generated from the
 	 * URI path segments.
 	 *
@@ -82,7 +83,7 @@ class Async_exec_lib
 		// Escape arguments
 		// [PHP 8 MIGRATION] Added explicit (string) cast to urlencode
 		$urlencode_args = array_map(
-			fn($v) => urlencode((string) $v),
+			fn ($v) => urlencode((string) $v),
 			$args
 		);
 

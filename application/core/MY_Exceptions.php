@@ -6,9 +6,9 @@ class MY_Exceptions extends CI_Exceptions
 
 	// 404 logging is intentionally disabled (we rely on server logs).
 	// Uncomment if you want CodeIgniter to log 404 errors.
-	public function show_404($page = '', $log_error = FALSE)
+	public function show_404($page = '', $log_error = false)
 	{
-		parent::show_404($page, FALSE);
+		parent::show_404($page, false);
 	}
 
 	public function show_error($heading, $message, $template = 'error_general', $status_code = 500)
@@ -17,11 +17,16 @@ class MY_Exceptions extends CI_Exceptions
 			return parent::show_error($heading, $message, $template, $status_code);
 		}
 
-		$data = [
-			'status' => -1,
-			'error'  => $heading,
-			'details' => is_array($message) ? implode("\n", $message) : $message
-		];
+		if ($template == 'error_db') {
+			$data = $this->_parse_db_error($message);
+		} else {
+			$data = [
+				'status' => -1,
+				'error'  => $heading,
+				'details' => $message
+			];
+		}
+
 
 		$this->show_error_data($data, $status_code);
 
@@ -68,7 +73,13 @@ class MY_Exceptions extends CI_Exceptions
 		if (is_cli()) {
 			echo "**ERROR($error_code)**\r\n";
 			foreach ($data as $k => $v) {
-				echo $k . ': ' . $v . "\r\n";
+				if (is_array($v)) {
+					foreach ($v as $i => $line) {
+						echo $k . '[' . $i . ']: ' . $line . "\r\n";
+					}
+				} else {
+					echo $k . ': ' . $v . "\r\n";
+				}
 			}
 		} else {
 			// If something already wrote to the output buffer, do not emit again.
@@ -128,7 +139,17 @@ class MY_Exceptions extends CI_Exceptions
 			return;
 		}
 
-		header('Access-Control-Allow-Origin: *');
+		// If we want to allow any domain to access the API
+		if (mngr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', false) === true) {
+			header('Access-Control-Allow-Origin: *');
+		} else {
+			// If the origin domain is in the allowed_cors_origins list, then add the Access Control headers
+			if (in_array($origin, mngr_env_array('REST_ALLOWED_CORS', []))) {
+				header('Access-Control-Allow-Origin: ' . $origin);
+			} else {
+				return;
+			}
+		}
 
 		if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
 			// Echo back requested headers (more compatible with older browsers)
@@ -138,5 +159,37 @@ class MY_Exceptions extends CI_Exceptions
 		}
 
 		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
+	}
+
+	private function _parse_db_error($message)
+	{
+		$parts = is_array($message) ? $message : explode("\n", $message);
+
+		$data = [
+			'status'  => -1,
+			'error'   => 'A Database Error Occurred',
+			'message' => null,
+			'errno'   => null,
+			'file'    => null,
+			'line'    => null,
+		];
+
+		foreach ($parts as $part) {
+			$part = trim($part);
+
+			if (preg_match('/^Error Number:\s*(\d+)$/i', $part, $m)) {
+				$data['errno'] = (int) $m[1];
+			} elseif (preg_match('/^Filename:\s*(.+)$/i', $part, $m)) {
+				$data['file'] = trim($m[1]);
+			} elseif (preg_match('/^Line Number:\s*(\d+)$/i', $part, $m)) {
+				$data['line'] = (int) $m[1];
+			} elseif (preg_match('/^(SELECT|INSERT|UPDATE|DELETE|SHOW|REPLACE)/i', $part)) {
+				$data['query'] = $part;
+			} elseif (!empty($part)) {
+				$data['message'] = $part;
+			}
+		}
+
+		return $data;
 	}
 }

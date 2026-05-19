@@ -1,4 +1,8 @@
-<?php  if (!defined('BASEPATH')) exit('No direct script access allowed');
+<?php
+
+if (!defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 
 
 //'dev' for development or 'prod' for production
@@ -15,5 +19,3 @@ $config['cache_time']     = mngr_env_int('MNGR_CACHE_TIME', 5);
 $config['rest_time_zone'] = mngr_env('MNGR_REST_TIME_ZONE', null); // UTC | null (System default)
 
 $config['migration_db'] = mngr_env_array('MNGR_MIGRATION_DB', ['default']);
-
-?>

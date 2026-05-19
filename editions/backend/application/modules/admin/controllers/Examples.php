@@ -1,32 +1,35 @@
 <?php
 
-class Examples extends Admin_Controller {
-
-	function __construct() {
+class Examples extends Admin_Controller
+{
+	public function __construct()
+	{
 		parent::__construct();
 
 		$this->load->model(['admin/example']);
 	}
 
-	public function index() {
+	public function index()
+	{
 		$data['examples'] = $this->example->get_all();
 
 		$this->load_view("example/examples", $data);
 	}
 
-	public function create() {
+	public function create()
+	{
 		$this->edit();
 	}
 
-	public function edit($id = NULL)
+	public function edit($id = null)
 	{
 		if ($this->input->post('title')) {
 			$data['title'] = $this->input->post('title');
 			$data['example'] = $this->input->post('example');
 
-			if ($id){
+			if ($id) {
 				$this->example->update($data, $id);
-			} else{
+			} else {
 				$data['create_date'] = date('Y-m-d H:i:s');
 				$id = $this->example->insert($data);
 			}
@@ -34,17 +37,19 @@ class Examples extends Admin_Controller {
 			redirect("/admin/examples/edit/$id", 'refresh');
 		}
 
-		if ($id)
+		if ($id) {
 			$data['example'] = $this->example->get($id);
-		else
+		} else {
 			$data['example'] = $this->example->empty_row();
+		}
 
 
-		$this->load->helper(['form','ui']);
+		$this->load->helper(['form', 'ui']);
 		$this->load_view('example/example', $data);
 	}
 
-	public function delete($id) {
+	public function delete($id)
+	{
 		$this->example->delete($id);
 
 		redirect('/admin/examples', 'refresh');

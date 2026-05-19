@@ -1,55 +1,56 @@
 <?php
 
-class Migration_Webpage extends CI_Migration {
-
-	public function up() {
-		$this->dbforge->add_field(array(
-			'id' => array(
+class Migration_Webpage extends CI_Migration
+{
+	public function up()
+	{
+		$this->dbforge->add_field([
+			'id' => [
 				'type' => 'INT',
-				'constraint' => 11,
-				'auto_increment' => TRUE
-			),
-			'title' => array(
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'title' => [
 				'type' => 'VARCHAR',
 				'constraint' => 32
-			),
-			'slug' => array(
+			],
+			'slug' => [
 				'type' => 'VARCHAR',
 				'constraint' => 32,
-				'null' => TRUE
-			),
-			'kind' => array(
+				'null' => true
+			],
+			'kind' => [
 				'type' => 'INT',
 				'constraint' => 11
-			),
-			'content' => array(
+			],
+			'content' => [
 				'type' => 'LONGTEXT',
-				'null' => TRUE
-			),
-			'last_update' => array(
+				'null' => true
+			],
+			'last_update' => [
 				'type' => 'TIMESTAMP'
-			),
-			'create_date' => array(
+			],
+			'create_date' => [
 				'type' => 'TIMESTAMP'
-			)
-		));
+			]
+		]);
 
-		$this->dbforge->add_key('id', TRUE);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('webpage');
-		
+
 		$data['title'] = 'About';
 		$data['slug'] = 'about';
 		$data['kind'] = '1';
 		$this->db->insert('webpage', $data);
-		
+
 		$data['title'] = 'Links';
 		$data['slug'] = 'links';
 		$data['kind'] = '1';
 		$this->db->insert('webpage', $data);
-		
 	}
 
-	public function down() {
+	public function down()
+	{
 		$this->dbforge->drop_table('webpage');
 	}
 }

@@ -1,6 +1,8 @@
 <?php
 
-if (! defined('BASEPATH')) exit('No direct script access allowed');
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 
 
 /**
@@ -17,8 +19,7 @@ if (! defined('BASEPATH')) exit('No direct script access allowed');
  */
 class Rest_key_model extends CI_Model
 {
-
-	function __construct()
+	public function __construct()
 	{
 		// Construct the parent class
 		parent::__construct();
@@ -51,16 +52,18 @@ class Rest_key_model extends CI_Model
 		// Build a new key
 		$key = $this->_generate_key();
 		// If no key level provided, provide a generic key
-		if ($level)
+		if ($level) {
 			$data['level'] = $level;
+		}
 
 		//$ignore_limits = ctype_digit($this->put('ignore_limits')) ? (int) $this->put('ignore_limits') : 1;
 		$result = $this->_insert_key($key, $data);
 		// Insert the new key
-		if ($returnKey)
+		if ($returnKey) {
 			return $key;
-		else
+		} else {
 			return $result;
+		}
 	}
 
 	/**
@@ -73,8 +76,9 @@ class Rest_key_model extends CI_Model
 	{
 
 		// Does this key exist?
-		if (!$this->_key_exists($key))
+		if (!$this->_key_exists($key)) {
 			return false;
+		}
 
 		// Destroy it
 		$this->_delete_key($key);
@@ -92,14 +96,16 @@ class Rest_key_model extends CI_Model
 	public function set_key_level($key, $new_level)
 	{
 		// Does this key exist?
-		if (!$this->_key_exists($key))
+		if (!$this->_key_exists($key)) {
 			return false;
+		}
 
 		// Update the key level
-		if ($this->_update_key($key, ['level' => $new_level]))
+		if ($this->_update_key($key, ['level' => $new_level])) {
 			return true;
-		else
+		} else {
 			return false;
+		}
 	}
 
 	/**
@@ -111,14 +117,16 @@ class Rest_key_model extends CI_Model
 	public function suspend_key($key)
 	{
 		// Does this key exist?
-		if (!$this->_key_exists($key))
+		if (!$this->_key_exists($key)) {
 			return false;
+		}
 
 		// Update the key level
-		if ($this->_update_key($key, ['level' => 0]))
+		if ($this->_update_key($key, ['level' => 0])) {
 			return true;
-		else
+		} else {
 			return false;
+		}
 	}
 
 	/**
@@ -132,8 +140,9 @@ class Rest_key_model extends CI_Model
 		$key_details = $this->_get_key($old_key);
 
 		// Does this key exist?
-		if (!$key_details)
+		if (!$key_details) {
 			return false;
+		}
 
 		// Build a new key
 		$new_key = $this->_generate_key();
@@ -156,10 +165,11 @@ class Rest_key_model extends CI_Model
 			->where($where)
 			->get(config_item('rest_keys_table'))
 			->row();
-		if ($keyRow)
+		if ($keyRow) {
 			return $keyRow->key;
-		else
+		} else {
 			return $this->add_key($where, 1, true, $device_uuid);
+		}
 	}
 	public function delete_user_key($user_id)
 	{

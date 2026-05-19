@@ -1,7 +1,9 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
-function mngr_sheet_cell($col, $row){
+function mngr_sheet_cell($col, $row)
+{
 	return "{$col}{$row}";
 }
 
@@ -28,7 +30,7 @@ function mngr_sheet_avg_col(&$sheet, $col, $start_row, $end_row, $total_row, $ro
 	$total_cell = mngr_sheet_cell($col, $total_row);
 	$sum_range = mngr_sheet_range_row($col, $start_row, $end_row);
 
-	if ($round){
+	if ($round) {
 		$sheet->setCellValue($total_cell, "=ROUND(AVERAGE($sum_range), 0)");
 	} else {
 		$sheet->setCellValue($total_cell, "=AVERAGE($sum_range)");
@@ -49,11 +51,11 @@ function mngr_sheet_font(&$sheet, $range, $color_hex, $size, $bold = true)
 
 	$font_style->setBold($bold);
 
-	if (!empty($size)){
+	if (!empty($size)) {
 		$font_style->setSize($size);
 	}
-	
-	if (!empty($color_hex)){
+
+	if (!empty($color_hex)) {
 		$font_style->getColor()->setARGB($color_hex);
 	}
 }

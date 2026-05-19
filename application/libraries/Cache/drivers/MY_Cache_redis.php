@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
@@ -17,7 +18,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class MY_Cache_redis extends CI_Cache_redis
 {
 	// const SERIALIZE_PREFIX = "\x00PHP_SER\x00"; // Magic header for PHP serialize
-	const SERIALIZE_PREFIX = "~PHP~"; // Magic header for PHP serialize
+	public const SERIALIZE_PREFIX = "~PHP~"; // Magic header for PHP serialize
 
 	/** @var String */
 	private $channelPrefix;
@@ -65,11 +66,11 @@ class MY_Cache_redis extends CI_Cache_redis
 	 * @param	bool	$raw	Whether to store the raw value (unused)
 	 * @return	bool	TRUE on success, FALSE on failure
 	 */
-	public function save($id, $data, $ttl = 60, $raw = FALSE)
+	public function save($id, $data, $ttl = 60, $raw = false)
 	{
 		if (is_array($data) or is_object($data)) {
 			$data = self::SERIALIZE_PREFIX . serialize($data);
-		}		
+		}
 		if ($ttl < 1) {
 			return $this->_redis->set($id, $data);
 		}
@@ -97,15 +98,15 @@ class MY_Cache_redis extends CI_Cache_redis
 			$result = $this->_redis->rPush($id, ...$items);
 		}
 
-		if ($result === FALSE) {
-			return FALSE;
+		if ($result === false) {
+			return false;
 		}
 
 		if ($ttl > 0) {
 			$this->_redis->expire($id, $ttl);
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/**
@@ -117,20 +118,20 @@ class MY_Cache_redis extends CI_Cache_redis
 	 * @param int    $ttl   Seconds (0 = no expiry)
 	 * @return bool
 	 */
-	public function save_set($id, $data, $ttl = 60)
+	public function save_set(string $id, mixed $data, int $ttl = 60)
 	{
 		$items = is_array($data) ? $data : [$data];
 		$result = $this->_redis->sAdd($id, ...$items);
 
-		if ($result === FALSE) {
-			return FALSE;
+		if ($result === false) {
+			return false;
 		}
 
 		if ($ttl > 0) {
 			$this->_redis->expire($id, $ttl);
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/**
@@ -146,29 +147,29 @@ class MY_Cache_redis extends CI_Cache_redis
 	 * @param int    $ttl  Seconds (0 = no expiry)
 	 * @return bool
 	 */
-	public function save_zset($id, $data, $ttl = 60)
+	public function save_zset(string $id, mixed $data, int $ttl = 60)
 	{
 		// Normalize: if it's a single ['value'=>..., 'score'=>...] wrap it
 		$items = isset($data['value']) ? [$data] : $data;
 
-		$result = TRUE;
+		$result = true;
 		foreach ($items as $item) {
 			if (! isset($item['value'], $item['score'])) {
-				return FALSE;
+				return false;
 			}
 
-			$result = $this->_redis->zAdd($id, (float) $item['score'], $item['value']) !== FALSE && $result;
+			$result = $this->_redis->zAdd($id, (float) $item['score'], $item['value']) !== false && $result;
 		}
 
-		if ($result === FALSE) {
-			return FALSE;
+		if ($result === false) {
+			return false;
 		}
 
 		if ($ttl > 0) {
 			$this->_redis->expire($id, $ttl);
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/**
@@ -180,23 +181,23 @@ class MY_Cache_redis extends CI_Cache_redis
 	 * @param int    $ttl  Seconds (0 = no expiry)
 	 * @return bool
 	 */
-	public function save_hash($id, array $data, $ttl = 60)
+	public function save_hash(string $id, array $data, int $ttl = 60)
 	{
 		if (empty($data)) {
-			return FALSE;
+			return false;
 		}
 
 		$result = $this->_redis->hMSet($id, $data);
 
-		if ($result === FALSE) {
-			return FALSE;
+		if ($result === false) {
+			return false;
 		}
 
 		if ($ttl > 0) {
 			$this->_redis->expire($id, $ttl);
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/**
@@ -220,7 +221,7 @@ class MY_Cache_redis extends CI_Cache_redis
 	 *                      For hash: field name(s) to remove
 	 * @return int|false    Number of items removed, or FALSE on error
 	 */
-	public function delete_from($id, $data)
+	public function delete_from(string $id, mixed $data)
 	{
 		$type = $this->_redis->type($id);
 		$items = is_array($data) ? $data : [$data];
@@ -230,8 +231,8 @@ class MY_Cache_redis extends CI_Cache_redis
 				$removed = 0;
 				foreach ($items as $item) {
 					$count = $this->_redis->lRem($id, $item, 0);
-					if ($count === FALSE) {
-						return FALSE;
+					if ($count === false) {
+						return false;
 					}
 					$removed += $count;
 				}
@@ -246,10 +247,10 @@ class MY_Cache_redis extends CI_Cache_redis
 			case Redis::REDIS_HASH:
 			case Redis::REDIS_STRING:
 			case Redis::REDIS_NOT_FOUND:
-				return FALSE;
+				return false;
 
 			default:
-				return FALSE;
+				return false;
 		}
 	}
 
@@ -261,7 +262,7 @@ class MY_Cache_redis extends CI_Cache_redis
 	 * @param array  $fields Field names to remove
 	 * @return int|false     Number of fields removed, or FALSE on error
 	 */
-	public function delete_hash_fields($id, $fields)
+	public function delete_hash_fields(string $id, array $fields)
 	{
 		$type = $this->_redis->type($id);
 		switch ($type) {
@@ -272,7 +273,7 @@ class MY_Cache_redis extends CI_Cache_redis
 				return 0;  // Key doesn't exist, nothing to delete
 
 			default:
-				return FALSE;  // Wrong type
+				return false;  // Wrong type
 		}
 	}
 
@@ -322,12 +323,12 @@ class MY_Cache_redis extends CI_Cache_redis
 
 	/**
 	 * Publish a message to a channel
-	 * 
+	 *
 	 * @param string $channel Channel name
 	 * @param mixed $message Message (will be JSON encoded if array)
 	 * @return int Number of subscribers that received the message
 	 */
-	public function publish($channel, $message)
+	public function publish(string $channel, mixed $message)
 	{
 		if ($this->_redis === null) {
 			return -1;
@@ -354,10 +355,10 @@ class MY_Cache_redis extends CI_Cache_redis
 	/**
 	 * Subscribe to one or more channels
 	 * This is a BLOCKING operation
-	 * 
+	 *
 	 * @param array|string $channels Channel(s) to subscribe to
 	 * @param callable $callback Function to call when message received
-	 * 
+	 *
 	 */
 	public function subscribe($channels, $callback)
 	{
@@ -392,10 +393,10 @@ class MY_Cache_redis extends CI_Cache_redis
 	/**
 	 * Subscribe to channels matching a pattern
 	 * This is a BLOCKING operation
-	 * 
+	 *
 	 * @param array|string $patterns Pattern(s) to match
 	 * @param callable $callback Function to call when message received
-	 * 
+	 *
 	 */
 	public function psubscribe($patterns, $callback)
 	{

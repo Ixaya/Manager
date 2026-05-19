@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Ix_mailing
@@ -14,7 +15,7 @@ class Ix_mailing
 	protected $view_theme = null;
 	protected $view_folder = null;
 
-	function __construct()
+	public function __construct()
 	{
 		// Is the config file in the environment folder?
 		if (
@@ -27,10 +28,11 @@ class Ix_mailing
 		include($file_path);
 
 		if (!$this->view_theme) {
-			if (!empty($CI->_theme))
+			if (!empty($CI->_theme)) {
 				$this->view_theme = $CI->_theme;
-			else
+			} else {
 				$this->view_theme = 'default';
+			}
 		}
 
 		if (!$this->config_name && isset($email_active_config)) {
@@ -44,10 +46,11 @@ class Ix_mailing
 		}
 
 		if (!empty($email_config[$this->config_name])) {
-			if (!empty($email_base_config))
+			if (!empty($email_base_config)) {
 				$this->email_config = array_merge($email_base_config, $email_config[$this->config_name]);
-			else
+			} else {
 				$this->email_config = $email_config[$this->config_name];
+			}
 		}
 	}
 
@@ -62,7 +65,7 @@ class Ix_mailing
 		}
 	}
 
-	public function send_email($email = null, $data = [], $subject = '', $view = '', $view_only = FALSE)
+	public function send_email($email = null, $data = [], $subject = '', $view = '', $view_only = false)
 	{
 		if (empty($this->email_config)) {
 			log_message('error', 'Mailing not configured');
@@ -80,7 +83,7 @@ class Ix_mailing
 		$view_route = implode('/', $path_parts) . "/$view";
 
 		if (intval($view_only)) {
-			return $CI->load->view($view_route, $data, TRUE);
+			return $CI->load->view($view_route, $data, true);
 		} else {
 			try {
 				$CI->load->library('email');
@@ -97,12 +100,12 @@ class Ix_mailing
 
 				$CI->email->subject($subject);
 
-				$message = $CI->load->view($view_route, $data, TRUE);
+				$message = $CI->load->view($view_route, $data, true);
 				$CI->email->message($message);
 
-				$result = $CI->email->send(FALSE);
+				$result = $CI->email->send(false);
 
-				if (!$result){
+				if (!$result) {
 					log_message('error', $CI->email->print_debugger(['headers']));
 				}
 

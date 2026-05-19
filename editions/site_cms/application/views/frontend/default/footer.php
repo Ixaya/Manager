@@ -8,12 +8,13 @@
             <li class="list-inline-item">
             <?php
 
-	            $url = $item['url'];
+				$url = $item['url'];
 
-	            if(strlen($url) > 4 && substr($url, 0, 4) != 'http')
-	            	$url = base_url("page/{$item['url']}");
+            	if (strlen($url) > 4 && substr($url, 0, 4) != 'http') {
+            		$url = base_url("page/{$item['url']}");
+            	}
 
-            ?>
+            	?>
               <a href="<?= $url ?>"><?= $item['title'] ?></a>
             </li>
             <li class="list-inline-item">&sdot;</li>

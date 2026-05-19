@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 if (!function_exists('mngr_env')) {
@@ -43,7 +44,7 @@ if (!function_exists('mngr_env_float')) {
 
 if (!function_exists('mngr_env_array')) {
 	//Get environment variable as array (comma-separated)
-	function mngr_env_array($key, $default = array(), $separator = ',')
+	function mngr_env_array($key, $default = [], $separator = ',')
 	{
 		return Ix_env_lib::get_array($key, $default, $separator);
 	}

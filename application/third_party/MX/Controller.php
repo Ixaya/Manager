@@ -1,4 +1,6 @@
-<?php (defined('BASEPATH')) OR exit('No direct script access allowed');
+<?php
+
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
 /** load the CI class for Modular Extensions **/
 require dirname(__FILE__).'/Base.php';

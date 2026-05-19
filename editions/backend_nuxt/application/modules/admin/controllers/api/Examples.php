@@ -2,8 +2,7 @@
 
 class Examples extends IX_Rest_Controller
 {
-
-	function __construct()
+	public function __construct()
 	{
 		$this->group_methods['*']['level'] = LEVEL_ADMIN;
 		// $this->group_methods['*']['group'] = GROUP_ADMIN;
@@ -46,7 +45,7 @@ class Examples extends IX_Rest_Controller
 		$this->upsert();
 	}
 
-	private function upsert($id = NULL)
+	private function upsert($id = null)
 	{
 		$data['title'] = $this->post('title');
 		$data['example'] = $this->post('example');

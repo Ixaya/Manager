@@ -1,12 +1,15 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
 
-class Page_section extends MY_Model {
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
-	public function __construct() {
+class Page_section extends MY_Model
+{
+	public function __construct()
+	{
 		//overrides
 		//$this->connection_name = '';
 		//$this->table_name = '';
-// 		$this->override_column = 'webpage_id';
+		// 		$this->override_column = 'webpage_id';
 		//$this->soft_delete = true;
 
 		//initialize after overriding
@@ -22,13 +25,13 @@ class Page_section extends MY_Model {
 		$kinds[5] = 'HTML Content';
 		$kinds[6] = 'Menu Link';
 		return $kinds;
-		
+
 	}
-	
+
 	public function count_icons()
 	{
 		$query = 'SELECT count(id) as count FROM page_section WHERE kind = 1';
-		
+
 		$result = $this->query($query);
 		return $result[0]->count;
 	}

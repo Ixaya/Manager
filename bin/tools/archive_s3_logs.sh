@@ -32,7 +32,7 @@ archive_logs_to_s3() {
     local SOURCE_DIR="$1"
     local S3_PATH_PREFIX="$2"  # e.g., "app" or "domains/site1"
     local SITE_NAME="$3"        # Optional: for display purposes
-    
+
     echo "========================================"
     if [[ -n "$SITE_NAME" ]]; then
         echo "Processing: $SITE_NAME"
@@ -40,25 +40,25 @@ archive_logs_to_s3() {
     echo "Source: $SOURCE_DIR"
     echo "S3 Destination: s3://$S3_BUCKET/$S3_PATH_PREFIX/YYYY/MM/"
     echo "========================================"
-    
+
     # Check if source directory exists
     if [[ ! -d "$SOURCE_DIR" ]]; then
         echo "Warning: Source directory '$SOURCE_DIR' does not exist - skipping"
         echo
         return 1
     fi
-    
+
     # Find and process files older than specified days
     local FILE_COUNT=0
     local UPLOADED_COUNT=0
     local ERROR_COUNT=0
     echo "Searching for log files older than $DAYS_OLD days..."
     echo
-    
+
     # Find files matching pattern log-*.log that are older than specified days
     while IFS= read -r -d '' file; do
         filename=$(basename "$file")
-        
+
         # Get the file's modification date to determine year/month folder
         # Using stat command (works on both Linux and macOS)
         if [[ "$(uname)" == "Darwin" ]]; then
@@ -68,10 +68,10 @@ archive_logs_to_s3() {
             # Linux
             FILE_DATE=$(date -r "$file" "+%Y/%m")
         fi
-        
+
         # Construct S3 path with year/month
         S3_DEST="s3://$S3_BUCKET/$S3_PATH_PREFIX/$FILE_DATE/$filename"
-        
+
         if [[ "$DRY_RUN" == true ]]; then
             echo "[DRY RUN] Would upload: $file"
             echo "[DRY RUN]           to: $S3_DEST"
@@ -80,7 +80,7 @@ archive_logs_to_s3() {
             # Upload to S3
             echo "Uploading: $filename -> $FILE_DATE/"
             aws s3 cp "$file" "$S3_DEST" --no-progress
-            
+
             if [[ $? -eq 0 ]]; then
                 # Delete local file only after successful upload
                 rm "$file"
@@ -96,10 +96,10 @@ archive_logs_to_s3() {
                 ((ERROR_COUNT++))
             fi
         fi
-        
+
         ((FILE_COUNT++))
     done < <(find "$SOURCE_DIR" -maxdepth 1 -name "log-*.log" -type f -mtime +$DAYS_OLD -print0)
-    
+
     # Summary for this source
     if [[ "$DRY_RUN" == true ]]; then
         echo "Files that would be uploaded: $FILE_COUNT"
@@ -117,11 +117,6 @@ archive_logs_to_s3() {
 # ============================================================================
 
 # App site
-archive_logs_to_s3 \
-    "$BASE_PATH/app/application/logs" \
-    "app" \
-    "App Site"
-
 HOME_PATH=""
 APP_LOG="app/application/logs"
 DEST_LOG="logs"

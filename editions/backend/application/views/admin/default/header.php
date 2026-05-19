@@ -75,8 +75,12 @@
 						<ul class="dropdown-menu dropdown-user">
 							<li><a><i class="fa fa-language fa-fw"></i>
 							<select onchange="javascript:window.location.href='<?php echo base_url(); ?>language/change/'+this.value;">
-								<option value="english" <?php if ($this->session->userdata('language') == 'english') echo 'selected="selected"'; ?>>English</option>
-								<option value="spanish" <?php if ($this->session->userdata('language') == 'spanish') echo 'selected="selected"'; ?>>Spanish</option>
+								<option value="english" <?php if ($this->session->userdata('language') == 'english') {
+									echo 'selected="selected"';
+								} ?>>English</option>
+								<option value="spanish" <?php if ($this->session->userdata('language') == 'spanish') {
+									echo 'selected="selected"';
+								} ?>>Spanish</option>
 							</select>
 							</a></li>
 							<li><a href="#"><i class="fa fa-user fa-fw"></i> User Profile</a></li>

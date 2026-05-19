@@ -1,4 +1,6 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
+
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
 /* load the MX_Migration class */
 require APPPATH . "third_party/MX/Migration.php";
@@ -18,11 +20,11 @@ class MY_Migration extends MX_Migration
 	 * @param array $config
 	 * @return void
 	 */
-	public function __construct($config = array())
+	public function __construct($config = [])
 	{
 		// Merge in this order: config file -> custom config
-		$this->config->load('migration', TRUE, TRUE);
-		$base_config = $this->config->item('migration') ?: array();
+		$this->config->load('migration', true, true);
+		$base_config = $this->config->item('migration') ?: [];
 		$config = array_merge($base_config, $config);
 
 		// Extract database connection info before parent constructor
@@ -46,7 +48,7 @@ class MY_Migration extends MX_Migration
 	{
 		// Load the specified database connection
 		$CI = &get_instance();
-		$CI->db = $this->load->database($this->_db_group, TRUE);
+		$CI->db = $this->load->database($this->_db_group, true);
 
 
 		// Override the default db and dbforge with our connection

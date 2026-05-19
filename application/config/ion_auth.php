@@ -1,4 +1,8 @@
-<?php if (! defined('BASEPATH')) exit('No direct script access allowed');
+<?php
+
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 /**
  * Name:  Ion Auth
  *
@@ -95,14 +99,14 @@ $config['identityExtraColumns'] = ['first_name', 'last_name', 'image_url']; // D
 
 $config['minPasswordLength'] = 8; // Minimum Required Length of Password
 $config['maxPasswordLength'] = 20; // Maximum Allowed Length of Password
-$config['emailActivation'] = FALSE; // Email Activation for registration
-$config['manualActivation'] = TRUE; // Manual Activation for registration
-$config['rememberUsers'] = FALSE; // Allow users to be remembered and enable auto-login
-$config['sessionsEnabled'] = FALSE; // Use sessions to keep users logged in (Default: TRUE)
+$config['emailActivation'] = false; // Email Activation for registration
+$config['manualActivation'] = true; // Manual Activation for registration
+$config['rememberUsers'] = false; // Allow users to be remembered and enable auto-login
+$config['sessionsEnabled'] = false; // Use sessions to keep users logged in (Default: TRUE)
 $config['userExpire'] = 1; // How long to remember the user (seconds). Set to zero for no expiration
-$config['userExtendOnLogin'] = FALSE; // Extend the users cookies every time they auto-login
-$config['trackLoginAttempts'] = TRUE; // Track the number of failed login attempts for each user or ip.
-$config['trackLoginIpAddress'] = FALSE; // Track login attempts by IP Address, if FALSE will track based on identity. (Default: TRUE)
+$config['userExtendOnLogin'] = false; // Extend the users cookies every time they auto-login
+$config['trackLoginAttempts'] = true; // Track the number of failed login attempts for each user or ip.
+$config['trackLoginIpAddress'] = false; // Track login attempts by IP Address, if FALSE will track based on identity. (Default: TRUE)
 $config['maximumLoginAttempts'] = 5; // The maximum number of failed login attempts.
 $config['lockoutTime'] = 600; // The number of seconds to lockout an account due to exceeded attempts
 $config['forgotPasswordExpiration'] = 1800000; // The number of milliseconds after which a forgot password request will expire. If set to 0, forgot password requests will not expire.
@@ -125,10 +129,10 @@ $config['identityCookieName'] = 'identity';
  | 	'file' = Use the default CI config or use from a config file
  | 	array= Manually set your email config settings
  */
-$config['useCiEmail'] = FALSE; // Send Email using the builtin CI email class, if false it will return the code and the identity
-$config['emailConfig'] = array(
+$config['useCiEmail'] = false; // Send Email using the builtin CI email class, if false it will return the code and the identity
+$config['emailConfig'] = [
 	'mailtype' => 'html',
-);
+];
 
 /*
  | -------------------------------------------------------------------------

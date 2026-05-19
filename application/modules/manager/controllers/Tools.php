@@ -2,7 +2,6 @@
 
 class Tools extends CI_Controller
 {
-
 	public function __construct()
 	{
 		parent::__construct();
@@ -61,17 +60,17 @@ class Tools extends CI_Controller
 		$migration_path = 'migrations/' . $connection_name;
 
 		// Configuration for this specific migration
-		$migration_config = array(
+		$migration_config = [
 			'migration_path' => $migration_path,
 			'db_group' => $connection_name
-		);
+		];
 
 		// Load MY_Migration library with the specific config
 		$migration_lib_name = 'migration_' . $connection_name;
 		$this->load->library('migration', $migration_config, $migration_lib_name);
 
 		if ($version != null) {
-			if ($this->{$migration_lib_name}->version($version) === FALSE) {
+			if ($this->{$migration_lib_name}->version($version) === false) {
 				echo $this->{$migration_lib_name}->error_string() . PHP_EOL;
 			} else {
 				echo "Migrations run successfully" . PHP_EOL;
@@ -80,7 +79,7 @@ class Tools extends CI_Controller
 			return;
 		}
 
-		if ($this->{$migration_lib_name}->latest() === FALSE) {
+		if ($this->{$migration_lib_name}->latest() === false) {
 			echo $this->{$migration_lib_name}->error_string() . PHP_EOL;
 		} else {
 			echo "Migrations run successfully" . PHP_EOL;
@@ -136,11 +135,11 @@ class Migration_$name extends CI_Migration {
 	public function up() {
 		\$this->dbforge->add_field([
 			'id' => [
-				'type' => 'INT',
-				'constraint' => 11,
-				'auto_increment' => TRUE
-			)
-		]];
+				'type'           => 'INT',
+				'unsigned'       => true,
+				'auto_increment' => true,
+			]
+	]);
 		\$this->dbforge->add_key('id', TRUE);
 		\$this->dbforge->create_table('$table_name');
 	}

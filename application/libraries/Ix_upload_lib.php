@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Ix_upload_lib
@@ -8,7 +9,7 @@ class Ix_upload_lib
 	 *
 	 * @var bool
 	 */
-	public $show_flashdata = FALSE;
+	public $show_flashdata = false;
 
 	/**
 	 * __get
@@ -49,11 +50,11 @@ class Ix_upload_lib
 	 * @param bool        $encrypt_name     Whether to encrypt the file name.
 	 * @param string|null &$error           Reference variable to store an error message (null if no error).
 	 *
-	 * 
+	 *
 	 * @return array|false Array with file details on success, false on failure.
-	 * 
+	 *
 	 */
-	public function upload_file($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
+	public function upload_file($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
 	{
 		$validate_result = $this->validate_files_field($field_name);
 		if ($validate_result !== null) {
@@ -67,14 +68,15 @@ class Ix_upload_lib
 			return $this->upload_file_local($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 		}
 	}
-	public function upload_file_local($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
+	public function upload_file_local($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
 	{
 		try {
 			$file_path = mngr_file_path($relative_path);
-			if (!file_exists($file_path))
+			if (!file_exists($file_path)) {
 				mkdir($file_path, 0755, true);
+			}
 
-			if ($upload_config == NULL) {
+			if ($upload_config == null) {
 				$config['allowed_types']		= '*'; //'gif|jpg|png|jpeg|pdf|doc|docx|dwg|dxf';
 				$config['max_size']			 		= 50000; //10MB (PHP Max in this config)
 				$config['max_width']				= 0; // no size restriction
@@ -90,7 +92,7 @@ class Ix_upload_lib
 			if ($desired_file_name) {
 				$config['file_name'] = $desired_file_name;
 				$config['overwrite'] = true;
-			} else if ($encrypt_name !== TRUE) {
+			} elseif ($encrypt_name !== true) {
 				$config['encrypt_name'] = true;
 			}
 
@@ -99,7 +101,7 @@ class Ix_upload_lib
 			$this->upload->initialize($config);
 
 			if ($this->upload->do_upload($field_name)) {
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
 					$this->session->set_flashdata('message_kind', 'success');
 				}
@@ -132,7 +134,7 @@ class Ix_upload_lib
 			} else {
 				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
 
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', $this->upload->display_errors());
 					$this->session->set_flashdata('message_kind', 'error');
 				} else {
@@ -142,7 +144,7 @@ class Ix_upload_lib
 		} catch (Exception $e) {
 			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
 
-			if ($this->show_flashdata == TRUE) {
+			if ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Error al subir archivo');
 				$this->session->set_flashdata('message_kind', 'error');
 			} else {
@@ -152,7 +154,7 @@ class Ix_upload_lib
 
 		return false;
 	}
-	private function upload_file_s3($relative_path, $desired_file_name = NULL, $field_name = 'userfile', $upload_config = NULL, $encrypt_name = TRUE, &$error = NULL)
+	private function upload_file_s3($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
 	{
 		try {
 			$v = '';
@@ -181,7 +183,7 @@ class Ix_upload_lib
 			$file_url = $this->amazon_aws->upload_file($original_file_path, $s3_file_path);
 
 			if ($file_url) {
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
 					$this->session->set_flashdata('message_kind', 'success');
 				}
@@ -204,7 +206,7 @@ class Ix_upload_lib
 			} else {
 				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
 
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', $this->upload->display_errors());
 					$this->session->set_flashdata('message_kind', 'error');
 				} else {
@@ -214,7 +216,7 @@ class Ix_upload_lib
 		} catch (Exception $e) {
 			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
 
-			if ($this->show_flashdata == TRUE) {
+			if ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Error al subir archivo');
 				$this->session->set_flashdata('message_kind', 'error');
 			} else {
@@ -225,7 +227,7 @@ class Ix_upload_lib
 		return false;
 	}
 
-	public function put_file($relative_path, $file_name, $data, &$error = NULL)
+	public function put_file($relative_path, $file_name, $data, &$error = null)
 	{
 		if (strpos($relative_path, 's3/') !== false) {
 			return $this->put_file_s3($relative_path, $file_name, $data, $error);
@@ -233,7 +235,7 @@ class Ix_upload_lib
 			return $this->put_file_local($relative_path, $file_name, $data, $error);
 		}
 	}
-	public function put_file_local($relative_path, $file_name, $data, &$error = NULL)
+	public function put_file_local($relative_path, $file_name, $data, &$error = null)
 	{
 		try {
 			$file_path = mngr_file_path($relative_path);
@@ -270,7 +272,7 @@ class Ix_upload_lib
 		} catch (Exception $e) {
 			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
 
-			if ($this->show_flashdata == TRUE) {
+			if ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Error al subir archivo');
 				$this->session->set_flashdata('message_kind', 'error');
 			} else {
@@ -280,7 +282,7 @@ class Ix_upload_lib
 
 		return false;
 	}
-	private function put_file_s3($relative_path, $file_name, $data, &$error = NULL)
+	private function put_file_s3($relative_path, $file_name, $data, &$error = null)
 	{
 		try {
 			$v = '';
@@ -305,7 +307,7 @@ class Ix_upload_lib
 			$file_url = $this->amazon_aws->upload_data($data, $s3_file_path, $content_type);
 
 			if ($file_url) {
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', 'Archivo agregado correctamente');
 					$this->session->set_flashdata('message_kind', 'success');
 				}
@@ -328,7 +330,7 @@ class Ix_upload_lib
 			} else {
 				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
 
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', $this->upload->display_errors());
 					$this->session->set_flashdata('message_kind', 'error');
 				} else {
@@ -338,7 +340,7 @@ class Ix_upload_lib
 		} catch (Exception $e) {
 			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
 
-			if ($this->show_flashdata == TRUE) {
+			if ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Error al subir archivo');
 				$this->session->set_flashdata('message_kind', 'error');
 			} else {
@@ -349,7 +351,7 @@ class Ix_upload_lib
 		return false;
 	}
 
-	public function upload_image($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
+	public function upload_image($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
 	{
 		$validate_result = $this->validate_files_field($field_name);
 		if ($validate_result !== null) {
@@ -363,15 +365,16 @@ class Ix_upload_lib
 			return $this->upload_image_local($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
 		}
 	}
-	public function upload_image_local($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
+	public function upload_image_local($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
 	{
 		try {
 			$file_path = mngr_file_path($relative_path);
 
-			if (!file_exists($file_path))
+			if (!file_exists($file_path)) {
 				mkdir($file_path, 0755, true);
+			}
 
-			if ($upload_config == NULL) {
+			if ($upload_config == null) {
 				$config['allowed_types']		= 'gif|jpg|png|jpeg|svg|pdf';
 				$config['max_size']					= 10048; //2MB (PHP Max in this config)
 				$config['max_width']				= 0; // no size restriction
@@ -395,7 +398,7 @@ class Ix_upload_lib
 			$this->load->library('upload');
 			$this->upload->initialize($config);
 			if ($this->upload->do_upload($field_name)) {
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', 'Imagen agregada correctamente');
 					$this->session->set_flashdata('message_kind', 'success');
 				}
@@ -420,14 +423,14 @@ class Ix_upload_lib
 					$input_image = imagecreatefromstring(file_get_contents($original_file_path));
 					list($width, $height) = getimagesize($original_file_path);
 					$output_image = imagecreatetruecolor($width, $height);
-					$white = imagecolorallocate($output_image,  255, 255, 255);
+					$white = imagecolorallocate($output_image, 255, 255, 255);
 					imagefilledrectangle($output_image, 0, 0, $width, $height, $white);
 					imagecopy($output_image, $input_image, 0, 0, 0, 0, $width, $height);
 					imagejpeg($output_image, $new_file_path);
 				}
 
 				$new_file_thumb = '';
-				if ($resolution !== FALSE && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
+				if ($resolution !== false && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
 					$image_info = getimagesize($new_file_path);
 					$original_width = $image_info[0];
 					$original_height = $image_info[1];
@@ -438,8 +441,8 @@ class Ix_upload_lib
 						$new_file_thumb = $upload_data['raw_name'] . '_thumb' . $file_ext;
 						$img_config['image_library'] = 'gd2';
 						$img_config['source_image'] = $new_file_path;
-						$img_config['create_thumb'] = TRUE;
-						$img_config['maintain_ratio'] = TRUE;
+						$img_config['create_thumb'] = true;
+						$img_config['maintain_ratio'] = true;
 						$img_config['width'] = $resolution[0];
 						$img_config['height'] = $resolution[1];
 						$this->load->library('image_lib', $img_config);
@@ -486,7 +489,7 @@ class Ix_upload_lib
 			} else {
 				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
 
-				if ($this->show_flashdata == TRUE) {
+				if ($this->show_flashdata == true) {
 					$this->session->set_flashdata('message', $this->upload->display_errors()); //'Error al subir imagen');
 					$this->session->set_flashdata('message_kind', 'error');
 				} else {
@@ -496,7 +499,7 @@ class Ix_upload_lib
 		} catch (Exception $e) {
 			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
 
-			if ($this->show_flashdata == TRUE) {
+			if ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Error al subir imagen');
 				$this->session->set_flashdata('message_kind', 'error');
 			} else {
@@ -505,7 +508,7 @@ class Ix_upload_lib
 		}
 		return false;
 	}
-	private function upload_image_s3($relative_path, $desired_file_name = NULL, $delete_original = TRUE, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = FALSE, $upload_config = NULL, &$error = NULL)
+	private function upload_image_s3($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
 	{
 		try {
 			$this->load->library('amazon_aws');
@@ -549,7 +552,7 @@ class Ix_upload_lib
 				$input_image = imagecreatefromstring(file_get_contents($original_file_path));
 				list($width, $height) = getimagesize($original_file_path);
 				$output_image = imagecreatetruecolor($width, $height);
-				$white = imagecolorallocate($output_image,  255, 255, 255);
+				$white = imagecolorallocate($output_image, 255, 255, 255);
 				imagefilledrectangle($output_image, 0, 0, $width, $height, $white);
 				imagecopy($output_image, $input_image, 0, 0, 0, 0, $width, $height);
 				imagejpeg($output_image, $base_file_path);
@@ -563,12 +566,12 @@ class Ix_upload_lib
 			$image_url = $this->amazon_aws->upload_file($base_file_path, $s3_file_path);
 			if (empty($image_url)) {
 				$s3_file_path = '';
-			} else if ($this->show_flashdata == TRUE) {
+			} elseif ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Imagen agregada correctamente');
 				$this->session->set_flashdata('message_kind', 'success');
 			}
 
-			if ($resolution !== FALSE && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
+			if ($resolution !== false && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
 				$image_info = getimagesize($base_file_path);
 				$original_width = $image_info[0];
 				$original_height = $image_info[1];
@@ -579,8 +582,8 @@ class Ix_upload_lib
 					$thumb_file_path = "{$base_file_path}_thumb";
 					$img_config['image_library']  = 'gd2';
 					$img_config['source_image']   = $base_file_path;
-					$img_config['create_thumb']   = TRUE;
-					$img_config['maintain_ratio'] = TRUE;
+					$img_config['create_thumb']   = true;
+					$img_config['maintain_ratio'] = true;
 					$img_config['width']		  = $resolution[0];
 					$img_config['height']		 = $resolution[1];
 					$this->load->library('image_lib', $img_config);
@@ -639,7 +642,7 @@ class Ix_upload_lib
 		} catch (Exception $e) {
 			log_message('error', "Error uploading($relative_path): " . $e->getMessage());
 
-			if ($this->show_flashdata == TRUE) {
+			if ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Error al subir imagen');
 				$this->session->set_flashdata('message_kind', 'error');
 			} else {
@@ -681,7 +684,7 @@ class Ix_upload_lib
 			readfile($file_path);
 		} else {
 			header('Content-Type: image/png');
-			echo ("\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x01\x00\x00\x00\x01\x01\x03\x00\x00\x00\x25\xdb\x56\xca\x00\x00\x00\x03\x50\x4c\x54\x45\x00\x00\x00\xa7\x7a\x3d\xda\x00\x00\x00\x01\x74\x52\x4e\x53\x00\x40\xe6\xd8\x66\x00\x00\x00\x0a\x49\x44\x41\x54\x08\xd7\x63\x60\x00\x00\x00\x02\x00\x01\xe2\x21\xbc\x33\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82");
+			echo("\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x01\x00\x00\x00\x01\x01\x03\x00\x00\x00\x25\xdb\x56\xca\x00\x00\x00\x03\x50\x4c\x54\x45\x00\x00\x00\xa7\x7a\x3d\xda\x00\x00\x00\x01\x74\x52\x4e\x53\x00\x40\xe6\xd8\x66\x00\x00\x00\x0a\x49\x44\x41\x54\x08\xd7\x63\x60\x00\x00\x00\x02\x00\x01\xe2\x21\xbc\x33\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82");
 		}
 	}
 	public function display_image_s3($file_path)
@@ -699,10 +702,10 @@ class Ix_upload_lib
 			header('Cache-Control: private');
 			header("Content-Disposition: inline; filename='$file_name'");
 
-			echo ($image_data);
+			echo($image_data);
 		} else {
 			header('Content-Type: image/png');
-			echo ("\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x01\x00\x00\x00\x01\x01\x03\x00\x00\x00\x25\xdb\x56\xca\x00\x00\x00\x03\x50\x4c\x54\x45\x00\x00\x00\xa7\x7a\x3d\xda\x00\x00\x00\x01\x74\x52\x4e\x53\x00\x40\xe6\xd8\x66\x00\x00\x00\x0a\x49\x44\x41\x54\x08\xd7\x63\x60\x00\x00\x00\x02\x00\x01\xe2\x21\xbc\x33\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82");
+			echo("\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x01\x00\x00\x00\x01\x01\x03\x00\x00\x00\x25\xdb\x56\xca\x00\x00\x00\x03\x50\x4c\x54\x45\x00\x00\x00\xa7\x7a\x3d\xda\x00\x00\x00\x01\x74\x52\x4e\x53\x00\x40\xe6\xd8\x66\x00\x00\x00\x0a\x49\x44\x41\x54\x08\xd7\x63\x60\x00\x00\x00\x02\x00\x01\xe2\x21\xbc\x33\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82");
 		}
 	}
 

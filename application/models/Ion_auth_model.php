@@ -1,4 +1,8 @@
-<?php if (! defined('BASEPATH')) exit('No direct script access allowed');
+<?php
+
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 
 /**
  * Name:    Ion Auth Model
@@ -28,12 +32,12 @@ class Ion_auth_model extends CI_Model
 	/**
 	 * Max cookie lifetime constant
 	 */
-	const MAX_COOKIE_LIFETIME = 63072000; // 2 years = 60*60*24*365*2 = 63072000 seconds;
+	public const MAX_COOKIE_LIFETIME = 63072000; // 2 years = 60*60*24*365*2 = 63072000 seconds;
 
 	/**
 	 * Max password size constant
 	 */
-	const MAX_PASSWORD_SIZE_BYTES = 4096;
+	public const MAX_PASSWORD_SIZE_BYTES = 4096;
 
 	/**
 	 * IonAuth config
@@ -776,7 +780,7 @@ class Ion_auth_model extends CI_Model
 		if ($this->identity_check($identity)) {
 			$this->set_error('IonAuth.account_creation_duplicate_identity');
 			return false;
-		} else if (! $this->configAuth->defaultGroup && empty($groups)) {
+		} elseif (! $this->configAuth->defaultGroup && empty($groups)) {
 			$this->set_error('IonAuth.account_creation_missing_defaultGroup');
 			return false;
 		}
@@ -1423,7 +1427,7 @@ class Ion_auth_model extends CI_Model
 
 			$this->ionLimit  = null;
 			$this->ionOffset = null;
-		} else if (isset($this->ionLimit)) {
+		} elseif (isset($this->ionLimit)) {
 			$this->my_db->limit($this->ionLimit);
 
 			$this->ionLimit = null;
@@ -1642,7 +1646,7 @@ class Ion_auth_model extends CI_Model
 
 			$this->ionLimit  = null;
 			$this->ionOffset = null;
-		} else if (isset($this->ionLimit)) {
+		} elseif (isset($this->ionLimit)) {
 			$this->my_db->limit($this->ionLimit);
 
 			$this->ionLimit = null;
@@ -2147,7 +2151,7 @@ class Ion_auth_model extends CI_Model
 	 */
 	public function set_hook(string $event, string $name, $class, $method, array $arguments = []): self
 	{
-		$this->ionHooks->{$event}[$name]            = new \stdClass;
+		$this->ionHooks->{$event}[$name]            = new \stdClass();
 		$this->ionHooks->{$event}[$name]->class     = $class;
 		$this->ionHooks->{$event}[$name]->method    = $method;
 		$this->ionHooks->{$event}[$name]->arguments = $arguments;
@@ -2346,7 +2350,9 @@ class Ion_auth_model extends CI_Model
 	//ho-homologate lang management, debug load view to get the template rendered
 	public function errors()
 	{
-		if (empty($this->errors)) return '';
+		if (empty($this->errors)) {
+			return '';
+		}
 
 		$this->lang->load('ion_auth');
 

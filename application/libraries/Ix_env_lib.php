@@ -2,9 +2,8 @@
 
 class Ix_env_lib
 {
-
 	private static $loaded = false;
-	private static $env_vars = array();
+	private static $env_vars = [];
 
 	public static function load($enviorment = null)
 	{
@@ -105,7 +104,7 @@ class Ix_env_lib
 	/**
 	 * Get environment variable as array (comma-separated)
 	 */
-	public static function get_array($key, $default = array(), $separator = ',')
+	public static function get_array($key, $default = [], $separator = ',')
 	{
 		$value = self::get($key, $default, true);
 

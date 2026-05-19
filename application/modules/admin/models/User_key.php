@@ -1,8 +1,11 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
 
-class User_key extends MY_Model {
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
-	public function __construct() {
+class User_key extends MY_Model
+{
+	public function __construct()
+	{
 		//overrides
 		//$this->connection_name = '';
 		//$this->table_name = '';
@@ -12,6 +15,6 @@ class User_key extends MY_Model {
 		//initialize after overriding
 		parent::__construct();
 	}
-	
-	
+
+
 }

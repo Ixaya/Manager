@@ -1,36 +1,37 @@
 <?php
 
-class Migration_Example extends CI_Migration {
-
-	public function up() {
-		$this->dbforge->add_field(array(
-			'id' => array(
+class Migration_Example extends CI_Migration
+{
+	public function up()
+	{
+		$this->dbforge->add_field([
+			'id' => [
 				'type' => 'INT',
-				'constraint' => 11,
-				'auto_increment' => TRUE
-			),
-			'title' => array(
+				'unsigned' => true,
+				'auto_increment' => true,
+			],
+			'title' => [
 				'type' => 'VARCHAR',
 				'constraint' => 100
-			)
-			,
-			'example' => array(
+			],
+			'example' => [
 				'type' => 'VARCHAR',
 				'constraint' => 100
-			),
-			'last_update' => array(
+			],
+			'last_update' => [
 				'type' => 'TIMESTAMP'
-			),
-			'create_date' => array(
+			],
+			'create_date' => [
 				'type' => 'TIMESTAMP'
-			)
-		));
+			]
+		]);
 
-		$this->dbforge->add_key('id', TRUE);
+		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('example');
 	}
 
-	public function down() {
+	public function down()
+	{
 		$this->dbforge->drop_table('example');
 	}
 }

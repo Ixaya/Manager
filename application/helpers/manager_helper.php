@@ -1,5 +1,6 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * Get the URL for an image, optionally specifying the protocol.
@@ -8,7 +9,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * @param string|null $protocol The protocol to use (e.g., 'http' or 'https'), or null to use the default.
  * @return string The full URL to the image.
  */
-function image_url($uri = '', $protocol = NULL)
+function image_url($uri = '', $protocol = null)
 {
 	return get_instance()->config->image_url($uri, $protocol);
 }
@@ -22,11 +23,13 @@ function image_url($uri = '', $protocol = NULL)
 function secure_url($uri = '')
 {
 	if (!empty($uri)) {
-		if (strpos($uri, 'https://') === 0)
+		if (strpos($uri, 'https://') === 0) {
 			return $uri;
+		}
 
-		if (strpos($uri, '//') === 0)
+		if (strpos($uri, '//') === 0) {
 			return 'https:' . $uri;
+		}
 	}
 
 	return get_instance()->config->base_url($uri, 'https:');
@@ -36,7 +39,7 @@ function secure_url($uri = '')
  * Generates a secure random hexadecimal hash of the specified length.
  *
  * @param int $length The desired length of the hash. Default is 32.
- * 
+ *
  * @return string The generated hexadecimal hash.
  */
 function mngr_generate_hash($length = 32)
@@ -54,7 +57,7 @@ function mngr_generate_hash($length = 32)
  * @param string $hash The hash to format.
  * @param int $group_by The number of characters per group.
  * @param string $separator Optional. The separator to use between groups. Default is '-'.
- * 
+ *
  * @return string The formatted hash in uppercase with groups separated by the specified separator.
  */
 function mngr_format_hash($hash, $group_by, $separator = '-')
@@ -72,7 +75,7 @@ function mngr_format_hash($hash, $group_by, $separator = '-')
  *
  * @param string $folio The formatted hash to unformat.
  * @param string $separator Optional. The separator used in the formatted hash. Default is '-'.
- * 
+ *
  * @return string The unformatted hash as a continuous string.
  */
 function mngr_unformat_hash($folio, $separator = '-')
@@ -87,7 +90,7 @@ function mngr_unformat_hash($folio, $separator = '-')
 
 /**
  * Processes an exception, logs the details and returns the message
- * 
+ *
  * @param Exception|Throwable $exception The exception to process
  * @param string $context Additional context for the log (optional)
  * @return string The exception message
@@ -148,7 +151,7 @@ function mngr_build_limit_page($limit, $page)
 
 /**
  * Build ORDER BY clause with validation
- * 
+ *
  * @param string|null $order_column Column name to order by
  * @param string|null $order_direction Sort direction (ASC/DESC)
  * @param array|null $order_columns Allowed columns (associative for aliases, indexed for direct)
@@ -167,7 +170,7 @@ function mngr_build_order_by(?string $order_column, ?string $order_direction, ?a
 			$column = $order_columns[$order_column] ?? 'id';
 		}
 	}
-	
+
 	$direction = (strtoupper($order_direction ?? '') === 'DESC') ? 'DESC' : 'ASC';
 
 	return $column . ' ' . $direction;

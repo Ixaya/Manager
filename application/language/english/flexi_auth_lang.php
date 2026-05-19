@@ -1,8 +1,12 @@
-<?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php
+
+if (! defined('BASEPATH')) {
+	exit('No direct script access allowed');
+}
 /**
 * Name: flexi auth lang - English
-* 
-* Author: 
+*
+* Author:
 * Rob Hussey
 * flexiauth@haseydesign.com
 * haseydesign.com/flexi-auth
@@ -18,8 +22,8 @@
 // Account Creation
 $lang['account_creation_successful']				= 'Your account has successfully been created.';
 $lang['account_creation_unsuccessful']				= 'Unable to create account.';
-$lang['account_creation_duplicate_email']			= 'An account with this email address already exists.'; 
-$lang['account_creation_duplicate_username']		= 'An account with this username already exists.'; 
+$lang['account_creation_duplicate_email']			= 'An account with this email address already exists.';
+$lang['account_creation_duplicate_username']		= 'An account with this username already exists.';
 $lang['account_creation_duplicate_identity'] 		= 'An account with this identity already exists.';
 $lang['account_creation_insufficient_data']			= 'Insufficient data to create an account. Ensure a valid identity and password are submitted.';
 
@@ -27,10 +31,10 @@ $lang['account_creation_insufficient_data']			= 'Insufficient data to create an 
 $lang['password_invalid']							= "The %s field is invalid.";
 $lang['password_change_successful'] 	 	 		= 'Password has successfully been changed.';
 $lang['password_change_unsuccessful'] 	  	 		= 'Your submitted password does not match our records.';
-$lang['password_token_invalid']  					= 'Your submitted password token is invalid or has expired.'; 
+$lang['password_token_invalid']  					= 'Your submitted password token is invalid or has expired.';
 $lang['email_new_password_successful']				= 'A new password has been emailed to you.';
 $lang['email_forgot_password_successful']	 		= 'An email has been sent to reset your password.';
-$lang['email_forgot_password_unsuccessful']  		= 'Unable to reset password.'; 
+$lang['email_forgot_password_unsuccessful']  		= 'Unable to reset password.';
 
 // Activation
 $lang['activate_successful']						= 'Account has been activated.';

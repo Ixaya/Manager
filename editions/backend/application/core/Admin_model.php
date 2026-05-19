@@ -1,4 +1,6 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
+
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
 class Datatable_Model extends MY_Model
 {
@@ -167,7 +169,7 @@ class Datatable_Model extends MY_Model
 
 
 			$json_response = json_encode($response);
-			echo ($json_response);
+			echo($json_response);
 
 			log_message('DEBUG', $json_response);
 
@@ -177,7 +179,7 @@ class Datatable_Model extends MY_Model
 		}
 	}
 
-	public function get_datatable($config, $where = NULL)
+	public function get_datatable($config, $where = null)
 	{
 		$this->check_connect();
 
@@ -193,11 +195,13 @@ class Datatable_Model extends MY_Model
 		$order_query = "";
 		$response = [];
 
-		if (empty($this->table_columns))
+		if (empty($this->table_columns)) {
 			return ['error' => 'Columns not declared'];
+		}
 
-		if ($where != NULL)
+		if ($where != null) {
 			$where_array[] = $where;
+		}
 
 		if ($this->where_override) {
 			foreach ($this->where_override as $wk => $wo) {
@@ -240,8 +244,9 @@ class Datatable_Model extends MY_Model
 		}
 
 		$length = 10;
-		if (isset($config['length']))
+		if (isset($config['length'])) {
 			$length = intval($config['length']);
+		}
 
 		if ($config['length'] != '-1' && isset($config['start'])) {
 			$start = intval($config['start']);
@@ -261,8 +266,9 @@ class Datatable_Model extends MY_Model
 			}
 		}
 
-		if (count($where_array) > 0)
+		if (count($where_array) > 0) {
 			$search_query = " WHERE " . implode(" AND ", $where_array);
+		}
 
 		$result = $this->query("SELECT *
 												FROM " . $this->table_name . "

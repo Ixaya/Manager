@@ -1,8 +1,10 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
+
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
 class Rest_user extends MY_Model
 {
-	private $user_groups = NULL;
+	private $user_groups = null;
 
 	public function __construct()
 	{
@@ -15,21 +17,23 @@ class Rest_user extends MY_Model
 
 	public function validate_group($user_id, $group, $url = false)
 	{
-		if ($this->user_groups === NULL) {
+		if ($this->user_groups === null) {
 			$this->user_groups = $this->get_user_group_names($user_id);
 		}
 
 		if (!is_array($group)) {
-			if (in_array($group, $this->user_groups))
-				return TRUE;
+			if (in_array($group, $this->user_groups)) {
+				return true;
+			}
 		} else {
 			$result = array_intersect($group, $this->user_groups);
-			if (!empty($result))
-				return TRUE;
+			if (!empty($result)) {
+				return true;
+			}
 		}
 
 		if ($url == false) {
-			return FALSE;
+			return false;
 		} else {
 			redirect($url);
 		}
@@ -58,8 +62,9 @@ class Rest_user extends MY_Model
 							LIMIT 1";
 		$user_group = $this->query($query, [$user_id]);
 
-		if (!empty($user_group))
+		if (!empty($user_group)) {
 			return $user_group[0]['level'];
+		}
 
 		return 0;
 	}

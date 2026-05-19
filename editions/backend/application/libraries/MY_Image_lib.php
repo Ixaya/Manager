@@ -5,17 +5,17 @@
  * @author		Jens Segers
  * @link		http://www.jenssegers.be
  * @license		MIT License Copyright (c) 2012 Jens Segers
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,16 +25,16 @@
  * THE SOFTWARE.
  */
 
-if (!defined('BASEPATH'))
+if (!defined('BASEPATH')) {
 	exit('No direct script access allowed');
+}
 
 class MY_Image_lib extends CI_Image_lib
 {
-
-	var $user_width = 0;
-	var $user_height = 0;
-	var $user_x_axis = '';
-	var $user_y_axis = '';
+	public $user_width = 0;
+	public $user_height = 0;
+	public $user_x_axis = '';
+	public $user_y_axis = '';
 
 	/**
 	 * Initialize image preferences
@@ -43,7 +43,7 @@ class MY_Image_lib extends CI_Image_lib
 	 * @param	array $props
 	 * @return	bool
 	 */
-	function initialize($props = array())
+	public function initialize($props = [])
 	{
 		// save user specified dimensions and axis positions before they are modified by the CI library
 		if (isset($props["width"])) {
@@ -70,7 +70,7 @@ class MY_Image_lib extends CI_Image_lib
 	 * @access	public
 	 * @return	void
 	 */
-	function clear()
+	public function clear()
 	{
 		$this->user_width = 0;
 		$this->user_height = 0;
@@ -86,14 +86,14 @@ class MY_Image_lib extends CI_Image_lib
 	 * @access	public
 	 * @return	bool
 	 */
-	function fit()
+	public function fit()
 	{
 		// overwrite the dimensions with the original user specified dimensions
 		$this->width = $this->user_width;
 		$this->height = $this->user_height;
 
 		// we will calculate the sizes ourselves
-		$this->maintain_ratio = FALSE;
+		$this->maintain_ratio = false;
 
 		// ------------------------------------------------------------------------------------------
 		// mode 1: auto-scale the image to fit 1 dimension
@@ -126,7 +126,7 @@ class MY_Image_lib extends CI_Image_lib
 
 		// save dynamic output for last
 		$dynamic_output = $this->dynamic_output;
-		$this->dynamic_output = FALSE;
+		$this->dynamic_output = false;
 
 		// if dynamic output is requested we will use a temporary file to work on
 		$temp = false;
@@ -137,12 +137,12 @@ class MY_Image_lib extends CI_Image_lib
 				if (!empty($metadata['uri'])) {
 					$this->full_dst_path = $metadata['uri'];  // This is the actual temp file path like 'php://temp'
 				}
-			}			
+			}
 		}
 
 		// resize stage
 		if (!$this->resize()) {
-			return FALSE;
+			return false;
 		}
 
 		// axis settings
@@ -172,7 +172,7 @@ class MY_Image_lib extends CI_Image_lib
 
 		// cropping stage
 		if (!$this->crop()) {
-			return FALSE;
+			return false;
 		}
 
 		// close (and remove) the temporary file
@@ -180,6 +180,6 @@ class MY_Image_lib extends CI_Image_lib
 			fclose($temp);
 		}
 
-		return TRUE;
+		return true;
 	}
 }

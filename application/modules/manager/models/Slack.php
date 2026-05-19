@@ -1,4 +1,5 @@
 <?php
+
 //
 //  Slack.php
 //  Ixaya
@@ -10,7 +11,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Slack extends API_Model
 {
-
 	public function __construct()
 	{
 		//overrides
@@ -21,15 +21,15 @@ class Slack extends API_Model
 		parent::__construct();
 	}
 
-	function send_message($message = NULL)
+	public function send_message($message = null)
 	{
 		if (!$message) {
 			//example logic
 		}
 
-		$data = array(
+		$data = [
 			'text'	  => "$message"
-		);
+		];
 		$data_string = json_encode($data);
 
 
@@ -43,10 +43,10 @@ class Slack extends API_Model
 		curl_setopt(
 			$curl,
 			CURLOPT_HTTPHEADER,
-			array(
+			[
 				'Content-Type: application/json',
 				'Content-Length: ' . strlen($data_string)
-			)
+			]
 		);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);  // Make it so the data coming back is put into a string
 		curl_setopt($curl, CURLOPT_POSTFIELDS, $data_string);  // Insert the data

@@ -64,7 +64,7 @@
 									<label>User Group</label>
 									<select class="form-control" id="group_id" name="group_id">
 										<?php foreach ($groups as $group): ?>
-										<option value="<?=$group->id?>" <?=ui_selected_item($user_group->name,$group->name)?></option><?=$group->name?></option>
+										<option value="<?=$group->id?>" <?=ui_selected_item($user_group->name, $group->name)?></option><?=$group->name?></option>
 										<?php endforeach; ?>
 									</select>
 								</div>
@@ -85,8 +85,8 @@
 									<label>Active</label>
 									
 <!--									 <input class="form-control" value="<?=$user->active?>" placeholder="User is active" id="active" name="active"> -->
-<!--  									<?=form_dropdown('active', array(1=>'True',0=>'False'), ($user->active == 't') ? '1' : '0', 'class="form-control" id="active"')?> -->
-									<?=form_dropdown('active', array(1=>'True',0=>'False'), $user->active, 'class="form-control" id="active"')?>
+<!--  									<?=form_dropdown('active', [1 => 'True', 0 => 'False'], ($user->active == 't') ? '1' : '0', 'class="form-control" id="active"')?> -->
+									<?=form_dropdown('active', [1 => 'True', 0 => 'False'], $user->active, 'class="form-control" id="active"')?>
 								</div>
 								<button type="submit" class="btn btn-primary">Update</button>
 						   
@@ -95,7 +95,7 @@
 							<?php echo form_open_multipart(base_url('admin/sysusers/do_upload/'.$user->id));?>	
 								<div class="form-group">
 									<label>Current Image</label>
-									<?php if(!empty($user->image_name)) : ?>
+									<?php if (!empty($user->image_name)) : ?>
 										<div> <img height="200px" src="<?php echo($user->image_url); ?>" /> </div>
 									<?php endif; ?>
 								</div>

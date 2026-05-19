@@ -105,7 +105,7 @@ function mngr_clean_file_s3_path(&$uri = '')
  * @param string|null &$file_extension Optional. Will be set to the file's extension.
  * @param string|null &$file_type Optional. Will be set to the file's MIME type.
  * @param string|null &$file_name Optional. Will be set to the original name of the file.
- * 
+ *
  * @return string The temporary file path of the uploaded file.
  */
 function mngr_get_temp_upload_path($field_name, &$file_extension = null, &$file_type = null, &$file_name = null)
@@ -136,7 +136,7 @@ function mngr_get_temp_upload_path($field_name, &$file_extension = null, &$file_
  * @param int|string $field_key The index or key of the specific file in the multi-file upload.
  * @param string|null &$file_extension Optional. Will be set to the file's extension.
  * @param string|null &$file_type Optional. Will be set to the file's MIME type.
- * 
+ *
  * @return string The temporary file path of the uploaded file.
  */
 function mngr_get_temp_upload_path_key($field_name, $field_key, &$file_extension = null, &$file_type = null)
@@ -159,7 +159,7 @@ function mngr_get_temp_upload_path_key($field_name, $field_key, &$file_extension
 }
 
 /**
- * Retrieves temporary upload paths for single or multiple uploaded files and 
+ * Retrieves temporary upload paths for single or multiple uploaded files and
  * optionally returns their extensions and types.
  *
  * @param string $field_name The name of the input field from the $_FILES array.
@@ -179,7 +179,9 @@ function mngr_get_temp_upload_paths($field_name, &$file_extension = null, &$file
 
 	if (is_array($_FILES[$field_name]['tmp_name'])) {
 		foreach ($_FILES[$field_name]['tmp_name'] as $key => $tmp_file_path) {
-			if (empty($tmp_file_path)) continue;
+			if (empty($tmp_file_path)) {
+				continue;
+			}
 
 			$tmp_file_name = $_FILES[$field_name]['name'][$key];
 			$extensions[] = pathinfo($tmp_file_name, PATHINFO_EXTENSION);

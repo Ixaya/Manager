@@ -17,6 +17,7 @@ use Amp\Websocket\Server\WebsocketClientHandler;
 use Amp\Websocket\WebsocketClient;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
+
 use function Amp\trapSignal;
 use function Amp\ByteStream\getStdout;
 use function Amp\Redis\createRedisConnector;
@@ -27,7 +28,7 @@ final class Websocket_channel_regex
 	public const SANITIZE = '/[^a-zA-Z0-9_\-:|]/';
 }
 
-/** 
+/**
  * Add the following packages to composer:
  * "amphp/websocket-server": "^4.0",
  * "amphp/log": "^2.0",
@@ -58,7 +59,7 @@ class Websocket_lib
 	public function __construct()
 	{
 		$_ci = &get_instance();
-		$_ci->config->load('lib_websocket', TRUE, TRUE);
+		$_ci->config->load('lib_websocket', true, true);
 		$this->config = $_ci->config->item('lib_websocket');
 	}
 
@@ -162,7 +163,7 @@ class Websocket_lib
 		$logger = $this->logger;
 
 		$_ci = &get_instance();
-		$_ci->load->config('redis', TRUE, TRUE);
+		$_ci->load->config('redis', true, true);
 
 		// Build Redis URI
 		$config = $_ci->config->item('redis');
@@ -311,7 +312,7 @@ class Websocket_lib
 
 /**
  * Websocket Client Handler
- * 
+ *
  * Handles websocket client connections and channels.
  * Extracted from anonymous class for better performance and reusability.
  */
@@ -497,7 +498,7 @@ class WebsocketsClientHandler implements WebsocketClientHandler
 		if (!preg_match(Websocket_channel_regex::ALLOWED, $channel)) {
 			return '';
 		}
-		
+
 		return $channel;
 	}
 

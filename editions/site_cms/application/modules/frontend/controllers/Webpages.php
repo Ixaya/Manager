@@ -1,9 +1,9 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Webpages extends Site_Controller
 {
-
 	public function index()
 	{
 		$this->by_slug('frontend');
@@ -17,7 +17,7 @@ class Webpages extends Site_Controller
 		$data = null;
 		if ($this->config->item('cache_enable')) {
 			//cache enabled
-			$this->load->driver('cache', array('adapter' => 'apc', 'backup' => 'file'));
+			$this->load->driver('cache', ['adapter' => 'apc', 'backup' => 'file']);
 			$data = $this->cache->get("frontend/webpage/$slug");
 		}
 

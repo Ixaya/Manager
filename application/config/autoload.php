@@ -1,5 +1,6 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
 | -------------------------------------------------------------------
@@ -89,7 +90,7 @@ $autoload['drivers'] = [];
 |
 |	$autoload['helper'] = array('url', 'file');
 */
-$autoload['helper'] = ['manager_helper', 'manager_file_helper', 'manager_mime_helper', 'manager_timezone_helper'];
+$autoload['helper'] = ['manager_helper', 'manager_file_helper', 'manager_mime_helper', 'manager_timezone_helper', 'manager_db_driver', 'manager_db_function'];
 
 /*
 | -------------------------------------------------------------------

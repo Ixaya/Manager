@@ -1,5 +1,6 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
 |--------------------------------------------------------------------------
@@ -25,13 +26,13 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 */
 
 $host = mngr_env('CF_HOST', null);
-if(is_cli()){
+if (is_cli()) {
 	$config['base_url'] = "//$host";
 } else {
-	if ($host == null){
+	if ($host == null) {
 		$host = $_SERVER['HTTP_HOST'];
 	}
-	
+
 	$config['base_url'] = "//$host";
 }
 
@@ -64,7 +65,7 @@ $config['index_page'] = '';
 |
 | WARNING: If you set this to 'PATH_INFO', URIs will always be URL-decoded!
 */
- $config['uri_protocol']	= 'REQUEST_URI';
+$config['uri_protocol']	= 'REQUEST_URI';
 //$config['uri_protocol']	= 'QUERY_STRING';
 // $config['uri_protocol']	= 'PATH_INFO';
 
@@ -114,7 +115,7 @@ $config['charset'] = 'UTF-8';
 | setting this variable to TRUE (boolean).  See the user guide for details.
 |
 */
-$config['enable_hooks'] = FALSE;
+$config['enable_hooks'] = false;
 
 /*
 |--------------------------------------------------------------------------
@@ -202,8 +203,8 @@ $config['permitted_uri_chars'] = '+=a-z 0-9~%.:_\-';
 | use segment based URLs.
 |
 */
-$config['allow_get_array'] = TRUE;
-$config['enable_query_strings'] = FALSE;
+$config['allow_get_array'] = true;
+$config['enable_query_strings'] = false;
 $config['controller_trigger'] = 'c';
 $config['function_trigger'] = 'm';
 $config['directory_trigger'] = 'd';
@@ -319,7 +320,7 @@ $config['cache_path'] = '';
 |				 of query parameters.
 |
 */
-$config['cache_query_string'] = FALSE;
+$config['cache_query_string'] = false;
 
 /*
 |--------------------------------------------------------------------------
@@ -438,7 +439,7 @@ $config['cookie_httponly'] = mngr_env_bool('CF_COOKIE_HTTPONLY', false);
 | (usually \n) and Windows (\r\n).
 |
 */
-$config['standardize_newlines'] = FALSE;
+$config['standardize_newlines'] = false;
 
 /*
 |--------------------------------------------------------------------------
@@ -452,7 +453,7 @@ $config['standardize_newlines'] = FALSE;
 |		  for backwards compatibility purposes!
 |
 */
-$config['global_xss_filtering'] = FALSE;
+$config['global_xss_filtering'] = false;
 
 /*
 |--------------------------------------------------------------------------
@@ -468,11 +469,11 @@ $config['global_xss_filtering'] = FALSE;
 | 'csrf_regenerate' = Regenerate token on every submission
 | 'csrf_exclude_uris' = Array of URIs which ignore CSRF checks
 */
-$config['csrf_protection'] = FALSE;
+$config['csrf_protection'] = false;
 $config['csrf_token_name'] = 'csrf_test_name';
 $config['csrf_cookie_name'] = 'csrf_cookie_name';
 $config['csrf_expire'] = 7200;
-$config['csrf_regenerate'] = TRUE;
+$config['csrf_regenerate'] = true;
 $config['csrf_exclude_uris'] = [];
 
 /*
@@ -495,7 +496,7 @@ $config['csrf_exclude_uris'] = [];
 | by the output class.  Do not 'echo' any values with compression enabled.
 |
 */
-$config['compress_output'] = FALSE;
+$config['compress_output'] = false;
 
 /*
 |--------------------------------------------------------------------------
@@ -522,7 +523,7 @@ $config['time_reference'] = mngr_env_strict('CF_TIME_REFERENCE', 'utc');
 | Note: You need to have eval() enabled for this to work.
 |
 */
-$config['rewrite_short_tags'] = FALSE;
+$config['rewrite_short_tags'] = false;
 
 /*
 |--------------------------------------------------------------------------
