@@ -1,6 +1,10 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
 
-class User extends MY_Model
+(defined('BASEPATH')) or exit('No direct script access allowed');
+
+require_once APPPATH . 'core/IX_Model_Dyn.php';
+
+class User extends IX_Model_Dyn
 {
 	public function get_list($params)
 	{
@@ -11,26 +15,26 @@ class User extends MY_Model
 			'first_name',
 			'last_name',
 			'last_api_date',
-			'FROM_UNIXTIME(created_on) AS created_on'
+			$this->build_field_select('created_on', MgrFunctionType::FromUnixtime)
 		];
 
 		$where = [];
 		if (!empty($params['search'])) {
 			$seach = [];
-			$seach[MY_Model_Clause::OR_LIKE] = [
+			$seach[IX_Model_Dyn_clause::OR_LIKE] = [
 				'first_name' => $params['search'],
 				'last_name' => $params['search'],
 				'email' => $params['search']
 			];
-			$seach[MY_Model_Clause::OR_EQUAL] = [
+			$seach[IX_Model_Dyn_clause::OR_EQUAL] = [
 				'id' => $params['search']
 			];
 
-			$where[MY_Model_Clause::OR_GROUP] = $seach;
+			$where[IX_Model_Dyn_clause::OR_GROUP] = $seach;
 		}
 
-		if ($params['active']) {
-			$where[MY_Model_Clause::EQUAL] = ['active' => $params['active']];
+		if (isset($params['active'])) {
+			$where[IX_Model_Dyn_clause::EQUAL] = ['active' => $params['active']];
 		}
 
 		$allowed_order = [
@@ -44,9 +48,9 @@ class User extends MY_Model
 		$limit_page = mngr_build_limit_page($params['limit'], $params['page']);
 		$order_by = mngr_build_order_by($params['order_by'], $params['order'], $allowed_order);
 
-		$rows = $this->get_all_dynamic($fields, $where, $limit_page, $order_by);
-		$this->debug_query();
-		$count_rows = $this->get_all_dynamic('count(*) AS count', $where);
+		$rows = $this->get_all_dynamic(fields: $fields, where: $where, limit: $limit_page, order_by: $order_by);
+
+		$count_rows = $this->get_all_dynamic(fields: 'count(*) AS count', where: $where);
 
 		$total = isset($count_rows[0]['count']) ? $count_rows[0]['count'] : 0;
 

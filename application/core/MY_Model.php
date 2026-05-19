@@ -1,20 +1,11 @@
-<?php (defined('BASEPATH')) or exit('No direct script access allowed');
+<?php
 
-class MY_Model_Clause
-{
-	public const EQUAL = 'equal';
-	public const OR_EQUAL = 'or_equal';
-	public const LIKE = 'like';
-	public const OR_LIKE = 'or_like';
-	public const WHERE_IN = 'where_in';
-	public const OR_WHERE_IN = 'or_where_in';
-	public const GROUP = 'group';
-	public const OR_GROUP = 'or_group';
-}
+(defined('BASEPATH')) or exit('No direct script access allowed');
 
 class MY_Model extends CI_Model
 {
 	protected $my_db = null;
+	protected MgrDriver $my_db_driver;
 
 	protected $table_name = '';
 	protected $primary_key = 'id';
@@ -25,9 +16,9 @@ class MY_Model extends CI_Model
 	//example: $where_override = array('client_id' => $this->override_id);
 	//example: $override_column = 'client_id';
 	//example: $override_id = 1;
-	protected $where_override = NULL;
-	protected $override_column = NULL;
-	protected $override_id = NULL;
+	protected $where_override = null;
+	protected $override_column = null;
+	protected $override_id = null;
 
 	protected $save_history = false;
 	protected $soft_delete = false;
@@ -36,8 +27,7 @@ class MY_Model extends CI_Model
 	protected $lazy_connect = false;
 	protected $connected = false;
 
-	// Uncomment for legacy mode
-	// protected $legacy_mode = false;
+	protected $legacy_mode = false;
 
 	public function __construct()
 	{
@@ -50,7 +40,7 @@ class MY_Model extends CI_Model
 		}
 	}
 
-	public function connect($connection_name = NULL)
+	public function connect($connection_name = null)
 	{
 		if ($connection_name) {
 			$this->connection_name = $connection_name;
@@ -58,8 +48,10 @@ class MY_Model extends CI_Model
 
 		if (!empty($this->connection_name)) {
 			$this->my_db = $this->load->database_cache($this->connection_name);
+			$this->my_db_driver = MgrDriver::fromCI($this->db->dbdriver ?? '');
 		} else {
 			$this->my_db = $this->load->database_cache();
+			$this->my_db_driver = MgrDriver::fromCI($this->db->dbdriver ?? '');
 		}
 
 		if (strlen($this->database_name)) {
@@ -75,7 +67,7 @@ class MY_Model extends CI_Model
 		$this->set_database_time_zone($time_zone);
 
 		$this->set_override();
-		$this->connected = TRUE;
+		$this->connected = true;
 	}
 
 	public function set_connection($db_connection)
@@ -87,10 +79,10 @@ class MY_Model extends CI_Model
 		}
 
 		$this->set_override();
-		$this->connected = TRUE;
+		$this->connected = true;
 	}
 
-	public function reconnect_database($connection_name, $database_name, $generate_table_name = FALSE)
+	public function reconnect_database($connection_name, $database_name, $generate_table_name = false)
 	{
 		$needs_reload = false;
 		if (!empty($database_name) && $this->database_name != $database_name) {
@@ -151,9 +143,9 @@ class MY_Model extends CI_Model
 
 	public function del_override()
 	{
-		$this->where_override = NULL;
-		$this->override_column = NULL;
-		$this->override_id = NULL;
+		$this->where_override = null;
+		$this->override_column = null;
+		$this->override_id = null;
 	}
 
 	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
@@ -228,7 +220,7 @@ class MY_Model extends CI_Model
 	}
 
 	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all_like($fields = '', $where = array(), $limit = '', $order_by = '', $group_by = ''): array
+	public function get_all_like($fields = '', $where = [], $limit = '', $order_by = '', $group_by = ''): array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
@@ -264,53 +256,18 @@ class MY_Model extends CI_Model
 	}
 
 	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all_dynamic($fields = '', $where = [], $limit = '', $order_by = ''): array
-	{
-		$this->apply_list_filters($fields, [], $limit, $order_by);
-
-		if (!empty($where)) {
-			foreach ($where as $kind => $data) {
-				switch ($kind) {
-					case MY_Model_Clause::GROUP:
-						$this->my_db->group_start(); // Opens (
-						foreach ($data as $kind => $fields) {
-							$this->apply_where_condition($kind, $fields);
-						}
-						$this->my_db->group_end(); // Closes )
-						break;
-
-					case MY_Model_Clause::OR_GROUP:
-						$this->my_db->or_group_start(); // Opens OR (
-						foreach ($data as $kind => $fields) {
-							$this->apply_where_condition($kind, $fields);
-						}
-						$this->my_db->group_end();
-						break;
-
-					default:
-						// Regular conditions without grouping
-						$this->apply_where_condition($kind, $data);
-						break;
-				}
-			}
-		}
-
-		return $this->excecute_list();
-	}
-
-	/* @return array Array of result rows, empty array if query fails or no results found */
 	public function get_all_updated($last_update, $fields = '', $where = [], $limit = '', $order_by = '', $group_by = ''): array
 	{
 		$where = ['last_update >' => $last_update];
 		return $this->get_all($fields, $where, $limit, $order_by, $group_by);
 	}
 
-	public function count_all($where = NULL): int
+	public function count_all($where = null): int
 	{
 		$this->apply_common_filters();
 
 
-		$this->my_db->select('count(id) AS count', FALSE);
+		$this->my_db->select('count(id) AS count', false);
 
 		if (!empty($where)) {
 			$this->my_db->where($where);
@@ -336,7 +293,7 @@ class MY_Model extends CI_Model
 		if ($success) {
 			return $this->my_db->insert_id();
 		} else {
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -364,10 +321,11 @@ class MY_Model extends CI_Model
 		$this->apply_alter_filters();
 		$this->set_alter_keys($data);
 
-		if (is_array($id))
+		if (is_array($id)) {
 			$this->my_db->where_in($this->primary_key, $id);
-		else
+		} else {
 			$this->my_db->where($this->primary_key, $id);
+		}
 
 		return $this->my_db->update($this->table_name, $data);
 	}
@@ -395,7 +353,7 @@ class MY_Model extends CI_Model
 			return $this->insert($data);
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	public function upsert_where($data, $where, $insert_data = []): int|bool
@@ -410,7 +368,7 @@ class MY_Model extends CI_Model
 			return $row['id'];
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	public function sync_update_insert($data, $where, $insert = true, $add_sync = false, $add_import = true, $extra_data = [], &$modified = false)
@@ -424,15 +382,16 @@ class MY_Model extends CI_Model
 		if (!empty($row)) {
 			$update_data = [];
 			foreach (array_keys($data) as $key) {
-				if ($row[$key] != $data[$key])
+				if ($row[$key] != $data[$key]) {
 					$update_data[$key] = $data[$key];
+				}
 			}
 
 			if (count($update_data) > 0) {
 				$this->set_alter_keys($update_data);
 
 				$update_data = array_merge($extra_data, $update_data);
-			} else if (!$add_sync) {
+			} elseif (!$add_sync) {
 				return $row['id'];
 			}
 
@@ -441,12 +400,12 @@ class MY_Model extends CI_Model
 			}
 
 			$this->apply_alter_filters();
-			$result = $this->my_db->update($this->table_name, $update_data, array('id' => $row['id']));
+			$result = $this->my_db->update($this->table_name, $update_data, ['id' => $row['id']]);
 			if ($result == true) {
 				$modified = true;
 				return $row['id'];
 			}
-		} else if ($insert) {
+		} elseif ($insert) {
 			$this->set_alter_keys($data);
 
 			if ($add_import) {
@@ -507,8 +466,9 @@ class MY_Model extends CI_Model
 		$this->check_connect();
 
 		$query = "UPDATE {$this->table_name} SET sync_enabled = $status";
-		if ($id !== false)
+		if ($id !== false) {
 			$query = "$query WHERE id = $id";
+		}
 
 		return $this->my_db->query($query);
 	}
@@ -528,8 +488,9 @@ class MY_Model extends CI_Model
 				$row = trim($row);
 			}
 
-			if (!$only_trim && $row != 0 && empty($row))
-				$row = NULL;
+			if (!$only_trim && $row != 0 && empty($row)) {
+				$row = null;
+			}
 		}
 	}
 
@@ -552,14 +513,16 @@ class MY_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		if (empty($where))
+		if (empty($where)) {
 			return false;
+		}
 
 		$this->apply_alter_filters();
 		$this->my_db->where($where);
 
-		if ($this->soft_delete == false)
+		if ($this->soft_delete == false) {
 			return $this->my_db->delete($this->table_name);
+		}
 
 		$data = [];
 		$this->set_alter_keys($data, $delete = true);
@@ -567,7 +530,7 @@ class MY_Model extends CI_Model
 		return $this->my_db->update($this->table_name, $data);
 	}
 
-	public function query($query, $arguments = NULL)
+	public function query($query, $arguments = null)
 	{
 		$this->check_connect();
 
@@ -595,7 +558,7 @@ class MY_Model extends CI_Model
 		if ($success) {
 			return $this->my_db->insert_id();
 		} else {
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -622,7 +585,7 @@ class MY_Model extends CI_Model
 
 	public function clean_string($text)
 	{
-		$utf8 = array(
+		$utf8 = [
 			'/[áàâãªäÁÀÂÃªÄ]/u'	 =>	 'a',
 			'/[íìîïÍÌÎÏ]/u'		 =>	 'i',
 			'/[éèêëÉÈÊË]/u'		 =>	 'e',
@@ -634,7 +597,7 @@ class MY_Model extends CI_Model
 			'/[’‘‹›‚]/u'		=>	 '_', // Literally a single quote
 			'/[“”«»„]/u'		=>	 '_', // Double quote
 			'/ /'					 =>	 '_', // nonbreaking space (equiv. to 0x160)
-		);
+		];
 
 		$clean = preg_replace(array_keys($utf8), array_values($utf8), rtrim($text)); //Remove right spaces and convert special letters
 		$clean = strtolower($clean); //Convert to lower case
@@ -678,8 +641,22 @@ class MY_Model extends CI_Model
 	public function set_database_time_zone($time_zone)
 	{
 		$offset = mngr_get_time_zone_offset($time_zone);
-		if ($offset !== false) {
-			$this->my_db->query("SET SESSION time_zone='$offset'");
+
+		if ($offset === false) {
+			return;
+		}
+
+		$offset = $this->my_db->escape_str($offset);
+
+		$sql = match ($this->my_db_driver) {
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB  => "SET SESSION time_zone = '{$offset}'",
+			MgrDriver::Postgres => "SET TIME ZONE '{$offset}'",
+			default             => null,   // SQLite, SQL Server — no session TZ concept
+		};
+
+		if ($sql !== null) {
+			$this->my_db->query($sql);
 		}
 	}
 
@@ -694,7 +671,7 @@ class MY_Model extends CI_Model
 	 * @param string $fields Comma-separated field names for SELECT clause (empty = SELECT *)
 	 * @return void
 	 */
-	private function apply_common_filters($fields = '')
+	protected function apply_common_filters($fields = '')
 	{
 		$this->check_connect();
 
@@ -722,7 +699,7 @@ class MY_Model extends CI_Model
 	 * @param string $group_by GROUP BY clause (e.g., "category_id")
 	 *
 	 */
-	private function apply_list_filters($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '')
+	protected function apply_list_filters($fields = '', $where = [], $limit = '', $order_by = '', $group_by = '')
 	{
 		$this->apply_common_filters($fields);
 
@@ -750,7 +727,7 @@ class MY_Model extends CI_Model
 	 * Also applies where_override if set
 	 *
 	 */
-	private function apply_alter_filters()
+	protected function apply_alter_filters()
 	{
 		$this->check_connect();
 
@@ -759,7 +736,7 @@ class MY_Model extends CI_Model
 		}
 	}
 
-	private function set_alter_keys(&$data, $delete = false)
+	protected function set_alter_keys(&$data, $delete = false)
 	{
 		if ($this->use_last_update) {
 			$data['last_update'] = date('Y-m-d H:i:s');
@@ -782,7 +759,7 @@ class MY_Model extends CI_Model
 	 * @param string $table The table name to query
 	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
-	private function execute_row($table = ''): ?array
+	protected function execute_row($table = ''): ?array
 	{
 		if ($table !== '') {
 			$Q = $this->my_db->get($table);
@@ -795,9 +772,7 @@ class MY_Model extends CI_Model
 			return null;
 		}
 
-		// Uncomment for legacy mode
-		// $row = $this->legacy_mode ? $Q->row() : $Q->row_array();
-		$row = $Q->row_array();
+		$row = $this->legacy_mode ? $Q->row() : $Q->row_array();
 
 		$Q->free_result();
 		return $row;
@@ -814,7 +789,7 @@ class MY_Model extends CI_Model
 	 * @param string $table The table name to query
 	 * @return array Array of result rows, empty array if query fails or no results found
 	 */
-	private function excecute_list($table = ''): array
+	protected function excecute_list($table = ''): array
 	{
 		if ($table !== '') {
 			$Q = $this->my_db->get($table);
@@ -829,41 +804,5 @@ class MY_Model extends CI_Model
 		$Q->free_result();
 
 		return $data;
-	}
-
-	/**
-	 * Apply a where condition based on MY_Model_Clause type
-	 */
-	private function apply_where_condition(string $kind, $fields): void
-	{
-		switch ($kind) {
-			case MY_Model_Clause::EQUAL:
-				$this->my_db->where($fields);
-				break;
-
-			case MY_Model_Clause::OR_EQUAL:
-				$this->my_db->or_where($fields);
-				break;
-
-			case MY_Model_Clause::LIKE:
-				$this->my_db->like($fields);
-				break;
-
-			case MY_Model_Clause::OR_LIKE:
-				$this->my_db->or_like($fields);
-				break;
-
-			case MY_Model_Clause::WHERE_IN:
-				foreach ($fields as $field => $values) {
-					$this->my_db->where_in($field, $values);
-				}
-				break;
-
-			case MY_Model_Clause::OR_WHERE_IN:
-				foreach ($fields as $field => $values) {
-					$this->my_db->or_where_in($field, $values);
-				}
-				break;
-		}
 	}
 }
