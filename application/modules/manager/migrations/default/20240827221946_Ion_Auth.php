@@ -92,56 +92,44 @@ class Migration_Ion_auth extends MGR_Migration
 
 	private function initial_data()
 	{
-		// Dumping data for table 'group'
-		$data = [
-			[
-				'id' => '1',
-				'name' => 'admin',
-				'level' => '10',
-				'description' => 'Administrator'
-			],
-			[
-				'id' => '2',
-				'name' => 'members',
-				'level' => '1',
-				'description' => 'General User'
-			]
-		];
-		$this->db->insert_batch('group', $data);
+		// Insert group records
+		$this->db->insert('group', [
+			'name'        => 'admin',
+			'level'       => '10',
+			'description' => 'Administrator'
+		]);
+		$admin_group_id = $this->db->insert_id();
 
-		// Dumping data for table 'users'
-		$data = [
-			'id' => '1',
-			'ip_address' => '127.0.0.1',
-			'username' => 'admin@admin.com',
-			'password' => '$2a$07$SeBknntpZror9uyftVopmu61qg0ms8Qv1yV6FG.kQOSM.9QhmTo36',
-			'salt' => '',
-			'email' => 'admin@admin.com',
-			'activation_code' => '',
+		$this->db->insert('group', [
+			'name'        => 'members',
+			'level'       => '1',
+			'description' => 'General User'
+		]);
+		$members_group_id = $this->db->insert_id();
+
+		// Insert user
+		$this->db->insert('user', [
+			'ip_address'             => '127.0.0.1',
+			'username'               => 'admin@admin.com',
+			'password'               => '$2a$07$SeBknntpZror9uyftVopmu61qg0ms8Qv1yV6FG.kQOSM.9QhmTo36',
+			'salt'                   => '',
+			'email'                  => 'admin@admin.com',
+			'activation_code'        => '',
 			'forgotten_password_code' => null,
-			'created_on' => '1268889823',
-			'last_login' => '1268889823',
-			'active' => '1',
-			'first_name' => 'Admin',
-			'last_name' => 'istrator',
-			'company' => 'ADMIN',
-			'phone' => '0'
-		];
-		$this->db->insert('user', $data);
+			'created_on'             => '1268889823',
+			'last_login'             => '1268889823',
+			'active'                 => '1',
+			'first_name'             => 'Admin',
+			'last_name'              => 'istrator',
+			'company'                => 'ADMIN',
+			'phone'                  => '0'
+		]);
+		$admin_user_id = $this->db->insert_id();
 
-		// Dumping data for table 'user_group'
-		$data = [
-			[
-				'id' => '1',
-				'user_id' => '1',
-				'group_id' => '1',
-			],
-			[
-				'id' => '2',
-				'user_id' => '1',
-				'group_id' => '2',
-			]
-		];
-		$this->db->insert_batch('user_group', $data);
+		// Insert relationships using captured IDs
+		$this->db->insert_batch('user_group', [
+			['user_id' => $admin_user_id, 'group_id' => $admin_group_id],
+			['user_id' => $admin_user_id, 'group_id' => $members_group_id],
+		]);
 	}
 }
