@@ -1,15 +1,12 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 use Aws\S3\S3Client;
 use Aws\S3\Exception\S3Exception;
-
 use Aws\CloudFront\CloudFrontClient;
-
 use Aws\Textract\TextractClient;
-
 use Aws\BedrockRuntime\BedrockRuntimeClient;
-
 use Aws\Credentials\Credentials;
 use Aws\Exception\AwsException;
 
@@ -18,25 +15,24 @@ class Amazon_aws
 	//https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/getting-started_basic-usage.html
 	//https://docs.aws.amazon.com/aws-sdk-php/v2/guide/service-s3.html
 	//composer require aws/aws-sdk-php
-	private $aws_bucket;
-	private $aws_region;
-	private $aws_cloud_front_id;
-	private $aws_bucket_url;
-	private $aws_bedrock_model_id;
+	private string $aws_bucket;
+	private string $aws_region;
+	private string $aws_cloud_front_id;
+	private string $aws_bucket_url;
+	private string $aws_bedrock_model_id;
 
-	private $aws_accesskey;
-	private $aws_secretkey;
+	private string $aws_accesskey;
+	private string $aws_secretkey;
 
-	private $config;
-	private $config_key;
+	private array $config;
+	private string $config_key;
 
-	function __construct()
+	public function __construct()
 	{
+		$file_path = get_instance()->config->path('lib_amazon_aws');
+
 		// Is the config file in the environment folder?
-		if (
-			!file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/lib_amazon_aws.php')
-			&& !file_exists($file_path = APPPATH . 'config/lib_amazon_aws.php')
-		) {
+		if ($file_path === null) {
 			show_error('The configuration file lib_amazon_aws.php does not exist.');
 		}
 
@@ -53,7 +49,7 @@ class Amazon_aws
 		}
 	}
 
-	public function set_config_key($key)
+	public function set_config_key(string $key)
 	{
 		if (!empty($this->config[$key])) {
 			$this->config_key = $key;
@@ -61,7 +57,7 @@ class Amazon_aws
 		}
 	}
 
-	private function load_config($config)
+	private function load_config(array $config)
 	{
 		$this->aws_bucket 		= $config['aws_bucket'] ?? '';
 		$this->aws_region 		= $config['aws_region'] ?? '';
@@ -73,14 +69,14 @@ class Amazon_aws
 		$this->aws_secretkey	= $config['aws_secretkey'] ?? '';
 	}
 
-	public function list_files()
+	public function list_files(): ?array
 	{
 		try {
 			$s3 = $this->build_s3_client();
 
-			$iterator = $s3->getIterator('ListObjects', array(
+			$iterator = $s3->getIterator('ListObjects', [
 				'Bucket' => $this->aws_bucket
-			));
+			]);
 
 			$objects = [];
 			foreach ($iterator as $object) {
@@ -91,12 +87,12 @@ class Amazon_aws
 
 			return $objects;
 		} catch (S3Exception $e) {
-			$error = $e->getMessage();
-			log_message('ERROR', json_encode($error));
+			log_message('ERROR', $e->getMessage());
+			return null;
 		}
 	}
 
-	public function upload_file($file_path, $s3_path = '', $invalidate_path = false)
+	public function upload_file(string $file_path, string $s3_path = '', bool $invalidate_path = false): ?string
 	{
 		try {
 			if (empty($file_path) || !file_exists($file_path)) {
@@ -144,7 +140,7 @@ class Amazon_aws
 			return null;
 		}
 	}
-	public function upload_data($data, $s3_path = '', $content_type = 'text/plain', $invalidate_path = false)
+	public function upload_data(string $data, string $s3_path = '', string $content_type = 'text/plain', bool $invalidate_path = false): ?string
 	{
 		try {
 			if (empty($data)) {
@@ -182,16 +178,15 @@ class Amazon_aws
 			$v = "?v=$v";
 			return $file_url . $v;
 		} catch (S3Exception $e) {
-			$error = $e->getMessage();
-			log_message('ERROR', json_encode($error));
+			log_message('ERROR', $e->getMessage());
 			return null;
 		}
 	}
-	public function save_file($file_name, $path)
+	public function save_file(string $file_name, string $path): bool
 	{
 		try {
 			if (empty($file_name) || empty($path)) {
-				return null;
+				return false;
 			}
 
 			$s3 = $this->build_s3_client();
@@ -201,14 +196,14 @@ class Amazon_aws
 				'Key' => $file_name,
 				'SaveAs' => "$path/$file_name"
 			]);
-			return $object;
+			return true;
 		} catch (S3Exception $e) {
-			$error = $e->getMessage();
-			log_message('ERROR', json_encode($error));
+			log_message('ERROR', $e->getMessage());
+			return false;
 		}
 	}
 
-	public function get_file($file_path, &$file_mime = '')
+	public function get_file(string $file_path, &$file_mime = ''): ?string
 	{
 		try {
 			$s3 = $this->build_s3_client();
@@ -220,19 +215,18 @@ class Amazon_aws
 
 			$file_mime = (!empty($object['ContentType'])) ? $object['ContentType'] : '';
 
-			return $object['Body'];
+			return $object['Body']->getContents();
 		} catch (S3Exception $e) {
-			$error = $e->getMessage();
-			log_message('ERROR', json_encode($error));
+			log_message('ERROR', $e->getMessage());
+			return null;
 		}
 	}
 
-	public function get_presigned_url($file_name, $bucket = '')
+	public function get_presigned_url(string $file_name, string $bucket = ''): ?string
 	{
-
 		if (empty($file_name)) {
 			log_message('ERROR', 'File name is required to generate a presigned URL.');
-			return false;
+			return null;
 		}
 
 		if (empty($bucket)) {
@@ -252,19 +246,19 @@ class Amazon_aws
 		} catch (S3Exception $e) {
 			$error = $e->getMessage();
 			log_message('ERROR', "Failed to generate presigned URL for file '{$file_name}' in bucket '{$bucket}': {$error}");
-			return false;
+			return null;
 		} catch (Exception $e) {
 			$error = $e->getMessage();
 			log_message('ERROR', "Unexpected error while generating presigned URL: {$error}");
-			return false;
+			return null;
 		}
 	}
 
-	public function invalidate_path($path)
+	public function invalidate_path(string $path): ?string
 	{
 		try {
 			if (empty($path) || empty($this->aws_cloud_front_id)) {
-				return false;
+				return null;
 			}
 
 			$valid_path = (substr($path, 0, 1) == '/') ? $path : "/$path"; //cf path needs to start with a '/'
@@ -284,14 +278,12 @@ class Amazon_aws
 
 			return $result['Invalidation'];
 		} catch (AwsException $e) {
-			$error = $e->getMessage();
-			log_message('ERROR', json_encode($error));
-
-			return false;
+			log_message('ERROR', $e->getMessage());
+			return null;
 		}
 	}
 
-	public function textract_file($file_path, $queries = null)
+	public function textract_file(string $file_path, ?array $queries = null): array
 	{
 		try {
 			$client = $this->build_textract_client();
@@ -320,7 +312,7 @@ class Amazon_aws
 			]);
 
 			// Procesar y devolver la respuesta
-			return $result;
+			return $result->toArray();
 		} catch (AwsException $e) {
 			// Manejo de errores
 			log_message('ERROR', json_encode($e->getMessage()));
@@ -332,7 +324,7 @@ class Amazon_aws
 		}
 	}
 
-	public function textract_file_lines($file_path)
+	public function textract_file_lines(string $file_path)
 	{
 		try {
 			$client = $this->build_textract_client();
@@ -362,7 +354,7 @@ class Amazon_aws
 			return ['error' => $e->getMessage()];
 		}
 	}
-	public function textract_document_config($file_path)
+	public function textract_document_config(string $file_path)
 	{
 		if (strpos($file_path, 's3/') !== false) {
 			mngr_clean_file_s3_path($file_path);
@@ -388,7 +380,7 @@ class Amazon_aws
 		}
 	}
 
-	public function bedrock_converse($system_message, $user_message, $file_path = null, &$usage = null, $model_id = null)
+	public function bedrock_converse(string $system_message, string|array $user_message, ?string $file_path = null, ?string $model_id = null)
 	{
 		try {
 			if (empty($user_message)) {
@@ -430,7 +422,7 @@ class Amazon_aws
 							]
 						]
 					];
-				} else if ($kind == 'document') {
+				} elseif ($kind == 'document') {
 					$message['content'][] = [
 						'document' => [
 							'format' => $file_extention,
@@ -446,7 +438,7 @@ class Amazon_aws
 			$messages = [$message];
 
 			// Procesar y devolver la respuesta
-			$result = $this->bedrock_converse_raw($messages, $system_message, $model_id, $usage);
+			$result = $this->bedrock_converse_raw($messages, $system_message, $model_id);
 
 			return $result;
 		} catch (Exception $e) {
@@ -456,7 +448,7 @@ class Amazon_aws
 		}
 	}
 
-	public function bedrock_converse_raw($messages, $system_prompt, $model_id = null, &$usage = null)
+	public function bedrock_converse_raw(array $messages, string $system_prompt, ?string $model_id = null): ?array
 	{
 		try {
 			$client = $this->build_bedrock_client();
@@ -471,53 +463,263 @@ class Amazon_aws
 				'system' => [['text' => $system_prompt]]
 			]);
 
+			$usage = null;
 			if (!empty($result['usage'])) {
 				$usage = $result['usage'];
 			}
 
-			if (isset($result['output']['message']['content'][0]['text'])) {
-				return $result['output']['message']['content'][0]['text'];
-			} else if (!empty($result->getMessages()[0]->getContent())) {
-				return $result->getMessages()[0]->getContent();
+			$outputMessage = $result['output']['message'] ?? null;
+			$contentBlocks = $outputMessage['content'] ?? [];
+
+			$fullTextResponse = "";
+			$toolCalls = [];
+
+			foreach ($contentBlocks as $block) {
+				if (isset($block['text'])) {
+					$fullTextResponse .= $this->_cleanup_markdown($block['text']);
+				}
+
+				if (isset($block['toolUse'])) {
+					$toolCalls[] = $block['toolUse'];
+				}
 			}
 
-			return ['error' => 'No response from AWS'];
+			return [
+				'text' => $fullTextResponse,
+				'tool_calls' => $toolCalls,
+				'usage' => $usage,
+				'error' => null
+			];
 		} catch (AwsException $e) {
 			// Manejo de errores
 			log_message('ERROR', json_encode($e->getMessage()));
-			return ['error' => $e->getMessage()];
+			return ['text' => null, 'tool_calls' => null, 'error' => $e->getMessage()];
 		} catch (Exception $e) {
 			// Handle other exceptions, such as file read errors
 			log_message('ERROR', json_encode($e->getMessage()));
-			return ['error' => $e->getMessage()];
+			return ['text' => null, 'tool_calls' => null, 'error' => $e->getMessage()];
 		}
 	}
 
-	public function bedrock_invoke_raw($payload, $model_id = null)
+	/**
+	 * Invokes a Bedrock model and returns a standardized array.
+	 * * @param array $payload
+	 * @param string|null $model_id
+	 * @return array|null
+	 */
+	public function bedrock_invoke_raw(array $payload, ?string $model_id = null): ?array
+	{
+		try {
+			$client = $this->build_bedrock_client();
+			$model_id = $model_id ?? $this->aws_bedrock_model_id;
+
+			$result = $client->invokeModel([
+				'modelId'     => $model_id,
+				'contentType' => 'application/json',
+				'body'        => json_encode($payload),
+			]);
+
+			return [
+				'success' => true,
+				'body'    => (string) $result['body'], // Casts stream to string safely
+				'error'   => null
+			];
+		} catch (\Aws\Exception\AwsException $e) {
+			log_message('ERROR', 'AWS Bedrock Error: ' . $e->getAwsErrorMessage());
+			return [
+				'success' => false,
+				'body'    => null,
+				'error'   => $e->getAwsErrorMessage()
+			];
+		} catch (\Exception $e) {
+			log_message('ERROR', 'General PHP Error: ' . $e->getMessage());
+			return [
+				'success' => false,
+				'body'    => null,
+				'error'   => $e->getMessage()
+			];
+		}
+	}
+
+	public function bedrock_invoke_model(array $messages, string $system_prompt, ?string $model_id = null)
+	{
+		if (empty($model_id)) {
+			$model_id = $this->aws_bedrock_model_id;
+		}
+
+		if (stripos($model_id, 'anthropic.claude') !== false || stripos($model_id, 'us.anthropic') !== false) {
+			return $this->_invoke_claude($this->_normalize_messages_claude($messages), $system_prompt, $model_id);
+		}
+
+		if (stripos($model_id, 'amazon.nova') !== false || stripos($model_id, 'us.amazon.nova') !== false) {
+			return $this->_invoke_nova($this->_normalize_messages_nova($messages), $system_prompt, $model_id);
+		}
+
+		if (stripos($model_id, 'mistral') !== false) {
+			return $this->_invoke_mistral($this->_normalize_messages_mistral($messages), $system_prompt, $model_id);
+		}
+
+		return $this->_error("Unsupported model: {$model_id}");
+	}
+
+	// -------------------------------------------------------------------------
+
+	private function _invoke_claude(array $messages, string $system_prompt, string $model_id)
+	{
+		$payload = [
+			'anthropic_version' => 'bedrock-2023-05-31',
+			'max_tokens'        => 1024,
+			'temperature'       => 1.0,
+			'top_p'             => 1.0,
+			'system'            => $system_prompt,
+			'messages'          => $messages,
+		];
+
+		$raw = $this->_invoke_raw($model_id, $payload);
+		if ($raw['status'] === 'error') {
+			return $raw;
+		}
+
+		return $this->_success(
+			$raw['data']['content'][0]['text'] ?? null,
+			$raw['data']['usage'] ?? null
+		);
+	}
+
+	// -------------------------------------------------------------------------
+
+	private function _invoke_nova(array $messages, string $system_prompt, string $model_id)
+	{
+		$payload = [
+			'schemaVersion'   => 'messages-v1',
+			'system'          => [['text' => $system_prompt]],
+			'messages'        => $messages,
+			'inferenceConfig' => [
+				'max_new_tokens' => 1024,
+				'temperature'    => 0,
+				'topP'           => 1.0,
+			],
+		];
+
+		$raw = $this->_invoke_raw($model_id, $payload);
+		if ($raw['status'] === 'error') {
+			return $raw;
+		}
+
+		return $this->_success(
+			$raw['data']['output']['message']['content'][0]['text'] ?? null,
+			$raw['data']['usage'] ?? null
+		);
+	}
+
+	// -------------------------------------------------------------------------
+
+	private function _invoke_mistral(array $messages, string $system_prompt, string $model_id)
+	{
+		$full_messages = array_merge(
+			[['role' => 'system', 'content' => $system_prompt]],
+			$messages
+		);
+
+		$payload = [
+			'messages'    => $full_messages,
+			'max_tokens'  => 1024,
+			'temperature' => 0.7,
+			'top_p'       => 1.0,
+		];
+
+		$raw = $this->_invoke_raw($model_id, $payload);
+		if ($raw['status'] === 'error') {
+			return $raw;
+		}
+
+		return $this->_success(
+			$raw['data']['choices'][0]['message']['content'] ?? null,
+			$raw['data']['usage'] ?? null
+		);
+	}
+
+	// -------------------------------------------------------------------------
+
+	private function _invoke_raw(string $model_id, array $payload)
 	{
 		try {
 			$client = $this->build_bedrock_client();
 
-			if (empty($model_id)) {
-				$model_id = $this->aws_bedrock_model_id;
-			}
-
 			$result = $client->invokeModel([
-				'modelId' => $model_id,
+				'modelId'     => $model_id,
 				'contentType' => 'application/json',
-				'body' => json_encode($payload),
+				'accept'      => 'application/json',
+				'body'        => json_encode($payload),
 			]);
 
-			return $result['body'];
+			$raw_body = $result['body']->getContents();
+
+			return [
+				'status' => 'ok',
+				'data'   => json_decode($raw_body, true), // internal use only for extraction
+			];
 		} catch (AwsException $e) {
-			// Manejo de errores
-			log_message('ERROR', json_encode($e->getMessage()));
-			return ['error' => $e->getMessage()];
+			log_message('ERROR', $e->getMessage());
+			return $this->_error($e->getMessage());
 		} catch (Exception $e) {
-			// Handle other exceptions, such as file read errors
-			log_message('ERROR', json_encode($e->getMessage()));
-			return ['error' => $e->getMessage()];
+			log_message('ERROR', $e->getMessage());
+			return $this->_error($e->getMessage());
 		}
+	}
+
+	// -------------------------------------------------------------------------
+
+	private function _success(string $body, $usage = null): array
+	{
+		return [
+			'status' => 'ok',
+			'body'   => $this->_cleanup_markdown($body),
+			'usage'  => $usage,
+		];
+	}
+
+	private function _error(string $message): array
+	{
+		return [
+			'status' => 'error',
+			'body'   => $message,
+			'usage'  => null,
+		];
+	}
+
+	private function _cleanup_markdown(string $text): string
+	{
+		// Strip markdown code fences: ```json ... ``` or ``` ... ```
+		$text = preg_replace('/^```[a-z]*\s*/i', '', trim($text));
+		$text = preg_replace('/\s*```$/', '', trim($text));
+
+		return trim($text);
+	}
+
+	private function _normalize_messages_claude(array $messages)
+	{
+		$messages = array_map(function ($msg) {
+			return ['type' => 'text', 'text' => $msg];
+		}, $messages);
+
+		return [['role' => 'user', 'content' => $messages]];
+	}
+
+	private function _normalize_messages_nova(array $messages)
+	{
+		$messages = array_map(function ($msg) {
+			return ['text' => $msg];
+		}, $messages);
+
+		return [['role' => 'user', 'content' => $messages]];
+	}
+
+	private function _normalize_messages_mistral(array $messages)
+	{
+		return $messages = array_map(function ($msg) {
+			return ['role' => 'user', 'content' => $msg];
+		}, $messages);
 	}
 
 

@@ -1,9 +1,10 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * Extended Cache Library
- * 
+ *
  * Adds configurable serialization (JSON, msgpack, gzip) and default TTL
  * while maintaining backwards compatibility with CI's cache library
  */
@@ -12,26 +13,47 @@ class MY_Cache extends CI_Cache
 	protected $default_ttl;
 	protected $serialization;
 	protected $enable_logging;
+	protected $cache_bypass;
 
 	/**
 	 * Constructor
 	 */
-	public function __construct($config = array())
+	public function __construct($config = [])
 	{
-		parent::__construct($config);
+		$this->cache_bypass = $this->_is_cache_bypass();
+		if (!$this->cache_bypass) {
+			parent::__construct($config);
 
-		// Set configuration with fallbacks
-		$this->default_ttl = isset($config['default_ttl'])
-			? $config['default_ttl']
-			: 3600;
+			// Set configuration with fallbacks
+			$this->default_ttl = isset($config['default_ttl'])
+				? $config['default_ttl']
+				: 3600;
 
-		$this->serialization = isset($config['serialization'])
-			? $config['serialization']
-			: null;
+			$this->serialization = isset($config['serialization'])
+				? $config['serialization']
+				: null;
 
-		$this->enable_logging = isset($config['enable_logging'])
-			? $config['enable_logging']
-			: FALSE;
+			$this->enable_logging = isset($config['enable_logging'])
+				? $config['enable_logging']
+				: false;
+		}
+	}
+
+
+	private function _is_cache_bypass(): bool
+	{
+		// Disable cache for pentest/dev IPs
+		$env_ips = str_replace(' ', '', mngr_env('CACHE_BYPASS_IPS', ''));
+
+		if ($env_ips === '') {
+			return false;
+		}
+
+		$ci = &get_instance();
+		$ip_address = $ci->input->ip_address();
+
+		$bypass_ips = array_flip(explode(',', $env_ips));
+		return isset($bypass_ips[$ip_address]);
 	}
 
 	/**
@@ -44,10 +66,14 @@ class MY_Cache extends CI_Cache
 	 * @param string|null $encoding Serialization method (NULL = use default)
 	 * @return	bool	TRUE on success, FALSE on failure
 	 */
-	public function save($id, $data, $ttl = NULL, $raw = FALSE, $encoding = NULL)
+	public function save($id, $data, $ttl = null, $raw = false, $encoding = null)
 	{
-		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
-		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+		if ($this->cache_bypass) {
+			return true;
+		}
+
+		$ttl = ($ttl === null) ? $this->default_ttl : $ttl;
+		$encoding = ($encoding === null) ? $this->serialization : $encoding;
 
 		if ($this->enable_logging) {
 			log_message('debug', "Cache save: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
@@ -55,8 +81,8 @@ class MY_Cache extends CI_Cache
 
 		if ($encoding !== 'none') {
 			$data = $this->_serialize($data, $encoding);
-			if ($data === FALSE) {
-				return FALSE;
+			if ($data === false) {
+				return false;
 			}
 		}
 
@@ -74,10 +100,14 @@ class MY_Cache extends CI_Cache
 	 * @param bool   $prepend If true, add to beginning (lPush), if false add to end (rPush)
 	 * @return bool
 	 */
-	public function save_list($id, $data, $ttl = NULL, $encoding = NULL, $prepend = false)
+	public function save_list($id, $data, $ttl = null, $encoding = null, $prepend = false)
 	{
-		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
-		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+		if ($this->cache_bypass) {
+			return true;
+		}
+
+		$ttl = ($ttl === null) ? $this->default_ttl : $ttl;
+		$encoding = ($encoding === null) ? $this->serialization : $encoding;
 
 		if ($this->enable_logging) {
 			log_message('debug', "Cache save_list: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
@@ -85,8 +115,8 @@ class MY_Cache extends CI_Cache
 
 		$items = $this->_serialize_collection($data, $encoding);
 
-		if ($items === FALSE) {
-			return FALSE;
+		if ($items === false) {
+			return false;
 		}
 
 		if (method_exists($this->{$this->_adapter}, 'save_list')) {
@@ -94,7 +124,7 @@ class MY_Cache extends CI_Cache
 		}
 
 		log_message('error', "Driver does not support save_list method");
-		return FALSE;
+		return false;
 	}
 
 	/**
@@ -107,10 +137,14 @@ class MY_Cache extends CI_Cache
 	 * @param string $encoding Serialization method (NULL = use default, 'none' = no serialization)
 	 * @return bool
 	 */
-	public function save_set($id, $data, $ttl = NULL, $encoding = NULL)
+	public function save_set($id, $data, $ttl = null, $encoding = null)
 	{
-		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
-		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+		if ($this->cache_bypass) {
+			return true;
+		}
+
+		$ttl = ($ttl === null) ? $this->default_ttl : $ttl;
+		$encoding = ($encoding === null) ? $this->serialization : $encoding;
 
 		if ($this->enable_logging) {
 			log_message('debug', "Cache save_set: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
@@ -118,8 +152,8 @@ class MY_Cache extends CI_Cache
 
 		$items = $this->_serialize_collection($data, $encoding);
 
-		if ($items === FALSE) {
-			return FALSE;
+		if ($items === false) {
+			return false;
 		}
 
 		if (method_exists($this->{$this->_adapter}, 'save_set')) {
@@ -127,7 +161,7 @@ class MY_Cache extends CI_Cache
 		}
 
 		log_message('error', "Driver does not support save_set method");
-		return FALSE;
+		return false;
 	}
 
 	/**
@@ -140,27 +174,31 @@ class MY_Cache extends CI_Cache
 	 * @param string $encoding Serialization method (NULL = use default, 'none' = no serialization)
 	 * @return bool
 	 */
-	public function save_zset($id, $data, $ttl = NULL, $encoding = NULL)
+	public function save_zset($id, $data, $ttl = null, $encoding = null)
 	{
-		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
-		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+		if ($this->cache_bypass) {
+			return true;
+		}
+
+		$ttl = ($ttl === null) ? $this->default_ttl : $ttl;
+		$encoding = ($encoding === null) ? $this->serialization : $encoding;
 
 		if ($this->enable_logging) {
 			log_message('debug', "Cache save_zset: {$id}, TTL: {$ttl}, Encoding: {$encoding}");
 		}
 
-		$items = $this->_serialize_collection($data, $encoding);
+		$items = $this->_serialize_zcollection($data, $encoding);
 
-		if ($items === FALSE) {
-			return FALSE;
+		if ($items === false) {
+			return false;
 		}
 
 		if (method_exists($this->{$this->_adapter}, 'save_zset')) {
-			return $this->{$this->_adapter}->save_zset($id, $items, 'zset', $ttl);
+			return $this->{$this->_adapter}->save_zset($id, $items, $ttl);
 		}
 
 		log_message('error', "Driver does not support save_zset method");
-		return FALSE;
+		return false;
 	}
 
 	/**
@@ -172,16 +210,20 @@ class MY_Cache extends CI_Cache
 	 * @param int    $ttl  Seconds (0 = no expiry)
 	 * @return bool
 	 */
-	public function save_hash($id, array $data, $ttl = NULL)
+	public function save_hash($id, array $data, $ttl = null)
 	{
-		$ttl = ($ttl === NULL) ? $this->default_ttl : $ttl;
+		if ($this->cache_bypass) {
+			return true;
+		}
+
+		$ttl = ($ttl === null) ? $this->default_ttl : $ttl;
 
 		if ($this->enable_logging) {
 			log_message('debug', "Cache save_hash: {$id}, TTL: {$ttl}");
 		}
 
 		if (empty($data)) {
-			return FALSE;
+			return false;
 		}
 
 		if (method_exists($this->{$this->_adapter}, 'save_hash')) {
@@ -189,7 +231,7 @@ class MY_Cache extends CI_Cache
 		}
 
 		log_message('error', "Driver does not support save_hash method");
-		return FALSE;
+		return false;
 	}
 
 	/**
@@ -199,24 +241,28 @@ class MY_Cache extends CI_Cache
 	 * @param string|null $encoding Serialization method (NULL = use default)
 	 * @return mixed|false
 	 */
-	public function get($id, $encoding = NULL)
+	public function get($id, $encoding = null)
 	{
+		if ($this->cache_bypass) {
+			return false;
+		}
+
 		$data = parent::get($id);
 
-		if ($data === FALSE) {
+		if ($data === false) {
 			if ($this->enable_logging) {
 				log_message('debug', "Cache miss: {$id}");
 			}
-			return FALSE;
+			return false;
 		}
 
 		if ($this->enable_logging) {
 			log_message('debug', "Cache hit: {$id}");
 		}
 
-		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+		$encoding = ($encoding === null) ? $this->serialization : $encoding;
 
-		if ($encoding !== NULL && $encoding !== 'none') {
+		if ($encoding !== null && $encoding !== 'none') {
 			return $this->_unserialize($data, $encoding);
 		}
 
@@ -231,6 +277,10 @@ class MY_Cache extends CI_Cache
 	 */
 	public function delete($id)
 	{
+		if ($this->cache_bypass) {
+			return true;
+		}
+
 		if ($this->enable_logging) {
 			log_message('debug', "Cache delete: {$id}");
 		}
@@ -248,15 +298,19 @@ class MY_Cache extends CI_Cache
 	 * @param string $encoding Serialization method (NULL = use default, 'none' = no serialization)
 	 * @return int|false       Number of items removed, or FALSE on error
 	 */
-	public function delete_from($id, $data, $encoding = NULL)
+	public function delete_from($id, $data, $encoding = null)
 	{
-		$encoding = ($encoding === NULL) ? $this->serialization : $encoding;
+		if ($this->cache_bypass) {
+			return 1;
+		}
+
+		$encoding = ($encoding === null) ? $this->serialization : $encoding;
 
 		// Serialize the values we're looking for (must match what was stored)
 		$items = $this->_serialize_collection($data, $encoding);
 
-		if ($items === FALSE) {
-			return FALSE;
+		if ($items === false) {
+			return false;
 		}
 
 		if (method_exists($this->{$this->_adapter}, 'delete_from')) {
@@ -264,7 +318,7 @@ class MY_Cache extends CI_Cache
 		}
 
 		log_message('error', "Driver does not support delete_from method");
-		return FALSE;
+		return false;
 	}
 
 	/**
@@ -277,25 +331,33 @@ class MY_Cache extends CI_Cache
 	 */
 	public function delete_hash_fields($id, $fields)
 	{
+		if ($this->cache_bypass) {
+			return 1;
+		}
+
 		$fields = is_array($fields) ? $fields : [$fields];
-		
+
 		if (method_exists($this->{$this->_adapter}, 'delete_hash_fields')) {
 			return $this->{$this->_adapter}->delete_hash_fields($id, $fields);
 		}
 
 		log_message('error', "Driver does not support delete_hash_fields method");
-		return FALSE;
+		return false;
 	}
 
 	/**
 	 * Publish a message to a channel
-	 * 
+	 *
 	 * @param string $channel Channel name
 	 * @param mixed $message Message (will be JSON encoded if array)
 	 * @return int Number of subscribers that received the message
 	 */
 	public function publish($channel, $message)
 	{
+		if ($this->cache_bypass) {
+			return 0;
+		}
+
 		if ($this->enable_logging) {
 			log_message('debug', "Cache publish: {$channel}");
 		}
@@ -310,12 +372,16 @@ class MY_Cache extends CI_Cache
 	/**
 	 * Subscribe to one or more channels
 	 * This is a BLOCKING operation
-	 * 
+	 *
 	 * @param array|string $channels Channel(s) to subscribe to
 	 * @param callable $callback Function to call when message received
 	 */
 	public function subscribe($channels, $callback)
 	{
+		if ($this->cache_bypass) {
+			return true;
+		}
+
 		if ($this->enable_logging) {
 			$debug_channels = (is_array($channels)) ? implode('-', $channels) : $channels;
 			log_message('debug', "Cache publish: {$debug_channels}");
@@ -329,12 +395,16 @@ class MY_Cache extends CI_Cache
 	/**
 	 * Subscribe to channels matching a pattern
 	 * This is a BLOCKING operation
-	 * 
+	 *
 	 * @param array|string $patterns Pattern(s) to match
 	 * @param callable $callback Function to call when message received
 	 */
 	public function psubscribe($patterns, $callback)
 	{
+		if ($this->cache_bypass) {
+			return true;
+		}
+
 		if ($this->enable_logging) {
 			$debug_patterns = (is_array($patterns)) ? implode('-', $patterns) : $patterns;
 			log_message('debug', "Cache publish: {$debug_patterns}");
@@ -363,9 +433,47 @@ class MY_Cache extends CI_Cache
 		$serialized = [];
 		foreach ($items as $item) {
 			$serialized_item = $this->_serialize($item, $encoding);
-			if ($serialized_item === FALSE) {
-				return FALSE;
+			if ($serialized_item === false) {
+				return false;
 			}
+			$serialized[] = $serialized_item;
+		}
+
+		return $serialized;
+	}
+
+	/**
+	 * Serialize all items in a collection with scores.
+	 *
+	 * @param mixed  $data    Array of items to serialize
+	 * @param string $encoding Serialization method
+	 * @return array|false     Serialized items array, or FALSE on error
+	 */
+	private function _serialize_zcollection($data, $encoding)
+	{
+		$items = (is_array($data) && array_is_list($data)) ? $data : [$data];
+
+		if ($encoding === 'none') {
+			return $items;
+		}
+
+		$serialized = [];
+		foreach ($items as $item) {
+			if (!isset($item['value'])) {
+				log_message('error', 'Item missing value key');
+				return false;
+			}
+
+			$serialized_value = $this->_serialize($item['value'], $encoding);
+			if ($serialized_value === false) {
+				return false;
+			}
+
+			$serialized_item = ['value' => $serialized_value];
+			if (isset($item['score'])) {
+				$serialized_item['score'] = $item['score'];
+			}
+
 			$serialized[] = $serialized_item;
 		}
 
@@ -412,7 +520,7 @@ class MY_Cache extends CI_Cache
 			}
 		} catch (Exception $e) {
 			log_message('error', 'Cache serialization exception: ' . $e->getMessage());
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -436,9 +544,9 @@ class MY_Cache extends CI_Cache
 
 				case 'json_gzip':
 					$decompressed = gzuncompress($data);
-					if ($decompressed === FALSE) {
+					if ($decompressed === false) {
 						log_message('error', 'gzip decompression failed');
-						return FALSE;
+						return false;
 					}
 					return json_decode($decompressed, true, 512, JSON_THROW_ON_ERROR);
 
