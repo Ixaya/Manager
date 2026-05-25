@@ -225,26 +225,11 @@ final class MgrFieldBuilder
 			$field['auto_increment'] = true;
 		}
 		if ($this->new_name !== null) {
-			$field['new_name']		 = $this->new_name;
+			$field['name']		 = $this->new_name;
 		}
 
 		return [$this->name => $field];
 	}
-	// public function build(): array
-	// {
-	// 	['type' => $type, 'length' => $length, 'unsigned' => $unsigned] = $this->_resolveType();
-
-	// 	return [$this->name => [
-	// 		'name'		 => $this->new_name,
-	// 		'type'			  => $type,
-	// 		'length'			=> $length,
-	// 		'unsigned'		 => $unsigned,
-	// 		'null'			  => $this->nullable,
-	// 		'unique'			=> $this->unique			? TRUE : '',
-	// 		'default'		  => $this->default,
-	// 		'auto_increment' => $this->auto_increment ? TRUE : '',
-	// 	]];
-	// }
 
 	// ── Type resolution & cross-engine translation ───────────────────────────
 

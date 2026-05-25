@@ -14,8 +14,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 */
 
 $hook['pre_controller'][] = [
-	'class'    => 'MgrBootstrap',
+	'class'    => 'MGR_Bootsrap',
 	'function' => 'init',
-	'filename' => 'MgrBootstrap.php',
-	'filepath' => APPPATH . '../system/hooks',
+	'filename' => 'MGR_Bootsrap.php',
+	'filepath' => APPMGRPATH . 'hooks/',
 ];

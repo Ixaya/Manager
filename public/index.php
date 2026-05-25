@@ -57,8 +57,12 @@ $system_path = '../vendor/nielbuys/framework/system';
  * This variable must contain the name of your "system" directory.
  * Set the path if it is not in the same directory as this file.
  */
+// FCPATH relative
 $manager_path = '../system';
 // $manager_path = '../vendor/ixaya/manager/system';
+// APPPATH relative
+$manager_app_rel_path = '../system';
+// $manager_app_rel_path = '../vendor/ixaya/manager/system';
 
 /*
  *---------------------------------------------------------------
@@ -154,7 +158,7 @@ define('SELF', pathinfo(__FILE__, PATHINFO_BASENAME));
 // Path to the system directory
 define('BASEPATH', $system_path);
 
-// Path to the system directory
+// Path to the manager directory
 define('MGRPATH', $manager_path);
 
 // Path to the front controller (this file) directory
@@ -187,6 +191,20 @@ if (is_dir($application_folder)) {
 }
 
 define('APPPATH', $application_folder . DIRECTORY_SEPARATOR);
+
+// Path to the manager directory
+if (is_dir(APPPATH . $manager_app_rel_path . DIRECTORY_SEPARATOR)) {
+	$manager_app_rel_path = strtr(
+		trim($manager_app_rel_path, '/\\'),
+		'/\\',
+		DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
+	) . DIRECTORY_SEPARATOR;
+	define('APPMGRPATH', $manager_app_rel_path);
+} else {
+	header('HTTP/1.1 503 Service Unavailable.', true, 503);
+	echo 'Your manager app relative folder path does not appear to be set correctly. Please open the following file and correct this: ' . SELF;
+	exit(3); // EXIT_CONFIG
+}
 
 // The path to the "views" directory
 if (! isset($view_folder[0]) && is_dir(APPPATH . 'views' . DIRECTORY_SEPARATOR)) {

@@ -12,7 +12,7 @@ if (! defined('BASEPATH')) {
 	exit('No direct script access allowed');
 }
 
-class Health_checks extends REST_Controller
+class Health_checks extends IX_Rest_Controller
 {
 	public function __construct()
 	{

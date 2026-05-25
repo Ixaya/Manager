@@ -84,20 +84,3 @@ defined('EXIT_USER_INPUT')	 or define('EXIT_USER_INPUT', 7); // invalid user inp
 defined('EXIT_DATABASE')	   or define('EXIT_DATABASE', 8); // database error
 defined('EXIT__AUTO_MIN')	  or define('EXIT__AUTO_MIN', 9); // lowest automatically-assigned error code
 defined('EXIT__AUTO_MAX')	  or define('EXIT__AUTO_MAX', 125); // highest automatically-assigned error code
-
-
-/*
-|--------------------------------------------------------------------------
-| Manager Constants
-|--------------------------------------------------------------------------
-*/
-
-defined('LEVEL_CUSTOMER') or define('LEVEL_CUSTOMER', 0);
-defined('LEVEL_MEMBER') or define('LEVEL_MEMBER', 1);
-defined('LEVEL_ADMIN') or define('LEVEL_ADMIN', 10);
-
-defined('GROUP_ADMIN') or define('GROUP_ADMIN', 'admin');
-defined('GROUP_MEMBER') or define('GROUP_MEMBER', 'members');
-
-defined('GROUP_ADMIN_ID') or define('GROUP_ADMIN_ID', '1');
-defined('GROUP_MEMBER_ID') or define('GROUP_MEMBER_ID', '2');

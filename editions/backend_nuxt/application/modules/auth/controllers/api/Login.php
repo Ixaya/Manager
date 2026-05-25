@@ -12,7 +12,7 @@ if (! defined('BASEPATH')) {
 	exit('No direct script access allowed');
 }
 
-class Login extends REST_Controller
+class Login extends IX_Rest_Controller
 {
 	public function __construct()
 	{
