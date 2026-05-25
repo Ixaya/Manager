@@ -17,11 +17,11 @@ class IX_Rest_Controller extends REST_Controller
 
 		$this->time_zone = $this->config->item('rest_time_zone');
 		if (!empty($this->time_zone)) {
-			mngr_date_default_timezone_set($this->time_zone);
+			mgr_date_default_timezone_set($this->time_zone);
 		}
 
 		if (isset($this->_apiuser)) {
-			$offset = mngr_get_time_zone_offset($this->time_zone);
+			$offset = mgr_get_time_zone_offset($this->time_zone);
 			if ($offset !== false) {
 				$this->rest->db->query("SET SESSION time_zone='$offset'");
 			}
@@ -34,7 +34,7 @@ class IX_Rest_Controller extends REST_Controller
 	{
 		$this->user_id = $this->_apiuser->user_id;
 
-		$now = mngr_get_now_date_time();
+		$now = mgr_get_now_date_time();
 
 		$data['last_api_date'] = $now->format('Y-m-d H:i:s');
 		$data['last_api_os'] = $this->get_platform();
@@ -159,7 +159,7 @@ class IX_Rest_Controller extends REST_Controller
 
 	public function print_log($object)
 	{
-		$now = mngr_get_now_date_time();
+		$now = mgr_get_now_date_time();
 
 		$timestamp = $now->format('Y-m-d H:i:s');
 		echo(PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));

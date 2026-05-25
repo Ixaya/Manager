@@ -101,7 +101,7 @@ class Login_attempt extends IX_Model_Dyn
 		$where[IX_Model_Dyn_clause::EQUAL] = ['u.id' => $id];
 
 
-		$order_by = mngr_build_order_by('login_attempt.time', 'DESC');
+		$order_by = mgr_build_order_by('login_attempt.time', 'DESC');
 
 		return $this->get_all_dynamic(fields: $fields, join: $join, where: $where, order_by: $order_by);
 	}

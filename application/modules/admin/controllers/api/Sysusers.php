@@ -34,7 +34,7 @@ class Sysusers extends IX_Rest_Controller
 		$params['order_by'] = $order_by ? trim($order_by) : 'id';
 
 		$this->load->driver('cache');
-		$cache_key = mngr_cache_key("sysusersidx", $params);
+		$cache_key = mgr_cache_key("sysusersidx", $params);
 		$response = $this->cache->get($cache_key);
 		if (!empty($response)) {
 			$this->response($response, REST_Controller::HTTP_OK);
@@ -306,7 +306,7 @@ class Sysusers extends IX_Rest_Controller
 				], REST_Controller::HTTP_OK);
 			}
 		} catch (Exception $e) {
-			mngr_process_exception($e);
+			mgr_process_exception($e);
 		}
 
 		$this->response([

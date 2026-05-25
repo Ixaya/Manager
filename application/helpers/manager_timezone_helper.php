@@ -8,7 +8,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @param string $time_zone The timezone identifier (e.g., "America/New_York").
  * @return void
  */
-function mngr_date_default_timezone_set($time_zone)
+function mgr_date_default_timezone_set($time_zone)
 {
 	// Get the list of valid timezone identifiers
 	$valid_timezones = timezone_identifiers_list();
@@ -26,7 +26,7 @@ function mngr_date_default_timezone_set($time_zone)
  * @param string $time_zone The timezone identifier (e.g., "America/New_York").
  * @return string|bool The timezone offset (e.g., "-05:00").
  */
-function mngr_get_time_zone_offset($time_zone)
+function mgr_get_time_zone_offset($time_zone)
 {
 	if (empty($time_zone)) {
 		return false;
@@ -58,7 +58,7 @@ function mngr_get_time_zone_offset($time_zone)
  * @param string|null $time_zone The timezone identifier (e.g., "America/New_York"), or null for the default timezone.
  * @return DateTime The current date and time object.
  */
-function mngr_get_now_date_time($time_zone = null)
+function mgr_get_now_date_time($time_zone = null)
 {
 	$date_time_zone = !empty($time_zone) ? new DateTimeZone($time_zone) : null;
 	return new DateTime('now', $date_time_zone);

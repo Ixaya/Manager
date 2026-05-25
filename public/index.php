@@ -209,7 +209,7 @@ Ix_env_lib::load($ci_env);
 
 require_once APPPATH . 'helpers/manager_env_helper.php';
 
-define('ENVIRONMENT', mngr_env('APP_ENV') ?? $ci_env ?? 'development');
+define('ENVIRONMENT', mgr_env('APP_ENV') ?? $ci_env ?? 'development');
 
 /*
  *---------------------------------------------------------------
@@ -275,7 +275,7 @@ switch (ENVIRONMENT) {
  *
  * And away we go...
  */
-$timezone = mngr_env('APP_TIMEZONE'); // UTC |  America/Mexico_City
+$timezone = mgr_env('APP_TIMEZONE'); // UTC |  America/Mexico_City
 if (!empty($timezone)) {
 	ini_set('date.timezone', $timezone);
 	date_default_timezone_set($timezone);

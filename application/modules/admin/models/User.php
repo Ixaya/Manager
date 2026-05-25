@@ -2,7 +2,6 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-require_once APPPATH . 'core/IX_Model_Dyn.php';
 
 class User extends IX_Model_Dyn
 {
@@ -45,8 +44,8 @@ class User extends IX_Model_Dyn
 			'last_activity_date',
 			'created_on'
 		];
-		$limit_page = mngr_build_limit_page($params['limit'], $params['page']);
-		$order_by = mngr_build_order_by($params['order_by'], $params['order'], $allowed_order);
+		$limit_page = mgr_build_limit_page($params['limit'], $params['page']);
+		$order_by = mgr_build_order_by($params['order_by'], $params['order'], $allowed_order);
 
 		$rows = $this->get_all_dynamic(fields: $fields, where: $where, limit: $limit_page, order_by: $order_by);
 

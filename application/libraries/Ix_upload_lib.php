@@ -71,7 +71,7 @@ class Ix_upload_lib
 	public function upload_file_local($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
 	{
 		try {
-			$file_path = mngr_file_path($relative_path);
+			$file_path = mgr_file_path($relative_path);
 			if (!file_exists($file_path)) {
 				mkdir($file_path, 0755, true);
 			}
@@ -164,19 +164,19 @@ class Ix_upload_lib
 			}
 
 			if (empty($desired_file_name)) {
-				$desired_file_name = mngr_generate_hash($lenght = 32);
+				$desired_file_name = mgr_generate_hash($lenght = 32);
 			}
 
 			$file_ext = '';
 			$file_type = '';
 			$file_name = '';
 
-			$original_file_path = mngr_get_temp_upload_path($field_name, $file_ext, $file_type, $file_name);
+			$original_file_path = mgr_get_temp_upload_path($field_name, $file_ext, $file_type, $file_name);
 
 			$s3_file_name = "{$desired_file_name}.{$file_ext}";
 			$s3_file_path = "{$relative_path}{$s3_file_name}";
 
-			mngr_clean_file_s3_path($s3_file_path);
+			mgr_clean_file_s3_path($s3_file_path);
 
 			$this->load->library('amazon_aws');
 
@@ -238,7 +238,7 @@ class Ix_upload_lib
 	public function put_file_local($relative_path, $file_name, $data, &$error = null)
 	{
 		try {
-			$file_path = mngr_file_path($relative_path);
+			$file_path = mgr_file_path($relative_path);
 
 			if (!file_exists($file_path)) {
 				mkdir($file_path, 0755, true);
@@ -256,7 +256,7 @@ class Ix_upload_lib
 				$relative_path = "/$relative_path";
 			}
 
-			$mime_type = mngr_detect_mime_from_file($file_name);
+			$mime_type = mgr_detect_mime_from_file($file_name);
 
 			$return_data['file_type'] = $mime_type;
 			$return_data['file_name'] = $file_name . $v;
@@ -291,16 +291,16 @@ class Ix_upload_lib
 				$v = "?v=$v";
 			}
 
-			$content_type = mngr_detect_mime_from_data($data);
-			$file_ext = mngr_file_extention($file_name, $content_type);
+			$content_type = mgr_detect_mime_from_data($data);
+			$file_ext = mgr_file_extention($file_name, $content_type);
 
 			if (empty($file_name)) {
-				$file_name = mngr_generate_hash($lenght = 32) . $file_ext;
+				$file_name = mgr_generate_hash($lenght = 32) . $file_ext;
 			}
 
 			$s3_file_path = "{$relative_path}{$file_name}";
 
-			mngr_clean_file_s3_path($s3_file_path);
+			mgr_clean_file_s3_path($s3_file_path);
 
 			$this->load->library('amazon_aws');
 
@@ -368,7 +368,7 @@ class Ix_upload_lib
 	public function upload_image_local($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
 	{
 		try {
-			$file_path = mngr_file_path($relative_path);
+			$file_path = mgr_file_path($relative_path);
 
 			if (!file_exists($file_path)) {
 				mkdir($file_path, 0755, true);
@@ -514,10 +514,10 @@ class Ix_upload_lib
 			$this->load->library('amazon_aws');
 
 			$s3_relative_path = $relative_path;
-			mngr_clean_file_s3_path($s3_relative_path);
+			mgr_clean_file_s3_path($s3_relative_path);
 
 			if (empty($desired_file_name)) {
-				$desired_file_name = mngr_generate_hash($lenght = 32);
+				$desired_file_name = mgr_generate_hash($lenght = 32);
 			}
 
 			$file_ext = '';
@@ -532,7 +532,7 @@ class Ix_upload_lib
 			$s3_thumb_file_name = '';
 			$s3_thumb_file_path = '';
 
-			$original_file_path = mngr_get_temp_upload_path($field_name, $file_ext, $file_type);
+			$original_file_path = mgr_get_temp_upload_path($field_name, $file_ext, $file_type);
 
 			if (!$preserve_type && $file_type != 'image/jpeg') {
 				if ($delete_original == false) {
@@ -691,7 +691,7 @@ class Ix_upload_lib
 	{
 		$this->load->library('amazon_aws');
 
-		mngr_clean_file_s3_path($file_path);
+		mgr_clean_file_s3_path($file_path);
 		$image_data = $this->amazon_aws->get_file($file_path);
 
 		if ($image_data) {
@@ -716,7 +716,7 @@ class Ix_upload_lib
 		}
 
 		if (strpos($file_path, 's3/') !== false) {
-			mngr_clean_file_s3_path($file_path);
+			mgr_clean_file_s3_path($file_path);
 			$this->load->library('amazon_aws');
 
 			$file_mime = '';
@@ -726,7 +726,7 @@ class Ix_upload_lib
 				return null;
 			}
 		} else {
-			$file_path = mngr_file_path($file_path);
+			$file_path = mgr_file_path($file_path);
 
 			if (!file_exists($file_path)) {
 				return null;

@@ -90,7 +90,7 @@ class Async_exec_lib
 		$escaped_args = implode(' ', array_map('escapeshellarg', $urlencode_args));
 
 		// Escape script path
-		$base_path = mngr_app_file_path();
+		$base_path = mgr_app_file_path();
 		$escaped_shell_script = escapeshellarg("{$base_path}bin/cli_run.sh");
 
 		$log_name = $this->normalize_log_name((string) $log_name);

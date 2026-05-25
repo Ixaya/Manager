@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Mngr_date_option
+class Mgr_date_option
 {
 	public const start_of_next_seven_days = 'start_of_next_seven_days';
 	public const start_of_day = 'start_of_day';
@@ -19,66 +19,66 @@ class Mngr_date_option
 	public const end_of_year = 'end_of_year';
 }
 
-function mngr_get_date_option_obj(string $option, $date = null): ?DateTime
+function mgr_get_date_option_obj(string $option, $date = null): ?DateTime
 {
 	if (empty($date)) {
 		$date = new DateTime();
 	} elseif (is_string($date)) {
-		$date = mngr_create_date_time($date);
+		$date = mgr_create_date_time($date);
 	} else {
 		$date = clone $date;
 	}
 
 	switch ($option) {
-		case Mngr_date_option::start_of_next_seven_days:
+		case Mgr_date_option::start_of_next_seven_days:
 			$date->modify('+7 days')->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::start_of_day:
+		case Mgr_date_option::start_of_day:
 			$date->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::end_of_day:
+		case Mgr_date_option::end_of_day:
 			$date->setTime(23, 59, 59);
 			return $date;
 
-		case Mngr_date_option::start_of_week:
+		case Mgr_date_option::start_of_week:
 			$date->modify('this week')->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::end_of_week:
+		case Mgr_date_option::end_of_week:
 			$date->modify('this week +6 days')->setTime(23, 59, 59);
 			return $date;
 
-		case Mngr_date_option::start_of_last_six_days:
+		case Mgr_date_option::start_of_last_six_days:
 			$date->modify('-6 days')->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::start_of_last_seven_days:
+		case Mgr_date_option::start_of_last_seven_days:
 			$date->modify('-7 days')->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::start_of_last_week:
+		case Mgr_date_option::start_of_last_week:
 			$date->modify('last week')->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::end_of_last_week:
+		case Mgr_date_option::end_of_last_week:
 			$date->modify('last week +6 days')->setTime(23, 59, 59);
 			return $date;
 
-		case Mngr_date_option::start_of_month:
+		case Mgr_date_option::start_of_month:
 			$date->setDate((int)$date->format('Y'), (int)$date->format('m'), 1)->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::end_of_month:
+		case Mgr_date_option::end_of_month:
 			$date->modify('last day of this month')->setTime(23, 59, 59);
 			return $date;
 
-		case Mngr_date_option::start_of_year:
+		case Mgr_date_option::start_of_year:
 			$date->setDate((int)$date->format('Y'), 1, 1)->setTime(0, 0, 0);
 			return $date;
 
-		case Mngr_date_option::end_of_year:
+		case Mgr_date_option::end_of_year:
 			$date->setDate((int)$date->format('Y'), 12, 31)->setTime(23, 59, 59);
 			return $date;
 
@@ -87,15 +87,15 @@ function mngr_get_date_option_obj(string $option, $date = null): ?DateTime
 	}
 }
 
-function mngr_get_date_option_unix(string $option, $date = null): ?int
+function mgr_get_date_option_unix(string $option, $date = null): ?int
 {
-	$dateObj = mngr_get_date_option_obj($option, $date);
+	$dateObj = mgr_get_date_option_obj($option, $date);
 	return $dateObj ? $dateObj->getTimestamp() : null;
 }
 
-function mngr_get_date_option(string $option, $date = null): string
+function mgr_get_date_option(string $option, $date = null): string
 {
-	$dateObj = mngr_get_date_option_obj($option, $date);
+	$dateObj = mgr_get_date_option_obj($option, $date);
 	return (!empty($dateObj)) ? $dateObj->format('Y-m-d H:i:s') : '';
 }
 
@@ -106,7 +106,7 @@ function mngr_get_date_option(string $option, $date = null): string
  * @param string|null $format Specific format to expect (e.g., 'Y-m-d H:i:s')
  * @return DateTime|null DateTime object or null if parsing fails
  */
-function mngr_create_date_time(?string $date_string = null, ?string $format = null): ?DateTime
+function mgr_create_date_time(?string $date_string = null, ?string $format = null): ?DateTime
 {
 	if (empty($date_string)) {
 		new DateTime();
@@ -135,9 +135,9 @@ function mngr_create_date_time(?string $date_string = null, ?string $format = nu
 
 /**
  * Standardizes any input into a Unix Timestamp for BIGINT columns.
- * Reuses mngr_create_date_time to ensure consistent parsing.
+ * Reuses mgr_create_date_time to ensure consistent parsing.
  */
-function mngr_to_unix($date): ?int
+function mgr_to_unix($date): ?int
 {
 	if (empty($date)) {
 		return null;
@@ -149,7 +149,7 @@ function mngr_to_unix($date): ?int
 	}
 
 	// Use your existing robust parsing logic
-	$dateObj = ($date instanceof DateTime) ? $date : mngr_create_date_time($date);
+	$dateObj = ($date instanceof DateTime) ? $date : mgr_create_date_time($date);
 
 	return ($dateObj) ? $dateObj->getTimestamp() : null;
 }

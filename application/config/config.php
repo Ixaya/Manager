@@ -25,7 +25,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |
 */
 
-$host = mngr_env('CF_HOST', null);
+$host = mgr_env('CF_HOST', null);
 if (is_cli()) {
 	$config['base_url'] = "//$host";
 } else {
@@ -36,7 +36,7 @@ if (is_cli()) {
 	$config['base_url'] = "//$host";
 }
 
-//$config['image_url'] = mngr_env('CF_IMAGE_URL', null);
+//$config['image_url'] = mgr_env('CF_IMAGE_URL', null);
 
 /*
 |--------------------------------------------------------------------------
@@ -232,7 +232,7 @@ $config['directory_trigger'] = 'd';
 |
 */
 
-$config['log_threshold'] = mngr_env_int('CF_LOG_THRESHOLD', 1);
+$config['log_threshold'] = mgr_env_int('CF_LOG_THRESHOLD', 1);
 
 /*
 |--------------------------------------------------------------------------
@@ -243,7 +243,7 @@ $config['log_threshold'] = mngr_env_int('CF_LOG_THRESHOLD', 1);
 | application/logs/ directory. Use a full server path with trailing slash.
 |
 */
-$config['log_path'] = mngr_env('CF_LOG_PATH', '');
+$config['log_path'] = mgr_env('CF_LOG_PATH', '');
 
 /*
 |--------------------------------------------------------------------------
@@ -336,7 +336,7 @@ $config['cache_query_string'] = false;
 | php public/index.php manager tools generate_enc_key
 |
 */
-$config['encryption_key'] = hex2bin(mngr_env('CF_ENCRYPTION_KEY', ''));
+$config['encryption_key'] = hex2bin(mgr_env('CF_ENCRYPTION_KEY', ''));
 
 /*
 |--------------------------------------------------------------------------
@@ -398,15 +398,15 @@ $config['encryption_key'] = hex2bin(mngr_env('CF_ENCRYPTION_KEY', ''));
 // SESS_SAVE_PATH = ci_sessions;
 //Redis sessions
 // SESS_DRIVER=redis
-// SESS_SAVE_PATH=127.0.0.1:6379?auth=yourpassword&database=1&timeout=10.0&prefix=mngr_
-$config['sess_driver'] = mngr_env('CF_SESS_DRIVER', 'database');
-$config['sess_save_path'] = mngr_env('CF_SESS_SAVE_PATH', 'ci_sessions');
+// SESS_SAVE_PATH=127.0.0.1:6379?auth=yourpassword&database=1&timeout=10.0&prefix=mgr_
+$config['sess_driver'] = mgr_env('CF_SESS_DRIVER', 'database');
+$config['sess_save_path'] = mgr_env('CF_SESS_SAVE_PATH', 'ci_sessions');
 //Common sessions
-$config['sess_cookie_name']        = mngr_env('CF_SESS_COOKIE_NAME', 'ci_sessions');
-$config['sess_expiration']         = mngr_env_int('CF_SESS_EXPIRATION', 0);
-$config['sess_match_ip']           = mngr_env_bool('CF_SESS_MATCH_IP', false);
-$config['sess_time_to_update']     = mngr_env_int('CF_SESS_TIME_TO_UPDATE', 300);
-$config['sess_regenerate_destroy'] = mngr_env_bool('CF_SESS_REGENERATE_DESTROY', false);
+$config['sess_cookie_name']        = mgr_env('CF_SESS_COOKIE_NAME', 'ci_sessions');
+$config['sess_expiration']         = mgr_env_int('CF_SESS_EXPIRATION', 0);
+$config['sess_match_ip']           = mgr_env_bool('CF_SESS_MATCH_IP', false);
+$config['sess_time_to_update']     = mgr_env_int('CF_SESS_TIME_TO_UPDATE', 300);
+$config['sess_regenerate_destroy'] = mgr_env_bool('CF_SESS_REGENERATE_DESTROY', false);
 /*
 |--------------------------------------------------------------------------
 | Cookie Related Variables
@@ -422,11 +422,11 @@ $config['sess_regenerate_destroy'] = mngr_env_bool('CF_SESS_REGENERATE_DESTROY',
 |	   'cookie_httponly') will also affect sessions.
 |
 */
-$config['cookie_prefix']   = mngr_env('CF_COOKIE_PREFIX', '');
-$config['cookie_domain']   = mngr_env('CF_COOKIE_DOMAIN', '');
-$config['cookie_path']     = mngr_env_strict('CF_COOKIE_PATH', '/');
-$config['cookie_secure']   = mngr_env_bool('CF_COOKIE_SECURE', false);
-$config['cookie_httponly'] = mngr_env_bool('CF_COOKIE_HTTPONLY', false);
+$config['cookie_prefix']   = mgr_env('CF_COOKIE_PREFIX', '');
+$config['cookie_domain']   = mgr_env('CF_COOKIE_DOMAIN', '');
+$config['cookie_path']     = mgr_env_strict('CF_COOKIE_PATH', '/');
+$config['cookie_secure']   = mgr_env_bool('CF_COOKIE_SECURE', false);
+$config['cookie_httponly'] = mgr_env_bool('CF_COOKIE_HTTPONLY', false);
 /*
 |--------------------------------------------------------------------------
 | Standardize newlines
@@ -509,7 +509,7 @@ $config['compress_output'] = false;
 | helper' page of the user guide for information regarding date handling.
 |
 */
-$config['time_reference'] = mngr_env_strict('CF_TIME_REFERENCE', 'utc');
+$config['time_reference'] = mgr_env_strict('CF_TIME_REFERENCE', 'utc');
 //
 /*
 |--------------------------------------------------------------------------

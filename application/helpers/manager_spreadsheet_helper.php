@@ -2,33 +2,33 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-function mngr_sheet_cell($col, $row)
+function mgr_sheet_cell($col, $row)
 {
 	return "{$col}{$row}";
 }
 
-function mngr_sheet_range_col($start_col, $end_col, $row = '')
+function mgr_sheet_range_col($start_col, $end_col, $row = '')
 {
 	return "{$start_col}{$row}:{$end_col}{$row}";
 }
 
-function mngr_sheet_range_row($col, $start_row, $end_row)
+function mgr_sheet_range_row($col, $start_row, $end_row)
 {
 	return "{$col}{$start_row}:{$col}{$end_row}";
 }
 
-function mngr_sheet_sum_col(&$sheet, $col, $start_row, $end_row, $total_row)
+function mgr_sheet_sum_col(&$sheet, $col, $start_row, $end_row, $total_row)
 {
-	$total_cell = mngr_sheet_cell($col, $total_row);
-	$sum_range = mngr_sheet_range_row($col, $start_row, $end_row);
+	$total_cell = mgr_sheet_cell($col, $total_row);
+	$sum_range = mgr_sheet_range_row($col, $start_row, $end_row);
 
 	$sheet->setCellValue($total_cell, "=SUM($sum_range)");
 }
 
-function mngr_sheet_avg_col(&$sheet, $col, $start_row, $end_row, $total_row, $round = true)
+function mgr_sheet_avg_col(&$sheet, $col, $start_row, $end_row, $total_row, $round = true)
 {
-	$total_cell = mngr_sheet_cell($col, $total_row);
-	$sum_range = mngr_sheet_range_row($col, $start_row, $end_row);
+	$total_cell = mgr_sheet_cell($col, $total_row);
+	$sum_range = mgr_sheet_range_row($col, $start_row, $end_row);
 
 	if ($round) {
 		$sheet->setCellValue($total_cell, "=ROUND(AVERAGE($sum_range), 0)");
@@ -37,7 +37,7 @@ function mngr_sheet_avg_col(&$sheet, $col, $start_row, $end_row, $total_row, $ro
 	}
 }
 
-function mngr_sheet_fill(&$sheet, $range, $color_hex)
+function mgr_sheet_fill(&$sheet, $range, $color_hex)
 {
 	$fill_style = $sheet->getStyle($range)->getFill();
 
@@ -45,7 +45,7 @@ function mngr_sheet_fill(&$sheet, $range, $color_hex)
 	$fill_style->getStartColor()->setARGB($color_hex);
 }
 
-function mngr_sheet_font(&$sheet, $range, $color_hex, $size, $bold = true)
+function mgr_sheet_font(&$sheet, $range, $color_hex, $size, $bold = true)
 {
 	$font_style = $sheet->getStyle($range)->getFont();
 
@@ -60,7 +60,7 @@ function mngr_sheet_font(&$sheet, $range, $color_hex, $size, $bold = true)
 	}
 }
 
-function mngr_sheet_aligment(&$sheet, $range, $horizontal = null, $vertical = null)
+function mgr_sheet_aligment(&$sheet, $range, $horizontal = null, $vertical = null)
 {
 	$alignment = $sheet->getStyle($range)->getAlignment();
 
@@ -73,12 +73,12 @@ function mngr_sheet_aligment(&$sheet, $range, $horizontal = null, $vertical = nu
 	}
 }
 
-function mngr_sheet_next_letter(&$letter)
+function mgr_sheet_next_letter(&$letter)
 {
-	$letter = mngr_sheet_letter_add($letter, 1);
+	$letter = mgr_sheet_letter_add($letter, 1);
 }
 
-function mngr_sheet_letter_add($letter, $add)
+function mgr_sheet_letter_add($letter, $add)
 {
 	return chr(ord($letter) + $add);
 	// toDo: If the letter reaches 'z', wrap around to 'aa'

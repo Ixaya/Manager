@@ -140,11 +140,11 @@ class MY_Exceptions extends CI_Exceptions
 		}
 
 		// If we want to allow any domain to access the API
-		if (mngr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', false) === true) {
+		if (mgr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', false) === true) {
 			header('Access-Control-Allow-Origin: *');
 		} else {
 			// If the origin domain is in the allowed_cors_origins list, then add the Access Control headers
-			if (in_array($origin, mngr_env_array('REST_ALLOWED_CORS', []))) {
+			if (in_array($origin, mgr_env_array('REST_ALLOWED_CORS', []))) {
 				header('Access-Control-Allow-Origin: ' . $origin);
 			} else {
 				return;

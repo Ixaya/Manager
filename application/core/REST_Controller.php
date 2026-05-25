@@ -372,9 +372,7 @@ abstract class REST_Controller extends MY_Controller
 	 * @access protected
 	 * @return void
 	 */
-	protected function early_checks()
-	{
-	}
+	protected function early_checks() {}
 
 	/**
 	 * Constructor for the REST API
@@ -477,9 +475,6 @@ abstract class REST_Controller extends MY_Controller
 		$this->{'_parse_' . $this->request->method}();
 
 		// Now we know all about our request, let's try and parse the body if it exists
-
-		// Ignoring phpstan because the dynamic method of above can't be parsed.
-		// @phpstan-ignore-next-line greater.alwaysTrue
 		if ($this->request->format && $this->request->body) {
 			$this->request->body = $this->format->factory($this->request->body, $this->request->format)->to_array();
 			// Assign payload arguments to proper method container

@@ -7,12 +7,12 @@
  * @param string $uri The file path to be processed.
  * @return string The full path to the file, either private or public.
  */
-function mngr_file_path($uri = '')
+function mgr_file_path($uri = '')
 {
-	mngr_clean_file_path($uri);
+	mgr_clean_file_path($uri);
 
 	if (strpos($uri, 'private/') === 0) {
-		return mngr_app_file_path() . $uri;
+		return mgr_app_file_path() . $uri;
 	} else {
 		return FCPATH . $uri;
 	}
@@ -24,15 +24,15 @@ function mngr_file_path($uri = '')
  * @param string $uri The file path to be processed.
  * @return string The full path to the private file.
  */
-function mngr_private_file_path($uri = '')
+function mgr_private_file_path($uri = '')
 {
-	mngr_clean_file_path($uri);
+	mgr_clean_file_path($uri);
 
 	if (strpos($uri, 'private/') !== 0) {
 		$uri = "private/{$uri}";
 	}
 
-	return mngr_app_file_path() . $uri;
+	return mgr_app_file_path() . $uri;
 }
 
 /**
@@ -40,7 +40,7 @@ function mngr_private_file_path($uri = '')
  *
  * @return string The application root path or an empty string if not found.
  */
-function mngr_app_file_path()
+function mgr_app_file_path()
 {
 	$app_path_pos = strpos(APPPATH, 'app/');
 	// Extract the base path including the 'app' folder
@@ -69,7 +69,7 @@ function mngr_app_file_path()
  * @param string &$uri The file path to clean (passed by reference).
  * @return void
  */
-function mngr_clean_file_path(&$uri = '')
+function mgr_clean_file_path(&$uri = '')
 {
 	if (($pos = strpos($uri, '?')) !== false) {
 		$uri = substr($uri, 0, $pos);
@@ -87,7 +87,7 @@ function mngr_clean_file_path(&$uri = '')
  * @param string &$uri The file path to clean (passed by reference).
  * @return void
  */
-function mngr_clean_file_s3_path(&$uri = '')
+function mgr_clean_file_s3_path(&$uri = '')
 {
 	if (($pos = strpos($uri, '?')) !== false) {
 		$uri = substr($uri, 0, $pos);
@@ -108,7 +108,7 @@ function mngr_clean_file_s3_path(&$uri = '')
  *
  * @return string The temporary file path of the uploaded file.
  */
-function mngr_get_temp_upload_path($field_name, &$file_extension = null, &$file_type = null, &$file_name = null)
+function mgr_get_temp_upload_path($field_name, &$file_extension = null, &$file_type = null, &$file_name = null)
 {
 	if (
 		!isset($_FILES[$field_name]) ||
@@ -139,7 +139,7 @@ function mngr_get_temp_upload_path($field_name, &$file_extension = null, &$file_
  *
  * @return string The temporary file path of the uploaded file.
  */
-function mngr_get_temp_upload_path_key($field_name, $field_key, &$file_extension = null, &$file_type = null)
+function mgr_get_temp_upload_path_key($field_name, $field_key, &$file_extension = null, &$file_type = null)
 {
 	if (
 		!isset($_FILES[$field_name]['tmp_name'][$field_key]) ||
@@ -167,7 +167,7 @@ function mngr_get_temp_upload_path_key($field_name, $field_key, &$file_extension
  * @param array|string|null &$file_type Optional. Will be set to the file MIME type(s).
  * @return array The temporary file path(s) of the uploaded file(s).
  */
-function mngr_get_temp_upload_paths($field_name, &$file_extension = null, &$file_type = null)
+function mgr_get_temp_upload_paths($field_name, &$file_extension = null, &$file_type = null)
 {
 	if (!isset($_FILES[$field_name]['tmp_name']) || empty($_FILES[$field_name]['tmp_name'])) {
 		return [];

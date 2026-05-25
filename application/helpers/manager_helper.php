@@ -42,7 +42,7 @@ function secure_url($uri = '')
  *
  * @return string The generated hexadecimal hash.
  */
-function mngr_generate_hash($length = 32)
+function mgr_generate_hash($length = 32)
 {
 	$bytes_needed = (int)ceil($length / 2);
 	$bytes = random_bytes($bytes_needed);
@@ -60,7 +60,7 @@ function mngr_generate_hash($length = 32)
  *
  * @return string The formatted hash in uppercase with groups separated by the specified separator.
  */
-function mngr_format_hash($hash, $group_by, $separator = '-')
+function mgr_format_hash($hash, $group_by, $separator = '-')
 {
 	if (empty($hash)) {
 		return '';
@@ -78,7 +78,7 @@ function mngr_format_hash($hash, $group_by, $separator = '-')
  *
  * @return string The unformatted hash as a continuous string.
  */
-function mngr_unformat_hash($folio, $separator = '-')
+function mgr_unformat_hash($folio, $separator = '-')
 {
 	if (empty($folio)) {
 		return '';
@@ -95,7 +95,7 @@ function mngr_unformat_hash($folio, $separator = '-')
  * @param string $context Additional context for the log (optional)
  * @return string The exception message
  */
-function mngr_process_exception($exception, $context = '')
+function mgr_process_exception($exception, $context = '')
 {
 	// Build log message
 	$log_message = sprintf(
@@ -124,7 +124,7 @@ function mngr_process_exception($exception, $context = '')
  *
  * @return string The generated cache key in the format: prefix + sha256_hash
  */
-function mngr_cache_key($prefix, $params)
+function mgr_cache_key($prefix, $params)
 {
 	// $values = array_values($params);
 	// return $prefix . implode($values);
@@ -142,7 +142,7 @@ function mngr_cache_key($prefix, $params)
  *
  * @return string LIMIT clause in "limit, offset" format
  */
-function mngr_build_limit_page($limit, $page)
+function mgr_build_limit_page($limit, $page)
 {
 	$offset = ($page - 1) * $limit;
 
@@ -157,7 +157,7 @@ function mngr_build_limit_page($limit, $page)
  * @param array|null $order_columns Allowed columns (associative for aliases, indexed for direct)
  * @return string Formatted ORDER BY clause (e.g., 'id ASC' or 'created_at DESC')
  */
-function mngr_build_order_by(?string $order_column, ?string $order_direction, ?array $order_columns = null): string
+function mgr_build_order_by(?string $order_column, ?string $order_direction, ?array $order_columns = null): string
 {
 	$column = $order_column ?? 'id';
 

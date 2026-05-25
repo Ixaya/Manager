@@ -6,16 +6,16 @@ if (!defined('BASEPATH')) {
 
 
 //'dev' for development or 'prod' for production
-$config['edition']        = mngr_env('MNGR_EDITION', 'dev');
+$config['edition']        = mgr_env('MGR_EDITION', 'dev');
 
-$config['languages']      = mngr_env_array('MNGR_LANGUAGES', ['english', 'spanish']);
+$config['languages']      = mgr_env_array('MGR_LANGUAGES', ['english', 'spanish']);
 
-$config['project_name']   = mngr_env('MNGR_PROJECT_NAME', 'Manager');
-$config['copyright']      = mngr_env('MNGR_COPYRIGHT', '&copy;  Ixaya Business SA de CV 2020, All Rights Reserved.');
+$config['project_name']   = mgr_env('MGR_PROJECT_NAME', 'Manager');
+$config['copyright']      = mgr_env('MGR_COPYRIGHT', '&copy;  Ixaya Business SA de CV 2020, All Rights Reserved.');
 
-$config['cache_enable']   = mngr_env_bool('MNGR_CACHE_ENABLE', false);
-$config['cache_time']     = mngr_env_int('MNGR_CACHE_TIME', 5);
+$config['cache_enable']   = mgr_env_bool('MGR_CACHE_ENABLE', false);
+$config['cache_time']     = mgr_env_int('MGR_CACHE_TIME', 5);
 
-$config['rest_time_zone'] = mngr_env('MNGR_REST_TIME_ZONE', null); // UTC | null (System default)
+$config['rest_time_zone'] = mgr_env('MGR_REST_TIME_ZONE', null); // UTC | null (System default)
 
-$config['migration_db'] = mngr_env_array('MNGR_MIGRATION_DB', ['default']);
+$config['migration_db'] = mgr_env_array('MGR_MIGRATION_DB', ['default']);

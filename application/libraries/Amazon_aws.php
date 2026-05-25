@@ -357,7 +357,7 @@ class Amazon_aws
 	public function textract_document_config(string $file_path)
 	{
 		if (strpos($file_path, 's3/') !== false) {
-			mngr_clean_file_s3_path($file_path);
+			mgr_clean_file_s3_path($file_path);
 
 			return [
 				'S3Object' => [
@@ -408,7 +408,7 @@ class Amazon_aws
 
 				$kind = null;
 				$mime_type = null;
-				$file_extention = mngr_file_kind_extention($file_path, $mime_type, $kind);
+				$file_extention = mgr_file_kind_extention($file_path, $mime_type, $kind);
 				if ($file_extention == false) {
 					throw new Exception("Unsupported file format: ");
 				}

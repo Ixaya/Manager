@@ -44,14 +44,14 @@ $config['rest_default_format'] = 'json';
 |
 */
 $config['rest_supported_formats'] = [
-  'json',
-  'array',
-  'csv',
-  'html',
-  'jsonp',
-  'php',
-  'serialized',
-  'xml',
+	'json',
+	'array',
+	'csv',
+	'html',
+	'jsonp',
+	'php',
+	'serialized',
+	'xml',
 ];
 
 /*
@@ -429,7 +429,7 @@ $config['rest_access_table'] = 'access';
 |
 */
 
-$config['rest_logs_params_mode'] = mngr_env_array('REST_LOGS_PARAMS_MODE', ['get', 'post']);
+$config['rest_logs_params_mode'] = mgr_env_array('REST_LOGS_PARAMS_MODE', ['get', 'post']);
 /*
 |--------------------------------------------------------------------------
 | REST API Protected Parameters Log
@@ -441,7 +441,7 @@ $config['rest_logs_params_mode'] = mngr_env_array('REST_LOGS_PARAMS_MODE', ['get
 |
 */
 
-$config['rest_logs_params_protected'] = mngr_env_array('REST_LOGS_PARAMS_PROTECTED', ['password']);
+$config['rest_logs_params_protected'] = mgr_env_array('REST_LOGS_PARAMS_PROTECTED', ['password']);
 /*
 |--------------------------------------------------------------------------
 | REST API Param Log Format
@@ -451,7 +451,7 @@ $config['rest_logs_params_protected'] = mngr_env_array('REST_LOGS_PARAMS_PROTECT
 | Set to FALSE to log as serialized PHP
 |
 */
-$config['rest_logs_json_params'] = mngr_env_bool('REST_LOGS_JSON_PARAMS', true);
+$config['rest_logs_json_params'] = mgr_env_bool('REST_LOGS_JSON_PARAMS', true);
 
 /*
 |--------------------------------------------------------------------------
@@ -526,7 +526,7 @@ $config['rest_ajax_only'] = false;
 | Language file to load from the language directory
 |
 */
-$config['rest_language'] = mngr_env_strict('REST_LANGUAGE', 'english');
+$config['rest_language'] = mgr_env_strict('REST_LANGUAGE', 'english');
 /*
 |--------------------------------------------------------------------------
 | CORS Check
@@ -537,7 +537,7 @@ $config['rest_language'] = mngr_env_strict('REST_LANGUAGE', 'english');
 | will access it through a browser
 |
 */
-$config['check_cors'] = mngr_env_bool('REST_CHECK_CORS', true);
+$config['check_cors'] = mgr_env_bool('REST_CHECK_CORS', true);
 /*
 |--------------------------------------------------------------------------
 | CORS Allowable Headers
@@ -547,12 +547,12 @@ $config['check_cors'] = mngr_env_bool('REST_CHECK_CORS', true);
 |
 */
 $config['allowed_cors_headers'] = [
-  'Origin',
-  'X-Requested-With',
-  'Content-Type',
-  'Accept',
-  'x-api-key',
-  'Access-Control-Request-Method'
+	'Origin',
+	'X-Requested-With',
+	'Content-Type',
+	'Accept',
+	'x-api-key',
+	'Access-Control-Request-Method'
 ];
 
 /*
@@ -564,12 +564,12 @@ $config['allowed_cors_headers'] = [
 |
 */
 $config['allowed_cors_methods'] = [
-  'GET',
-  'POST',
-  'OPTIONS',
-  'PUT',
-  'PATCH',
-  'DELETE'
+	'GET',
+	'POST',
+	'OPTIONS',
+	'PUT',
+	'PATCH',
+	'DELETE'
 ];
 
 /*
@@ -581,7 +581,7 @@ $config['allowed_cors_methods'] = [
 | source domain
 |
 */
-$config['allow_any_cors_domain'] = mngr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', false);
+$config['allow_any_cors_domain'] = mgr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', false);
 
 /*
 |--------------------------------------------------------------------------
@@ -594,4 +594,4 @@ $config['allow_any_cors_domain'] = mngr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', f
 | e.g. $config['allowed_origins'] = ['http://www.example.com', 'https://spa.example.com']
 |
 */
-$config['allowed_cors_origins'] = mngr_env_array('REST_ALLOWED_CORS', []); // 'https://example.com,https://example.net'
+$config['allowed_cors_origins'] = mgr_env_array('REST_ALLOWED_CORS', []); // 'https://example.com,https://example.net'

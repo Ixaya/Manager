@@ -43,7 +43,7 @@ class MY_Cache extends CI_Cache
 	private function _is_cache_bypass(): bool
 	{
 		// Disable cache for pentest/dev IPs
-		$env_ips = str_replace(' ', '', mngr_env('CACHE_BYPASS_IPS', ''));
+		$env_ips = str_replace(' ', '', mgr_env('CACHE_BYPASS_IPS', ''));
 
 		if ($env_ips === '') {
 			return false;

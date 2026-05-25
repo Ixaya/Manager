@@ -607,12 +607,12 @@ class MY_Model extends CI_Model
 
 	public function get_hash($length = 13): string
 	{
-		return mngr_generate_hash($length);
+		return mgr_generate_hash($length);
 	}
 
 	public function get_unique_hash($length = 13, $field = 'hash'): string
 	{
-		$hash = mngr_generate_hash($length);
+		$hash = mgr_generate_hash($length);
 		$row = $this->by_hash($hash, $field);
 		if (!empty($row)) {
 			return $this->get_unique_hash($length, $field);
@@ -640,7 +640,7 @@ class MY_Model extends CI_Model
 
 	public function set_database_time_zone($time_zone)
 	{
-		$offset = mngr_get_time_zone_offset($time_zone);
+		$offset = mgr_get_time_zone_offset($time_zone);
 
 		if ($offset === false) {
 			return;

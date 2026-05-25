@@ -2,9 +2,9 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-function mngr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
+function mgr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
 {
-	$mime_type = mngr_detect_mime_from_file($file_path);
+	$mime_type = mgr_detect_mime_from_file($file_path);
 
 	if (strpos($mime_type, 'image/') === 0) {
 		$kind = 'image';
@@ -12,7 +12,7 @@ function mngr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
 		$kind = 'document';
 	}
 
-	return mngr_file_extention($file_path, $mime_type);
+	return mgr_file_extention($file_path, $mime_type);
 }
 
 /**
@@ -22,7 +22,7 @@ function mngr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
  * @param string $filepath Optional filename or file path for fallback extension extraction
  * @return string|false File extension (without dot) or false if not found
  */
-function mngr_file_extention($filepath = '', $mime_type = '')
+function mgr_file_extention($filepath = '', $mime_type = '')
 {
 	if (!empty($filepath)) {
 		$extension = pathinfo($filepath, PATHINFO_EXTENSION);
@@ -55,8 +55,8 @@ function mngr_file_extention($filepath = '', $mime_type = '')
 	return false;
 }
 
-if (!function_exists('mngr_mime_extention')) {
-	function mngr_mime_extention($extension)
+if (!function_exists('mgr_mime_extention')) {
+	function mgr_mime_extention($extension)
 	{
 		$CI = &get_instance();
 		$CI->config->load('mimes');
@@ -81,8 +81,8 @@ if (!function_exists('mngr_mime_extention')) {
  * @return string|false MIME type string or false on error
  */
 
-if (!function_exists('mngr_detect_mime_from_file')) {
-	function mngr_detect_mime_from_file($file_path)
+if (!function_exists('mgr_detect_mime_from_file')) {
+	function mgr_detect_mime_from_file($file_path)
 	{
 		if (!file_exists($file_path)) {
 			return false;
@@ -108,8 +108,8 @@ if (!function_exists('mngr_detect_mime_from_file')) {
  * @param int $chunk_size Number of bytes to analyze from data start (default: 2048)
  * @return string|false MIME type string or false on error
  */
-if (!function_exists('mngr_detect_mime_from_data')) {
-	function mngr_detect_mime_from_data($data, $chunk_size = 2048)
+if (!function_exists('mgr_detect_mime_from_data')) {
+	function mgr_detect_mime_from_data($data, $chunk_size = 2048)
 	{
 		if (!function_exists('finfo_open') || empty($data)) {
 			return empty($data) ? 'application/octet-stream' : false;
