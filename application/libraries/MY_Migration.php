@@ -2,8 +2,6 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-/* load the MX_Migration class */
-require APPPATH . "third_party/MX/Migration.php";
 
 class MY_Migration extends MX_Migration
 {

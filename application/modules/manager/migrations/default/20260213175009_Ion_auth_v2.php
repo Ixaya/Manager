@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Migration_Ion_auth_v2 extends MGR_Migration
+class Migration_Ion_auth_v2 extends MGR_Migration_builder
 {
 	public function up()
 	{

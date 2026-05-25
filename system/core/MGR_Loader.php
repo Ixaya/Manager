@@ -3,8 +3,9 @@
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
 /* load the MX_Loader class */
-require APPPATH . "third_party/MX/Loader.php";
-class MY_Loader extends MX_Loader
+require dirname(__FILE__) . "/../third_party/MX/Loader.php";
+
+class MGR_Loader extends MX_Loader
 {
 	/** Load a module view **/
 	public $header_vars = [];

@@ -1,6 +1,6 @@
 <?php
-
-class Migration_Sepomex extends MGR_Migration
+defined('BASEPATH') or exit('No direct script access allowed');
+class Migration_Sepomex extends MGR_Migration_builder
 {
 	public function up()
 	{

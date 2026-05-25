@@ -1,6 +1,6 @@
 <?php
 
-class Migration_Attachment extends MGR_Migration
+class Migration_Attachment extends MGR_Migration_builder
 {
 	public function up()
 	{

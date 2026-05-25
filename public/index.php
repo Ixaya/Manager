@@ -51,6 +51,17 @@ $system_path = '../vendor/nielbuys/framework/system';
 
 /*
  *---------------------------------------------------------------
+ * MANAGER DIRECTORY NAME
+ *---------------------------------------------------------------
+ *
+ * This variable must contain the name of your "system" directory.
+ * Set the path if it is not in the same directory as this file.
+ */
+$manager_path = '../system';
+// $manager_path = '../vendor/ixaya/manager/system';
+
+/*
+ *---------------------------------------------------------------
  * APPLICATION DIRECTORY NAME
  *---------------------------------------------------------------
  *
@@ -114,6 +125,24 @@ if (! is_dir($system_path)) {
 	exit(3); // EXIT_CONFIG
 }
 
+if (($_temp = realpath($manager_path)) !== false) {
+	$manager_path = $_temp . DIRECTORY_SEPARATOR;
+} else {
+	// Ensure there's a trailing slash
+	$manager_path = strtr(
+		rtrim($manager_path, '/\\'),
+		'/\\',
+		DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
+	) . DIRECTORY_SEPARATOR;
+}
+
+// Is the manager path correct?
+if (! is_dir($manager_path)) {
+	header('HTTP/1.1 503 Service Unavailable.', true, 503);
+	echo 'Your manager folder path does not appear to be set correctly. Please open the following file and correct this: ' . pathinfo(__FILE__, PATHINFO_BASENAME);
+	exit(3); // EXIT_CONFIG
+}
+
 /*
  * -------------------------------------------------------------------
  *  Now that we know the path, set the main path constants
@@ -124,6 +153,9 @@ define('SELF', pathinfo(__FILE__, PATHINFO_BASENAME));
 
 // Path to the system directory
 define('BASEPATH', $system_path);
+
+// Path to the system directory
+define('MGRPATH', $manager_path);
 
 // Path to the front controller (this file) directory
 define('FCPATH', dirname(__FILE__) . DIRECTORY_SEPARATOR);

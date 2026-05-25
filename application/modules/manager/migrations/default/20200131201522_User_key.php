@@ -1,6 +1,6 @@
 <?php
-
-class Migration_User_key extends MGR_Migration
+defined('BASEPATH') or exit('No direct script access allowed');
+class Migration_User_key extends MGR_Migration_builder
 {
 	public function up()
 	{

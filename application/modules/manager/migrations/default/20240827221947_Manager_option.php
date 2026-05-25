@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Migration_Manager_option extends MGR_Migration
+class Migration_Manager_option extends MGR_Migration_builder
 {
 	public function up()
 	{

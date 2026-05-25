@@ -90,30 +90,6 @@ class MX_Loader extends CI_Loader
 		return CI::$APP->config->load($file, $use_sections, $fail_gracefully, $this->_module);
 	}
 
-	/**
-	 * Get the full file path of a config file
-	 * Wrapper for CI::$APP->config->path() for consistency with load->config() pattern
-	 *
-	 * @param string $file Config filename (without .php)
-	 * @return string|null Full file path or null if not found
-	 */
-	public function config_path($file): ?string
-	{
-		return CI::$APP->config->path($file, $this->_module);
-	}
-
-	/**
-	 * Read config file and return array without loading into config system
-	 * Perfect for sensitive configs - read once, use immediately, let it go out of scope
-	 *
-	 * @param string $file Config filename (without .php)
-	 * @return array|null Config array or null if not found
-	 */
-	public function config_read($file): ?array
-	{
-		return CI::$APP->config->read($file, $this->_module);
-	}
-
 	/** Load a module helper **/
 	public function helper($helper = [])
 	{
