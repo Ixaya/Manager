@@ -8,7 +8,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * Adds configurable serialization (JSON, msgpack, gzip) and default TTL
  * while maintaining backwards compatibility with CI's cache library
  */
-class MY_Cache extends CI_Cache
+class MGR_Cache extends CI_Cache
 {
 	protected $default_ttl;
 	protected $serialization;

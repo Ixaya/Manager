@@ -70,4 +70,18 @@ class MGR_Loader extends MX_Loader
 	{
 		return CI::$APP->config->read($file, $this->_module);
 	}
+
+	/** Load a module library **/
+	public function library($library, $params = null, $object_name = null)
+	{
+		if (is_array($library)) {
+			return $this->libraries($library);
+		}
+
+		if ($params == null) {
+			$params = $this->config_read($library);
+		}
+
+		return parent::library($library, $params, $object_name);
+	}
 }

@@ -15,7 +15,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @subpackage  Libraries
  * @category    Core
  */
-class MY_Cache_redis extends CI_Cache_redis
+class MGR_Cache_redis extends CI_Cache_redis
 {
 	// const SERIALIZE_PREFIX = "\x00PHP_SER\x00"; // Magic header for PHP serialize
 	public const SERIALIZE_PREFIX = "~PHP~"; // Magic header for PHP serialize

@@ -13,4 +13,4 @@ patches.lock.json
 !.env.testing
 
 #Ignore local tests
-*_local.php
+# *_local.php

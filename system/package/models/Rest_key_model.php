@@ -13,9 +13,10 @@ if (! defined('BASEPATH')) {
  * @subpackage	  Rest Server
  * @category		Controller
  * @author		  Phil Sturgeon, Chris Kacerguis
+ * @author		  ho <ixaya.com> -> converted controller into model.
  * @license		 MIT
  * @link			https://github.com/chriskacerguis/codeigniter-restserver
- * @modified		ho@ixaya.com -> converted controller into model.
+
  */
 class Rest_key_model extends CI_Model
 {

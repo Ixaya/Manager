@@ -9,7 +9,7 @@
 //
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Slack extends API_Model
+class Slack extends APP_Api_Model
 {
 	public function __construct()
 	{

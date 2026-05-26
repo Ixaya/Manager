@@ -51,8 +51,8 @@ class Migration_Ion_auth_v2 extends MGR_Migration_builder
 			...$this->field(name: 'remember_code', type: MgrFieldType::VarChar, length: 40, nullable: true),
 			...$this->field(name: 'created_on', type: MgrFieldType::Int, unsigned: true),
 			...$this->field(name: 'last_login', type: MgrFieldType::Int, unsigned: true, nullable: true),
-			...$this->field(name: 'last_activity_date', type: MgrFieldType::Timestamp, nullable: true, new_name: 'last_api_date'),
-			...$this->field(name: 'last_activity_os', type: MgrFieldType::TinyInt, length: 1, unsigned: true, nullable: true, new_name: 'last_api_os'),
+			...$this->field(name: 'last_api_date', type: MgrFieldType::Timestamp, nullable: true, new_name: 'last_activity_date'),
+			...$this->field(name: 'last_api_os', type: MgrFieldType::TinyInt, length: 1, unsigned: true, nullable: true, new_name: 'last_activity_os'),
 		]);
 
 		$this->dbforge->add_column('user', [

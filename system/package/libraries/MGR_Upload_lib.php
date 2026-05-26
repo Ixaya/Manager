@@ -178,9 +178,9 @@ class MGR_Upload_lib
 
 			mgr_clean_file_s3_path($s3_file_path);
 
-			$this->load->library('amazon_aws');
+			$this->load->library('mgr_amazon_aws_lib');
 
-			$file_url = $this->amazon_aws->upload_file($original_file_path, $s3_file_path);
+			$file_url = $this->mgr_amazon_aws_lib->upload_file($original_file_path, $s3_file_path);
 
 			if ($file_url) {
 				if ($this->show_flashdata == true) {
@@ -302,9 +302,9 @@ class MGR_Upload_lib
 
 			mgr_clean_file_s3_path($s3_file_path);
 
-			$this->load->library('amazon_aws');
+			$this->load->library('mgr_amazon_aws_lib');
 
-			$file_url = $this->amazon_aws->upload_data($data, $s3_file_path, $content_type);
+			$file_url = $this->mgr_amazon_aws_lib->upload_data($data, $s3_file_path, $content_type);
 
 			if ($file_url) {
 				if ($this->show_flashdata == true) {
@@ -511,7 +511,7 @@ class MGR_Upload_lib
 	private function upload_image_s3($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
 	{
 		try {
-			$this->load->library('amazon_aws');
+			$this->load->library('mgr_amazon_aws_lib');
 
 			$s3_relative_path = $relative_path;
 			mgr_clean_file_s3_path($s3_relative_path);
@@ -539,7 +539,7 @@ class MGR_Upload_lib
 					$s3_orig_file_name = "{$desired_file_name}_original.{$file_ext}";
 					$s3_orig_file_path = "{$s3_relative_path}{$s3_orig_file_name}";
 
-					$orig_image_url = $this->amazon_aws->upload_file($original_file_path, $s3_orig_file_path);
+					$orig_image_url = $this->mgr_amazon_aws_lib->upload_file($original_file_path, $s3_orig_file_path);
 					if (empty($orig_image_url)) {
 						$s3_orig_file_path = '';
 					}
@@ -563,7 +563,7 @@ class MGR_Upload_lib
 			$s3_file_name = "{$desired_file_name}.{$file_ext}";
 			$s3_file_path = "{$s3_relative_path}{$s3_file_name}";
 
-			$image_url = $this->amazon_aws->upload_file($base_file_path, $s3_file_path);
+			$image_url = $this->mgr_amazon_aws_lib->upload_file($base_file_path, $s3_file_path);
 			if (empty($image_url)) {
 				$s3_file_path = '';
 			} elseif ($this->show_flashdata == true) {
@@ -592,7 +592,7 @@ class MGR_Upload_lib
 					$s3_thumb_file_name = "{$desired_file_name}_thumb.{$file_ext}";
 					$s3_thumb_file_path = "{$s3_relative_path}{$s3_thumb_file_name}";
 
-					$thumb_image_url = $this->amazon_aws->upload_file($thumb_file_path, $s3_thumb_file_path);
+					$thumb_image_url = $this->mgr_amazon_aws_lib->upload_file($thumb_file_path, $s3_thumb_file_path);
 					if (empty($thumb_image_url)) {
 						$s3_thumb_file_path = '';
 					}
@@ -689,10 +689,10 @@ class MGR_Upload_lib
 	}
 	public function display_image_s3($file_path)
 	{
-		$this->load->library('amazon_aws');
+		$this->load->library('mgr_amazon_aws_lib');
 
 		mgr_clean_file_s3_path($file_path);
-		$image_data = $this->amazon_aws->get_file($file_path);
+		$image_data = $this->mgr_amazon_aws_lib->get_file($file_path);
 
 		if ($image_data) {
 			$file_name = basename($file_path);
@@ -717,10 +717,10 @@ class MGR_Upload_lib
 
 		if (strpos($file_path, 's3/') !== false) {
 			mgr_clean_file_s3_path($file_path);
-			$this->load->library('amazon_aws');
+			$this->load->library('mgr_amazon_aws_lib');
 
 			$file_mime = '';
-			$file_data = $this->amazon_aws->get_file($file_path, $file_mime);
+			$file_data = $this->mgr_amazon_aws_lib->get_file($file_path, $file_mime);
 
 			if (empty($file_data)) {
 				return null;

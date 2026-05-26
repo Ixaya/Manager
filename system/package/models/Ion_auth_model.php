@@ -12,11 +12,13 @@ if (! defined('BASEPATH')) {
  * Description:  Modified auth system based on redux_auth with extensive customization.
  *               This is basically what Redux Auth 2 should be.
  * Original Author name has been kept but that does not mean that the method has not been modified.
+ * Backported from CI4 to CI3 by Ixaya
  *
  * @package    CodeIgniter-Ion-Auth
  * @author     Ben Edmunds <ben.edmunds@gmail.com>
  * @author     Phil Sturgeon
  * @author     Benoit VRIGNAUD <benoit.vrignaud@tangue.fr>
+ * @author     Humberto <ixaya.com>
  * @license    https://opensource.org/licenses/MIT	MIT License
  * @link       http://github.com/benedmunds/CodeIgniter-Ion-Auth
  * @filesource

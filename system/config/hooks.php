@@ -12,10 +12,3 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |	https://codeigniter.com/user_guide/general/hooks.html
 |
 */
-
-$hook['pre_controller'][] = [
-	'class'    => 'MGR_Bootsrap',
-	'function' => 'init',
-	'filename' => 'MGR_Bootsrap.php',
-	'filepath' => APPMGRPATH . 'hooks/',
-];

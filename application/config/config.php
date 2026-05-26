@@ -558,17 +558,19 @@ $config['proxy_ips'] = '';
 |   overrides and extensions.
 | - Core modules are checked next, providing the shared default
 |   implementation.
+| - Vendor modules are checked next, providing the base default
+|   implementation.
 |
 | NOTE: The relative path origin is APPPATH/controllers/
 */
 
+$config['modules_locations'] = [
+	APPPATH . 'modules/'  => '../modules/',
+	MGRPATH . 'package/modules/' => '../' . APPMGRPATH . 'package/modules/'
+];
+
 if (defined('BRANDPATH') && defined('BRANDPATH_MODULES_OFFSET')) {
 	$config['modules_locations'] = [
 		BRANDPATH . 'modules/' => BRANDPATH_MODULES_OFFSET . 'modules/',
-		APPPATH . 'modules/'  => '../modules/',
-	];
-} else {
-	$config['modules_locations'] = [
-		APPPATH . 'modules/'  => '../modules/',
-	];
+	] + $config['modules_locations'];
 }

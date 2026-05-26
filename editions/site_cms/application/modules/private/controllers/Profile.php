@@ -37,10 +37,10 @@ class Profile extends Private_Controller
 				$data['image_name'] = $result['thumb_image_name'];
 				$data['image_url'] = base_url('private/profile/picture');
 
-				$this->load->library('admin/amazon_aws');
+				$this->load->library('mgr_amazon_aws_lib');
 
-				$this->amazon_aws->upload_file($relative_path . $result['thumb_image_name']);
-				$this->amazon_aws->upload_file($relative_path . $result['fullsize_image_name']);
+				$this->mgr_amazon_aws_lib->upload_file($relative_path . $result['thumb_image_name']);
+				$this->mgr_amazon_aws_lib->upload_file($relative_path . $result['fullsize_image_name']);
 			}
 
 			$this->ion_auth->update($current_user->id, $data);
@@ -58,8 +58,8 @@ class Profile extends Private_Controller
 		$file_path = FCPATH . $relative_path . $filename;
 
 		if (!file_exists($file_path)) {
-			$this->load->library('admin/amazon_aws');
-			$result = $this->amazon_aws->save_file($filename, $relative_path);
+			$this->load->library('mgr_amazon_aws_lib');
+			$result = $this->mgr_amazon_aws_lib->save_file($filename, $relative_path);
 			log_message('debug', "Get File from S3 $filename");
 		} else {
 			log_message('debug', "Get File from Local FileSystem $filename");
@@ -70,11 +70,11 @@ class Profile extends Private_Controller
 
 	public function test()
 	{
-		$this->load->library('admin/amazon_aws');
+		$this->load->library('mgr_amazon_aws_lib');
 
-		//$this->amazon_aws->upload_file('/home/manager/app/private/user/ef2d3c16686589d1dd8eff7b65a59cc8.jpg');
-		//$result = $this->amazon_aws->list_files();
-		$result = $this->amazon_aws->save_file('ef2d3c16686589d1dd8eff7b65a59cc8.jpg', '/home/manager/app/private/temp/');
+		//$this->mgr_amazon_aws_lib->upload_file('/home/manager/app/private/user/ef2d3c16686589d1dd8eff7b65a59cc8.jpg');
+		//$result = $this->mgr_amazon_aws_lib->list_files();
+		$result = $this->mgr_amazon_aws_lib->save_file('ef2d3c16686589d1dd8eff7b65a59cc8.jpg', '/home/manager/app/private/temp/');
 		// print("<pre>");
 		// print_r($result);
 		// print("</pre>");

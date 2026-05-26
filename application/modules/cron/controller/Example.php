@@ -1,6 +1,6 @@
 <?php
 
-class Example_crons extends CI_Controller
+class Example extends CI_Controller
 {
 	public function __construct()
 	{
@@ -68,6 +68,6 @@ class Example_crons extends CI_Controller
 			echo "## Errors: " . json_encode($result['error']);
 		}
 
-		echo('++ ' . date('Y-m-d H:i:s') . " Got(clients): $total Processed: $processed Last: $last_id\r\n");
+		echo ('++ ' . date('Y-m-d H:i:s') . " Got(clients): $total Processed: $processed Last: $last_id\r\n");
 	}
 }

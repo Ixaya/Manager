@@ -15,7 +15,7 @@ class Migration_Ion_auth extends MGR_Migration_builder
 			...$this->field(name: 'name', type: MgrFieldType::VarChar, length: 20),
 			...$this->field(name: 'name', type: MgrFieldType::VarChar, length: 100),
 			...$this->field(name: 'description', type: MgrFieldType::VarChar, length: 100),
-			...$this->field(name: 'level', type: MgrFieldType::SmallInt)
+			...$this->field(name: 'level', type: MgrFieldType::SmallInt, nullable: true)
 		]);
 		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table('group');
