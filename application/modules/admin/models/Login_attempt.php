@@ -2,7 +2,7 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-class Login_attempt extends IX_Model_Dyn
+class Login_attempt extends MGR_Model_Dyn
 {
 	public function __construct()
 	{
@@ -90,15 +90,15 @@ class Login_attempt extends IX_Model_Dyn
 		$join = [
 			$this->build_join(
 				table: 'user AS u',
-				type: IX_Model_Dyn_join_type::Inner,
+				type: MGR_Model_Dyn_join_type::Inner,
 				on: [
-					IX_Model_Dyn_clause::EQUAL => ['u.email' => 'login_attempt.login']
+					MGR_Model_Dyn_clause::EQUAL => ['u.email' => 'login_attempt.login']
 				],
 			)
 		];
 
 		$where = [];
-		$where[IX_Model_Dyn_clause::EQUAL] = ['u.id' => $id];
+		$where[MGR_Model_Dyn_clause::EQUAL] = ['u.id' => $id];
 
 
 		$order_by = mgr_build_order_by('login_attempt.time', 'DESC');

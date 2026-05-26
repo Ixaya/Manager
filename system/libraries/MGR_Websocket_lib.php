@@ -35,7 +35,7 @@ final class Websocket_channel_regex
  * "amphp/redis": "^2.0"
  */
 
-class Websocket_lib
+class MGR_Websocket_lib
 {
 	/** @var WebsocketClientGateway[] */
 	private $gateways = []; // channel => gateway
@@ -128,7 +128,7 @@ class Websocket_lib
 
 		// Create client handler
 		$jwt_audience = $this->config['jwt_audience'] ?? 'websocket';
-		$clientHandler = new WebsocketsClientHandler($this->gateways, $this->logger, $jwt_audience);
+		$clientHandler = new MGRWebsocketsClientHandler($this->gateways, $this->logger, $jwt_audience);
 
 		// Create WebSocket endpoint
 		$websocket = new Websocket(
@@ -316,7 +316,7 @@ class Websocket_lib
  * Handles websocket client connections and channels.
  * Extracted from anonymous class for better performance and reusability.
  */
-class WebsocketsClientHandler implements WebsocketClientHandler
+class MGRWebsocketsClientHandler implements WebsocketClientHandler
 {
 	private array $gateways;
 	private LoggerInterface $logger;

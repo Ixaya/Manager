@@ -2,11 +2,11 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-class Ix_domain extends MY_Model
+class Theme extends MY_Model
 {
 	public function __construct()
 	{
-		$this->table_name = 'domain';
+		$this->table_name = 'theme';
 
 		//initialize after overriding
 		parent::__construct();

@@ -3,7 +3,7 @@
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
 
-class MY_Migration extends MX_Migration
+class MGR_Migration extends MX_Migration
 {
 	/**
 	 * Database connection group

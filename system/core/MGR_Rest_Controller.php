@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class IX_Rest_Controller extends REST_Controller
+class MGR_Rest_Controller extends REST_Controller
 {
 	protected $user_id = '';
 	protected $group_methods = [];
@@ -162,6 +162,6 @@ class IX_Rest_Controller extends REST_Controller
 		$now = mgr_get_now_date_time();
 
 		$timestamp = $now->format('Y-m-d H:i:s');
-		echo(PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
+		echo (PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
 	}
 }

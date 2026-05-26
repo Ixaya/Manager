@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Async_exec_lib
+class MGR_Async_exec_lib
 {
 	/**
 	 * Build and execute a CLI call to a library function via the manager/tools/cli_exec.
@@ -83,7 +83,7 @@ class Async_exec_lib
 		// Escape arguments
 		// [PHP 8 MIGRATION] Added explicit (string) cast to urlencode
 		$urlencode_args = array_map(
-			fn ($v) => urlencode((string) $v),
+			fn($v) => urlencode((string) $v),
 			$args
 		);
 

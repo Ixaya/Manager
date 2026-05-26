@@ -6,7 +6,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Attachment_lib
+class MGR_Attachment_lib
 {
 	/**
 	 * __get
@@ -26,7 +26,7 @@ class Attachment_lib
 	protected $model_path = 'attachment';
 
 	protected $public_path = 'media/files';
-	protected $private_path = 's3/media/files';//aws
+	protected $private_path = 's3/media/files'; //aws
 	// protected $private_path = 'private/media/files';//local
 
 	public function set_model($model_path)

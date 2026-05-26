@@ -1,6 +1,6 @@
 <?php
 
-class MY_Exceptions extends CI_Exceptions
+class MGR_Exceptions extends CI_Exceptions
 {
 	protected $api_only = true;
 

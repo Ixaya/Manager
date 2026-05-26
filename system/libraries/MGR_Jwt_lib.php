@@ -9,7 +9,7 @@ use Ahc\Jwt\JWT;
  * "adhocore/jwt": "^1.1"
  */
 
-class Jwt_lib
+class MGR_Jwt_lib
 {
 	protected $jwt;
 

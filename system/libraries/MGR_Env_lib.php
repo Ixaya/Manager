@@ -1,6 +1,6 @@
 <?php
 
-class Ix_env_lib
+class MGR_Env_lib
 {
 	private static $loaded = false;
 	private static $env_vars = [];

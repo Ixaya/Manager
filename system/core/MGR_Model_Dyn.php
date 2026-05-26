@@ -2,7 +2,7 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-class IX_Model_Dyn_clause
+class MGR_Model_Dyn_clause
 {
 	public const EQUAL = 'equal';
 	public const OR_EQUAL = 'or_equal';
@@ -14,11 +14,11 @@ class IX_Model_Dyn_clause
 	public const OR_GROUP = 'or_group';
 }
 
-final class IX_Model_Dyn_join
+final class MGR_Model_Dyn_join
 {
 	public function __construct(
 		private readonly string        $table,
-		private readonly IX_Model_Dyn_join_type $type,
+		private readonly MGR_Model_Dyn_join_type $type,
 		private readonly array         $on,
 	) {
 		$this->_validate();
@@ -30,12 +30,12 @@ final class IX_Model_Dyn_join
 	{
 		if (empty($this->table)) {
 			throw new InvalidArgumentException(
-				"IX_Model_Dyn_join: table name cannot be empty."
+				"MGR_Model_Dyn_join: table name cannot be empty."
 			);
 		}
 		if (empty($this->on)) {
 			throw new InvalidArgumentException(
-				"IX_Model_Dyn_join: on[] cannot be empty — at least one condition is required."
+				"MGR_Model_Dyn_join: on[] cannot be empty — at least one condition is required."
 			);
 		}
 	}
@@ -71,23 +71,23 @@ final class IX_Model_Dyn_join
 			$glue = str_starts_with($kind, 'or_') ? 'OR' : 'AND';
 
 			switch ($kind) {
-				case IX_Model_Dyn_clause::EQUAL:
-				case IX_Model_Dyn_clause::OR_EQUAL:
+				case MGR_Model_Dyn_clause::EQUAL:
+				case MGR_Model_Dyn_clause::OR_EQUAL:
 					foreach ($fields as $col => $val) {
 						$parts[] = [$glue, "{$col} = {$val}"];
 					}
 					break;
 
-				case IX_Model_Dyn_clause::LIKE:
-				case IX_Model_Dyn_clause::OR_LIKE:
+				case MGR_Model_Dyn_clause::LIKE:
+				case MGR_Model_Dyn_clause::OR_LIKE:
 					foreach ($fields as $col => $val) {
 						$escaped = $db->escape_like_str($val);
 						$parts[] = [$glue, "{$col} LIKE '{$escaped}'"];
 					}
 					break;
 
-				case IX_Model_Dyn_clause::WHERE_IN:
-				case IX_Model_Dyn_clause::OR_WHERE_IN:
+				case MGR_Model_Dyn_clause::WHERE_IN:
+				case MGR_Model_Dyn_clause::OR_WHERE_IN:
 					foreach ($fields as $col => $values) {
 						$list    = implode(', ', array_map([$db, 'escape'], $values));
 						$parts[] = [$glue, "{$col} IN ({$list})"];
@@ -112,10 +112,10 @@ final class IX_Model_Dyn_join
 
 
 // ---------------------------------------------------------------------------
-// IX_Model_Dyn_join_type — backed enum replacing the class-with-constants pattern.
+// MGR_Model_Dyn_join_type — backed enum replacing the class-with-constants pattern.
 // ---------------------------------------------------------------------------
 
-enum IX_Model_Dyn_join_type: string
+enum MGR_Model_Dyn_join_type: string
 {
 	case Inner = 'INNER JOIN';
 	case Left  = 'LEFT JOIN';
@@ -138,14 +138,14 @@ enum IX_Model_Dyn_join_type: string
 	}
 }
 
-class IX_Model_Dyn extends MY_Model
+class MGR_Model_Dyn extends MY_Model
 {
 	/**
 	 * Dynamic query with optional where clauses, joins, ordering, and limit.
 	 *
 	 * @param  string            $fields    Comma-separated select list. '' = SELECT *.
-	 * @param  array             $where     IX_Model_Dyn_clause-keyed condition array.
-	 * @param  IX_Model_Dyn_join[]  $join      Array of IX_Model_Dyn_join instances.
+	 * @param  array             $where     MGR_Model_Dyn_clause-keyed condition array.
+	 * @param  MGR_Model_Dyn_join[]  $join      Array of MGR_Model_Dyn_join instances.
 	 * @param  string            $limit     Row limit as string, e.g. '25' or '0,25'.
 	 * @param  string            $order_by  ORDER BY expression.
 	 * @return array
@@ -164,7 +164,7 @@ class IX_Model_Dyn extends MY_Model
 		if (!empty($where)) {
 			foreach ($where as $kind => $data) {
 				switch ($kind) {
-					case IX_Model_Dyn_clause::GROUP:
+					case MGR_Model_Dyn_clause::GROUP:
 						$this->my_db->group_start(); // Opens (
 						foreach ($data as $kind => $fields) {
 							$this->apply_where_condition($kind, $fields);
@@ -172,7 +172,7 @@ class IX_Model_Dyn extends MY_Model
 						$this->my_db->group_end(); // Closes )
 						break;
 
-					case IX_Model_Dyn_clause::OR_GROUP:
+					case MGR_Model_Dyn_clause::OR_GROUP:
 						$this->my_db->or_group_start(); // Opens OR (
 						foreach ($data as $kind => $fields) {
 							$this->apply_where_condition($kind, $fields);
@@ -195,16 +195,16 @@ class IX_Model_Dyn extends MY_Model
 	 * Dynamic query with optional where clauses, joins, ordering, and limit.
 	 *
 	 * @param  string                      $table
-	 * @param  IX_Model_Dyn_join_type  $type
-	 * @param array<IX_Model_Dyn_clause::*, array<string, string>> $on
-	 * @return IX_Model_Dyn_join
+	 * @param  MGR_Model_Dyn_join_type  $type
+	 * @param array<MGR_Model_Dyn_clause::*, array<string, string>> $on
+	 * @return MGR_Model_Dyn_join
 	 */
 	public function build_join(
 		string $table,
-		IX_Model_Dyn_join_type $type,
+		MGR_Model_Dyn_join_type $type,
 		array $on
 	) {
-		return  new IX_Model_Dyn_join(
+		return  new MGR_Model_Dyn_join(
 			table: $table,
 			type: $type,
 			on: $on,
@@ -230,34 +230,34 @@ class IX_Model_Dyn extends MY_Model
 	}
 
 	/**
-	 * Apply a where condition based on IX_Model_Dyn_clause type
+	 * Apply a where condition based on MGR_Model_Dyn_clause type
 	 */
 	private function apply_where_condition(string $kind, $fields): void
 	{
 		switch ($kind) {
-			case IX_Model_Dyn_clause::EQUAL:
+			case MGR_Model_Dyn_clause::EQUAL:
 				$this->my_db->where($fields);
 				break;
 
-			case IX_Model_Dyn_clause::OR_EQUAL:
+			case MGR_Model_Dyn_clause::OR_EQUAL:
 				$this->my_db->or_where($fields);
 				break;
 
-			case IX_Model_Dyn_clause::LIKE:
+			case MGR_Model_Dyn_clause::LIKE:
 				$this->my_db->like($fields);
 				break;
 
-			case IX_Model_Dyn_clause::OR_LIKE:
+			case MGR_Model_Dyn_clause::OR_LIKE:
 				$this->my_db->or_like($fields);
 				break;
 
-			case IX_Model_Dyn_clause::WHERE_IN:
+			case MGR_Model_Dyn_clause::WHERE_IN:
 				foreach ($fields as $field => $values) {
 					$this->my_db->where_in($field, $values);
 				}
 				break;
 
-			case IX_Model_Dyn_clause::OR_WHERE_IN:
+			case MGR_Model_Dyn_clause::OR_WHERE_IN:
 				foreach ($fields as $field => $values) {
 					$this->my_db->or_where_in($field, $values);
 				}

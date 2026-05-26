@@ -3,7 +3,7 @@
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
 
-class User extends IX_Model_Dyn
+class User extends MGR_Model_Dyn
 {
 	public function get_list($params)
 	{
@@ -20,20 +20,20 @@ class User extends IX_Model_Dyn
 		$where = [];
 		if (!empty($params['search'])) {
 			$seach = [];
-			$seach[IX_Model_Dyn_clause::OR_LIKE] = [
+			$seach[MGR_Model_Dyn_clause::OR_LIKE] = [
 				'first_name' => $params['search'],
 				'last_name' => $params['search'],
 				'email' => $params['search']
 			];
-			$seach[IX_Model_Dyn_clause::OR_EQUAL] = [
+			$seach[MGR_Model_Dyn_clause::OR_EQUAL] = [
 				'id' => $params['search']
 			];
 
-			$where[IX_Model_Dyn_clause::OR_GROUP] = $seach;
+			$where[MGR_Model_Dyn_clause::OR_GROUP] = $seach;
 		}
 
 		if (isset($params['active'])) {
-			$where[IX_Model_Dyn_clause::EQUAL] = ['active' => $params['active']];
+			$where[MGR_Model_Dyn_clause::EQUAL] = ['active' => $params['active']];
 		}
 
 		$allowed_order = [

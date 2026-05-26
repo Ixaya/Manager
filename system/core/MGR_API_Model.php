@@ -2,7 +2,7 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-class API_Model extends MY_Model
+class MGR_API_Model extends MY_Model
 {
 	public $user_id = '';
 	// public function __construct()

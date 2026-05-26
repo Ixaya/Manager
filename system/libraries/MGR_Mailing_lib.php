@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Ix_mailing
+class MGR_Mailing_lib
 {
 	protected $config_name = null;
 	protected $bbc_address = null;

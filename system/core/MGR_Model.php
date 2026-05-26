@@ -2,7 +2,7 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-class MY_Model extends CI_Model
+class MGR_Model extends CI_Model
 {
 	protected $my_db = null;
 	protected MgrDriver $my_db_driver;

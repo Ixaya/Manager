@@ -10,7 +10,7 @@ use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Aws\Credentials\Credentials;
 use Aws\Exception\AwsException;
 
-class Amazon_aws
+class MGR_Amazon_aws_lib
 {
 	//https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/getting-started_basic-usage.html
 	//https://docs.aws.amazon.com/aws-sdk-php/v2/guide/service-s3.html

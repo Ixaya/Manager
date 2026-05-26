@@ -4,7 +4,7 @@ if (!defined('BASEPATH')) {
 	exit('No direct script access allowed');
 }
 
-class MY_Controller extends CI_Controller
+class MGR_Controller extends CI_Controller
 {
 	public $_theme;
 	public $_container;
@@ -29,10 +29,10 @@ class MY_Controller extends CI_Controller
 		$this->load->helper('url');
 
 		if ($this->_use_domain && !is_cli() && empty($this->_theme)) {
-			$this->load->model('ix_domain');
+			$this->load->model('domain');
 
 			$domain_name = $_SERVER['HTTP_HOST'];
-			$domain = $this->ix_domain->get_where("domain_name = '$domain_name'");
+			$domain = $this->domain->get_where("domain_name = '$domain_name'");
 			if ($domain) {
 				if (!empty($domain->redirect_url)) {
 					redirect($domain->redirect_url);
@@ -42,9 +42,9 @@ class MY_Controller extends CI_Controller
 				$this->domain_client_id = $domain->client_id;
 
 				if (!empty($domain->theme_id)) {
-					$this->load->model('ix_theme');
+					$this->load->model('theme');
 
-					$theme_row = $this->ix_theme->get($domain->theme_id);
+					$theme_row = $this->theme->get($domain->theme_id);
 					$this->_theme = $theme_row['shortname'];
 				}
 			}
@@ -129,7 +129,7 @@ class MY_Controller extends CI_Controller
 	{
 		header('Content-Type: application/json');
 
-		echo(json_encode($data));
+		echo (json_encode($data));
 		die();
 	}
 
