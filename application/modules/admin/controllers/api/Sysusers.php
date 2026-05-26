@@ -84,7 +84,6 @@ class Sysusers extends APP_Rest_Controller
 				'status' => 0,
 				'message' => 'No data provided, please try again.'
 			], REST_Controller::HTTP_BAD_REQUEST);
-			return;
 		}
 
 		try {
@@ -107,7 +106,6 @@ class Sysusers extends APP_Rest_Controller
 					'status' => 0,
 					'message' => 'Something went wrong while creating the user. Please try again.'
 				], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-				return;
 			} else {
 				if ($this->post('status') == 1) {
 					$this->ion_auth->activate($user);
@@ -133,14 +131,12 @@ class Sysusers extends APP_Rest_Controller
 					'message' => 'User created successfully.',
 					'response' => $user
 				], REST_Controller::HTTP_OK);
-				return;
 			}
 		} catch (Exception $e) {
 			$this->response([
 				'status' => 0,
 				'message' => 'Error: ' . $e->getMessage()
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-			return;
 		}
 	}
 
@@ -155,7 +151,6 @@ class Sysusers extends APP_Rest_Controller
 				'status' => 0,
 				'message' => 'No data was provided, please try again.'
 			], REST_Controller::HTTP_BAD_REQUEST);
-			return;
 		}
 
 		try {
@@ -207,13 +202,11 @@ class Sysusers extends APP_Rest_Controller
 				'message' => 'User updated succesfully',
 				'response' => $id
 			], REST_Controller::HTTP_OK);
-			return;
 		} catch (Exception $e) {
 			$this->response([
 				'status' => 0,
 				'message' => 'Error: ' . $e->getMessage()
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-			return;
 		}
 	}
 
@@ -228,8 +221,7 @@ class Sysusers extends APP_Rest_Controller
 			$this->response([
 				'status' => 0,
 				'message' => 'The user ID is required.'
-			], REST_Controller::HTTP_OK);
-			return;
+			], REST_Controller::HTTP_BAD_REQUEST);
 		}
 
 		try {
@@ -240,6 +232,13 @@ class Sysusers extends APP_Rest_Controller
 			}
 
 			$data['user'] = $this->ion_auth_model->user($id)->row();
+			if (empty($data['user'])) {
+				$this->response([
+					'status' => 0,
+					'message' => 'The user ID not found.'
+				], REST_Controller::HTTP_NOT_FOUND);
+			}
+
 			$data['api_key'] = $api_key;
 			$data['user_group'] = $this->ion_auth_model->get_users_groups($id)->row();
 			$data['login_attempts'] = $this->login_attempt->get_by_user($id);
@@ -267,7 +266,6 @@ class Sysusers extends APP_Rest_Controller
 				'status' => 0,
 				'message' => 'Error: ' . $e->getMessage()
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-			return;
 		}
 
 		$this->response([
@@ -319,18 +317,23 @@ class Sysusers extends APP_Rest_Controller
 	{
 		try {
 			$roles = $this->ion_auth->groups()->result();
+			if (empty($roles)) {
+				$this->response([
+					'status' => 0,
+					'message' => 'Error getting roles'
+				], REST_Controller::HTTP_NOT_FOUND);
+			}
+
+			$this->response([
+				'status' => 1,
+				'message' => 'Success',
+				'response' => $roles
+			], REST_Controller::HTTP_OK);
 		} catch (Exception $e) {
 			$this->response([
 				'status' => 0,
 				'message' => 'Error getting roles'
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-			return;
-		}
-
-		$this->response([
-			'status' => 1,
-			'message' => 'Success',
-			'response' => $roles
-		], REST_Controller::HTTP_OK);
+		};
 	}
 }

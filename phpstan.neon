@@ -13,8 +13,8 @@ parameters:
 
     # Define the paths that PHPStan should analyze
     paths:
-        - application/
         - system/
+        - application/
         # Manager only
         # - editions/
     scanDirectories:
@@ -26,6 +26,7 @@ parameters:
     # Include the vendor directory for autoloading and reflection
     bootstrapFiles:
         - vendor/autoload.php
+        - phpstan-bootstrap.php
 
 
     # Optionally, ignore errors in the vendor directory
@@ -83,4 +84,4 @@ parameters:
         - identifier: class.notFound
         - '#Call to an undefined method Ion_auth::.*#'
         - identifier: property.notFound
-        - identifier: constant.notFound
+        #- identifier: constant.notFound
