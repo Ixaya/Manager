@@ -135,31 +135,31 @@ class MGR_Controller extends CI_Controller
 
 	public function upload_file($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
 	{
-		$this->load->library('ix_upload_lib');
-		return $this->ix_upload_lib->upload_file($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
+		$this->load->library('mgr_upload_lib');
+		return $this->mgr_upload_lib->upload_file($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 	}
 
 	public function upload_image($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
 	{
-		$this->load->library('ix_upload_lib');
-		return $this->ix_upload_lib->upload_image($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
+		$this->load->library('mgr_upload_lib');
+		return $this->mgr_upload_lib->upload_image($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
 	}
 
 	public function put_file($relative_path, $file_name, $data, &$error = null)
 	{
-		$this->load->library('ix_upload_lib');
-		return $this->ix_upload_lib->put_file($relative_path, $file_name, $data, $error);
+		$this->load->library('mgr_upload_lib');
+		return $this->mgr_upload_lib->put_file($relative_path, $file_name, $data, $error);
 	}
 
 	public function get_file_base64($file_path, &$file_name = '', &$file_ext = '', &$file_mime = '')
 	{
-		$this->load->library('ix_upload_lib');
-		return $this->ix_upload_lib->get_file_base64($file_path, $file_name, $file_ext, $file_mime);
+		$this->load->library('mgr_upload_lib');
+		return $this->mgr_upload_lib->get_file_base64($file_path, $file_name, $file_ext, $file_mime);
 	}
 
 	public function display_image($file_path)
 	{
-		$this->load->library('ix_upload_lib');
-		$this->ix_upload_lib->display_image($file_path);
+		$this->load->library('mgr_upload_lib');
+		$this->mgr_upload_lib->display_image($file_path);
 	}
 }

@@ -252,10 +252,10 @@ define('VIEWPATH', $view_folder . DIRECTORY_SEPARATOR);
  * NOTE: If you change these, also change the error_reporting() code below
  */
 
-require_once MGRPATH . 'package/libraries/Ix_env_lib.php';
+require_once MGRPATH . 'package/libraries/Env_lib.php';
 
 $ci_env = isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : null;
-Ix_env_lib::load($ci_env);
+Env_lib::load($ci_env);
 
 require_once MGRPATH . 'package/helpers/manager_env_helper.php';
 

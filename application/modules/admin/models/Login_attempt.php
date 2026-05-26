@@ -2,7 +2,7 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-class Login_attempt extends MGR_Model_Dyn
+class Login_attempt extends APP_Model_Dyn
 {
 	public function __construct()
 	{

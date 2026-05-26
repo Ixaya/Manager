@@ -10,7 +10,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Slacker extends IX_Rest_Controller
+class Slacker extends APP_Rest_Controller
 {
 	public function __construct()
 	{

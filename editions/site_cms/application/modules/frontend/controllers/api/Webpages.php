@@ -10,7 +10,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Webpages extends IX_Rest_Controller
+class Webpages extends APP_Rest_Controller
 {
 	public function __construct()
 	{
@@ -79,5 +79,4 @@ class Webpages extends IX_Rest_Controller
 		$result['response'] = $kinds;
 		$this->set_response($result, REST_Controller::HTTP_OK);
 	}
-
 }

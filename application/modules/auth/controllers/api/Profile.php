@@ -4,7 +4,7 @@
 //  Copyright © 2024 Ixaya. All rights reserved.
 //
 
-class Profile extends IX_Rest_Controller
+class Profile extends APP_Rest_Controller
 {
 	public function __construct()
 	{

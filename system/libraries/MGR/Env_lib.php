@@ -2,8 +2,8 @@
 
 class MGR_Env_lib
 {
-	private static $loaded = false;
-	private static $env_vars = [];
+	protected static $loaded = false;
+	protected static $env_vars = [];
 
 	public static function load($enviorment = null)
 	{
@@ -18,7 +18,7 @@ class MGR_Env_lib
 	}
 	public static function load_env($enviorment = null, $private = false)
 	{
-		$file_path = Ix_env_lib::get_file_path($enviorment, $private);
+		$file_path = static::get_file_path($enviorment, $private);
 		if ($file_path === null) {
 			return;
 		}
@@ -132,7 +132,7 @@ class MGR_Env_lib
 		return $default;
 	}
 
-	private static function get_file_path($enviorment, $private = false)
+	protected static function get_file_path($enviorment, $private = false)
 	{
 		$file_path = FCPATH . '../.env';
 		$suffix = $private ? '.priv' : '';
@@ -152,7 +152,7 @@ class MGR_Env_lib
 		return null;
 	}
 
-	private static function process_value($value, $default, $strict)
+	protected static function process_value($value, $default, $strict)
 	{
 		$use_strict = $strict || ($default === null);
 		if ($use_strict == true && is_string($value) && trim($value) === '') {

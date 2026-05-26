@@ -2,6 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
+require MGRPATH . "third_party/Rest_Controller.php";
 class MGR_Rest_Controller extends REST_Controller
 {
 	protected $user_id = '';

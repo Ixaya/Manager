@@ -3,7 +3,7 @@
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
 
-class User extends MGR_Model_Dyn
+class User extends APP_Model_Dyn
 {
 	public function get_list($params)
 	{

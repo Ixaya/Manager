@@ -4,7 +4,7 @@
 //  Copyright © 2024 Ixaya. All rights reserved.
 //
 
-class Sysusers extends IX_Rest_Controller
+class Sysusers extends APP_Rest_Controller
 {
 	public function __construct()
 	{

@@ -1,6 +1,6 @@
 <?php
 
-class Examples extends IX_Rest_Controller
+class Examples extends APP_Rest_Controller
 {
 	public function __construct()
 	{

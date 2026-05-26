@@ -68,7 +68,7 @@ class MGR_Exceptions extends CI_Exceptions
 		$this->show_error_data($data, 500);
 	}
 
-	private function show_error_data($data, $error_code)
+	protected function show_error_data($data, $error_code)
 	{
 		if (is_cli()) {
 			echo "**ERROR($error_code)**\r\n";
@@ -102,7 +102,7 @@ class MGR_Exceptions extends CI_Exceptions
 		exit;
 	}
 
-	private function clean_file_path($filepath)
+	protected function clean_file_path($filepath)
 	{
 		$root = dirname(FCPATH);
 		if (strpos($filepath, $root) === 0) {
@@ -112,7 +112,7 @@ class MGR_Exceptions extends CI_Exceptions
 		return $filepath; // file outside project
 	}
 
-	private function validate_html_accept()
+	protected function validate_html_accept()
 	{
 		if ($this->api_only === true) {
 			return false;
@@ -161,7 +161,7 @@ class MGR_Exceptions extends CI_Exceptions
 		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
 	}
 
-	private function _parse_db_error($message)
+	protected function _parse_db_error($message)
 	{
 		$parts = is_array($message) ? $message : explode("\n", $message);
 

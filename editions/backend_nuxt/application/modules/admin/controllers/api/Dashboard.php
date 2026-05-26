@@ -4,7 +4,7 @@
 //  Copyright © 2024 Ixaya. All rights reserved.
 //
 
-class Dashboard extends IX_Rest_Controller
+class Dashboard extends APP_Rest_Controller
 {
 	public function __construct()
 	{
