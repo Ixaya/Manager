@@ -1,6 +1,6 @@
 <?php
 
-(defined('BASEPATH')) or exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 class User_key extends MY_Model
 {
@@ -15,6 +15,4 @@ class User_key extends MY_Model
 		//initialize after overriding
 		parent::__construct();
 	}
-
-
 }

@@ -1,5 +1,7 @@
 <?php
 
-(defined('BASEPATH')) or exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
-class Domain extends MY_Model {}
+class Domain extends MY_Model
+{
+}

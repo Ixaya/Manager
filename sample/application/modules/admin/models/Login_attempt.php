@@ -1,6 +1,6 @@
 <?php
 
-(defined('BASEPATH')) or exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 class Login_attempt extends APP_Model_Dyn
 {

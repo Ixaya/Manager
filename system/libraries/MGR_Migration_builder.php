@@ -2,7 +2,6 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-
 // ---------------------------------------------------------------------------
 // MgrFieldType — all valid cross-engine column types.
 // Backed enum (string) so IDEs autocomplete MgrFieldType::VarChar etc.

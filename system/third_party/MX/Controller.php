@@ -1,9 +1,9 @@
 <?php
 
-(defined('BASEPATH')) or exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /** load the CI class for Modular Extensions **/
-require dirname(__FILE__).'/Base.php';
+require dirname(__FILE__) . '/Base.php';
 
 /**
  * Modular Extensions - HMVC
@@ -45,7 +45,7 @@ class MX_Controller
 	public function __construct()
 	{
 		$class = str_replace(CI::$APP->config->item('controller_suffix'), '', get_class($this));
-		log_message('debug', $class." MX_Controller Initialized");
+		log_message('debug', $class . " MX_Controller Initialized");
 		Modules::$registry[strtolower($class)] = $this;
 
 		/* copy a loader instance and initialize */

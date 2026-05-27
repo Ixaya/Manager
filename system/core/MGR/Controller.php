@@ -129,7 +129,7 @@ class MGR_Controller extends CI_Controller
 	{
 		header('Content-Type: application/json');
 
-		echo (json_encode($data));
+		echo(json_encode($data));
 		die();
 	}
 

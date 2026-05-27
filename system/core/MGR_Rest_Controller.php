@@ -164,6 +164,6 @@ class MGR_Rest_Controller extends REST_Controller
 		$now = mgr_get_now_date_time();
 
 		$timestamp = $now->format('Y-m-d H:i:s');
-		echo (PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
+		echo(PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
 	}
 }

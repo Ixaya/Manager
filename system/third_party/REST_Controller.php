@@ -372,7 +372,9 @@ abstract class REST_Controller extends MY_Controller
 	 * @access protected
 	 * @return void
 	 */
-	protected function early_checks() {}
+	protected function early_checks()
+	{
+	}
 
 	/**
 	 * Constructor for the REST API

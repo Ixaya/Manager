@@ -1,6 +1,6 @@
 <?php
 
-(defined('BASEPATH')) or exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 require_once dirname(__FILE__) . '/Config.php';
 
@@ -201,8 +201,7 @@ class Modules
 					if (is_file($fullpath . ucfirst($file_ext))) {
 						return [$fullpath, ucfirst($file), $module];
 					}
-				} elseif /* load non-class files */
-				(is_file($fullpath . $file_ext)) {
+				} elseif /* load non-class files */ (is_file($fullpath . $file_ext)) {
 					return [$fullpath, $file, $module];
 				}
 			}

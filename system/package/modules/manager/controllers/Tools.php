@@ -212,7 +212,7 @@ class $name extends Seeder {
 
 		$my_model = fopen($path, "w") or die("Unable to create model file!");
 
-		$model_template = "<?php (defined('BASEPATH')) OR exit('No direct script access allowed');
+		$model_template = "<?php defined('BASEPATH') or exit('No direct script access allowed');
 
 class $name extends MY_Model {
 
