@@ -29,7 +29,7 @@ if (! defined('BASEPATH')) {
  *
  * @property Ion_auth $ion_auth The Ion_auth library
  */
-class Ion_auth_model extends CI_Model
+class BE_Ion_auth_model extends CI_Model
 {
 	/**
 	 * Max cookie lifetime constant

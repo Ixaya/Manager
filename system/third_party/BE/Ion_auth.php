@@ -28,7 +28,7 @@ if (! defined('BASEPATH')) {
 /**
  * This class is the IonAuth library.
  */
-class Ion_auth
+class BE_Ion_auth
 {
 	/**
 	 * account status ('not_activated', etc ...)

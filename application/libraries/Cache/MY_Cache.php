@@ -2,7 +2,7 @@
 
 (defined('BASEPATH')) or exit('No direct script access allowed');
 
-require MGRPATH . "libraries/Cache/MGR_Cache.php";
+require MGRPATH . "libraries/MGR/Cache/Cache.php";
 class MY_Cache extends MGR_Cache
 {
 	// public function __construct($params = null)
