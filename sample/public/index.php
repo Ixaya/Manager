@@ -58,11 +58,11 @@ $system_path = '../vendor/nielbuys/framework/system';
  * Set the path if it is not in the same directory as this file.
  */
 // FCPATH relative
-$manager_path = '../system';
-// $manager_path = '../vendor/ixaya/manager/system';
+// $manager_path = '../system';
+$manager_path = '../vendor/ixaya/manager/system';
 // APPPATH relative
-$manager_app_rel_path = '../system';
-// $manager_app_rel_path = '../vendor/ixaya/manager/system';
+// $manager_app_rel_path = '../system';
+$manager_app_rel_path = '../vendor/ixaya/manager/system';
 
 /*
  *---------------------------------------------------------------

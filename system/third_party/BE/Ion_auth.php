@@ -26,8 +26,15 @@ if (! defined('BASEPATH')) {
  */
 
 /**
- * This class is the IonAuth library.
+ * PHPStan Magic Method Declarations:
+ * @method self where($where, $value = null)
+ * @method self limit(int $limit)
+ * @method self users($groups = null)
+ * @method string set_message(string $message)
+ * @method string set_error(string $error)
+ * @method object|false row()
  */
+
 class BE_Ion_auth
 {
 	/**
@@ -302,6 +309,10 @@ class BE_Ion_auth
 		$user = $this->where($this->ion_auth_model->identityColumn, $identity)
 			->limit(1)
 			->users()->row();
+
+		if (!$user) {
+			return false;
+		}
 
 		if ($user->active) {
 			$this->set_error("already_activated_identity");

@@ -13,14 +13,13 @@ parameters:
 
     # Define the paths that PHPStan should analyze
     paths:
-        - system/
-        - sample/application/
-        #- extras/
+        - application/
     scanDirectories:
         - vendor/nielbuys/framework/system
+        - vendor/ixaya/manager/system
 
     scanFiles:
-        - sample/public/index.php
+        - public/index.php
 
     # Include the vendor directory for autoloading and reflection
     bootstrapFiles:
@@ -35,10 +34,10 @@ parameters:
         analyse:
           - */views/*
           - vendor/
-          - */config/*
-          - */database/*
-          - */language/*
-          - */tests/*
+          - application/config/
+          - application/database/
+          - application/language/
+          - application/tests/
 
     ignoreErrors:
         # Level 1 – Critical (likely bugs or fatal issues)
@@ -80,6 +79,6 @@ parameters:
         ##- identifier: method.void
         # CI/Manager Baseline
         ##- identifier: method.notFound
-        - identifier: class.notFound
+        #- identifier: class.notFound
         - identifier: property.notFound
         #- identifier: constant.notFound

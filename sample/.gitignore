@@ -1,0 +1,16 @@
+.DS_Store
+.vscode
+.zed
+composer.lock
+patches.lock.json
+.php-cs-fixer.cache
+/vendor
+
+# Ignore all .env files
+.env*
+# Except these
+!.env.sample*
+!.env.testing
+
+#Ignore local tests
+# *_local.php

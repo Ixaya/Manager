@@ -512,7 +512,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 		}
 
 		$_ci = &get_instance();
-		$_ci->load->library('mgr_jwt_lib');
+		$_ci->load->library('jwt_lib');
 
 		try {
 			$payload = $_ci->jwt_lib->decode_token($token, $this->jwt_audience);
