@@ -73,8 +73,8 @@ class MGR_Websocket_lib
 		$channels = ['channels' => [$channel]];
 
 		$_ci = &get_instance();
-		$_ci->load->library('mgr_jwt_lib');
-		$token = $_ci->mgr_jwt_lib->generate_token($user_identifier, $jwtAudience, ['user'], $channels);
+		$_ci->load->library('jwt_lib');
+		$token = $_ci->jwt_lib->generate_token($user_identifier, $jwtAudience, ['user'], $channels);
 
 		$channel_encoded = urlencode($channel);
 
@@ -515,7 +515,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 		$_ci->load->library('mgr_jwt_lib');
 
 		try {
-			$payload = $_ci->mgr_jwt_lib->decode_token($token, $this->jwt_audience);
+			$payload = $_ci->jwt_lib->decode_token($token, $this->jwt_audience);
 			if (!empty($payload['channels']) && is_array($payload['channels'])) {
 				return in_array($channel, $payload['channels'], true);
 			}

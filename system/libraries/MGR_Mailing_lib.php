@@ -17,11 +17,9 @@ class MGR_Mailing_lib
 
 	public function __construct()
 	{
+		$file_path = get_instance()->config->path('lib_mailing');
 		// Is the config file in the environment folder?
-		if (
-			! file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/lib_mailing.php')
-			&& ! file_exists($file_path = APPPATH . 'config/lib_mailing.php')
-		) {
+		if (!$file_path) {
 			show_error('The configuration file lib_mailing.php does not exist.');
 		}
 

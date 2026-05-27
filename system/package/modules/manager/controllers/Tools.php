@@ -235,8 +235,8 @@ class $name extends MY_Model {
 			show_error('CLI only', 403);
 		}
 
-		$this->load->library('mgr_async_exec_lib');
+		$this->load->library('async_exec_lib');
 
-		$this->mgr_async_exec_lib->run_library_call($module, $library, $function, $identifier);
+		$this->async_exec_lib->run_library_call($module, $library, $function, $identifier);
 	}
 }

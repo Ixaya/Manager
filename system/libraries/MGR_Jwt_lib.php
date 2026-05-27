@@ -22,11 +22,10 @@ class MGR_Jwt_lib
 
 	public function __construct()
 	{
+		$file_path = get_instance()->config->path('lib_jwt');
+
 		// Is the config file in the environment folder?
-		if (
-			!file_exists($file_path = APPPATH . 'config/' . ENVIRONMENT . '/lib_jwt.php')
-			&& !file_exists($file_path = APPPATH . 'config/lib_jwt.php')
-		) {
+		if ($file_path === null) {
 			show_error('The configuration file lib_jwt.php does not exist.');
 		}
 

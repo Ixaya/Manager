@@ -75,10 +75,10 @@ class MGR_Attachment_lib
 		// Determine the upload path based on public/private
 		$relative_path = $public_file ? "{$this->public_path}/$module/$hash/" : "{$this->private_path}/$module/$hash/";
 
-		$this->load->library('mgr_upload_lib');
+		$this->load->library('upload_lib');
 
 		$error = null;
-		$upload_result = $this->mgr_upload_lib->upload_file(
+		$upload_result = $this->upload_lib->upload_file(
 			$relative_path,
 			$desired_filename,
 			$field_name,
@@ -126,10 +126,10 @@ class MGR_Attachment_lib
 		// Determine the upload path based on public/private
 		$relative_path = $public_file ? "{$this->public_path}/$module/$hash/" : "{$this->private_path}/$module/$hash/";
 
-		$this->load->library('mgr_upload_lib');
+		$this->load->library('upload_lib');
 
 		$error = null;
-		$upload_result = $this->mgr_upload_lib->put_file(
+		$upload_result = $this->upload_lib->put_file(
 			$relative_path,
 			$desired_filename,
 			$data,

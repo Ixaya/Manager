@@ -38,7 +38,7 @@ class MGR_Amazon_aws_lib
 
 		include($file_path);
 
-		if (!$this->config_key && isset($active_config)) {
+		if (!isset($this->config_key) && isset($active_config)) {
 			$this->config_key = $active_config;
 		}
 
