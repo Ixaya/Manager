@@ -2,7 +2,7 @@
 
 /**
  * Password Argon2 Hash Benchmark
- * Argon2 is available since PHP 7.2 
+ * Argon2 is available since PHP 7.2
  *
  * Just upload this script to your server and run it, either through CLI or by calling it in your browser.
  *
@@ -27,7 +27,7 @@ echo "\nWill run until the upper limit of {$upperTimeLimit}ms is reached for eac
 echo "\n\nTimes are expressed in milliseconds.";
 
 $start = microtime(true);
-$hash = password_hash($password, PASSWORD_ARGON2I);
+$hash = password_hash($password, PASSWORD_ARGON2ID);
 $time = round((microtime(true) - $start) * 1000);
 echo "\n\n\nTime with default settings: {$time}ms";
 echo "\nHash = $hash";

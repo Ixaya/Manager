@@ -359,7 +359,7 @@ final class MgrFieldBuilder
 			case MgrFieldType::Enum:
 				if ($this->driver->isMysqlFamily()) {
 					$quoted = array_map(
-						static fn(string $v): string => "'" . addslashes($v) . "'",
+						static fn (string $v): string => "'" . addslashes($v) . "'",
 						$this->enum_values
 					);
 					$type	= 'ENUM(' . implode(',', $quoted) . ')';
@@ -583,7 +583,7 @@ class MGR_Migration_builder
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql) {
 				$table_ident   = '`' . $table . '`';
-				$columns_ident = implode(', ', array_map(fn($c) => '`' . $c . '`', $columns));
+				$columns_ident = implode(', ', array_map(fn ($c) => '`' . $c . '`', $columns));
 				$this->db->query("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");
 			})(),
 			default => null,

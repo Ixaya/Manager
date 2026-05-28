@@ -207,21 +207,14 @@ class BE_Ion_auth_model extends CI_Model
 	 *
 	 * @var string
 	 */
-	protected $hash_method;
+	protected $hashMethod;
 
 	/**
 	 * Detect if we should use sessions to store user data
 	 *
 	 * @var bool
 	 */
-	protected $use_sessions = false;
-
-	/**
-	 * Whether to check user privileges during login to apply different hashing costs
-	 *
-	 * @var bool
-	 */
-	protected $use_role_based_hashing = false;
+	protected $useSessions = false;
 
 	/**
 	 * Constructor
@@ -250,7 +243,7 @@ class BE_Ion_auth_model extends CI_Model
 		$this->join           = $this->configAuth->join;
 
 		// initialize hash method options (Bcrypt)
-		$this->hash_method = $this->configAuth->hashMethod;
+		$this->hashMethod = $this->configAuth->hashMethod;
 
 		// load the messages template from the config file
 		$this->templates = $this->configAuth->templates;
@@ -258,7 +251,7 @@ class BE_Ion_auth_model extends CI_Model
 		// initialize our hooks object
 		$this->ionHooks = new \stdClass();
 
-		$this->use_sessions = (isset($this->sessions));
+		$this->useSessions = (isset($this->sessions));
 
 		$this->trigger_events('model_constructor');
 	}
@@ -880,7 +873,7 @@ class BE_Ion_auth_model extends CI_Model
 
 		if ($this->is_max_login_attempts_exceeded($identity)) {
 			// Hash something anyway, just to take up time
-			$this->hash_password($password);
+			// $this->hash_password($password);
 
 			$this->trigger_events('post_login_unsuccessful');
 			$this->set_error('IonAuth.login_timeout');
@@ -907,7 +900,7 @@ class BE_Ion_auth_model extends CI_Model
 				// Rehash if needed
 				$this->rehash_password_if_needed($user->password, $identity, $password);
 
-				if ($this->use_sessions) {
+				if ($this->useSessions) {
 					$this->set_session($user);
 
 					if ($this->configAuth->rememberUsers) {
@@ -928,7 +921,7 @@ class BE_Ion_auth_model extends CI_Model
 				if (isset($user->password)) {
 					unset($user->password);
 				}
-				return $this->use_sessions ? true : $user;
+				return $this->useSessions ? true : $user;
 			}
 		}
 
@@ -951,7 +944,7 @@ class BE_Ion_auth_model extends CI_Model
 	 */
 	public function recheck_session(): bool
 	{
-		if (!$this->use_sessions) {
+		if (!$this->useSessions) {
 			return false;
 		}
 
@@ -1815,7 +1808,7 @@ class BE_Ion_auth_model extends CI_Model
 	 */
 	public function set_lang(string $lang = 'en'): bool
 	{
-		if (!$this->use_sessions) {
+		if (!$this->useSessions) {
 			return false;
 		}
 
@@ -1849,7 +1842,7 @@ class BE_Ion_auth_model extends CI_Model
 	 */
 	public function set_session(\stdClass $user): bool
 	{
-		if (!$this->use_sessions) {
+		if (!$this->useSessions) {
 			return false;
 		}
 
@@ -1904,7 +1897,7 @@ class BE_Ion_auth_model extends CI_Model
 			);
 
 			if ($this->my_db->affected_rows() > -1) {
-				if ($this->use_sessions) {
+				if ($this->useSessions) {
 					// if the userExpire is set to zero we'll set the expiration two years from now.
 					if ($this->configAuth->userExpire === 0) {
 						$expire = self::MAX_COOKIE_LIFETIME;
@@ -1940,7 +1933,7 @@ class BE_Ion_auth_model extends CI_Model
 	 */
 	public function login_remembered_user(): bool
 	{
-		if (!$this->use_sessions) {
+		if (!$this->useSessions) {
 			return false;
 		}
 
@@ -2349,7 +2342,6 @@ class BE_Ion_auth_model extends CI_Model
 	 * @return string
 	 * @author Ben Edmunds
 	 */
-	//ho-homologate lang management, debug load view to get the template rendered
 	public function errors()
 	{
 		if (empty($this->errors)) {
@@ -2490,12 +2482,11 @@ class BE_Ion_auth_model extends CI_Model
 	 *
 	 * @return array|boolean
 	 */
-	//ho-check
 	protected function get_hash_parameters(string $identity = '')
 	{
 		// Check if user is administrator or not
 		$isAdmin = false;
-		if ($this->use_role_based_hashing && $identity) {
+		if ($identity) {
 			$userId = $this->get_user_id_from_identity($identity);
 			if ($userId && $this->in_group($this->configAuth->adminGroup, $userId)) {
 				$isAdmin = true;
@@ -2503,7 +2494,7 @@ class BE_Ion_auth_model extends CI_Model
 		}
 
 		$params = false;
-		switch ($this->hash_method) {
+		switch ($this->hashMethod) {
 			case 'bcrypt':
 				$params = [
 					'cost' => $isAdmin ? $this->configAuth->bcryptAdminCost
@@ -2532,7 +2523,7 @@ class BE_Ion_auth_model extends CI_Model
 	protected function get_hash_algo()
 	{
 		$algo = false;
-		switch ($this->hash_method) {
+		switch ($this->hashMethod) {
 			case 'bcrypt':
 				$algo = PASSWORD_BCRYPT;
 				break;

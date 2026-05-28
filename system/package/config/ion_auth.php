@@ -44,73 +44,39 @@ $config['tables']['login_attempts'] = 'login_attempt';
 $config['join']['users'] = 'user_id';
 $config['join']['groups'] = 'group_id';
 
-/*
- | -------------------------------------------------------------------------
- | Hash Method ( bcrypt)
- | -------------------------------------------------------------------------
- | Bcrypt is available in PHP 5.3+
- |
- | IMPORTANT: Based on the recommendation by many professionals, it is highly recommended to use
- | bcrypt instead of sha1.
- |
- | NOTE: If you use bcrypt you will need to increase your password column character limit to (80)
- |
- | Below there is "default_rounds" setting.  This defines how strong the encryption will be,
- | but remember the more rounds you set the longer it will take to hash (CPU usage) So adjust
- | this based on your server hardware.
- |
- | If you are using Bcrypt the Admin password field also needs to be changed in order to login as admin:
- | $2y$: $2y$08$200Z6ZZbp3RAEXoaWcMA6uJOFicwNZaqk4oDhqTUiFXFe63MG.Daa
- | $2a$: $2a$08$6TTcWD1CJ8pzDy.2U3mdi.tpl.nYOR1pwYXwblZdyQd9SL16B7Cqa
- |
- | Be careful how high you set max_rounds, I would do your own testing on how long it takes
- | to encrypt with x rounds.
- |
- */
-// Run test_argon2.php on server to determine config
-$config['hashMethod'] = 'argon2';
-$config['hashConfig'] = [
-	'memory_cost' => 1 << 17, // 2^17 = 131072 (128 MB)
-	'time_cost' => 4,
-	'threads' => 1,
-];
-
-// Run test_bcrypt.php on server to determine config
-// $config['hashMethod'] = 'bcrypt';
-// $config['hashConfig'] = [
-// 	'cost' => 13
-// ];
 
 /*
  | -------------------------------------------------------------------------
  | Authentication options.
  | -------------------------------------------------------------------------
- | maximum_login_attempts: This maximum is not enforced by the library, but is
- | used by $this->ion_auth->is_max_login_attempts_exceeded().
- | The controller should check this function and act
- | appropriately. If this variable set to 0, there is no maximum.
  */
+// --- Identity & Database ---
 $config['defaultGroup'] = 'members'; // Default group, use name
 $config['adminGroup'] = 'admin'; // Default administrators group, use name
-$config['identity'] = 'username'; // A database column which is used to login with
+$config['identity'] = 'username'; // Database column used to login with
+$config['connectionName'] = mgr_env('AUTH_DB_CONNECTION', null); // Database connection group name, leave empty for default
+$config['identityExtraColumns'] = mgr_env_array('AUTH_IDENTITY_EXTRA_COLUMNS', ['first_name', 'last_name', 'image_url']); // Extra columns returned on identity
 
-$config['connectionName'] = null; //Database connection group name, leave empty for default
-$config['identityExtraColumns'] = ['first_name', 'last_name', 'image_url']; // Database identity extra columns to respond
+// --- Registration ---
+$config['emailActivation'] = mgr_env_bool('AUTH_EMAIL_ACTIVATION', false); // Require email activation on registration
+$config['manualActivation'] = mgr_env_bool('AUTH_MANUAL_ACTIVATION', true); // Require manual activation on registration
+$config['rememberUsers'] = false; // Allow remember-me / auto-login
+$config['userExpire'] = 1; // Remember-me duration in seconds, 0 for no expiration
+$config['userExtendOnLogin'] = false; // Extend remember-me cookie on each auto-login
 
-$config['minPasswordLength'] = 8; // Minimum Required Length of Password
-$config['maxPasswordLength'] = 20; // Maximum Allowed Length of Password
-$config['emailActivation'] = false; // Email Activation for registration
-$config['manualActivation'] = true; // Manual Activation for registration
-$config['rememberUsers'] = false; // Allow users to be remembered and enable auto-login
-$config['sessionsEnabled'] = false; // Use sessions to keep users logged in (Default: TRUE)
-$config['userExpire'] = 1; // How long to remember the user (seconds). Set to zero for no expiration
-$config['userExtendOnLogin'] = false; // Extend the users cookies every time they auto-login
-$config['trackLoginAttempts'] = true; // Track the number of failed login attempts for each user or ip.
-$config['trackLoginIpAddress'] = false; // Track login attempts by IP Address, if FALSE will track based on identity. (Default: TRUE)
-$config['maximumLoginAttempts'] = 5; // The maximum number of failed login attempts.
-$config['lockoutTime'] = 600; // The number of seconds to lockout an account due to exceeded attempts
-$config['forgotPasswordExpiration'] = 1800000; // The number of milliseconds after which a forgot password request will expire. If set to 0, forgot password requests will not expire.
+// --- Login Protection ---
+$config['trackLoginAttempts'] = mgr_env_bool('AUTH_TRACK_LOGIN_ATTEMPTS', true); // Track failed login attempts per user or IP
+$config['trackLoginIpAddress'] = mgr_env_bool('AUTH_TRACK_LOGIN_IP', false); // Track by IP if true, by identity if false
+$config['maximumLoginAttempts'] = mgr_env_int('AUTH_MAX_LOGIN_ATTEMPTS', 3); // Max failed attempts before lockout
+$config['lockoutTime'] = mgr_env_int('AUTH_LOCKOUT_TIME', 600); // Lockout duration in seconds, minimum 60
 
+// Forgot password link expiration in seconds, 0 to disable expiration
+// 1800 (30 min) is recommended — long enough to receive email, short enough to be safe
+$config['forgotPasswordExpiration'] = mgr_env_int('AUTH_FORGOT_PASSWORD_EXPIRATION', 1800);
+
+// Session recheck interval in seconds against database (user exists and is active)
+// 0 disables recheck — only enable if needed, has a performance cost
+$config['recheckTimer'] = mgr_env_int('AUTH_RECHECK_TIMER', 0);
 /*
  | -------------------------------------------------------------------------
  | Cookie options.
@@ -120,19 +86,6 @@ $config['forgotPasswordExpiration'] = 1800000; // The number of milliseconds aft
  */
 $config['rememberCookieName'] = 'remember_code';
 $config['identityCookieName'] = 'identity';
-
-/*
- | -------------------------------------------------------------------------
- | Email options.
- | -------------------------------------------------------------------------
- | email_config:
- | 	'file' = Use the default CI config or use from a config file
- | 	array= Manually set your email config settings
- */
-$config['useCiEmail'] = false; // Send Email using the builtin CI email class, if false it will return the code and the identity
-$config['emailConfig'] = [
-	'mailtype' => 'html',
-];
 
 /*
  | -------------------------------------------------------------------------
@@ -150,21 +103,6 @@ $config['templates'] = [
 		'single' => 'auth/messages/single',
 	],
 ];
-
-
-
-$config['trackLoginAttempts']      = true;                // Track the number of failed login attempts for each user or ip.
-$config['trackLoginIpAddress']      = true;                // Track login attempts by IP Address, if false will track based on identity. (Default: true)
-$config['maximumLoginAttempts']     = 3;                   // The maximum number of failed login attempts.
-$config['lockoutTime']              = 600;                 /* The number of seconds to lockout an account due to exceeded attempts
-																	You should not use a value below 60 (1 minute) */
-$config['forgotPasswordExpiration'] = 1800;                /* The number of seconds after which a forgot password request will expire. If set to 0, forgot password requests will not expire.
-																	30 minutes to 1 hour are good values (enough for a user to receive the email and reset its password)
-																	You should not set a value too high, as it would be a security issue! */
-$config['recheckTimer']             = 0;                   /* The number of seconds after which the session is checked again against database to see if the user still exists and is active.
-																	Leave 0 if you don't want session recheck. if you really think you need to recheck the session against database, we would
-																	recommend a higher value, as this would affect performance */
-
 
 /*
 | -------------------------------------------------------------------------
@@ -215,16 +153,14 @@ $config['recheckTimer']             = 0;                   /* The number of seco
 | For more information, check the password_hash function help: http://php.net/manual/en/function.password-hash.php
 |
 */
-$config['hashMethod']          = 'argon2id';  // bcrypt, argon2 (argon2i) or argon2id
-$config['bcryptDefaultCost']   = 12;        // Set cost according to your server benchmark - but no lower than 12 (default PHP value)
-$config['bcryptAdminCost']     = 13;        // Cost for user in admin group
+$config['hashMethod'] = mgr_env('AUTH_HASH_METHOD', 'argon2id'); // bcrypt, argon2 (argon2i) or argon2id
+
+// Run test_bcrypt.php on server to determine config
+$config['bcryptDefaultCost'] = mgr_env('AUTH_BCRYPT_COST', 12); // Set cost according to your server benchmark - but no lower than 12 (default PHP value)
+
+// Run test_argon2.php on server to determine config
 $config['argon2DefaultParams'] = [
-	'memory_cost' => 1 << 17, // 2^17 = 131072 (128 MB)
-	'time_cost' => 4,
-	'threads' => 1,
-];
-$config['argon2AdminParams']   = [
-	'memory_cost' => 1 << 17, // 2^17 = 131072 (128 MB)
-	'time_cost' => 5,
-	'threads' => 1,
+	'memory_cost' => mgr_env('AUTH_ARGON2_MEMORY_COST', 65536), //64 MB
+	'time_cost' => mgr_env('AUTH_ARGON2_TIME_COST', 2),
+	'threads' => mgr_env('AUTH_ARGON2_THREADS', 1),
 ];

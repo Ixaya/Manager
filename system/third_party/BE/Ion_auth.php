@@ -38,46 +38,18 @@ if (! defined('BASEPATH')) {
 class BE_Ion_auth
 {
 	/**
-	 * account status ('not_activated', etc ...)
-	 *
-	 * @var string
-	 **/
-	protected $status;
-
-	/**
-	 * extra where
-	 *
-	 * @var array
-	 **/
-	protected $_extra_where = [];
-
-	/**
-	 * extra set
-	 *
-	 * @var array
-	 **/
-	protected $_extra_set = [];
-
-	/**
-	 * caching of users and their groups
-	 *
-	 * @var array
-	 **/
-	protected $_cache_user_in_group;
-
-	/**
 	 * IonAuth config
 	 *
 	 * @var object
 	 */
-	protected $config_auth;
+	protected $configAuth;
 
 	/**
 	 * Allow load session lib
 	 *
 	 * @var bool
 	 */
-	protected $allow_session = false;
+	protected $useSessions = false;
 
 	/**
 	 * __construct
@@ -86,7 +58,7 @@ class BE_Ion_auth
 	 */
 	public function __construct()
 	{
-		$this->config_auth = (object)$this->load->config_read('ion_auth');
+		$this->configAuth = (object)$this->load->config_read('ion_auth');
 
 
 		$this->lang->load('ion_auth');
@@ -97,10 +69,8 @@ class BE_Ion_auth
 
 		$this->load->model('ion_auth_model');
 
-		$this->_cache_user_in_group = &$this->ion_auth_model->cacheUserInGroup;
-
 		//auto-login the user if they are remembered
-		if (!$this->logged_in() && get_cookie($this->config_auth->identityCookieName) && get_cookie($this->config_auth->rememberCookieName)) {
+		if (!$this->logged_in() && get_cookie($this->configAuth->identityCookieName) && get_cookie($this->configAuth->rememberCookieName)) {
 			$this->ion_auth_model->login_remembered_user();
 		}
 
@@ -200,12 +170,12 @@ class BE_Ion_auth
 			$this->set_error('password_change_unsuccessful');
 			return false;
 		} else {
-			if ($this->config_auth->forgotPasswordExpiration > 0) {
+			if ($this->configAuth->forgotPasswordExpiration > 0) {
 				//Make sure it isn't expired
-				$expiration = $this->config_auth->forgotPasswordExpiration;
+				$expiration = $this->configAuth->forgotPasswordExpiration;
 				if (time() - $user->forgotten_password_time > $expiration) {
 					//it has expired
-					$identity = $user->{$this->config_auth->identity};
+					$identity = $user->{$this->configAuth->identity};
 					$this->ion_auth_model->clear_forgotten_password_code($identity);
 					$this->set_error('password_change_unsuccessful');
 					return false;
@@ -234,7 +204,7 @@ class BE_Ion_auth
 	{
 		$this->ion_auth_model->trigger_events('pre_account_creation');
 
-		$email_activation = $this->config_auth->emailActivation;
+		$email_activation = $this->configAuth->emailActivation;
 
 		$id = $this->ion_auth_model->register($identity, $password, $email, $additional_data, $group_ids);
 
@@ -268,7 +238,7 @@ class BE_Ion_auth
 			}
 
 			$activation_code = $this->ion_auth_model->activationCode;
-			$identity		= $this->config_auth->identity;
+			$identity		= $this->configAuth->identity;
 			$user			= $this->ion_auth_model->user($id)->row();
 
 			$data = [
@@ -331,7 +301,7 @@ class BE_Ion_auth
 		}
 
 		$activationCode = $this->ion_auth_model->activationCode;
-		$identity       = $this->config_auth->identity;
+		$identity       = $this->configAuth->identity;
 
 		$data = [
 			'identity'   		  => $user->{$identity},
@@ -353,19 +323,19 @@ class BE_Ion_auth
 	 */
 	public function logout(): bool
 	{
-		if (!$this->allow_session) {
+		if (!$this->useSessions) {
 			return false;
 		}
 		$this->load->library('session');
 
 		$this->ion_auth_model->trigger_events('logout');
 
-		$identity = $this->config_auth->identity;
+		$identity = $this->configAuth->identity;
 
 		$this->session->unset_userdata([$identity, 'id', 'user_id']);
 
 		// delete the remember me cookies if they exist
-		delete_cookie($this->config_auth->rememberCookieName);
+		delete_cookie($this->configAuth->rememberCookieName);
 
 		// Clear all codes
 		if (isset($identity)) {
@@ -393,7 +363,7 @@ class BE_Ion_auth
 	 */
 	public function logged_in(): bool
 	{
-		if (!$this->allow_session) {
+		if (!$this->useSessions) {
 			return false;
 		}
 		$this->load->library('session');
@@ -403,7 +373,7 @@ class BE_Ion_auth
 		$recheck = $this->ion_auth_model->recheck_session();
 
 		// auto-login the user if they are remembered
-		if (! $recheck && get_cookie($this->config_auth->rememberCookieName)) {
+		if (! $recheck && get_cookie($this->configAuth->rememberCookieName)) {
 			$recheck = $this->ion_auth_model->login_remembered_user();
 		}
 
@@ -418,7 +388,7 @@ class BE_Ion_auth
 	 **/
 	public function get_user_id(): ?int
 	{
-		if (!$this->allow_session) {
+		if (!$this->useSessions) {
 			return null;
 		}
 		$this->load->library('session');
@@ -462,7 +432,7 @@ class BE_Ion_auth
 
 		$this->ion_auth_model->trigger_events('is_admin');
 
-		$admin_group = $this->config_auth->adminGroup;
+		$admin_group = $this->configAuth->adminGroup;
 
 		return $this->ion_auth_model->in_group($admin_group, $id);
 	}
@@ -477,7 +447,7 @@ class BE_Ion_auth
 	 */
 	public function deactivate(int $id): bool
 	{
-		if ($this->use_sessions && $this->logged_in() && $this->get_user_id() == $id) {
+		if ($this->useSessions && $this->logged_in() && $this->get_user_id() == $id) {
 			$this->ion_auth_model->set_error('IonAuth.deactivate_current_user_unsuccessful');
 			return false;
 		}

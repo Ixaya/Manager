@@ -1,5 +1,5 @@
 <?php
-$timeTarget = 0.800; // 350 milliseconds
+$timeTarget = 800; // 350 milliseconds
 
 $cost = 8;
 do {
@@ -8,7 +8,7 @@ do {
 	password_hash("test", PASSWORD_BCRYPT, ["cost" => $cost]);
 	$end = microtime(true);
 
-	$diff = $end - $start;
+	$diff = round(($end - $start) * 1000);
 	echo "Test Cost: " . $cost - 1 . "($diff)\n";
 } while ($diff < $timeTarget);
 

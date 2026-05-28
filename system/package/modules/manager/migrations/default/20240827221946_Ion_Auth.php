@@ -111,7 +111,7 @@ class Migration_Ion_auth extends MGR_Migration_builder
 		$this->db->insert('user', [
 			'ip_address'             => '127.0.0.1',
 			'username'               => 'admin@admin.com',
-			'password'               => '$2a$07$SeBknntpZror9uyftVopmu61qg0ms8Qv1yV6FG.kQOSM.9QhmTo36',
+			'password'               => '$2y$11$cXuqWNc/NGzL3.cpCGkAvOMn/Thyu6yWEgW1CTIHLADiPw7uwuBlK',
 			'salt'                   => '',
 			'email'                  => 'admin@admin.com',
 			'activation_code'        => '',
