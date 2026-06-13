@@ -1,6 +1,9 @@
 .DS_Store
 .vscode
 .zed
+.nova
+.gram
+
 composer.lock
 patches.lock.json
 .php-cs-fixer.cache

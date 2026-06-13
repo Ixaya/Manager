@@ -1325,7 +1325,7 @@ abstract class REST_Controller extends MY_Controller
 	protected function _parse_head()
 	{
 		// Parse the HEAD variables
-		parse_str(parse_url($this->input->server('REQUEST_URI'), PHP_URL_QUERY), $head);
+		parse_str(parse_url($this->input->server('REQUEST_URI'), PHP_URL_QUERY) ?? '', $head);
 
 		// Merge both the URI segments and HEAD params
 		$this->_head_args = array_merge($this->_head_args, $head);
@@ -1340,7 +1340,7 @@ abstract class REST_Controller extends MY_Controller
 	protected function _parse_options()
 	{
 		// Parse the OPTIONS variables
-		parse_str(parse_url($this->input->server('REQUEST_URI'), PHP_URL_QUERY), $options);
+		parse_str(parse_url($this->input->server('REQUEST_URI'), PHP_URL_QUERY) ?? '', $options);
 
 		// Merge both the URI segments and OPTIONS params
 		$this->_options_args = array_merge($this->_options_args, $options);

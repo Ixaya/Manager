@@ -251,7 +251,8 @@ class BE_Ion_auth_model extends CI_Model
 		// initialize our hooks object
 		$this->ionHooks = new \stdClass();
 
-		$this->useSessions = (isset($this->sessions));
+		$CI = & get_instance();
+		$this->useSessions = isset($CI->session) && $CI->session instanceof CI_Session;
 
 		$this->trigger_events('model_constructor');
 	}
@@ -624,7 +625,7 @@ class BE_Ion_auth_model extends CI_Model
 	 */
 	public function email_check(string $email = ''): bool
 	{
-		$this->trigger_events('emailCheck');
+		$this->trigger_events('email_check');
 
 		if (empty($email)) {
 			return false;
@@ -858,14 +859,8 @@ class BE_Ion_auth_model extends CI_Model
 			return false;
 		}
 
-		$extraColumns = '';
-		if (!empty($this->configAuth->identityExtraColumns)) {
-			$extraColumns = ', ';
-			$extraColumns .= implode(', ', $this->configAuth->identityExtraColumns);
-		}
-
 		$this->trigger_events('extra_where');
-		$query = $this->my_db->select($this->identityColumn . ', email, id, password, active, last_login' . $extraColumns)
+		$query = $this->my_db->select($this->login_select_columns())
 			->where($this->identityColumn, $identity)
 			->limit(1)
 			->order_by('id', 'desc')
@@ -934,6 +929,14 @@ class BE_Ion_auth_model extends CI_Model
 		$this->set_error('IonAuth.login_unsuccessful');
 
 		return false;
+	}
+
+	/**
+	 * @return string
+	*/
+	protected function login_select_columns(): string
+	{
+		return $this->identityColumn . ', email, id, password, active, last_login';
 	}
 
 	/**
@@ -1020,7 +1023,7 @@ class BE_Ion_auth_model extends CI_Model
 	public function get_attempts_num(string $identity, $ipAddress = null): int
 	{
 		if ($this->configAuth->trackLoginAttempts) {
-			$builder = $this->my_db->where('login', $identity);
+			$this->my_db->where('login', $identity);
 			if ($this->configAuth->trackLoginIpAddress) {
 				if (! isset($ipAddress)) {
 					$ipAddress = $this->input->ip_address();
@@ -1047,7 +1050,7 @@ class BE_Ion_auth_model extends CI_Model
 	public function get_last_attempt_time(string $identity, $ipAddress = null): int
 	{
 		if ($this->configAuth->trackLoginAttempts) {
-			$builder = $this->my_db->select('time');
+			$this->my_db->select('time');
 			$this->my_db->where('login', $identity);
 			if ($this->configAuth->trackLoginIpAddress) {
 				if (! isset($ipAddress)) {
@@ -1077,7 +1080,7 @@ class BE_Ion_auth_model extends CI_Model
 	public function get_last_attempt_ip(string $identity)
 	{
 		if ($this->configAuth->trackLoginAttempts && $this->configAuth->trackLoginIpAddress) {
-			$builder = $this->my_db->select('ip_address');
+			$this->my_db->select('ip_address');
 			$this->my_db->where('login', $identity);
 			$this->my_db->order_by('id', 'desc');
 			$this->my_db->limit(1);
@@ -1135,7 +1138,7 @@ class BE_Ion_auth_model extends CI_Model
 			// Make sure $oldAttemptsAxpirePeriod is at least equals to lockoutTime
 			$oldAttemptsAxpirePeriod = max($oldAttemptsAxpirePeriod, $this->configAuth->lockoutTime);
 
-			$builder = $this->my_db->where('login', $identity);
+			$this->my_db->where('login', $identity);
 			if ($this->configAuth->trackLoginIpAddress) {
 				if (! isset($ipAddress)) {
 					$ipAddress = $this->input->ip_address();
@@ -1474,10 +1477,18 @@ class BE_Ion_auth_model extends CI_Model
 	{
 		$this->trigger_events('get_users_group');
 
-		return $this->my_db->select($this->tables['users_groups'] . '.' . $this->join['groups'] . ' as id, ' . $this->tables['groups'] . '.name, ' . $this->tables['groups'] . '.level, ' . $this->tables['groups'] . '.description')
+		return $this->my_db->select($this->users_groups_select_columns())
 			->where($this->tables['users_groups'] . '.' . $this->join['users'], $id)
 			->join($this->tables['groups'], $this->tables['users_groups'] . '.' . $this->join['groups'] . '=' . $this->tables['groups'] . '.id')
 			->get($this->tables['users_groups']);
+	}
+
+	/**
+	 * @return string
+	*/
+	protected function users_groups_select_columns(): string
+	{
+		return $this->tables['users_groups'] . '.' . $this->join['groups'] . ' as id, ' . $this->tables['groups'] . '.name, ' . $this->tables['groups'] . '.description';
 	}
 
 	/**

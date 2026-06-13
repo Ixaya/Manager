@@ -4,7 +4,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class User extends APP_Model_Dyn
 {
-	public function get_list($params)
+	public function get_list(array $params)
 	{
 		$fields = [
 			'id',
@@ -24,9 +24,12 @@ class User extends APP_Model_Dyn
 				'last_name' => $params['search'],
 				'email' => $params['search']
 			];
-			$seach[MGR_Model_Dyn_clause::OR_EQUAL] = [
-				'id' => $params['search']
-			];
+
+			if (is_numeric($params['search']) && intval($params['search']) == $params['search']) {
+				$search_clause[MGR_Model_Dyn_clause::OR_EQUAL] = [
+					'id' => (int)$params['search']
+				];
+			}
 
 			$where[MGR_Model_Dyn_clause::OR_GROUP] = $seach;
 		}
