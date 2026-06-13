@@ -135,18 +135,18 @@ function mgr_cache_key($prefix, $params)
 /**
  * Generate a LIMIT/OFFSET clause based on pagination.
  *
- * Intended for CI3-style limit strings ("limit, offset").
+ * Intended for CI3-style limit strings (limit, offset).
  *
  * @param int $limit Number of rows per page
  * @param int $page  Page number (starts at 1)
  *
- * @return string LIMIT clause in "limit, offset" format
+ * @return array LIMIT clause in [limit, offset] format
  */
-function mgr_build_limit_page($limit, $page)
+function mgr_build_limit_page($limit, $page): array
 {
-	$offset = ($page - 1) * $limit;
+	$offset = max(0, $page - 1) * $limit;
 
-	return "{$limit}, {$offset}";
+	return [$limit, $offset];
 }
 
 /**
@@ -174,4 +174,17 @@ function mgr_build_order_by(?string $order_column, ?string $order_direction, ?ar
 	$direction = (strtoupper($order_direction ?? '') === 'DESC') ? 'DESC' : 'ASC';
 
 	return $column . ' ' . $direction;
+}
+
+if (!function_exists('mgr_provided')) {
+	/**
+	 * Whether a value was meaningfully provided by the caller.
+	 *
+	 * Strictly distinguishes "absent" (null, '', []) from falsy-but-valid
+	 * values (0, '0', 0.0, false), which empty() conflates.
+	 */
+	function mgr_provided(mixed $value): bool
+	{
+		return $value !== null && $value !== '' && $value !== [];
+	}
 }

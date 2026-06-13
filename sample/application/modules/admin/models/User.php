@@ -26,7 +26,7 @@ class User extends APP_Model_Dyn
 			];
 
 			if (is_numeric($params['search']) && intval($params['search']) == $params['search']) {
-				$search_clause[MGR_Model_Dyn_clause::OR_EQUAL] = [
+				$search[MGR_Model_Dyn_clause::OR_EQUAL] = [
 					'id' => (int)$params['search']
 				];
 			}

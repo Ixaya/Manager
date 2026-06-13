@@ -114,6 +114,16 @@ enum MgrFieldType: string
 	}
 }
 
+// ---------------------------------------------------------------------------
+// MgrFieldDefault — sentinel values for the field() default parameter.
+// NotSet means "no DEFAULT clause" — '' and null are both valid column defaults.
+// ---------------------------------------------------------------------------
+
+enum MgrFieldDefault
+{
+	case NotSet;
+}
+
 
 // ---------------------------------------------------------------------------
 // MgrFieldBuilder — internal. Resolves a CI dbforge-compatible field array.
@@ -125,13 +135,13 @@ final class MgrFieldBuilder
 	/**
 	 * @param string		 $name
 	 * @param MgrFieldType $type
-	 * @param MgrDriver	 $driver			 Injected from Mgr_Migration — computed once per migration
+	 * @param MgrDriver	 $driver			 Injected from MGR_Migration_builder — computed once per migration
 	 * @param int|null	  $length
-	 * @param bool			$unsigned		  Ignored on non-MySQL engines
+	 * @param bool			$unsigned		  Passed to dbforge; PostgreSQL upsizes the type instead of UNSIGNED
 	 * @param bool|null	 $nullable		  true=NULL, false=NOT NULL, null=CI default
 	 * @param bool			$unique
 	 * @param bool			$auto_increment
-	 * @param mixed		  $default			Scalar|null|'' — '' means no default set
+	 * @param mixed		  $default			Scalar or null (DEFAULT NULL). Omit for no default.
 	 * @param string|null  $new_name		  For modify_column renames
 	 * @param int|null	  $precision		 DECIMAL total digits
 	 * @param int			 $scale			  DECIMAL digits after decimal point
@@ -146,7 +156,7 @@ final class MgrFieldBuilder
 		private readonly ?bool		  $nullable		 = null,
 		private readonly bool			$unique			= false,
 		private readonly bool			$auto_increment = false,
-		private readonly mixed		  $default		  = '',
+		private readonly mixed		  $default		  = MgrFieldDefault::NotSet,
 		private readonly ?string		$new_name		 = null,
 		private readonly ?int			$precision		= null,
 		private readonly int			 $scale			 = 0,
@@ -159,7 +169,7 @@ final class MgrFieldBuilder
 
 	private function _validate(): void
 	{
-		if (empty($this->name)) {
+		if (trim($this->name) === '') {
 			throw new InvalidArgumentException("MgrFieldBuilder: field name cannot be empty.");
 		}
 		if ($this->unsigned && !$this->type->supportsUnsigned()) {
@@ -172,27 +182,51 @@ final class MgrFieldBuilder
 				"MgrFieldBuilder: auto_increment is only valid on integer types, got {$this->type->value}."
 			);
 		}
-		if ($this->type === MgrFieldType::Enum && empty($this->enum_values)) {
-			throw new InvalidArgumentException(
-				"MgrFieldBuilder: MgrFieldType::Enum requires the enum_values parameter."
-			);
+
+		$valid_default = $this->default === MgrFieldDefault::NotSet
+			|| $this->default === null
+			|| is_scalar($this->default);
+
+		if (!$valid_default) {
+			throw new InvalidArgumentException("MgrFieldBuilder: default must be scalar or null.");
 		}
-		if ($this->type === MgrFieldType::Decimal && $this->precision === null && $this->length === null) {
-			throw new InvalidArgumentException(
-				"MgrFieldBuilder: MgrFieldType::Decimal requires the precision parameter."
-			);
-		}
-		if ($this->default !== '' && $this->default !== null && !is_scalar($this->default)) {
-			throw new InvalidArgumentException(
-				"MgrFieldBuilder: default must be scalar, null, or '' (empty string = no default)."
-			);
-		}
-		foreach ($this->enum_values as $v) {
-			if (!is_string($v)) {
-				throw new InvalidArgumentException(
-					"MgrFieldBuilder: all enum_values must be strings."
-				);
-			}
+
+		switch ($this->type) {
+
+			case MgrFieldType::Enum:
+				if (empty($this->enum_values)) {
+					throw new InvalidArgumentException(
+						"MgrFieldBuilder: MgrFieldType::Enum requires the enum_values parameter."
+					);
+				}
+				foreach ($this->enum_values as $v) {
+					if (!is_string($v)) {
+						throw new InvalidArgumentException(
+							"MgrFieldBuilder: all enum_values must be strings."
+						);
+					}
+				}
+				break;
+
+			case MgrFieldType::Decimal:
+				if ($this->precision === null && $this->length === null) {
+					throw new InvalidArgumentException(
+						"MgrFieldBuilder: MgrFieldType::Decimal requires the precision parameter."
+					);
+				}
+				break;
+
+			case MgrFieldType::Bool:
+				if (
+					$this->default !== MgrFieldDefault::NotSet
+					&& $this->default !== null
+					&& filter_var($this->default, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === null
+				) {
+					throw new InvalidArgumentException(
+						"MgrFieldBuilder: Bool default must be a boolean-like value (true/false/1/0), got '{$this->default}'."
+					);
+				}
+				break;
 		}
 	}
 
@@ -201,7 +235,7 @@ final class MgrFieldBuilder
 	/** Produce the CI dbforge-compatible field array. */
 	public function build(): array
 	{
-		['type' => $type, 'length' => $length] = $this->_resolveType();
+		['type' => $type, 'length' => $length, 'default' => $default] = $this->_resolveColumn();
 
 		$field = ['type' => $type];
 
@@ -217,8 +251,8 @@ final class MgrFieldBuilder
 		if ($this->unique) {
 			$field['unique']			= true;
 		}
-		if ($this->default !== '') {
-			$field['default']		  = $this->default;
+		if ($default !== MgrFieldDefault::NotSet) {
+			$field['default']		  = $default;
 		}
 		if ($this->auto_increment) {
 			$field['auto_increment'] = true;
@@ -250,19 +284,27 @@ final class MgrFieldBuilder
 	 */
 
 	/**
-	 * Cross-engine type translation:
+	 * Cross-engine column translation: type, length, and default.
 	 *
+	 * Defaults pass through untouched (including MgrFieldDefault::NotSet)
+	 * unless the type needs per-driver translation — Bool defaults become
+	 * real PHP bools so each CI driver escapes them natively:
+	 * MySQL/SQLite → 1/0, PostgreSQL → TRUE/FALSE, SQL Server BIT → 1/0.
 	 *
-	 * @return array{type: string, length: string}
+	 * @return array{type: string, length: string, default: mixed}
 	 */
-	private function _resolveType(): array
+	private function _resolveColumn(): array
 	{
 		$type	  = $this->type->value;
 		$length	= $this->length !== null ? (string) $this->length : '';
+		$default  = $this->default;
 
 		switch ($this->type) {
 
 			case MgrFieldType::Bool:
+				if ($default !== MgrFieldDefault::NotSet && $default !== null) {
+					$default = filter_var($default, FILTER_VALIDATE_BOOLEAN);
+				}
 				[$type, $length] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['BOOLEAN', ''],
 					MgrDriver::SQLServer			 => ['BIT',	  ''],
@@ -359,7 +401,7 @@ final class MgrFieldBuilder
 			case MgrFieldType::Enum:
 				if ($this->driver->isMysqlFamily()) {
 					$quoted = array_map(
-						static fn (string $v): string => "'" . addslashes($v) . "'",
+						static fn (string $v): string => "'" . str_replace(['\\', "'"], ['\\\\', "''"], $v) . "'",
 						$this->enum_values
 					);
 					$type	= 'ENUM(' . implode(',', $quoted) . ')';
@@ -372,13 +414,13 @@ final class MgrFieldBuilder
 				break;
 		}
 
-		return ['type' => $type, 'length' => $length];
+		return ['type' => $type, 'length' => $length, 'default' => $default];
 	}
 }
 
 
 // ---------------------------------------------------------------------------
-// Mgr_Migration — base class. Extend this instead of CI_Migration.
+// MGR_Migration_builder — base class. Extend this instead of CI_Migration.
 // ---------------------------------------------------------------------------
 
 class MGR_Migration_builder
@@ -420,11 +462,11 @@ class MGR_Migration_builder
 	 * @param  string		 $name
 	 * @param  MgrFieldType $type
 	 * @param  int|null	  $length			 For CHAR, VARCHAR, etc.
-	 * @param  bool			$unsigned		  Integers only. Silently ignored on non-MySQL.
+	 * @param  bool			$unsigned		  Integers only. PostgreSQL upsizes the type instead of UNSIGNED.
 	 * @param  bool|null	 $nullable		  true=NULL | false=NOT NULL | null=CI default
 	 * @param  bool			$unique
 	 * @param  bool			$auto_increment
-	 * @param  mixed		  $default			Scalar or null. '' = no default set (CI default).
+	 * @param  mixed		  $default			Scalar or null (DEFAULT NULL). Omit for no default.
 	 * @param  string|null  $new_name		  For modify_column renames only.
 	 * @param  int|null	  $precision		 DECIMAL: total significant digits.
 	 * @param  int			 $scale			  DECIMAL: digits after decimal point. Default 0.
@@ -439,7 +481,7 @@ class MGR_Migration_builder
 		?bool		  $nullable		 = null,
 		bool			$unique			= false,
 		bool			$auto_increment = false,
-		mixed		  $default		  = '',
+		mixed		  $default		  = MgrFieldDefault::NotSet,
 		?string		$new_name		 = null,
 		?int			$precision		= null,
 		int			 $scale			 = 0,
@@ -575,18 +617,23 @@ class MGR_Migration_builder
 		$unique_sql  = $unique ? 'UNIQUE ' : '';
 
 		match ($this->db_driver) {
-			MgrDriver::Postgres => (function () use ($table, $columns, $index_name, $unique_sql) {
+			MgrDriver::Postgres,
+			MgrDriver::SQLite => (function () use ($table, $columns, $index_name, $unique_sql) {
 				$table_ident   = $this->db->escape_identifiers($table);
 				$columns_ident = implode(', ', array_map([$this->db, 'escape_identifiers'], $columns));
 				$this->db->query("CREATE {$unique_sql}INDEX IF NOT EXISTS {$index_name} ON {$table_ident} ({$columns_ident});");
+			})(),
+			MgrDriver::SQLServer => (function () use ($table, $columns, $index_name, $unique_sql) {
+				$table_ident   = $this->db->escape_identifiers($table);
+				$columns_ident = implode(', ', array_map([$this->db, 'escape_identifiers'], $columns));
+				$this->db->query("CREATE {$unique_sql}INDEX {$index_name} ON {$table_ident} ({$columns_ident});");
 			})(),
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql) {
 				$table_ident   = '`' . $table . '`';
 				$columns_ident = implode(', ', array_map(fn ($c) => '`' . $c . '`', $columns));
 				$this->db->query("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");
-			})(),
-			default => null,
+			})()
 		};
 	}
 
@@ -603,15 +650,19 @@ class MGR_Migration_builder
 		$index_name = $this->_index_name($table, $columns);
 
 		match ($this->db_driver) {
-			MgrDriver::Postgres => (function () use ($index_name) {
+			MgrDriver::Postgres,
+			MgrDriver::SQLite => (function () use ($index_name) {
 				$this->db->query("DROP INDEX IF EXISTS {$index_name};");
+			})(),
+			MgrDriver::SQLServer => (function () use ($table, $index_name) {
+				$table_ident = $this->db->escape_identifiers($table);
+				$this->db->query("DROP INDEX {$index_name} ON {$table_ident};");
 			})(),
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB => (function () use ($table, $index_name) {
 				$table_ident = '`' . $table . '`';
 				$this->db->query("DROP INDEX `{$index_name}` ON {$table_ident};");
 			})(),
-			default => null,
 		};
 	}
 
@@ -627,10 +678,11 @@ class MGR_Migration_builder
 	{
 		$suffix = implode('_', $columns);
 		return match ($this->db_driver) {
-			MgrDriver::Postgres => $this->_truncate_identifier("{$table}_{$suffix}_key", 63),
+			MgrDriver::Postgres,
+			MgrDriver::SQLite   => $this->_truncate_identifier("{$table}_{$suffix}_key", 63),
+			MgrDriver::SQLServer => $this->_truncate_identifier($suffix, 128),
 			MgrDriver::MySQL,
-			MgrDriver::MariaDB  => $this->_truncate_identifier($suffix, 64),
-			default             => $suffix,
+			MgrDriver::MariaDB  => $this->_truncate_identifier($suffix, 64)
 		};
 	}
 	/**

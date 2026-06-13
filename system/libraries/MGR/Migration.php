@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-require_once dirname(__FILE__) . '/MGR_Migration_builder.php';
+require_once dirname(__FILE__) . '/../MGR_Migration_builder.php';
 
 class MGR_Migration extends MX_Migration
 {
