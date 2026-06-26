@@ -21,7 +21,7 @@ class MGR_Cache_redis extends CI_Cache_redis
 	public const SERIALIZE_PREFIX = "~PHP~"; // Magic header for PHP serialize
 
 	/** @var String */
-	private $channelPrefix;
+	protected $channelPrefix;
 
 	/**
 	 * Class constructor

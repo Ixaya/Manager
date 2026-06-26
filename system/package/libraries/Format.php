@@ -58,7 +58,7 @@ class Format
 	 *
 	 * @var object
 	 */
-	private $_CI;
+	protected $_CI;
 
 	/**
 	 * Data to parse

@@ -13,12 +13,12 @@ class MGR_Jwt_lib
 {
 	protected $jwt;
 
-	private $secret;
-	private $algorithm;
-	private $expiry;
+	protected $secret;
+	protected $algorithm;
+	protected $expiry;
 
-	private $config;
-	private $config_key;
+	protected $config;
+	protected $config_key;
 
 	public function __construct()
 	{
@@ -50,7 +50,7 @@ class MGR_Jwt_lib
 		}
 	}
 
-	private function load_config($config)
+	protected function load_config($config)
 	{
 		$this->secret 		= $config['secret'] ?? '';
 		$this->algorithm 		= $config['algorithm'] ?? '';
@@ -59,7 +59,7 @@ class MGR_Jwt_lib
 		$this->setup_jws();
 	}
 
-	private function setup_jws()
+	protected function setup_jws()
 	{
 		if (empty($this->secret)) {
 			return;

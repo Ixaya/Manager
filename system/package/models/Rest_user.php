@@ -4,7 +4,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Rest_user extends MY_Model
 {
-	private $user_groups = null;
+	protected $user_groups = null;
 
 	public function __construct()
 	{

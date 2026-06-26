@@ -44,7 +44,7 @@ $config['migration_type'] = 'timestamp';
 | will migrate up. This must be set.
 |
 */
-$config['migration_table'] = 'migration';
+$config['migration_table'] = 'migration_'.$config['migration_type'];
 
 /*
 |--------------------------------------------------------------------------

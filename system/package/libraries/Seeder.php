@@ -11,7 +11,7 @@
 
 class Seeder
 {
-	private $CI;
+	protected $CI;
 	protected $db;
 	protected $dbforge;
 

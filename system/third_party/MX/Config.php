@@ -60,7 +60,7 @@ class MX_Config extends CI_Config
 		return $this->path_module($file, $_module);
 	}
 
-	private function path_env(string $file = ''): ?string
+	protected function path_env(string $file = ''): ?string
 	{
 		foreach ($this->_config_paths as $path) {
 			foreach ([$file, ENVIRONMENT . DIRECTORY_SEPARATOR . $file] as $location) {
@@ -79,7 +79,7 @@ class MX_Config extends CI_Config
 		return null;
 	}
 
-	private function path_module(string $file = '', string $_module = '', bool $fallback = true): ?string
+	protected function path_module(string $file = '', string $_module = '', bool $fallback = true): ?string
 	{
 		$_module or $_module = CI::$APP->router->fetch_module();
 		list($path, $file) = Modules::find($file, $_module, 'config/');
@@ -116,7 +116,7 @@ class MX_Config extends CI_Config
 		return $this->read_path($file_path, $fail_gracefully);
 	}
 
-	private function read_path(string $file_path, bool $fail_gracefully = false): ?array
+	protected function read_path(string $file_path, bool $fail_gracefully = false): ?array
 	{
 		// Isolate the included file's variables
 		$config = [];

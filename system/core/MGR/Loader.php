@@ -25,7 +25,7 @@ class MGR_Loader extends MX_Loader
 		return $this->_ci_load(['_ci_view' => $view, '_ci_vars' => ((method_exists($this, '_ci_object_to_array')) ? $this->_ci_object_to_array($vars) : $this->_ci_prepare_view_vars($vars)), '_ci_return' => $return]);
 	}
 
-	private $_db_cache = [];
+	protected $_db_cache = [];
 	public function &database_cache($params = '', $query_builder = null)
 	{
 		// Return main db if params empty

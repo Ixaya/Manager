@@ -38,7 +38,7 @@ class MX_Migration extends CI_Migration
 	 * @param array &$migrations The migrations array passed by reference
 	 * @return void
 	 */
-	private function _collect_migrations_from_path($path, &$migrations)
+	protected function _collect_migrations_from_path($path, &$migrations)
 	{
 		// Ensure path ends with a slash
 		$path = rtrim($path, '/');
@@ -71,7 +71,7 @@ class MX_Migration extends CI_Migration
 	 * @param array &$migrations The migrations array passed by reference
 	 * @return void
 	 */
-	private function _collect_migrations_from_modules(&$migrations)
+	protected function _collect_migrations_from_modules(&$migrations)
 	{
 		// Check if Modules class exists and has locations configured
 		if (!class_exists('Modules') || empty(Modules::$locations)) {

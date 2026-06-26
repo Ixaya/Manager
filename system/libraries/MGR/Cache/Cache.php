@@ -40,7 +40,7 @@ class MGR_Cache extends CI_Cache
 	}
 
 
-	private function _is_cache_bypass(): bool
+	protected function _is_cache_bypass(): bool
 	{
 		// Disable cache for pentest/dev IPs
 		$env_ips = str_replace(' ', '', mgr_env('CACHE_BYPASS_IPS', ''));
@@ -422,7 +422,7 @@ class MGR_Cache extends CI_Cache
 	 * @param string $encoding Serialization method
 	 * @return array|false     Serialized items array, or FALSE on error
 	 */
-	private function _serialize_collection($data, $encoding)
+	protected function _serialize_collection($data, $encoding)
 	{
 		$items = (is_array($data) && array_is_list($data)) ? $data : [$data];
 
@@ -449,7 +449,7 @@ class MGR_Cache extends CI_Cache
 	 * @param string $encoding Serialization method
 	 * @return array|false     Serialized items array, or FALSE on error
 	 */
-	private function _serialize_zcollection($data, $encoding)
+	protected function _serialize_zcollection($data, $encoding)
 	{
 		$items = (is_array($data) && array_is_list($data)) ? $data : [$data];
 
@@ -487,7 +487,7 @@ class MGR_Cache extends CI_Cache
 	 * @param string $encoding
 	 * @return string|false
 	 */
-	private function _serialize($data, $encoding)
+	protected function _serialize($data, $encoding)
 	{
 		try {
 			if ($data === '' || $encoding === 'none') {
@@ -531,7 +531,7 @@ class MGR_Cache extends CI_Cache
 	 * @param string $encoding
 	 * @return mixed|false
 	 */
-	private function _unserialize($data, $encoding)
+	protected function _unserialize($data, $encoding)
 	{
 		try {
 			if ($data === '' || !is_string($data) || $encoding === 'none') {

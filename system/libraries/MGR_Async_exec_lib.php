@@ -176,7 +176,7 @@ class MGR_Async_exec_lib
 	 * @param string $name Raw log name
 	 * @return string Normalized, filesystem-safe log name
 	 */
-	private function normalize_log_name(string $name): string
+	protected function normalize_log_name(string $name): string
 	{
 		$name = strtolower($name);
 		$name = str_replace(' ', '_', $name);

@@ -9,7 +9,7 @@ class MGR_Upload_lib
 	 *
 	 * @var bool
 	 */
-	public $show_flashdata = false;
+	public bool $show_flashdata = false;
 
 	/**
 	 * __get
@@ -20,12 +20,12 @@ class MGR_Upload_lib
 	 * @param	$var
 	 * @return	mixed
 	 */
-	public function __get($var)
+	public function __get(mixed $var): mixed
 	{
 		return get_instance()->$var;
 	}
 
-	public function split_files($temp_name, $field_name, $index)
+	public function split_files(string $temp_name, string $field_name, string|int $index): void
 	{
 		if (empty($_FILES[$field_name]['name'][$index])) {
 			return;
@@ -51,15 +51,15 @@ class MGR_Upload_lib
 	 * @param string|null &$error           Reference variable to store an error message (null if no error).
 	 *
 	 *
-	 * @return array|false Array with file details on success, false on failure.
+	 * @return array|null Array with file details on success, null on failure.
 	 *
 	 */
-	public function upload_file($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
+	public function upload_file(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
 		$validate_result = $this->validate_files_field($field_name);
 		if ($validate_result !== null) {
 			$error = $validate_result;
-			return false;
+			return null;
 		}
 
 		if (strpos($relative_path, 's3/') !== false) {
@@ -68,7 +68,7 @@ class MGR_Upload_lib
 			return $this->upload_file_local($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 		}
 	}
-	public function upload_file_local($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
+	public function upload_file_local(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
 		try {
 			$file_path = mgr_file_path($relative_path);
@@ -152,9 +152,9 @@ class MGR_Upload_lib
 			}
 		}
 
-		return false;
+		return null;
 	}
-	private function upload_file_s3($relative_path, $desired_file_name = null, $field_name = 'userfile', $upload_config = null, $encrypt_name = true, &$error = null)
+	protected function upload_file_s3(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
 		try {
 			$v = '';
@@ -224,10 +224,10 @@ class MGR_Upload_lib
 			}
 		}
 
-		return false;
+		return null;
 	}
 
-	public function put_file($relative_path, $file_name, $data, &$error = null)
+	public function put_file(string $relative_path, string $file_name, array $data, ?string &$error = null): ?array
 	{
 		if (strpos($relative_path, 's3/') !== false) {
 			return $this->put_file_s3($relative_path, $file_name, $data, $error);
@@ -235,7 +235,7 @@ class MGR_Upload_lib
 			return $this->put_file_local($relative_path, $file_name, $data, $error);
 		}
 	}
-	public function put_file_local($relative_path, $file_name, $data, &$error = null)
+	public function put_file_local(string $relative_path, string $file_name, array $data, ?string &$error = null): ?array
 	{
 		try {
 			$file_path = mgr_file_path($relative_path);
@@ -280,9 +280,9 @@ class MGR_Upload_lib
 			}
 		}
 
-		return false;
+		return null;
 	}
-	private function put_file_s3($relative_path, $file_name, $data, &$error = null)
+	protected function put_file_s3(string $relative_path, string $file_name, array $data, ?string &$error = null): ?array
 	{
 		try {
 			$v = '';
@@ -348,15 +348,15 @@ class MGR_Upload_lib
 			}
 		}
 
-		return false;
+		return null;
 	}
 
-	public function upload_image($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
+	public function upload_image(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
 	{
 		$validate_result = $this->validate_files_field($field_name);
 		if ($validate_result !== null) {
 			$error = $validate_result;
-			return false;
+			return null;
 		}
 
 		if (strpos($relative_path, 's3/') === 0) {
@@ -365,7 +365,7 @@ class MGR_Upload_lib
 			return $this->upload_image_local($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
 		}
 	}
-	public function upload_image_local($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
+	protected function upload_image_local(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
 	{
 		try {
 			$file_path = mgr_file_path($relative_path);
@@ -430,7 +430,7 @@ class MGR_Upload_lib
 				}
 
 				$new_file_thumb = '';
-				if ($resolution !== false && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
+				if ($resolution !== null && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
 					$image_info = getimagesize($new_file_path);
 					$original_width = $image_info[0];
 					$original_height = $image_info[1];
@@ -506,9 +506,9 @@ class MGR_Upload_lib
 				$error = 'Error al subir imagen';
 			}
 		}
-		return false;
+		return null;
 	}
-	private function upload_image_s3($relative_path, $desired_file_name = null, $delete_original = true, $field_name = 'userfile', $resolution = [200, 200], $preserve_type = false, $upload_config = null, &$error = null)
+	protected function upload_image_s3(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = [200, 200], bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
 	{
 		try {
 			$this->load->library('amazon_aws_lib');
@@ -571,7 +571,7 @@ class MGR_Upload_lib
 				$this->session->set_flashdata('message_kind', 'success');
 			}
 
-			if ($resolution !== false && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
+			if ($resolution !== null && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
 				$image_info = getimagesize($base_file_path);
 				$original_width = $image_info[0];
 				$original_height = $image_info[1];
@@ -660,10 +660,10 @@ class MGR_Upload_lib
 				unlink($base_file_path);
 			}
 		}
-		return false;
+		return null;
 	}
 
-	public function display_image($file_path)
+	public function display_image(string $file_path): void
 	{
 		if (strpos($file_path, 's3/') !== false) {
 			$this->display_image_s3($file_path);
@@ -671,7 +671,7 @@ class MGR_Upload_lib
 			$this->display_image_local($file_path);
 		}
 	}
-	public function display_image_local($file_path)
+	public function display_image_local(string $file_path): void
 	{
 		if (file_exists($file_path)) {
 			$filename = basename($file_path);
@@ -687,7 +687,7 @@ class MGR_Upload_lib
 			echo("\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x01\x00\x00\x00\x01\x01\x03\x00\x00\x00\x25\xdb\x56\xca\x00\x00\x00\x03\x50\x4c\x54\x45\x00\x00\x00\xa7\x7a\x3d\xda\x00\x00\x00\x01\x74\x52\x4e\x53\x00\x40\xe6\xd8\x66\x00\x00\x00\x0a\x49\x44\x41\x54\x08\xd7\x63\x60\x00\x00\x00\x02\x00\x01\xe2\x21\xbc\x33\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82");
 		}
 	}
-	public function display_image_s3($file_path)
+	public function display_image_s3(string $file_path): void
 	{
 		$this->load->library('amazon_aws_lib');
 
@@ -709,7 +709,7 @@ class MGR_Upload_lib
 		}
 	}
 
-	public function get_file_base64($file_path, &$file_name = '', &$file_ext = '', &$file_mime = '')
+	public function get_file_base64(string $file_path, string &$file_name = '', string &$file_ext = '', string &$file_mime = ''): ?string
 	{
 		if (empty($file_path)) {
 			return null;
@@ -733,7 +733,7 @@ class MGR_Upload_lib
 			}
 
 			$file_data = file_get_contents($file_path);
-			$file_mime = mime_content_type($file_path);
+			$file_mime = mime_content_type($file_path) ?: '';
 		}
 
 		$file_name = basename($file_path);
@@ -743,7 +743,7 @@ class MGR_Upload_lib
 		return 'data:' . $file_mime . ';base64,' . $base64;
 	}
 
-	private function validate_files_field($field_name)
+	protected function validate_files_field(string $field_name): ?string
 	{
 		if (!isset($_FILES[$field_name])) {
 			return 'No file uploaded.';

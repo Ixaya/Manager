@@ -15,17 +15,17 @@ class MGR_Amazon_aws_lib
 	//https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/getting-started_basic-usage.html
 	//https://docs.aws.amazon.com/aws-sdk-php/v2/guide/service-s3.html
 	//composer require aws/aws-sdk-php
-	private string $aws_bucket;
-	private string $aws_region;
-	private string $aws_cloud_front_id;
-	private string $aws_bucket_url;
-	private string $aws_bedrock_model_id;
+	protected string $aws_bucket;
+	protected string $aws_region;
+	protected string $aws_cloud_front_id;
+	protected string $aws_bucket_url;
+	protected string $aws_bedrock_model_id;
 
-	private string $aws_accesskey;
-	private string $aws_secretkey;
+	protected string $aws_accesskey;
+	protected string $aws_secretkey;
 
-	private array $config;
-	private string $config_key;
+	protected array $config;
+	protected string $config_key;
 
 	public function __construct()
 	{
@@ -57,7 +57,7 @@ class MGR_Amazon_aws_lib
 		}
 	}
 
-	private function load_config(array $config)
+	protected function load_config(array $config)
 	{
 		$this->aws_bucket 		= $config['aws_bucket'] ?? '';
 		$this->aws_region 		= $config['aws_region'] ?? '';
@@ -564,7 +564,7 @@ class MGR_Amazon_aws_lib
 
 	// -------------------------------------------------------------------------
 
-	private function _invoke_claude(array $messages, string $system_prompt, string $model_id)
+	protected function _invoke_claude(array $messages, string $system_prompt, string $model_id)
 	{
 		$payload = [
 			'anthropic_version' => 'bedrock-2023-05-31',
@@ -588,7 +588,7 @@ class MGR_Amazon_aws_lib
 
 	// -------------------------------------------------------------------------
 
-	private function _invoke_nova(array $messages, string $system_prompt, string $model_id)
+	protected function _invoke_nova(array $messages, string $system_prompt, string $model_id)
 	{
 		$payload = [
 			'schemaVersion'   => 'messages-v1',
@@ -614,7 +614,7 @@ class MGR_Amazon_aws_lib
 
 	// -------------------------------------------------------------------------
 
-	private function _invoke_mistral(array $messages, string $system_prompt, string $model_id)
+	protected function _invoke_mistral(array $messages, string $system_prompt, string $model_id)
 	{
 		$full_messages = array_merge(
 			[['role' => 'system', 'content' => $system_prompt]],
@@ -641,7 +641,7 @@ class MGR_Amazon_aws_lib
 
 	// -------------------------------------------------------------------------
 
-	private function _invoke_raw(string $model_id, array $payload)
+	protected function _invoke_raw(string $model_id, array $payload)
 	{
 		try {
 			$client = $this->build_bedrock_client();
@@ -670,7 +670,7 @@ class MGR_Amazon_aws_lib
 
 	// -------------------------------------------------------------------------
 
-	private function _success(string $body, $usage = null): array
+	protected function _success(string $body, $usage = null): array
 	{
 		return [
 			'status' => 'ok',
@@ -679,7 +679,7 @@ class MGR_Amazon_aws_lib
 		];
 	}
 
-	private function _error(string $message): array
+	protected function _error(string $message): array
 	{
 		return [
 			'status' => 'error',
@@ -688,7 +688,7 @@ class MGR_Amazon_aws_lib
 		];
 	}
 
-	private function _cleanup_markdown(string $text): string
+	protected function _cleanup_markdown(string $text): string
 	{
 		// Strip markdown code fences: ```json ... ``` or ``` ... ```
 		$text = preg_replace('/^```[a-z]*\s*/i', '', trim($text));
@@ -697,7 +697,7 @@ class MGR_Amazon_aws_lib
 		return trim($text);
 	}
 
-	private function _normalize_messages_claude(array $messages)
+	protected function _normalize_messages_claude(array $messages)
 	{
 		$messages = array_map(function ($msg) {
 			return ['type' => 'text', 'text' => $msg];
@@ -706,7 +706,7 @@ class MGR_Amazon_aws_lib
 		return [['role' => 'user', 'content' => $messages]];
 	}
 
-	private function _normalize_messages_nova(array $messages)
+	protected function _normalize_messages_nova(array $messages)
 	{
 		$messages = array_map(function ($msg) {
 			return ['text' => $msg];
@@ -715,7 +715,7 @@ class MGR_Amazon_aws_lib
 		return [['role' => 'user', 'content' => $messages]];
 	}
 
-	private function _normalize_messages_mistral(array $messages)
+	protected function _normalize_messages_mistral(array $messages)
 	{
 		return $messages = array_map(function ($msg) {
 			return ['role' => 'user', 'content' => $msg];
@@ -723,26 +723,26 @@ class MGR_Amazon_aws_lib
 	}
 
 
-	private function build_s3_client()
+	protected function build_s3_client()
 	{
 		return new S3Client($this->build_config());
 	}
 
-	private function build_textract_client()
+	protected function build_textract_client()
 	{
 		return new TextractClient($this->build_config());
 	}
 
-	private function build_bedrock_client()
+	protected function build_bedrock_client()
 	{
 		return new BedrockRuntimeClient($this->build_config());
 	}
 
-	private function build_cf_client()
+	protected function build_cf_client()
 	{
 		return new CloudFrontClient($this->build_config());
 	}
-	private function build_config()
+	protected function build_config()
 	{
 		$config = [
 			'version' => 'latest',
@@ -755,7 +755,7 @@ class MGR_Amazon_aws_lib
 
 		return $config;
 	}
-	private function build_credentials()
+	protected function build_credentials()
 	{
 		if (!empty($this->aws_accesskey) && !empty($this->aws_secretkey)) {
 			return new Credentials($this->aws_accesskey, $this->aws_secretkey);

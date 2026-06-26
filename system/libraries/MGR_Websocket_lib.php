@@ -38,23 +38,23 @@ final class Websocket_channel_regex
 class MGR_Websocket_lib
 {
 	/** @var WebsocketClientGateway[] */
-	private $gateways = []; // channel => gateway
+	protected array $gateways = []; // channel => gateway
 
-	/** @var LoggerInterface */
-	private $logger;
+	/** @var \Monolog\Logger */
+	protected \Monolog\Logger $logger;
 
 	/** @var SocketHttpServer */
-	private $server;
+	protected SocketHttpServer $server;
 
 	/** @var String */
-	private $channelPrefix;
+	protected string $channelPrefix;
 
 	/** @var Array */
-	private $config;
+	protected array $config;
 
-	private const REDIS_RECONNECT_DELAY = 1; // seconds
-	private const MAX_RECONNECT_ATTEMPTS = 5;
-	private const BACKOFF_MULTIPLIER = 2;
+	protected const REDIS_RECONNECT_DELAY = 1; // seconds
+	protected const MAX_RECONNECT_ATTEMPTS = 5;
+	protected const BACKOFF_MULTIPLIER = 2;
 
 	public function __construct()
 	{
@@ -89,8 +89,8 @@ class MGR_Websocket_lib
 	{
 		echo "Starting WebSocket server...\n";
 
+		$logLevelName = $this->config['log_level'] ?? 'Notice';
 		try {
-			$logLevelName = $this->config['log_level'] ?? 'Notice';
 			$level = \Monolog\Level::fromName($logLevelName);
 		} catch (\ValueError $e) {
 			$level = \Monolog\Level::Notice;
@@ -157,7 +157,7 @@ class MGR_Websocket_lib
 	/**
 	 * Start async Redis psubscribe loop with exponential backoff
 	 */
-	private function start_redis_psubscribe(): void
+	protected function start_redis_psubscribe(): void
 	{
 		$gateways = &$this->gateways;
 		$logger = $this->logger;
@@ -252,7 +252,7 @@ class MGR_Websocket_lib
 	/**
 	 * Process a Redis pub/sub message
 	 */
-	private function processRedisMessage(mixed $message, array &$gateways, LoggerInterface $logger): void
+	protected function processRedisMessage(mixed $message, array &$gateways, LoggerInterface $logger): void
 	{
 		// Message format: [payload, channel]
 		if (!is_array($message) || count($message) !== 2) {
@@ -292,7 +292,7 @@ class MGR_Websocket_lib
 	/**
 	 * Cleanup resources on shutdown
 	 */
-	private function cleanup(): void
+	protected function cleanup(): void
 	{
 		$this->logger->info("Cleaning up resources...");
 
@@ -318,12 +318,12 @@ class MGR_Websocket_lib
  */
 class MGRWebsocketsClientHandler implements WebsocketClientHandler
 {
-	private array $gateways;
-	private LoggerInterface $logger;
-	private string $jwt_audience;
-	private array $clientChannels = [];
+	protected array $gateways;
+	protected \Monolog\Logger $logger;
+	protected string $jwt_audience;
+	protected array $clientChannels = [];
 
-	public function __construct(array &$gateways, LoggerInterface $logger, string $jwt_audience)
+	public function __construct(array &$gateways, \Monolog\Logger $logger, string $jwt_audience)
 	{
 		$this->gateways = &$gateways;
 		$this->logger = $logger;
@@ -438,7 +438,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 	/**
 	 * Handle incoming message from client
 	 */
-	private function handleClientMessage(WebsocketClient $client, string $payload): void
+	protected function handleClientMessage(WebsocketClient $client, string $payload): void
 	{
 		$clientId = $client->getId();
 		$this->logger->debug("Received from client {$clientId}: {$payload}");
@@ -461,7 +461,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 	/**
 	 * Handle client actions
 	 */
-	private function handleClientAction(WebsocketClient $client, array $data): void
+	protected function handleClientAction(WebsocketClient $client, array $data): void
 	{
 		switch ($data['action'] ?? '') {
 			case 'ping':
@@ -479,7 +479,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 	/**
 	 * Send JSON message to client
 	 */
-	private function sendMessage(WebsocketClient $client, array $data): void
+	protected function sendMessage(WebsocketClient $client, array $data): void
 	{
 		try {
 			$client->sendText(json_encode($data, JSON_THROW_ON_ERROR));
@@ -491,7 +491,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 	/**
 	 * Sanitize channel name to prevent injection
 	 */
-	private function sanitizeChannelName(string $channel): string
+	protected function sanitizeChannelName(string $channel): string
 	{
 		$channel = urldecode($channel);
 		// Allow only alphanumeric characters, hyphens, underscores, colons, and pipes
@@ -505,7 +505,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 	/**
 	 * Validate JWT channel in token
 	 */
-	private function validateToken(string $token, string $channel): bool
+	protected function validateToken(string $token, string $channel): bool
 	{
 		if ($token == '') {
 			return false;
@@ -529,7 +529,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 	/**
 	 * Cleanup client resources
 	 */
-	private function cleanupClient(int $clientId): void
+	protected function cleanupClient(int $clientId): void
 	{
 		if (isset($this->clientChannels[$clientId])) {
 			$this->logger->info("Client {$clientId} disconnected from channel: {$this->clientChannels[$clientId]}");

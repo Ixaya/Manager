@@ -40,7 +40,7 @@ require dirname(__FILE__) . '/Modules.php';
 class MX_Router extends CI_Router
 {
 	public $module;
-	private $located = 0;
+	protected $located = 0;
 
 	public function fetch_module()
 	{

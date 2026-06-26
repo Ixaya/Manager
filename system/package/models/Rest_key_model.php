@@ -180,7 +180,7 @@ class Rest_key_model extends CI_Model
 	}
 	/* Helper Methods */
 
-	private function _generate_key()
+	protected function _generate_key()
 	{
 		do {
 			// Generate a random salt
@@ -199,7 +199,7 @@ class Rest_key_model extends CI_Model
 
 	/* Private Data Methods */
 
-	private function _get_key($key)
+	protected function _get_key($key)
 	{
 		return $this->db
 			->where(config_item('rest_key_column'), $key)
@@ -207,14 +207,14 @@ class Rest_key_model extends CI_Model
 			->row();
 	}
 
-	private function _key_exists($key)
+	protected function _key_exists($key)
 	{
 		return $this->db
 			->where(config_item('rest_key_column'), $key)
 			->count_all_results(config_item('rest_keys_table')) > 0;
 	}
 
-	private function _insert_key($key, $data)
+	protected function _insert_key($key, $data)
 	{
 		$data[config_item('rest_key_column')] = $key;
 		$data['date_created'] = function_exists('now') ? now() : time();
@@ -224,14 +224,14 @@ class Rest_key_model extends CI_Model
 			->insert(config_item('rest_keys_table'));
 	}
 
-	private function _update_key($key, $data)
+	protected function _update_key($key, $data)
 	{
 		return $this->db
 			->where(config_item('rest_key_column'), $key)
 			->update(config_item('rest_keys_table'), $data);
 	}
 
-	private function _delete_key($key)
+	protected function _delete_key($key)
 	{
 		return $this->db
 			->where(config_item('rest_key_column'), $key)

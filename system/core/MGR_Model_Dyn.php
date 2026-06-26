@@ -326,7 +326,7 @@ class MGR_Model_Dyn extends MY_Model
 	 *
 	 * @return iterable<array{0: string, 1: mixed}>
 	 */
-	private function normalized_where(array $where): iterable
+	protected function normalized_where(array $where): iterable
 	{
 		foreach ($where as $key => $value) {
 			if (is_int($key)) {
@@ -353,7 +353,7 @@ class MGR_Model_Dyn extends MY_Model
 	 *
 	 * @throws InvalidArgumentException on unknown clause kinds or empty IN() lists.
 	 */
-	private function apply_where_condition(string $kind, mixed $fields): void
+	protected function apply_where_condition(string $kind, mixed $fields): void
 	{
 		switch ($kind) {
 			case MGR_Model_Dyn_clause::EQUAL:

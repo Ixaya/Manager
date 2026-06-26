@@ -674,7 +674,7 @@ class MGR_Migration_builder
 	 * @param  array  $columns
 	 * @return string
 	 */
-	private function _index_name(string $table, array $columns): string
+	protected function _index_name(string $table, array $columns): string
 	{
 		$suffix = implode('_', $columns);
 		return match ($this->db_driver) {
@@ -688,7 +688,7 @@ class MGR_Migration_builder
 	/**
 	 * Ensures the index name never exceeds name limit.
 	 */
-	private function _truncate_identifier(string $identifier, int $length): string
+	protected function _truncate_identifier(string $identifier, int $length): string
 	{
 		if (strlen($identifier) <= $length) {
 			return $identifier;

@@ -4,6 +4,9 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Site_Controller extends MY_Controller
 {
+	public array $_css_files = [];
+	public array $_js_files = [];
+
 	public $_social_networks = [];
 	public $_footer_links = [];
 	public $_is_logged_in;
