@@ -1,6 +1,4 @@
-<img src="https://www.ixaya.com/assets/frontend/default/images/logo_ixaya.png">
-
-# Ixaya / Manager
+# Manager — by [Ixaya](https://www.ixaya.com)
 
 HMVC Code Igniter based Framework for creating backends and complete websites
 
@@ -9,117 +7,178 @@ HMVC Code Igniter based Framework for creating backends and complete websites
 **Ixaya Manager** is a set of files, libraries, and modules that allows you to use Code Igniter to build a Backend with Login or a Complete Website if you prefer.
 
 ### Features
-* CodeIgniter upgradeable through Composer (always use latest version)
-* Run the project (a webserver) using a shell script (no need to install Apache or Nginx during development (`http://localhost:8000`)
-* HMVC
-* Diferent folders for diferent modules: `modules/admin`, `modules/frontned`, etc.
-* Support for MySQL, PostgreSQL, MSSQL, Sqlite, or any database that is supported in CodeIgniter 3.
-* Different Database connection/technology per Model. (you can have a model that loads a Database from Postgres and another Model that loads a Database from MySQL.
-* Responsive Theme (SB Admin 2 Template for the Backend)
-* Login protected Admin module
-* Examples to create a REST API
-* Examples to send Native Apple Push Notifications or use Firebase for Android
-* Production Tested
-* try { } catch { } login for errors (an improvement over CodeIgniter's)
-* Secured Application Folder from Public.
 
+- CodeIgniter upgradeable through Composer (always use latest version)
+- Run the project (a webserver) using a shell script (no need to install Apache or Nginx during development (`http://localhost:8000`)
+- HMVC
+- Diferent folders for diferent modules: `modules/admin`, `modules/frontned`, etc.
+- Support for MySQL, PostgreSQL, MSSQL, Sqlite, or any database that is supported in CodeIgniter 3.
+- Different Database connection/technology per Model. (you can have a model that loads a Database from Postgres and another Model that loads a Database from MySQL.
+- Responsive Theme (SB Admin 2 Template for the Backend)
+- Login protected Admin module
+- Examples to create a REST API
+- Examples to send Native Apple Push Notifications or use Firebase for Android
+- Production Tested
+- try { } catch { } login for errors (an improvement over CodeIgniter's)
+- Secured Application Folder from Public.
+
+---
 
 ## How to Install
 
-To Install **Manager** you need to
+### Requirements
 
-### Step by Step guide on OSX
-* Install Homebew `/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"`
-* Install Git `brew install git`
-* Install PHP (5.4+) `brew install php54` or `brew install php72`
-* Install Composer `brew install composer`
-* Clone Repository `git clone https://github.com/Ixaya/Manager.git`
-* Update packages using composer `composer install`
-* Run Server `sh bin/server.sh`
+- PHP 8.1+
+- Composer
 
-### Step by Step guide on Windows
-* Install Git `https://git-scm.com/download/win`
-* Install PHP (5.4+) `https://windows.php.net/download/`
-* Install Composer `https://getcomposer.org/download/`
-* Clone Repository `git clone https://github.com/Ixaya/Manager.git`
-* Update packages using composer `composer install`
+### 1. Install via Composer
+
+```bash
+composer require ixaya/manager
+```
+
+### 2. Scaffold your project
+
+Copy the sample application structure from the package into your project root:
+
+```bash
+cp -r vendor/ixaya/manager/sample/. .
+```
+
+This gives you a complete working structure — controllers, models, views, config, and entry points — ready to customize.
+
+### 3. Configure environment
+
+```bash
+cp .env.sample .env
+cp .env.priv.sample .env.priv
+```
+
+Open both files and fill in the required fields:
+
+- `.env` — general settings: app name, base URL, environment, database credentials, cache, mail.
+- `.env.priv` — sensitive secrets: API keys, tokens, private credentials. **Never commit this file.**
+
+### Suggested packages
+
+Depending on the features you need, install one or more of the following:
+
+**Optional — core extensions:**
+
+```bash
+composer require aws/aws-sdk-php        # AWS S3, Textract, Bedrock integration
+composer require phpoffice/phpspreadsheet  # Excel export/import
+
+```
+
+**Optional — WebSocket server:**
+
+```bash
+composer require amphp/websocket-server  # Built-in WebSocket server
+composer require amphp/redis             # Redis-backed WebSocket scaling
+composer require amphp/log               # Structured logging for async services
+composer require adhocore/jwt            # WebSocket authentication
+```
+
+---
 
 ## PHP Validations
 
 ### PHP Static Code Analysis
+
 Run using PHPStan:
 
 **First time, install PHPStan:**
+
 ```bash
 composer require --dev phpstan/phpstan
 ```
+
 **Standard analysis:**
+
 ```bash
 ./vendor/bin/phpstan analyse
 ```
 
 **With increased memory limit:**
+
 ```bash
 ./vendor/bin/phpstan analyse --memory-limit=512M
 ```
 
 > **Tip:** Use the memory limit option if you encounter out-of-memory errors during analysis.
 
-
 ### PHP Unit Testing
+
 Run using PHPUnit
 
 **First time, install PHPUnit:**
+
 ```bash
 composer require --dev phpunit/phpunit
 ```
+
 **Run all tests:**
+
 ```bash
 ./vendor/bin/phpunit
 ```
+
 **Run specific test file:**
+
 ```bash
 ./vendor/bin/phpunit tests/Unit/ExampleTest.php
 ```
+
 **Run tests with verbose output:**
+
 ```bash
 ./vendor/bin/phpunit --verbose
 ```
+
 **Run tests in specific group/category:**
+
 ```bash
 ./vendor/bin/phpunit --group unit
 ```
 
 > **Tip:** Use `--testdox` flag for readable test output, or `--stop-on-failure` to halt execution on the first failed test.
 
-
 ### PHP Code Formatting
+
 Fix using PHP CS Fixer
 
-*First time, install PHP CS Fixer:**
+\*First time, install PHP CS Fixer:\*\*
+
 ```bash
 composer require --dev php-cs-fixer/shim
 ```
 
 **Fix code formatting:**
+
 ```bash
 ./vendor/bin/php-cs-fixer fix
 ```
 
 **Dry run (preview changes without applying):**
+
 ```bash
 ./vendor/bin/php-cs-fixer fix --dry-run
 ```
 
 **Dry run with diff (preview exact changes):**
+
 ```bash
 ./vendor/bin/php-cs-fixer fix --dry-run --diff
 ```
 
 **Power user — pinned PHP version (macOS Homebrew):**
+
 ```bash
 /opt/homebrew/opt/php@8.3/bin/php /opt/homebrew/bin/php-cs-fixer fix
 ```
+
+---
 
 ## Docker Setup
 
@@ -182,6 +241,8 @@ docker-compose logs -f app
 docker-compose exec app bash
 ```
 
+---
+
 ## MsgPack Support
 
 This package can use MsgPack for faster cache and payload serialization. While the native PHP MsgPack extension (installed via `pecl` or system packages) offers the best performance, not all servers have it available.
@@ -220,6 +281,8 @@ Run the following command to install dependencies and apply patches:
 ```bash
 composer install
 ```
+
+---
 
 ## Application Structure
 
@@ -294,6 +357,7 @@ application/modules/
 ```
 
 **Benefits of HMVC:**
+
 - **Modularity**: Each module is self-contained and reusable
 - **Organization**: Better code organization for large applications
 - **Separation**: Modules can be developed and tested independently
