@@ -427,7 +427,7 @@ class BE_Ion_auth_model extends CI_Model
 
 			if ($this->my_db->affected_rows() === 1) {
 				$this->trigger_events(['post_activate', 'post_activate_successful']);
-				$this->set_message('IonAuth.activate_successful');
+				$this->set_message('activate_successful');
 				return true;
 			}
 		}
@@ -463,7 +463,7 @@ class BE_Ion_auth_model extends CI_Model
 
 		$return = $this->my_db->affected_rows() === 1;
 		if ($return) {
-			$this->set_message('IonAuth.deactivate_successful');
+			$this->set_message('deactivate_successful');
 		} else {
 			$this->set_error('IonAuth.deactivate_unsuccessful');
 		}
@@ -536,7 +536,7 @@ class BE_Ion_auth_model extends CI_Model
 
 		if ($return) {
 			$this->trigger_events(['post_change_password', 'post_change_password_successful']);
-			$this->set_message('IonAuth.password_change_successful');
+			$this->set_message('password_change_successful');
 		} else {
 			$this->trigger_events(['post_change_password', 'post_change_password_unsuccessful']);
 			$this->set_error('IonAuth.password_change_unsuccessful');
@@ -579,7 +579,7 @@ class BE_Ion_auth_model extends CI_Model
 
 			if ($result) {
 				$this->trigger_events(['post_change_password', 'post_change_password_successful']);
-				$this->set_message('IonAuth.password_change_successful');
+				$this->set_message('password_change_successful');
 			} else {
 				$this->trigger_events(['post_change_password', 'post_change_password_unsuccessful']);
 				$this->set_error('IonAuth.password_change_unsuccessful');
@@ -907,11 +907,11 @@ class BE_Ion_auth_model extends CI_Model
 					}
 
 					// Regenerate the session (for security purpose: to avoid session fixation)
-					$this->session->regenerate(false);
+					$this->session->sess_regenerate(false);
 				}
 
 				$this->trigger_events(['post_login', 'post_login_successful']);
-				$this->set_message('IonAuth.login_successful');
+				$this->set_message('login_successful');
 
 				if (isset($user->password)) {
 					unset($user->password);
@@ -1752,7 +1752,7 @@ class BE_Ion_auth_model extends CI_Model
 		$this->my_db->trans_commit();
 
 		$this->trigger_events(['post_update_user', 'post_update_user_successful']);
-		$this->set_message('IonAuth.update_successful');
+		$this->set_message('update_successful');
 		return true;
 	}
 
@@ -1786,7 +1786,7 @@ class BE_Ion_auth_model extends CI_Model
 		$this->my_db->trans_commit();
 
 		$this->trigger_events(['post_delete_user', 'post_delete_user_successful']);
-		$this->set_message('IonAuth.delete_successful');
+		$this->set_message('delete_successful');
 		return true;
 	}
 
@@ -1989,7 +1989,7 @@ class BE_Ion_auth_model extends CI_Model
 				}
 
 				// Regenerate the session (for security purpose: to avoid session fixation)
-				$this->session->regenerate(false);
+				$this->session->sess_regenerate(false);
 
 				$this->trigger_events(['post_login_remembered_user', 'post_login_remembered_user_successful']);
 				return true;
@@ -2044,7 +2044,7 @@ class BE_Ion_auth_model extends CI_Model
 		$groupId = $this->my_db->insert_id();
 
 		// report success
-		$this->set_message('IonAuth.group_creation_successful');
+		$this->set_message('group_creation_successful');
 		// return the brand new group id
 		return $groupId;
 	}
@@ -2095,7 +2095,7 @@ class BE_Ion_auth_model extends CI_Model
 
 		$this->my_db->update($this->tables['groups'], $data, ['id' => $groupId]);
 
-		$this->set_message('IonAuth.group_update_successful');
+		$this->set_message('group_update_successful');
 
 		return true;
 	}

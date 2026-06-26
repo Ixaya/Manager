@@ -13,7 +13,7 @@ if (! defined('BASEPATH')) {
  * Original Author name has been kept but that does not mean that the method has not been modified.
  * Backported from CI4 to CI3 by Ixaya
  *
- * Requirements: PHP7.2 or above
+ * Requirements: PHP8.2 or above
  *
  * @package    CodeIgniter-Ion-Auth
  * @author     Ben Edmunds <ben.edmunds@gmail.com>
@@ -60,14 +60,13 @@ class BE_Ion_auth
 	{
 		$this->configAuth = (object)$this->load->config_read('ion_auth');
 
-
 		$this->lang->load('ion_auth');
 		$this->load->helper(['cookie', 'language', 'url']);
 
-		// Delay load session until used only
-		// $this->load->library('session');
-
 		$this->load->model('ion_auth_model');
+
+		$CI = & get_instance();
+		$this->useSessions = isset($CI->session) && $CI->session instanceof CI_Session;
 
 		//auto-login the user if they are remembered
 		if (!$this->logged_in() && get_cookie($this->configAuth->identityCookieName) && get_cookie($this->configAuth->rememberCookieName)) {
@@ -326,7 +325,6 @@ class BE_Ion_auth
 		if (!$this->useSessions) {
 			return false;
 		}
-		$this->load->library('session');
 
 		$this->ion_auth_model->trigger_events('logout');
 
@@ -366,7 +364,6 @@ class BE_Ion_auth
 		if (!$this->useSessions) {
 			return false;
 		}
-		$this->load->library('session');
 
 		$this->ion_auth_model->trigger_events('logged_in');
 
@@ -391,7 +388,6 @@ class BE_Ion_auth
 		if (!$this->useSessions) {
 			return null;
 		}
-		$this->load->library('session');
 
 		$user_id = $this->session->userdata('user_id');
 		if (!empty($user_id)) {
@@ -412,6 +408,7 @@ class BE_Ion_auth
 		if (!$id) {
 			return $this->ion_auth_model;
 		}
+
 		return $this->ion_auth_model->user($id);
 	}
 
@@ -470,6 +467,9 @@ class BE_Ion_auth
 		$this->ion_auth_model->trigger_events('in_group');
 
 		$id = $id ?? $this->get_user_id();
+		if (empty($id)) {
+			return false;
+		}
 
 		return $this->ion_auth_model->in_group($checkGroup, $id, $checkAll);
 	}
