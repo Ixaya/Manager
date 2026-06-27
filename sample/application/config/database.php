@@ -95,3 +95,25 @@ $db['default'] = [
 	'failover' => [],
 	'save_queries' => true
 ];
+
+// $db['secondary'] = [
+// 	'dsn'	=> '',
+// 	'hostname' => mgr_env('DB_SEC_HOST', 'localhost'),
+// 	'username' => mgr_env('DB_SEC_USER', 'root'),
+// 	'password' => mgr_env('DB_SEC_PASS', ''),
+// 	'database' => mgr_env('DB_SEC_NAME', ''),
+// 	'dbdriver' => mgr_env('DB_SEC_DRIVER', 'mysqli'),
+// 	'dbprefix' => '',
+// 	'pconnect' => false,
+// 	'db_debug' => (ENVIRONMENT !== 'production'),
+// 	'cache_on' => false,
+// 	'cachedir' => '',
+// 	'char_set' => mgr_env('DB_SEC_CHAR_SET', 'utf8mb4'),
+// 	'dbcollat' => mgr_env('DB_SEC_COLLATION', ''),
+// 	'swap_pre' => '',
+// 	'encrypt' => false,
+// 	'compress' => false,
+// 	'stricton' => false,
+// 	'failover' => [],
+// 	'save_queries' => true
+// ];

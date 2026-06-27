@@ -45,46 +45,52 @@ class Tools extends CI_Controller
 		$this->make_migration_file($name);
 	}
 
-	public function migrate($version = null)
+	public function plan()
 	{
+		$this->load->library('migration_module_lib');
+
 		$migration_databases = $this->config->item('migration_db') ?? ['default'];
 		foreach ($migration_databases as $database) {
-			$this->migrate_database($database, $version);
+			foreach ($this->migration_module_lib->plan($database) as $t) {
+				echo sprintf(
+					"%-24s current:%s latest:%s pending:%d" . PHP_EOL,
+					$t['label'],
+					$t['current'] ?: '-',
+					$t['latest'] ?: '-',
+					count($t['pending'])
+				);
+			}
 		}
 	}
 
-	public function migrate_database($connection_name = 'default', $version = null)
+	public function migrate($version = null, $module_key = null)
 	{
-		$this->load->dbforge();
+		if ($module_key !== null) {
+			$module_key = str_replace(':', '/', $module_key);
+		}
 
-		$migration_path = 'migrations/' . $connection_name;
+		$migration_databases = $this->config->item('migration_db') ?? ['default'];
+		foreach ($migration_databases as $database) {
+			$this->migrate_database($database, $version, $module_key);
+		}
+	}
 
-		// Configuration for this specific migration
-		$migration_config = [
-			'migration_path' => $migration_path,
-			'db_group' => $connection_name
-		];
+	public function migrate_database($connection_name = 'default', $version = null, $module_key = null)
+	{
+		$this->load->library('migration_module_lib');
 
-		// Load MY_Migration library with the specific config
-		$migration_lib_name = 'migration_' . $connection_name;
-		$this->load->library('migration', $migration_config, $migration_lib_name);
-
-		if ($version != null) {
-			if ($this->{$migration_lib_name}->version($version) === false) {
-				echo $this->{$migration_lib_name}->error_string() . PHP_EOL;
-			} else {
-				echo "Migrations run successfully" . PHP_EOL;
-			}
-
+		// 2. Targeted version (single target) — may run down() migrations
+		if ($version !== null) {
+			echo $this->migration_module_lib->migrate_target($connection_name, $module_key, $version) . PHP_EOL;
 			return;
 		}
 
-		if ($this->{$migration_lib_name}->latest() === false) {
-			echo $this->{$migration_lib_name}->error_string() . PHP_EOL;
-		} else {
-			echo "Migrations run successfully" . PHP_EOL;
+		// 3. Default: everything forward to latest
+		foreach ($this->migration_module_lib->run($connection_name) as $line) {
+			echo $line . PHP_EOL;
 		}
 	}
+
 	public function seeder($name)
 	{
 		$this->make_seed_file($name);
