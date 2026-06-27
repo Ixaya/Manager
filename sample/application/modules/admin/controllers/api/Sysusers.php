@@ -16,22 +16,7 @@ class Sysusers extends APP_Rest_Controller
 
 	public function index_get()
 	{
-		$params = [];
-
-		$page = $this->get('page');
-		$params['page'] = ($page && is_numeric($page) && $page > 0) ? intval($page) : 1;
-
-		$limit = $this->get('limit');
-		$params['limit'] = ($limit && is_numeric($limit) && $limit > 0) ? intval($limit) : 10;
-
-		$search = $this->get('search_query');
-		$params['search'] = $search ? trim($search) : '';
-
-		$order_input = strtoupper($this->get('order') ?? '');
-		$params['order'] = in_array($order_input, ['ASC', 'DESC']) ? $order_input : 'ASC';
-
-		$order_by = $this->get('order_by');
-		$params['order_by'] = $order_by ? trim($order_by) : 'id';
+		$params = $this->build_list_params();
 
 		$this->load->driver('cache');
 		$cache_key = mgr_cache_key("sysusersidx", $params);
@@ -231,7 +216,7 @@ class Sysusers extends APP_Rest_Controller
 				$api_key = $api_key_obj['key'];
 			}
 
-			$data['user'] = $this->ion_auth_model->user($id)->row();
+			$data['user'] = $this->ion_auth_model->user($id)->row_array();
 			if (empty($data['user'])) {
 				$this->response([
 					'status' => 0,
@@ -240,26 +225,27 @@ class Sysusers extends APP_Rest_Controller
 			}
 
 			$data['api_key'] = $api_key;
-			$data['user_group'] = $this->ion_auth_model->get_users_groups($id)->row();
+			$data['user_groups'] = $this->ion_auth_model->get_users_groups($id)->result_array();
 			$data['login_attempts'] = $this->login_attempt->get_by_user($id);
 
 			$response['user'] = [
-				'id' => $data['user']->id,
-				'email' => $data['user']->email,
-				'username' => $data['user']->username,
-				'first_name' => $data['user']->first_name,
-				'last_name' => $data['user']->last_name,
-				'company' => $data['user']->company,
-				'phone' => $data['user']->phone,
-				'active' => $data['user']->active,
-				'image'  =>  $this->get_file_base64($data['user']->image_url),
-				'user_groups' => [
-					'id' => $data['user_group']->id,
-				],
-				'api_key' => $data['api_key'],
-				'ip_address' => $data['user']->ip_address,
-				'last_update' => $data['user']->last_update,
-				'login_attempts' => $data['login_attempts']
+				'id'          => $data['user']['id'],
+				'email'       => $data['user']['email'],
+				'username'    => $data['user']['username'],
+				'first_name'  => $data['user']['first_name'],
+				'last_name'   => $data['user']['last_name'],
+				'company'     => $data['user']['company'],
+				'phone'       => $data['user']['phone'],
+				'active'      => $data['user']['active'],
+				'image'       => $this->get_file_base64($data['user']['image_url']),
+				'user_groups' => array_map(
+					static fn (array $g): array => ['id' => $g['id'], 'name' => $g['name']],
+					$data['user_groups']
+				),
+				'api_key'     => $data['api_key'],
+				'ip_address'  => $data['user']['ip_address'],
+				'last_update' => $data['user']['last_update'],
+				'login_attempts' => $data['login_attempts'],
 			];
 		} catch (Exception $e) {
 			$this->response([

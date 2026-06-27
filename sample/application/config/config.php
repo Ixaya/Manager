@@ -26,15 +26,10 @@ defined('BASEPATH') or exit('No direct script access allowed');
 */
 
 $host = mgr_env('CF_HOST', null);
-if (is_cli()) {
-	$config['base_url'] = "//$host";
-} else {
-	if ($host == null) {
-		$host = $_SERVER['HTTP_HOST'];
-	}
-
-	$config['base_url'] = "//$host";
+if (!is_cli() && $host === null) {
+	$host = $_SERVER['HTTP_HOST'];
 }
+$config['base_url'] = "//$host";
 
 //$config['image_url'] = mgr_env('CF_IMAGE_URL', null);
 

@@ -12,9 +12,9 @@ class Migration_Ion_auth extends MGR_Migration_builder
 		// Table structure for table 'group'
 		$this->dbforge->add_field([
 			...$this->field_id('id'),
-			...$this->field(name: 'name', type: MgrFieldType::VarChar, length: 20),
-			...$this->field(name: 'name', type: MgrFieldType::VarChar, length: 100),
-			...$this->field(name: 'description', type: MgrFieldType::VarChar, length: 100),
+			...$this->field(name: 'name', type: MgrFieldType::VarChar, constraint: 20),
+			...$this->field(name: 'name', type: MgrFieldType::VarChar, constraint: 100),
+			...$this->field(name: 'description', type: MgrFieldType::VarChar, constraint: 100),
 			...$this->field(name: 'level', type: MgrFieldType::SmallInt, nullable: true)
 		]);
 		$this->dbforge->add_key('id', true);
@@ -25,24 +25,24 @@ class Migration_Ion_auth extends MGR_Migration_builder
 
 		$this->dbforge->add_field([
 			...$this->field_id('id'),
-			...$this->field(name: 'ip_address', type: MgrFieldType::VarChar, length: 16),
-			...$this->field(name: 'username', type: MgrFieldType::VarChar, length: 100),
-			...$this->field(name: 'password', type: MgrFieldType::VarChar, length: 80),
-			...$this->field(name: 'salt', type: MgrFieldType::VarChar, length: 40),
-			...$this->field(name: 'email', type: MgrFieldType::VarChar, length: 100),
-			...$this->field(name: 'activation_code', type: MgrFieldType::VarChar, length: 40, nullable: true),
-			...$this->field(name: 'forgotten_password_code', type: MgrFieldType::VarChar, length: 40, nullable: true),
+			...$this->field(name: 'ip_address', type: MgrFieldType::VarChar, constraint: 16),
+			...$this->field(name: 'username', type: MgrFieldType::VarChar, constraint: 100),
+			...$this->field(name: 'password', type: MgrFieldType::VarChar, constraint: 80),
+			...$this->field(name: 'salt', type: MgrFieldType::VarChar, constraint: 40),
+			...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 100),
+			...$this->field(name: 'activation_code', type: MgrFieldType::VarChar, constraint: 40, nullable: true),
+			...$this->field(name: 'forgotten_password_code', type: MgrFieldType::VarChar, constraint: 40, nullable: true),
 			...$this->field(name: 'forgotten_password_time', type: MgrFieldType::Int, unsigned: true, nullable: true),
-			...$this->field(name: 'remember_code', type: MgrFieldType::VarChar, length: 40, nullable: true),
+			...$this->field(name: 'remember_code', type: MgrFieldType::VarChar, constraint: 40, nullable: true),
 			...$this->field(name: 'created_on', type: MgrFieldType::Int, unsigned: true),
 			...$this->field(name: 'last_login', type: MgrFieldType::Int, unsigned: true, nullable: true),
-			...$this->field(name: 'active', type: MgrFieldType::TinyInt, length: 1, nullable: true),
-			...$this->field(name: 'first_name', type: MgrFieldType::VarChar, length: 50, nullable: true),
-			...$this->field(name: 'last_name', type: MgrFieldType::VarChar, length: 50, nullable: true),
-			...$this->field(name: 'company', type: MgrFieldType::VarChar, length: 100, nullable: true),
-			...$this->field(name: 'phone', type: MgrFieldType::VarChar, length: 20, nullable: true),
-			...$this->field(name: 'image_name', type: MgrFieldType::VarChar, length: 128, nullable: true),
-			...$this->field(name: 'image_url', type: MgrFieldType::VarChar, length: 254, nullable: true),
+			...$this->field(name: 'active', type: MgrFieldType::TinyInt, constraint: 1, nullable: true),
+			...$this->field(name: 'first_name', type: MgrFieldType::VarChar, constraint: 50, nullable: true),
+			...$this->field(name: 'last_name', type: MgrFieldType::VarChar, constraint: 50, nullable: true),
+			...$this->field(name: 'company', type: MgrFieldType::VarChar, constraint: 100, nullable: true),
+			...$this->field(name: 'phone', type: MgrFieldType::VarChar, constraint: 20, nullable: true),
+			...$this->field(name: 'image_name', type: MgrFieldType::VarChar, constraint: 128, nullable: true),
+			...$this->field(name: 'image_url', type: MgrFieldType::VarChar, constraint: 254, nullable: true),
 			...$this->field(name: 'last_update', type: MgrFieldType::Timestamp),
 			...$this->field(name: 'last_activity_date', type: MgrFieldType::Timestamp, nullable: true),
 			...$this->field(name: 'last_activity_os', type: MgrFieldType::TinyInt, unsigned: true, nullable: true),
@@ -71,8 +71,8 @@ class Migration_Ion_auth extends MGR_Migration_builder
 		// Table structure for table 'login_attempt'
 		$this->dbforge->add_field([
 			...$this->field_id('id'),
-			...$this->field(name: 'ip_address', type: MgrFieldType::VarChar, length: 16),
-			...$this->field(name: 'login', type: MgrFieldType::VarChar, length: 100, nullable: true),
+			...$this->field(name: 'ip_address', type: MgrFieldType::VarChar, constraint: 16),
+			...$this->field(name: 'login', type: MgrFieldType::VarChar, constraint: 100, nullable: true),
 			...$this->field(name: 'time', type: MgrFieldType::BigInt, unsigned: true, nullable: true)
 		]);
 

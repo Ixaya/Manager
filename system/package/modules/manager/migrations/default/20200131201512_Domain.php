@@ -1,34 +1,16 @@
 <?php
 
-class Migration_Domain extends CI_Migration
+class Migration_Domain extends MGR_Migration_builder
 {
 	public function up()
 	{
 		$this->dbforge->add_field([
-			'id' => [
-				'type' => 'INT',
-				'unsigned' => true,
-				'auto_increment' => true,
-			],
-			'client_id' => [
-				'type' => 'INT',
-				'unsigned' => true
-			],
-			'theme_id' => [
-				'type' => 'INT',
-				'unsigned' => true
-			],
-			'domain_name' => [
-				'type' => 'VARCHAR',
-				'constraint' => 120
-			],
-			'redirect_url' => [
-				'type' => 'VARCHAR',
-				'constraint' => 120
-			],
-			'last_update' => [
-				'type' => 'TIMESTAMP'
-			]
+			...$this->field_id('id'),
+			...$this->field(name: 'client_id', type: MgrFieldType::Int, unsigned: true),
+			...$this->field(name: 'theme_id', type: MgrFieldType::Int, unsigned: true),
+			...$this->field(name: 'domain_name', type: MgrFieldType::VarChar, constraint: 120),
+			...$this->field(name: 'redirect_url', type: MgrFieldType::VarChar, constraint: 120),
+			...$this->field(name: 'last_update', type: MgrFieldType::Timestamp),
 		]);
 
 		$this->dbforge->add_key('id', true);

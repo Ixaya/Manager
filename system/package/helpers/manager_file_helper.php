@@ -87,7 +87,7 @@ function mgr_clean_file_path(&$uri = '')
  * @param string &$uri The file path to clean (passed by reference).
  * @return void
  */
-function mgr_clean_file_s3_path(&$uri = '')
+function mgr_clean_file_s3_path(string &$uri = ''): void
 {
 	if (($pos = strpos($uri, '?')) !== false) {
 		$uri = substr($uri, 0, $pos);

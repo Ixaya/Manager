@@ -29,9 +29,9 @@ enum MgrFieldType: string
 	case Double	  = 'DOUBLE';
 
 	// ── Strings ──────────────────────────────────────────────────────────────
-	/** Fixed-length string. Requires $length. */
+	/** Fixed-length string. Requires $constraint. */
 	case Char		 = 'CHAR';
-	/** Variable-length string. Requires $length. Max 65,535 bytes MySQL; 1GB PgSQL. */
+	/** Variable-length string. Requires $constraint. Max 65,535 bytes MySQL; 1GB PgSQL. */
 	case VarChar	 = 'VARCHAR';
 	/** Unlimited text. */
 	case Text		 = 'TEXT';
@@ -133,41 +133,41 @@ enum MgrFieldDefault
 final class MgrFieldBuilder
 {
 	/**
-	 * @param string		 $name
-	 * @param MgrFieldType $type
-	 * @param MgrDriver	 $driver			 Injected from MGR_Migration_builder — computed once per migration
-	 * @param int|null	  $length
+	 * @param string		$name
+	 * @param MgrFieldType  $type
+	 * @param MgrDriver		$driver			 Injected from MGR_Migration_builder — computed once per migration
+	 * @param int|null	 	$constraint
 	 * @param bool			$unsigned		  Passed to dbforge; PostgreSQL upsizes the type instead of UNSIGNED
-	 * @param bool|null	 $nullable		  true=NULL, false=NOT NULL, null=CI default
+	 * @param bool|null		$nullable		  true=NULL, false=NOT NULL, null=CI default
 	 * @param bool			$unique
 	 * @param bool			$auto_increment
-	 * @param mixed		  $default			Scalar or null (DEFAULT NULL). Omit for no default.
-	 * @param string|null  $new_name		  For modify_column renames
-	 * @param int|null	  $precision		 DECIMAL total digits
-	 * @param int			 $scale			  DECIMAL digits after decimal point
-	 * @param mixed[]	  $enum_values	  Required for MgrFieldType::Enum
+	 * @param mixed		  	$default			Scalar or null (DEFAULT NULL). Omit for no default.
+	 * @param string|null  	$new_name		  For modify_column renames
+	 * @param int|null	  	$precision		 DECIMAL total digits
+	 * @param int			$scale			  DECIMAL digits after decimal point
+	 * @param mixed[]	  	$enum_values	  Required for MgrFieldType::Enum
 	 */
 	public function __construct(
-		private readonly string		 $name,
-		private readonly MgrFieldType $type,
-		private readonly MgrDriver	 $driver,
-		private readonly ?int			$length			= null,
-		private readonly bool			$unsigned		 = false,
-		private readonly ?bool		  $nullable		 = null,
-		private readonly bool			$unique			= false,
-		private readonly bool			$auto_increment = false,
-		private readonly mixed		  $default		  = MgrFieldDefault::NotSet,
-		private readonly ?string		$new_name		 = null,
-		private readonly ?int			$precision		= null,
-		private readonly int			 $scale			 = 0,
-		private readonly array		  $enum_values	 = [],
+		protected readonly string		$name,
+		protected readonly MgrFieldType $type,
+		protected readonly MgrDriver	$driver,
+		protected readonly ?int			$constraint		= null,
+		protected readonly bool			$unsigned		= false,
+		protected readonly ?bool		$nullable		= null,
+		protected readonly bool			$unique			= false,
+		protected readonly bool			$auto_increment = false,
+		protected readonly mixed		$default		= MgrFieldDefault::NotSet,
+		protected readonly ?string		$new_name		= null,
+		protected readonly ?int			$precision		= null,
+		protected readonly int			$scale			= 0,
+		protected readonly array		$enum_values	= [],
 	) {
 		$this->_validate();
 	}
 
 	// ── Validation ───────────────────────────────────────────────────────────
 
-	private function _validate(): void
+	protected function _validate(): void
 	{
 		if (trim($this->name) === '') {
 			throw new InvalidArgumentException("MgrFieldBuilder: field name cannot be empty.");
@@ -209,7 +209,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Decimal:
-				if ($this->precision === null && $this->length === null) {
+				if ($this->precision === null && $this->constraint === null) {
 					throw new InvalidArgumentException(
 						"MgrFieldBuilder: MgrFieldType::Decimal requires the precision parameter."
 					);
@@ -235,30 +235,30 @@ final class MgrFieldBuilder
 	/** Produce the CI dbforge-compatible field array. */
 	public function build(): array
 	{
-		['type' => $type, 'length' => $length, 'default' => $default] = $this->_resolveColumn();
+		['type' => $type, 'constraint' => $constraint, 'default' => $default] = $this->_resolveColumn();
 
 		$field = ['type' => $type];
 
-		if ($length !== '') {
-			$field['length']			= $length;
+		if ($constraint !== '') {
+			$field['constraint'] = $constraint;
 		}
 		if ($this->unsigned) {
-			$field['unsigned']		 = $this->unsigned;
+			$field['unsigned'] = $this->unsigned;
 		}
 		if ($this->nullable !== null) {
-			$field['null']			  = $this->nullable;
+			$field['null'] = $this->nullable;
 		}
 		if ($this->unique) {
-			$field['unique']			= true;
+			$field['unique'] = true;
 		}
 		if ($default !== MgrFieldDefault::NotSet) {
-			$field['default']		  = $default;
+			$field['default'] = $default;
 		}
 		if ($this->auto_increment) {
 			$field['auto_increment'] = true;
 		}
 		if ($this->new_name !== null) {
-			$field['name']		 = $this->new_name;
+			$field['name'] = $this->new_name;
 		}
 
 		return [$this->name => $field];
@@ -284,19 +284,19 @@ final class MgrFieldBuilder
 	 */
 
 	/**
-	 * Cross-engine column translation: type, length, and default.
+	 * Cross-engine column translation: type, constraint, and default.
 	 *
 	 * Defaults pass through untouched (including MgrFieldDefault::NotSet)
 	 * unless the type needs per-driver translation — Bool defaults become
 	 * real PHP bools so each CI driver escapes them natively:
 	 * MySQL/SQLite → 1/0, PostgreSQL → TRUE/FALSE, SQL Server BIT → 1/0.
 	 *
-	 * @return array{type: string, length: string, default: mixed}
+	 * @return array{type: string, constraint: string, default: mixed}
 	 */
-	private function _resolveColumn(): array
+	protected function _resolveColumn(): array
 	{
 		$type	  = $this->type->value;
-		$length	= $this->length !== null ? (string) $this->length : '';
+		$constraint	= $this->constraint !== null ? (string) $this->constraint : '';
 		$default  = $this->default;
 
 		switch ($this->type) {
@@ -305,7 +305,7 @@ final class MgrFieldBuilder
 				if ($default !== MgrFieldDefault::NotSet && $default !== null) {
 					$default = filter_var($default, FILTER_VALIDATE_BOOLEAN);
 				}
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['BOOLEAN', ''],
 					MgrDriver::SQLServer			 => ['BIT',	  ''],
 					MgrDriver::SQLite				 => ['INTEGER', ''],
@@ -315,17 +315,17 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::TinyInt:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['SMALLINT', ''],
 					MgrDriver::SQLite					 => ['INTEGER',  ''],
-					default								  => ['TINYINT',  $length],
+					default								  => ['TINYINT',  $constraint],
 				};
 				break;
 
 			case MgrFieldType::Blob:
 			case MgrFieldType::MediumBlob:
 			case MgrFieldType::LongBlob:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['BYTEA',			 ''],
 					MgrDriver::SQLServer				 => ['VARBINARY(MAX)', ''],
 					MgrDriver::SQLite					 => ['BLOB',			  ''],
@@ -335,7 +335,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Json:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['JSONB',			''],
 					MgrDriver::SQLServer				 => ['NVARCHAR(MAX)', ''],
 					MgrDriver::SQLite					 => ['TEXT',			 ''],
@@ -345,7 +345,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::DateTime:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['TIMESTAMP', ''],
 					MgrDriver::SQLServer				 => ['DATETIME2', ''],
 					MgrDriver::SQLite					 => ['TEXT',		''],
@@ -355,7 +355,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Double:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['DOUBLE PRECISION', ''],
 					MgrDriver::SQLServer				 => ['FLOAT',				''],
 					default								  => ['DOUBLE',			  ''],
@@ -364,7 +364,7 @@ final class MgrFieldBuilder
 
 			case MgrFieldType::MediumText:
 			case MgrFieldType::LongText:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['TEXT',			 ''],
 					MgrDriver::SQLServer				 => ['NVARCHAR(MAX)', ''],
 					MgrDriver::SQLite					 => ['TEXT',			 ''],
@@ -374,7 +374,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Year:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres, MgrDriver::SQLServer => ['SMALLINT', ''],
 					MgrDriver::SQLite								 => ['INTEGER',  ''],
 					MgrDriver::MySQL,
@@ -383,7 +383,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Uuid:
-				[$type, $length] = match ($this->driver) {
+				[$type, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['UUID',				  ''],
 					MgrDriver::SQLServer				 => ['UNIQUEIDENTIFIER',  ''],
 					MgrDriver::SQLite					 => ['TEXT',				  ''],
@@ -393,9 +393,9 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Decimal:
-				$length = $this->precision !== null
+				$constraint = $this->precision !== null
 					? "{$this->precision},{$this->scale}"
-					: $length;
+					: $constraint;
 				break;
 
 			case MgrFieldType::Enum:
@@ -405,16 +405,16 @@ final class MgrFieldBuilder
 						$this->enum_values
 					);
 					$type	= 'ENUM(' . implode(',', $quoted) . ')';
-					$length = '';
+					$constraint = '';
 				} else {
 					$max	 = max(array_map('strlen', $this->enum_values));
 					$type	= ($this->driver === MgrDriver::SQLServer) ? 'NVARCHAR' : 'VARCHAR';
-					$length = (string) max($max, 1);
+					$constraint = (string) max($max, 1);
 				}
 				break;
 		}
 
-		return ['type' => $type, 'length' => $length, 'default' => $default];
+		return ['type' => $type, 'constraint' => $constraint, 'default' => $default];
 	}
 }
 
@@ -442,7 +442,7 @@ class MGR_Migration_builder
 	 * Examples:
 	 *
 	 *	// Basic string column
-	 *	$this->field(name: 'email', type: MgrFieldType::VarChar, length: 191, nullable: false, unique: true)
+	 *	$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 191, nullable: false, unique: true)
 	 *
 	 *	// Unsigned integer with default
 	 *	$this->field(name: 'score', type: MgrFieldType::Int, unsigned: true, default: 0)
@@ -457,11 +457,11 @@ class MGR_Migration_builder
 	 *	$this->field(name: 'meta', type: MgrFieldType::Json, nullable: true)
 	 *
 	 *	// Rename column (use in modify_column)
-	 *	$this->field(name: 'old_col', type: MgrFieldType::VarChar, length: 100, new_name: 'new_col')
+	 *	$this->field(name: 'old_col', type: MgrFieldType::VarChar, constraint: 100, new_name: 'new_col')
 	 *
 	 * @param  string		 $name
 	 * @param  MgrFieldType $type
-	 * @param  int|null	  $length			 For CHAR, VARCHAR, etc.
+	 * @param  int|null	  $constraint			 For CHAR, VARCHAR, etc.
 	 * @param  bool			$unsigned		  Integers only. PostgreSQL upsizes the type instead of UNSIGNED.
 	 * @param  bool|null	 $nullable		  true=NULL | false=NOT NULL | null=CI default
 	 * @param  bool			$unique
@@ -476,7 +476,7 @@ class MGR_Migration_builder
 	protected function field(
 		string		 $name,
 		MgrFieldType $type,
-		?int			$length			= null,
+		?int			$constraint			= null,
 		bool			$unsigned		 = false,
 		?bool		  $nullable		 = null,
 		bool			$unique			= false,
@@ -491,7 +491,7 @@ class MGR_Migration_builder
 			name: $name,
 			type: $type,
 			driver: $this->db_driver,
-			length: $length,
+			constraint: $constraint,
 			unsigned: $unsigned,
 			nullable: $nullable,
 			unique: $unique,
@@ -688,13 +688,13 @@ class MGR_Migration_builder
 	/**
 	 * Ensures the index name never exceeds name limit.
 	 */
-	protected function _truncate_identifier(string $identifier, int $length): string
+	protected function _truncate_identifier(string $identifier, int $constraint): string
 	{
-		if (strlen($identifier) <= $length) {
+		if (strlen($identifier) <= $constraint) {
 			return $identifier;
 		}
 
-		return substr($identifier, 0, ($length - 11)) . '_' . substr(md5($identifier), 0, 10);
+		return substr($identifier, 0, ($constraint - 11)) . '_' . substr(md5($identifier), 0, 10);
 	}
 
 	/**

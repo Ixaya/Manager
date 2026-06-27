@@ -159,6 +159,24 @@ class MGR_Rest_Controller extends REST_Controller
 		return $this->rest_user->validate_group($this->user_id, $group, false);
 	}
 
+	protected function build_list_params(
+		string $default_order_by = 'id',
+		string $default_order    = 'ASC',
+		int    $default_limit    = 10,
+	): array {
+		$page  = $this->get('page');
+		$limit = $this->get('limit');
+		$order = strtoupper($this->get('order') ?? '');
+
+		return [
+			'page'     => ($page  && is_numeric($page)  && $page  > 0) ? (int)$page : 1,
+			'limit'    => ($limit && is_numeric($limit) && $limit > 0) ? (int)$limit : $default_limit,
+			'search'   => trim($this->get('search_query') ?? ''),
+			'order'    => in_array($order, ['ASC', 'DESC']) ? $order : $default_order,
+			'order_by' => trim($this->get('order_by') ?? '') ?: $default_order_by,
+		];
+	}
+
 	public function print_log($object)
 	{
 		$now = mgr_get_now_date_time();

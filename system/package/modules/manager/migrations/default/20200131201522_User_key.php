@@ -9,7 +9,7 @@ class Migration_User_key extends MGR_Migration_builder
 		$this->dbforge->add_field([
 			...$this->field_id('id'),
 			...$this->field(name: 'user_id', type: MgrFieldType::Int, unsigned: true),
-			...$this->field(name: 'key', type: MgrFieldType::VarChar, length: 40),
+			...$this->field(name: 'key', type: MgrFieldType::VarChar, constraint: 40),
 			...$this->field(name: 'level', type: MgrFieldType::TinyInt),
 			...$this->field(name: 'activated', type: MgrFieldType::TinyInt, nullable: true),
 			...$this->field(name: 'ip_addresses', type: MgrFieldType::Text, nullable: true),

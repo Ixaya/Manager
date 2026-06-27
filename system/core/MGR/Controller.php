@@ -152,13 +152,13 @@ class MGR_Controller extends CI_Controller
 		return $this->upload_lib->put_file($relative_path, $file_name, $data, $error);
 	}
 
-	public function get_file_base64(string $file_path, string &$file_name = '', string &$file_ext = '', string &$file_mime = ''): ?string
+	public function get_file_base64(?string $file_path, string &$file_name = '', string &$file_ext = '', string &$file_mime = ''): ?string
 	{
 		$this->load->library('upload_lib');
 		return $this->upload_lib->get_file_base64($file_path, $file_name, $file_ext, $file_mime);
 	}
 
-	public function display_image(string $file_path): void
+	public function display_image(?string $file_path): void
 	{
 		$this->load->library('upload_lib');
 		$this->upload_lib->display_image($file_path);

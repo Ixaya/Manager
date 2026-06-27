@@ -7,8 +7,8 @@ class Migration_Manager_option extends MGR_Migration_builder
 	public function up()
 	{
 		$this->dbforge->add_field([
-			...$this->field(name: 'key', type: MgrFieldType::VarChar, length: 64),
-			...$this->field(name: 'value', type: MgrFieldType::VarChar, length: 254),
+			...$this->field(name: 'key', type: MgrFieldType::VarChar, constraint: 64),
+			...$this->field(name: 'value', type: MgrFieldType::VarChar, constraint: 254),
 			...$this->field(name: 'last_update', type: MgrFieldType::Timestamp)
 		]);
 
