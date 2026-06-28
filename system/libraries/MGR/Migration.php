@@ -139,6 +139,11 @@ class MGR_Migration extends CI_Migration
 		$this->_migration_key = $key;
 	}
 
+	public function version_set(string $version): void
+	{
+		$this->_update_version($version);
+	}
+
 	// -------------------------------------------------------------------------
 	// Storage overrides — key-aware version tracking
 	// -------------------------------------------------------------------------

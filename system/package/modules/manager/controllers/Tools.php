@@ -52,15 +52,38 @@ class Tools extends CI_Controller
 		$migration_databases = $this->config->item('migration_db') ?? ['default'];
 		foreach ($migration_databases as $database) {
 			foreach ($this->migration_module_lib->plan($database) as $t) {
+				$pending = count($t['pending']);
 				echo sprintf(
 					"%-24s current:%s latest:%s pending:%d" . PHP_EOL,
 					$t['label'],
 					$t['current'] ?: '-',
 					$t['latest'] ?: '-',
-					count($t['pending'])
+					$pending
 				);
+
+				if ($pending > 0 && $t['current'] === 0) {
+					$key_cli = $t['key'] !== null ? str_replace('/', ':', $t['key']) : 'app';
+					$hint = "version_set {$t['latest']} {$key_cli} {$database}";
+					echo sprintf("       hint: if already applied -> tools %s" . PHP_EOL, $hint);
+				}
 			}
 		}
+	}
+
+	public function version_set($version = null, $module_key = null, $database = 'default')
+	{
+		if ($version === null) {
+			echo "[FAIL] version required" . PHP_EOL;
+			return;
+		}
+		if ($module_key === 'app') {
+			$module_key = null;
+		} elseif ($module_key !== null) {
+			$module_key = str_replace(':', '/', $module_key);
+		}
+
+		$this->load->library('migration_module_lib');
+		echo $this->migration_module_lib->version_set($database, $module_key, $version) . PHP_EOL;
 	}
 
 	public function migrate($version = null, $module_key = null)

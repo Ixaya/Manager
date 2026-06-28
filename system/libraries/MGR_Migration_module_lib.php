@@ -61,6 +61,17 @@ class MGR_Migration_module_lib
 		return $plan;
 	}
 
+	// ---- Seeding: record a version without running migrations. Use at your own risk. ----
+
+	public function version_set(string $conn, ?string $key, string $version): string
+	{
+		$lib = $this->_lib($conn);
+		$lib->set_migration_key($key);
+		$lib->version_set($version);
+		$label = ($key ?? 'application') . ':' . $conn;
+		return "[ ok ] {$label} -> {$version}";
+	}
+
 	// ---- Mutating: apply. latest() only moves FORWARD (never down()). -----
 
 	/** @return array<int,string> one result line per target */
