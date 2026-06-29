@@ -72,6 +72,58 @@ class MGR_Migration_module_lib
 		return "[ ok ] {$label} -> {$version}";
 	}
 
+	// ---- Read-only: version inspection per connection ----
+	/** @return array<int, string> Formatted as "key conn" */
+	public function version_list(string $conn): array
+	{
+		$out = [];
+		foreach ($this->_discover_targets($conn) as $t) {
+			if (empty($t['files'])) {
+				continue;
+			}
+			$key_cli = $t['key'] !== null ? str_replace('/', ':', $t['key']) : 'app';
+			$out[]   = "tools version_list {$key_cli} {$conn}";
+		}
+		return $out;
+	}
+
+	/** @return array<int, string> Filenames, with "(current)" on the active version */
+	public function version_list_files(string $conn, ?string $key): array
+	{
+		$target = null;
+		foreach ($this->_discover_targets($conn) as $t) {
+			if ($t['key'] === $key) {
+				$target = $t;
+				break;
+			}
+		}
+
+		if ($target === null) {
+			$label = ($key ?? 'app') . ':' . $conn;
+			return ["[WARN] {$label} -> not found"];
+		}
+
+		$versions = $this->_read_versions($conn);
+		$current  = $key === null
+			? $versions['app']
+			: ($versions['modules'][$key] ?? 0);
+
+		$out = [];
+		foreach ($target['files'] as $number => $file) {
+			$name  = basename($file);
+			$out[] = $number === (int) $current ? "{$name} (current)" : $name;
+		}
+
+		if ((int) $current === 0 && !empty($target['files'])) {
+			$key_cli  = $key !== null ? str_replace('/', ':', $key) : 'app';
+			$latest   = array_key_last($target['files']);
+			$out[]    = '';
+			$out[]    = "  hint: if already applied -> tools version_set {$latest} {$key_cli} {$conn}";
+		}
+
+		return $out;
+	}
+
 	// ---- Mutating: apply. latest() only moves FORWARD (never down()). -----
 
 	/** @return array<int,string> one result line per target */

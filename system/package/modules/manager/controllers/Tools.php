@@ -70,6 +70,26 @@ class Tools extends CI_Controller
 		}
 	}
 
+	public function version_list($module_key = null, $database = null)
+	{
+		$this->load->library('migration_module_lib');
+
+		if ($module_key === null) {
+			$databases = $this->config->item('migration_db') ?? ['default'];
+			foreach ($databases as $db) {
+				foreach ($this->migration_module_lib->version_list($db) as $line) {
+					echo $line . PHP_EOL;
+				}
+			}
+			return;
+		}
+
+		$key = $module_key === 'app' ? null : str_replace(':', '/', $module_key);
+		foreach ($this->migration_module_lib->version_list_files($database ?? 'default', $key) as $line) {
+			echo $line . PHP_EOL;
+		}
+	}
+
 	public function version_set($version = null, $module_key = null, $database = 'default')
 	{
 		if ($version === null) {
