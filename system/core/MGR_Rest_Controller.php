@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-require dirname(__FILE__) . "/../third_party/Rest_Controller.php";
+require dirname(__FILE__) . "/../third_party/REST_Controller.php";
 
 class MGR_Rest_Controller extends REST_Controller
 {
