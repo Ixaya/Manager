@@ -88,9 +88,10 @@ class MGR_Exceptions extends CI_Exceptions
 				return;
 			}
 
-			$this->_add_cors();
+			$is_options = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS');
+			$this->_add_cors($is_options);
 
-			if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+			if ($is_options) {
 				http_response_code(200);
 			} else {
 				header('Content-Type: application/json', true, $error_code);
@@ -130,7 +131,7 @@ class MGR_Exceptions extends CI_Exceptions
 	 * @access protected
 	 * @return void
 	 */
-	protected function _add_cors()
+	protected function _add_cors(bool $is_options): void
 	{
 		$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 
@@ -151,11 +152,20 @@ class MGR_Exceptions extends CI_Exceptions
 			}
 		}
 
+		if (!$is_options) {
+			return;
+		}
+
 		if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
 			// Echo back requested headers (more compatible with older browsers)
 			header('Access-Control-Allow-Headers: ' . $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']);
 		} else {
 			header('Access-Control-Allow-Headers: *');
+		}
+
+		$cors_max_age =  mgr_env_int('REST_CORS_MAX_AGE', 86400);
+		if ($cors_max_age > 0) {
+			header('Access-Control-Max-Age: ' . $cors_max_age);
 		}
 
 		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');

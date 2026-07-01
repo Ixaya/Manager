@@ -177,7 +177,21 @@ class MGR_Rest_Controller extends REST_Controller
 		];
 	}
 
-	public function print_log($object)
+	protected function _apply_cors_headers(string $origin, string $method): void
+	{
+		parent::_apply_cors_headers($origin, $method);
+
+		if ($method == 'options') {
+			$cors_max_age = $this->config->item('cors_max_age');
+			if ($cors_max_age > 0) {
+				header('Access-Control-Max-Age: ' . $cors_max_age);
+			}
+		}
+
+		header('Vary: Origin ');
+	}
+
+	public function print_log(object $object)
 	{
 		$now = mgr_get_now_date_time();
 

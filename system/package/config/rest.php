@@ -547,12 +547,10 @@ $config['check_cors'] = mgr_env_bool('REST_CHECK_CORS', true);
 |
 */
 $config['allowed_cors_headers'] = [
-	'Origin',
 	'X-Requested-With',
 	'Content-Type',
 	'Accept',
-	'x-api-key',
-	'Access-Control-Request-Method'
+	'X-API-Key'
 ];
 
 /*
@@ -595,3 +593,14 @@ $config['allow_any_cors_domain'] = mgr_env_bool('REST_ALLOW_ANY_CORS_DOMAIN', fa
 |
 */
 $config['allowed_cors_origins'] = mgr_env_array('REST_ALLOWED_CORS', []); // 'https://example.com,https://example.net'
+
+/*
+|--------------------------------------------------------------------------
+| CORS Preflight Cache Duration
+|--------------------------------------------------------------------------
+|
+| How long (in seconds) browsers may cache successful preflight (OPTIONS)
+| responses. Set to 0 to disable caching.
+|
+*/
+$config['cors_max_age'] = mgr_env_int('REST_CORS_MAX_AGE', 86400);

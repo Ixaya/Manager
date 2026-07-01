@@ -2033,15 +2033,12 @@ abstract class REST_Controller extends MY_Controller
 	 */
 	protected function _check_cors()
 	{
-		// Convert the config items into strings
-		$allowed_headers = implode(', ', $this->config->item('allowed_cors_headers'));
-		$allowed_methods = implode(', ', $this->config->item('allowed_cors_methods'));
+		$method = $this->input->method();
+
 
 		// If we want to allow any domain to access the API
 		if ($this->config->item('allow_any_cors_domain') === true) {
-			header('Access-Control-Allow-Origin: *');
-			header('Access-Control-Allow-Headers: ' . $allowed_headers);
-			header('Access-Control-Allow-Methods: ' . $allowed_methods);
+			$this->_apply_cors_headers(origin:'*', method: $method);
 		} else {
 			// We're going to allow only certain domains access
 			// Store the HTTP Origin header
@@ -2052,15 +2049,29 @@ abstract class REST_Controller extends MY_Controller
 
 			// If the origin domain is in the allowed_cors_origins list, then add the Access Control headers
 			if (in_array($origin, $this->config->item('allowed_cors_origins'))) {
-				header('Access-Control-Allow-Origin: ' . $origin);
-				header('Access-Control-Allow-Headers: ' . $allowed_headers);
-				header('Access-Control-Allow-Methods: ' . $allowed_methods);
+				$this->_apply_cors_headers($origin, $method);
 			}
 		}
 
 		// If the request HTTP method is 'OPTIONS', kill the response and send it to the client
-		if ($this->input->method() === 'options') {
+		if ($method === 'options') {
 			exit;
+		}
+	}
+
+	protected function _apply_cors_headers(string $origin, string $method)
+	{
+		header('Access-Control-Allow-Origin: ' . $origin);
+
+		if ($method == 'options') {
+			// Convert the config items into strings
+			$allowed_headers = implode(', ', $this->config->item('allowed_cors_headers'));
+			$allowed_methods = implode(', ', $this->config->item('allowed_cors_methods'));
+
+			header('Access-Control-Allow-Headers: ' . $allowed_headers);
+			header('Access-Control-Allow-Methods: ' . $allowed_methods);
+
+			http_response_code(204);
 		}
 	}
 }
