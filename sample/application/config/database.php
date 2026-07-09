@@ -77,6 +77,7 @@ $query_builder = true;
 $db['default'] = [
 	'dsn'	=> '',
 	'hostname' => mgr_env('DB_HOST', 'localhost'),
+	'port' => mgr_env('DB_PORT', null),
 	'username' => mgr_env('DB_USER', 'root'),
 	'password' => mgr_env('DB_PASS', ''),
 	'database' => mgr_env('DB_NAME', ''),

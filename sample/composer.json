@@ -1,6 +1,6 @@
 {
 	"require": {
 		"php": "^8.2",
-		"ixaya/manager": "^1.0"
+		"ixaya/manager": "^2.0"
 	}
 }

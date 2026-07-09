@@ -83,7 +83,7 @@ class MGR_Async_exec_lib
 		// Escape arguments
 		// [PHP 8 MIGRATION] Added explicit (string) cast to urlencode
 		$urlencode_args = array_map(
-			fn ($v) => urlencode((string) $v),
+			fn($v) => urlencode((string) $v),
 			$args
 		);
 
@@ -94,8 +94,7 @@ class MGR_Async_exec_lib
 		$escaped_shell_script = escapeshellarg("{$base_path}bin/cli_run.sh");
 
 		$log_name = $this->normalize_log_name((string) $log_name);
-		$log_folder = $base_path . '../logs/cli/';
-
+		$log_folder = mgr_log_path('cli');
 		$log_file_path = "{$log_folder}{$log_name}.log";
 
 		// Ensure log directory exists

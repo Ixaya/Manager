@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-$config['socket_type'] = mgr_env('LIB_REDIS_SOCKET', 'tcp');
+$config['socket_type'] = mgr_env('LIB_REDIS_SOCKET_TYPE', 'tcp');
 $config['host']        = mgr_env('LIB_REDIS_HOST', '127.0.0.1');
 $config['password']    = mgr_env('LIB_REDIS_PASSWORD', null);
 $config['port']        = mgr_env_int('LIB_REDIS_PORT', 6379);

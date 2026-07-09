@@ -200,3 +200,21 @@ function mgr_get_temp_upload_paths($field_name, &$file_extension = null, &$file_
 
 	return $temp_paths;
 }
+
+if (!function_exists('mgr_log_path')) {
+	/**
+	 * Resolve the log directory for a stream ('app', 'cli', 'cron', …).
+	 *   MGR_LOG_PATH set → "<MGR_LOG_PATH>/<stream>/"   (absolute base)
+	 *   otherwise        → "<app_root>../logs/<stream>/" (relative fallback = webmin today)
+	 * Pure: mgr_env + constants + string ops only. Always trailing slash. Does NOT create the dir.
+	 */
+	function mgr_log_path(string $stream): string
+	{
+		$stream = trim($stream, '/');
+		$base   = mgr_env('MGR_LOG_PATH');
+		if ($base !== null) {
+			return rtrim($base, '/') . '/' . $stream . '/';
+		}
+		return mgr_app_file_path() . '../logs/' . $stream . '/';
+	}
+}
