@@ -100,6 +100,7 @@ $db['default'] = [
 // $db['secondary'] = [
 // 	'dsn'	=> '',
 // 	'hostname' => mgr_env('DB_SEC_HOST', 'localhost'),
+//  'port' => mgr_env('DB_SEC_PORT', null),
 // 	'username' => mgr_env('DB_SEC_USER', 'root'),
 // 	'password' => mgr_env('DB_SEC_PASS', ''),
 // 	'database' => mgr_env('DB_SEC_NAME', ''),

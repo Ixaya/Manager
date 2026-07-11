@@ -8,4 +8,10 @@
 *.yaml text eol=lf
 
 # 2. Composer / Git Export Ignores
-/extras/               export-ignore
+/extras     export-ignore
+/docs       export-ignore
+/AGENTS.md  export-ignore
+/.gitattributes     export-ignore
+/.php-cs-fixer.php  export-ignore
+/phpstan.neon       export-ignore
+/phpstan-bootstrap.php export-ignore

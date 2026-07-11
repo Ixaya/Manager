@@ -1,7 +1,10 @@
 .DS_Store
 .vscode
 .zed
-composer.lock
+.nova
+.gram
+.claude
+
 patches.lock.json
 .php-cs-fixer.cache
 /vendor

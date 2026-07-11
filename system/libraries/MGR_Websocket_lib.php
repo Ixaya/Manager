@@ -22,7 +22,7 @@ use function Amp\trapSignal;
 use function Amp\ByteStream\getStdout;
 use function Amp\Redis\createRedisConnector;
 
-final class Websocket_channel_regex
+final class MGR_Websocket_channel_regex
 {
 	public const ALLOWED = '/^[a-zA-Z0-9_\-:|]+$/';
 	public const SANITIZE = '/[^a-zA-Z0-9_\-:|]/';
@@ -65,7 +65,7 @@ class MGR_Websocket_lib
 
 	public function generateLink($user_identifier = null, $channel = null)
 	{
-		$channel = preg_replace(Websocket_channel_regex::SANITIZE, '', $channel);
+		$channel = preg_replace(MGR_Websocket_channel_regex::SANITIZE, '', $channel);
 
 		$jwtAudience = $this->config['jwt_audience'] ?? 'websocket';
 		$baseURL = $this->config['url'] ?? '';
@@ -495,7 +495,7 @@ class MGRWebsocketsClientHandler implements WebsocketClientHandler
 	{
 		$channel = urldecode($channel);
 		// Allow only alphanumeric characters, hyphens, underscores, colons, and pipes
-		if (!preg_match(Websocket_channel_regex::ALLOWED, $channel)) {
+		if (!preg_match(MGR_Websocket_channel_regex::ALLOWED, $channel)) {
 			return '';
 		}
 

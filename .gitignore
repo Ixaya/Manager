@@ -3,6 +3,8 @@
 .zed
 .nova
 .gram
+.claude
+.obsidian
 
 composer.lock
 patches.lock.json
