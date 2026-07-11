@@ -1,0 +1,365 @@
+# manager sample — Docker stack. ALWAYS invoke via ../docker_manage.sh, never
+# `docker compose` directly:
+#
+#   ./docker_manage.sh -e <instance> build
+#   ./docker_manage.sh -e <instance> up -d
+#   ./docker_manage.sh -e <instance> --profile ws --profile cron up -d
+#
+# Core services (always on): php, nginx, valkey-state, valkey-cache.
+# Profiles: ws | cron | mysql | mariadb | postgres | cli.
+# Only nginx publishes ports; Valkey is never exposed to the host.
+
+# ── Reusable fragments ────────────────────────────────────────────────────────
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-security: &security
+  security_opt:
+    - no-new-privileges:true
+
+# Common wiring for the four services that run the php-app image.
+x-app-image: &app-image
+  image: ${IMAGE_REPO:-manager/app}:${IMAGE_TAG:-latest}
+  env_file:
+    - ${APP_ENV_FILE:-env/dev.env}
+  networks: [appnet]
+  logging: *logging
+  <<: *security
+
+services:
+
+  # ── PHP-FPM (core) ────────────────────────────────────────────────────────
+  php:
+    <<: *app-image
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: php-app
+      args:
+        # Baked in at build time — changing this value rebuilds the image.
+        PHP_PM_MAX_CHILDREN: ${PHP_PM_MAX_CHILDREN:-20}
+        # Bakes the opt-in smoke-test module into the image; false by default.
+        INCLUDE_TEST_MODULE: ${INCLUDE_TEST_MODULE:-false}
+    restart: unless-stopped
+    working_dir: /var/www/html
+    environment:
+      # Non-secret runtime knobs. App SECRETS come from the mounted .env.priv.
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+      WAIT_FOR_DB:    ${WAIT_FOR_DB:-false}
+    volumes:
+      - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
+      - manager-logs:/var/log/manager
+      - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media
+      - ${PRIVATE_PATH:-../private}:/var/www/html/private
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: ${PHP_MEM_LIMIT:-1024m}
+    cpus: ${PHP_CPUS:-2.0}
+    depends_on:
+      valkey-state: { condition: service_healthy }
+      valkey-cache: { condition: service_healthy }
+    # Overrides the baked-in HEALTHCHECK interval so it's configurable per
+    # instance without a rebuild.
+    healthcheck:
+      test: ["CMD-SHELL", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 2>&1 | grep -q pong || exit 1"]
+      interval: ${PHP_HEALTHCHECK_INTERVAL:-30s}
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ── Nginx (core) ──────────────────────────────────────────────────────────
+  nginx:
+    image: ${IMAGE_REPO_NGINX:-manager/app-nginx}:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: nginx-app
+    restart: unless-stopped
+    networks: [appnet]
+    logging: *logging
+    <<: *security
+    ports:
+      - "${HTTP_PORT:?HTTP_PORT is required}:80"
+      - "${WS_PORT:?WS_PORT is required}:8080"
+    volumes:
+      # Serve uploaded media directly (read-only is enough for nginx).
+      - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    mem_limit: ${NGINX_MEM_LIMIT:-128m}
+    cpus: ${NGINX_CPUS:-1.0}
+    depends_on:
+      php: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Valkey: durable state (core) ──────────────────────────────────────────
+  valkey-state:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "/usr/local/bin/valkey-entrypoint.sh"]
+    command: ["/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_STATE_MAXMEMORY:-256mb}"]
+    networks: [appnet]
+    logging: *logging
+    <<: *security
+    volumes:
+      - ./valkey/entrypoint.sh:/usr/local/bin/valkey-entrypoint.sh:ro
+      - ./valkey/valkey-state.conf:/etc/valkey/valkey.conf:ro
+      - valkey-state-data:/data
+    secrets:
+      - valkey_password
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: ${VALKEY_STATE_MEM_LIMIT:-384m}
+    cpus: ${VALKEY_STATE_CPUS:-0.5}
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/valkey_password) valkey-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Valkey: ephemeral cache/queues/pub-sub (core) ──────────────────────────
+  valkey-cache:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "/usr/local/bin/valkey-entrypoint.sh"]
+    command: ["/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_CACHE_MAXMEMORY:-128mb}"]
+    networks: [appnet]
+    logging: *logging
+    <<: *security
+    volumes:
+      - ./valkey/entrypoint.sh:/usr/local/bin/valkey-entrypoint.sh:ro
+      - ./valkey/valkey-cache.conf:/etc/valkey/valkey.conf:ro
+    secrets:
+      - valkey_password
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: ${VALKEY_CACHE_MEM_LIMIT:-256m}
+    cpus: ${VALKEY_CACHE_CPUS:-0.5}
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/valkey_password) valkey-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── WebSocket server (profile: ws) ─────────────────────────────────────────
+  ws:
+    <<: *app-image
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["bash", "/var/www/html/bin/cli_run.sh", "manager", "websockets", "serve"]
+    environment:
+      RUN_MIGRATIONS: "false"
+      WAIT_FOR_DB:    ${WAIT_FOR_DB:-false}
+    volumes:
+      - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
+      - manager-logs:/var/log/manager
+      - ${PRIVATE_PATH:-../private}:/var/www/html/private
+    tmpfs:
+      - /tmp
+    mem_limit: ${WS_MEM_LIMIT:-256m}
+    cpus: ${WS_CPUS:-1.0}
+    depends_on:
+      php:          { condition: service_healthy }
+      valkey-cache: { condition: service_healthy }
+    healthcheck:
+      # /dev/tcp is a bash builtin; the image's /bin/sh is busybox ash, so run
+      # the check explicitly under bash. Port is interpolated at compose time.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/${WEBSOCKET_PORT:-9008}"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    profiles: [ws]
+
+  # ── Cron: supercronic (profile: cron) ──────────────────────────────────────
+  cron:
+    <<: *app-image
+    restart: unless-stopped
+    working_dir: /var/www/html
+    entrypoint: ["/usr/local/bin/supercronic"]
+    command: ["/etc/supercronic/crontab"]
+    environment:
+      RUN_MIGRATIONS: "false"
+    volumes:
+      - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
+      - ./cron/crontab:/etc/supercronic/crontab:ro
+      - manager-logs:/var/log/manager
+      - ${PRIVATE_PATH:-../private}:/var/www/html/private
+    tmpfs:
+      - /tmp
+    mem_limit: ${CRON_MEM_LIMIT:-256m}
+    cpus: ${CRON_CPUS:-0.5}
+    depends_on:
+      php:          { condition: service_healthy }
+      valkey-cache: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep supercronic >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    profiles: [cron]
+
+  # ── CLI: one-off commands / interactive shell (profile: cli) ───────────────
+  cli:
+    <<: *app-image
+    working_dir: /var/www/html
+    entrypoint: ["bash"]
+    stdin_open: true
+    tty: true
+    environment:
+      RUN_MIGRATIONS: "false"
+    volumes:
+      - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
+      - manager-logs:/var/log/manager
+      - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media
+      - ${PRIVATE_PATH:-../private}:/var/www/html/private
+    tmpfs:
+      - /tmp
+    mem_limit: ${CLI_MEM_LIMIT:-512m}
+    cpus: ${CLI_CPUS:-1.0}
+    healthcheck:
+      disable: true
+    profiles: [cli]
+
+  # ── MySQL 8.4 (profile: mysql — dev/local only) ────────────────────────────
+  # Aurora-compatible profile — use when parity with the Aurora MySQL
+  # dev/prod server matters. DB_USER/DB_NAME must be set in the env-file
+  # (no default) — passwords come from Docker secrets, never env.
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    networks: [appnet]
+    logging: *logging
+    <<: *security
+    environment:
+      MYSQL_DATABASE:           ${DB_NAME:?DB_NAME is required for the mysql profile}
+      MYSQL_USER:               ${DB_USER:?DB_USER is required for the mysql profile}
+      MYSQL_PASSWORD_FILE:      /run/secrets/db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    secrets:
+      - db_password
+      - db_root_password
+    mem_limit: ${MYSQL_MEM_LIMIT:-1024m}
+    cpus: ${MYSQL_CPUS:-1.0}
+    healthcheck:
+      # `mysqladmin ping` reports the server as alive without needing creds.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    profiles: [mysql]
+
+  # ── MariaDB 12.3.2 (profile: mariadb — dev/local only) ─────────────────────
+  # Lighter local alternative to mysql — NOT Aurora-compatible. Same
+  # secrets pattern as mysql above.
+  mariadb:
+    image: mariadb:12.3.2
+    restart: unless-stopped
+    networks: [appnet]
+    logging: *logging
+    <<: *security
+    environment:
+      MARIADB_DATABASE:           ${DB_NAME:?DB_NAME is required for the mariadb profile}
+      MARIADB_USER:               ${DB_USER:?DB_USER is required for the mariadb profile}
+      MARIADB_PASSWORD_FILE:      /run/secrets/db_password
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    secrets:
+      - db_password
+      - db_root_password
+    mem_limit: ${MARIADB_MEM_LIMIT:-512m}
+    cpus: ${MARIADB_CPUS:-1.0}
+    healthcheck:
+      # `mysqladmin ping` reports the server as alive without needing creds
+      # (MariaDB ships mysqladmin as a compatibility alias for mariadb-admin).
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    profiles: [mariadb]
+
+  # ── PostgreSQL 18.4 (profile: postgres — dev/local only) ───────────────────
+  # 18+ images require the volume mounted at the PARENT dir
+  # (/var/lib/postgresql), not .../data — that's the pre-18 convention and
+  # trips this image's startup guard.
+  postgres:
+    image: postgres:18.4-alpine3.24
+    restart: unless-stopped
+    networks: [appnet]
+    logging: *logging
+    <<: *security
+    environment:
+      POSTGRES_DB:            ${DB_NAME:?DB_NAME is required for the postgres profile}
+      POSTGRES_USER:          ${DB_USER:?DB_USER is required for the postgres profile}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      TZ:   UTC
+      PGTZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    secrets:
+      - db_password
+    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}
+    cpus: ${POSTGRES_CPUS:-1.0}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?DB_USER is required for the postgres profile} -d ${DB_NAME} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    profiles: [postgres]
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  manager-logs:      # unified Manager logs (/var/log/manager: app/, cli/ subdirs)
+  valkey-state-data: # AOF/RDB for durable Valkey — cache has NO volume by design
+  mysql-data:
+  mariadb-data:
+  postgres-data:
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+# Single private bridge, namespaced per instance via `-p <instance>` — only
+# nginx publishes host ports.
+networks:
+  appnet:
+    driver: bridge
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# Valkey password: file provider, path supplied per-instance by
+# docker_manage.sh, mounted read-only at /run/secrets/valkey_password.
+secrets:
+  valkey_password:
+    file: ${VALKEY_SECRET_FILE:-secrets/dev.valkey_password}
+  # DB secrets are only consumed by the mysql/postgres dev profiles; the files
+  # are not required for a core (external-DB) instance.
+  db_password:
+    file: ${DB_PASSWORD_FILE:-secrets/dev.db_password}
+  db_root_password:
+    file: ${DB_ROOT_PASSWORD_FILE:-secrets/dev.db_root_password}

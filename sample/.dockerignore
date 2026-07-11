@@ -20,4 +20,6 @@
 
 # Extra files
 !composer.json
+# composer.lock IS needed in the build context for a reproducible,
+# --classmap-authoritative install. Keep it un-ignored.
 !composer.lock

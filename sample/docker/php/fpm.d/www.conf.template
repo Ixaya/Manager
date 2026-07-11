@@ -1,0 +1,37 @@
+; PHP-FPM pool — {{PM_*}} placeholders rendered at build time from
+; PHP_PM_MAX_CHILDREN. Listens on TCP 9000 (not a unix socket) so nginx,
+; in a separate container, can reach it. Workers run as www-data.
+
+[www]
+user  = www-data
+group = www-data
+
+listen       = 0.0.0.0:9000
+
+; ── Process manager (dynamic) ─────────────────────────────────────────────────
+pm                   = dynamic
+pm.max_children      = {{PM_MAX_CHILDREN}}
+pm.start_servers     = {{PM_START_SERVERS}}
+pm.min_spare_servers = {{PM_MIN_SPARE}}
+pm.max_spare_servers = {{PM_MAX_SPARE}}
+pm.max_requests      = 500
+
+; Backstop for workers stuck on a slow query (max_execution_time only counts
+; CPU time, not blocked I/O). Must stay ABOVE nginx's fastcgi_read_timeout
+; (currently 60s) so nginx normally times out first.
+request_terminate_timeout = 65s
+
+; ── Health / status endpoints (used by the Docker HEALTHCHECK) ─────────────────
+ping.path      = /ping
+ping.response  = pong
+pm.status_path = /status
+
+; ── Logging → container stdout/stderr (captured by the json-file driver) ───────
+access.log              = /proc/self/fd/2
+catch_workers_output    = yes
+decorate_workers_output = no
+
+; Pass container environment (DB_*, LIB_REDIS_*, CF_*, ...) through to PHP.
+; Secrets are NOT in the container environment — they are read by the app from
+; the mounted /var/www/html/.env.priv file.
+clear_env = no

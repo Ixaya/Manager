@@ -1,0 +1,15 @@
+# Supercronic crontab (parsed by the `cron` service, --profile cron).
+# Format:  min hour dom month dow   command
+# Timezone follows the container TZ (UTC). Output → stdout/stderr → log driver.
+#
+# Route format is module/controller/method. Invoke via bash (not sh) so
+# cli_run.sh resolves its own path correctly.
+#
+# Edit to match real Manager cron routes before relying on scheduled jobs.
+
+# Hourly health check (safe, read-only).
+0 * * * *   bash /var/www/html/bin/cli_run.sh manager/health_checks
+
+# ── Examples — uncomment and adjust to your actual routes ─────────────────────
+# */5 * * * *  bash /var/www/html/bin/cli_run.sh cron/queue/process
+# 0 2 * * *    bash /var/www/html/bin/cli_run.sh cron/maintenance/daily_cleanup
