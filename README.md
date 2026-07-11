@@ -6,20 +6,26 @@ HMVC Code Igniter based Framework for creating backends and complete websites
 
 **Ixaya Manager** is a set of files, libraries, and modules that allows you to use Code Igniter to build a Backend with Login or a Complete Website if you prefer.
 
+The framework is **always consumed as a Composer dependency**: your project bootstraps once from the included scaffold, and from then on the framework lives in `vendor/ixaya/manager` and upgrades with `composer update`. Framework code is never copied into or edited inside a project.
+
 ### Features
 
 - CodeIgniter upgradeable through Composer (always use latest version)
-- Run the project (a webserver) using a shell script (no need to install Apache or Nginx during development (`http://localhost:8000`)
-- HMVC
-- Diferent folders for diferent modules: `modules/admin`, `modules/frontned`, etc.
+- HMVC, organize your code into self-contained modules, each with its own controllers, models and views
+- Modern, typed PHP (8.2+) codebase — enums, `match`, named parameters, readonly value objects
 - Support for MySQL, PostgreSQL, MSSQL, Sqlite, or any database that is supported in CodeIgniter 3.
-- Different Database connection/technology per Model. (you can have a model that loads a Database from Postgres and another Model that loads a Database from MySQL.
+- Different Database connection/technology per Model. (you can have a model that loads a Database from Postgres and another Model that loads a Database from MySQL)
+- Typed base model (`MY_Model`) with soft deletes, audit history, tenant scoping, and a dynamic query builder
+- REST framework with API-key auth, group/level permissions, and content-negotiated JSON errors
+- Cross-engine migration builder — one migration runs on MySQL/MariaDB, PostgreSQL, SQL Server, and SQLite
+- Per-module migration versioning with plan/dry-run tooling
+- Redis-augmented cache (lists, sets, hashes, pub/sub) and a WebSocket server for real-time notifications
 - Responsive Theme (SB Admin 2 Template for the Backend)
 - Login protected Admin module
 - Examples to create a REST API
-- Examples to send Native Apple Push Notifications or use Firebase for Android
+- Agent skills included (`system/skills/`) so coding agents follow the framework conventions
 - Production Tested
-- try { } catch { } login for errors (an improvement over CodeIgniter's)
+- try { } catch { } logic for errors (an improvement over CodeIgniter's)
 - Secured Application Folder from Public.
 
 ---
@@ -28,7 +34,7 @@ HMVC Code Igniter based Framework for creating backends and complete websites
 
 ### Requirements
 
-- PHP 8.1+
+- PHP 8.2+
 - Composer
 
 ### 1. Install via Composer
@@ -37,9 +43,9 @@ HMVC Code Igniter based Framework for creating backends and complete websites
 composer require ixaya/manager
 ```
 
-### 2. Scaffold your project
+### 2. Scaffold your project (one time)
 
-Copy the sample application structure from the package into your project root:
+Copy the sample application structure from the package into your project root. This is a one-time bootstrap — it copies your application's starting structure (controllers, models, views, config, and entry points), not the framework itself:
 
 ```bash
 cp -r vendor/ixaya/manager/sample/. .
@@ -66,9 +72,8 @@ Depending on the features you need, install one or more of the following:
 **Optional — core extensions:**
 
 ```bash
-composer require aws/aws-sdk-php        # AWS S3, Textract, Bedrock integration
+composer require aws/aws-sdk-php           # AWS S3, Textract, Bedrock integration
 composer require phpoffice/phpspreadsheet  # Excel export/import
-
 ```
 
 **Optional — WebSocket server:**
@@ -79,6 +84,35 @@ composer require amphp/redis             # Redis-backed WebSocket scaling
 composer require amphp/log               # Structured logging for async services
 composer require adhocore/jwt            # WebSocket authentication
 ```
+
+---
+
+## Agent skills
+
+The package ships its coding conventions as agent skills (open `SKILL.md` format, usable by any coding agent) in `system/skills/`:
+
+| Skill | Covers |
+|---|---|
+| `ixaya-code-style` | Style baseline: typing, PHPDoc, named parameters, comments |
+| `ixaya-models` | `MY_Model` / `APP_Model_Dyn` — any database access |
+| `ixaya-rest-controller` | API endpoints, auth, response envelope |
+| `ixaya-web-controllers` | Web page controllers, views, theming/layouts |
+| `ixaya-migrations` | Schema changes (`MGR_Migration_builder`) |
+| `ixaya-cli-modules` | CLI commands, crons, background exec, HMVC modules |
+| `ixaya-helpers-libraries` | Utility functions, packaged libraries, creating libraries |
+| `ixaya-cache-websockets` | Caching, Redis, pub/sub, websocket notifications |
+
+Link them into your project (run from the project root; re-run after major framework updates):
+
+```bash
+for skill in vendor/ixaya/manager/system/skills/*/; do
+  name=$(basename "$skill")
+  rm -rf ".claude/skills/$name"
+  ln -s "../../vendor/ixaya/manager/system/skills/$name" ".claude/skills/$name"
+done
+```
+
+Project-wide agent instructions belong in your project's `AGENTS.md` (the cross-tool standard); tools that read `CLAUDE.md` can use a one-line `@AGENTS.md` import.
 
 ---
 
@@ -127,7 +161,7 @@ composer require --dev phpunit/phpunit
 **Run specific test file:**
 
 ```bash
-./vendor/bin/phpunit tests/Unit/ExampleTest.php
+./vendor/bin/phpunit application/tests/unit/ExampleTest.php
 ```
 
 **Run tests with verbose output:**
@@ -148,7 +182,7 @@ composer require --dev phpunit/phpunit
 
 Fix using PHP CS Fixer
 
-\*First time, install PHP CS Fixer:\*\*
+**First time, install PHP CS Fixer:**
 
 ```bash
 composer require --dev php-cs-fixer/shim
@@ -172,74 +206,30 @@ composer require --dev php-cs-fixer/shim
 ./vendor/bin/php-cs-fixer fix --dry-run --diff
 ```
 
-**Power user — pinned PHP version (macOS Homebrew):**
-
-```bash
-/opt/homebrew/opt/php@8.3/bin/php /opt/homebrew/bin/php-cs-fixer fix
-```
-
 ---
 
 ## Docker Setup
 
-This project can be run using Docker with different configurations for development and production environments.
+The scaffold ships a complete Docker stack under `docker/`: PHP-FPM + Nginx for the website, plus Valkey (cache/sessions), and optional WebSocket, cron, and database (MySQL/MariaDB/PostgreSQL) containers behind profiles.
 
-### Configuration Files
-
-The project uses multiple Docker Compose files:
-
-- `docker-compose.yml` - Base configuration (shared settings)
-- `docker-compose.dev.yml` - Development overrides (code mounting, live changes)
-- `docker-compose.prod.yml` - Production overrides (no volumes, optimized)
-
-### Building and Running
-
-#### Basic Setup (Base Configuration Only)
+All operations go through the wrapper script — never `docker compose` directly, since it wires the per-instance env files and secrets the compose file needs:
 
 ```bash
-# Build
-docker-compose build
+# Build the images
+./docker_manage.sh -e <instance> build
 
-# Start
-docker-compose up -d
+# Development: full stack with a local database
+./docker_manage.sh -e <instance> --profile <mysql|mariadb|postgres> up -d
 
-# Rebuild and start (if Dockerfile changed)
-docker-compose up -d --build
+# Server / deployment: websocket + cron enabled, database is external/managed
+./docker_manage.sh -e <instance> --profile ws --profile cron up -d
 
-# Stop
-docker-compose down
+# Useful commands
+./docker_manage.sh -e <instance> logs -f php
+./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/health_checks
 ```
 
-#### Development Mode
-
-Uses live code mounting - changes are reflected immediately without rebuilding.
-
-```bash
-# Start
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d app
-```
-
-#### Production Mode
-
-Uses code copied into the image - requires rebuild for code changes.
-
-```bash
-# Start
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d app
-```
-
-### Useful Commands
-
-```bash
-# View all logs
-docker-compose logs -f
-
-# View logs for specific service
-docker-compose logs -f app
-
-# Enter the app container
-docker-compose exec app bash
-```
+`<instance>` selects the env files, secrets, and published ports, so multiple instances can run side by side. First-time setup (creating your instance's env files, secrets, and picking a database engine) is documented in the scaffold's `docs/development/docker.md`.
 
 ---
 
@@ -308,7 +298,7 @@ The `public/` folder contains all publicly accessible files served by the web se
 
 ```
 public/
-├── index.php                    # Application entry point
+├── index.php                    # Application entry point (all HTTP + CLI requests)
 ├── media/                       # User-uploaded files
 └── assets/                      # Static assets organized by module
     └── {module}/
@@ -327,12 +317,14 @@ application/
 ├── cache/                       # Application cache
 ├── config/                      # Application configuration files
 ├── controllers/                 # Global controllers
-├── database/                    # Database configuration
+├── core/                        # MY_/APP_ base classes (thin aliases of the framework's MGR_ classes)
+├── database/
+│   ├── migrations/{connection}/ # App-level migrations (legacy history — new migrations live in their module)
+│   └── seeds/                   # Database seeds
 ├── helpers/                     # Global helper functions
 ├── hooks/                       # Global hooks
 ├── language/                    # Global language files
 ├── libraries/                   # Global libraries
-├── migrations/                  # Database migrations
 ├── models/                      # Global models
 ├── modules/                     # HMVC modules (see below)
 ├── third_party/                 # Third-party libraries
@@ -346,9 +338,9 @@ The framework uses HMVC architecture, allowing you to organize code into self-co
 ```
 application/modules/
 └── {module}/
-    ├── controllers/             # Module-specific controllers
+    ├── controllers/             # Module-specific controllers + controllers/api/ for REST endpoints
     ├── models/                  # Module-specific models
-    ├── migrations/              # Module-specific migrations
+    ├── migrations/{connection}/ # Module-specific migrations, versioned independently per module
     ├── views/                   # Module-specific views
     ├── libraries/               # Module-specific libraries
     ├── helpers/                 # Module-specific helpers
@@ -368,15 +360,18 @@ application/modules/
 ```
 application/modules/blog/
 ├── controllers/
-│   ├── Blog.php
-│   └── Admin.php
+│   ├── Blog.php                 # extends MY_Controller
+│   └── api/
+│       └── Posts.php            # extends APP_Rest_Controller
 ├── models/
-│   └── Blog_model.php
-├── views/
-│   ├── index.php
-│   └── detail.php
-└── libraries/
-    └── Blog_helper.php
+│   └── Post.php                 # extends MY_Model
+├── libraries/
+│   └── Blog_lib.php
+├── migrations/default/
+│   └── 20260707120000_Post.php  # extends MGR_Migration_builder
+└── views/
+    ├── index.php
+    └── detail.php
 ```
 
 ### Additional Directories
