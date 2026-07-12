@@ -27,7 +27,7 @@ class MGR_Cache extends CI_Cache
 			// Set configuration with fallbacks
 			$this->default_ttl = isset($config['default_ttl'])
 				? $config['default_ttl']
-				: 3600;
+				: 600;
 
 			$this->serialization = isset($config['serialization'])
 				? $config['serialization']
@@ -384,7 +384,7 @@ class MGR_Cache extends CI_Cache
 
 		if ($this->enable_logging) {
 			$debug_channels = (is_array($channels)) ? implode('-', $channels) : $channels;
-			log_message('debug', "Cache publish: {$debug_channels}");
+			log_message('debug', "Cache subscribe: {$debug_channels}");
 		}
 
 		if (method_exists($this->{$this->_adapter}, 'subscribe')) {
@@ -407,7 +407,7 @@ class MGR_Cache extends CI_Cache
 
 		if ($this->enable_logging) {
 			$debug_patterns = (is_array($patterns)) ? implode('-', $patterns) : $patterns;
-			log_message('debug', "Cache publish: {$debug_patterns}");
+			log_message('debug', "Cache psubscribe: {$debug_patterns}");
 		}
 
 		if (method_exists($this->{$this->_adapter}, 'psubscribe')) {

@@ -21,8 +21,8 @@ if (file_exists(MGRPATH . 'config/hooks.php')) {
 */
 
 // $hook['pre_controller'][] = [
-// 	'class'    => 'MGR_Bootsrap',
+// 	'class'    => 'MGR_Bootstrap',
 // 	'function' => 'init',
-// 	'filename' => 'MGR_Bootsrap.php',
+// 	'filename' => 'MGR_Bootstrap.php',
 // 	'filepath' => APPMGRPATH . 'hooks/',
 // ];

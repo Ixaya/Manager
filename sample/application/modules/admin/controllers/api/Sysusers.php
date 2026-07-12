@@ -52,9 +52,9 @@ class Sysusers extends APP_Rest_Controller
 			$response = [
 				'status' => 0,
 				'result' => false,
-				'error' => $e->getMessage()
+				'message' => $e->getMessage()
 			];
-			$this->response($response, REST_Controller::HTTP_BAD_REQUEST);
+			$this->response($response, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -184,7 +184,7 @@ class Sysusers extends APP_Rest_Controller
 
 			$this->response([
 				'status' => 1,
-				'message' => 'User updated succesfully',
+				'message' => 'User updated successfully',
 				'response' => $id
 			], REST_Controller::HTTP_OK);
 		} catch (Exception $e) {
@@ -256,7 +256,7 @@ class Sysusers extends APP_Rest_Controller
 
 		$this->response([
 			'status' => 1,
-			'message' => 'Usuario',
+			'message' => 'User',
 			'response' => $response
 		], REST_Controller::HTTP_OK);
 	}
@@ -272,6 +272,8 @@ class Sysusers extends APP_Rest_Controller
 				$this->response(['status' => -1, 'error' => 'Not Found'], REST_Controller::HTTP_NOT_FOUND);
 			}
 		}
+
+		$this->response(['status' => 0, 'message' => 'The username is required.'], REST_Controller::HTTP_BAD_REQUEST);
 	}
 
 	public function delete_post()

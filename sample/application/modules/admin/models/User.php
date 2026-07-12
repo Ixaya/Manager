@@ -18,8 +18,8 @@ class User extends APP_Model_Dyn
 
 		$where = [];
 		if (!empty($params['search'])) {
-			$seach = [];
-			$seach[MGR_Model_Dyn_clause::OR_LIKE] = [
+			$search = [];
+			$search[MGR_Model_Dyn_clause::OR_LIKE] = [
 				'first_name' => $params['search'],
 				'last_name' => $params['search'],
 				'email' => $params['search']
@@ -31,7 +31,7 @@ class User extends APP_Model_Dyn
 				];
 			}
 
-			$where[MGR_Model_Dyn_clause::OR_GROUP] = $seach;
+			$where[MGR_Model_Dyn_clause::OR_GROUP] = $search;
 		}
 
 		if (isset($params['active'])) {

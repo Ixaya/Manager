@@ -37,18 +37,18 @@ class MGR_Controller extends CI_Controller
 	{
 		$this->load->model('domain');
 		$domain_name = $_SERVER['HTTP_HOST'];
-		$domain = $this->domain->get_where("domain_name = '$domain_name'");
+		$domain = $this->domain->get_where(['domain_name' => $domain_name]);
 
 		if ($domain) {
-			if (!empty($domain->redirect_url)) {
-				redirect($domain->redirect_url);
+			if (!empty($domain['redirect_url'])) {
+				redirect($domain['redirect_url']);
 			}
-			$this->_domain_id       = (int)$domain->id;
-			$this->domain_client_id = (int)$domain->client_id;
+			$this->_domain_id       = (int)$domain['id'];
+			$this->domain_client_id = (int)$domain['client_id'];
 
-			if (!empty($domain->theme_id)) {
+			if (!empty($domain['theme_id'])) {
 				$this->load->model('theme');
-				$theme_row    = $this->theme->get($domain->theme_id);
+				$theme_row    = $this->theme->get($domain['theme_id']);
 				$this->_theme = $theme_row['shortname'];
 			}
 		}

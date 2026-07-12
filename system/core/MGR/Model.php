@@ -376,6 +376,7 @@ class MGR_Model extends CI_Model
 		if (!empty($row)) {
 			$update_data = [];
 			foreach (array_keys($data) as $key) {
+				// Loose compare: DB drivers return strings ("5") that must equal typed values (5); strict here would resync every row.
 				if (($row[$key] ?? null) != $data[$key]) {
 					$update_data[$key] = $data[$key];
 				}
@@ -395,7 +396,7 @@ class MGR_Model extends CI_Model
 
 			$this->apply_alter_filters();
 			$result = $this->my_db->update($this->table_name, $update_data, [$this->primary_key => $row[$this->primary_key]]);
-			if ($result == true) {
+			if ($result === true) {
 				$modified = true;
 				return $row[$this->primary_key];
 			}
@@ -410,7 +411,7 @@ class MGR_Model extends CI_Model
 			}
 
 			$result = $this->my_db->insert($this->table_name, array_merge($data, $where, $extra_data));
-			if ($result == true) {
+			if ($result === true) {
 				$modified = true;
 				return $this->my_db->insert_id();
 			}
@@ -428,6 +429,7 @@ class MGR_Model extends CI_Model
 			$update_data = [];
 
 			foreach (array_keys($data) as $key) {
+				// Loose compare: DB drivers return strings ("5") that must equal typed values (5); strict here would resync every row.
 				if ($row[$key] != $data[$key]) {
 					$update_data[$key] = $data[$key];
 				}
@@ -471,7 +473,12 @@ class MGR_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		$query = "UPDATE $this->table_name SET enabled = sync_enabled, deleted = !sync_enabled, last_update = ? WHERE enabled != sync_enabled AND (enabled = 0 OR enabled = 1)";
+		$deleted_expr = match ($this->my_db_driver) {
+			MgrDriver::Postgres => 'NOT sync_enabled',
+			default             => '!sync_enabled',
+		};
+
+		$query = "UPDATE $this->table_name SET enabled = sync_enabled, deleted = $deleted_expr, last_update = ? WHERE enabled != sync_enabled AND (enabled = 0 OR enabled = 1)";
 
 		$now = date('Y-m-d H:i:s');
 		return $this->my_db->query($query, [$now]);
@@ -495,7 +502,7 @@ class MGR_Model extends CI_Model
 
 		$this->my_db->where($this->primary_key, $id);
 
-		if ($this->soft_delete == false) {
+		if ($this->soft_delete === false) {
 			return $this->my_db->delete($this->table_name);
 		}
 
@@ -516,7 +523,7 @@ class MGR_Model extends CI_Model
 		$this->apply_alter_filters();
 		$this->my_db->where($where);
 
-		if ($this->soft_delete == false) {
+		if ($this->soft_delete === false) {
 			return $this->my_db->delete($this->table_name);
 		}
 

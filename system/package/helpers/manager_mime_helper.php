@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-function mgr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
+function mgr_file_kind_extension($file_path, &$mime_type = null, &$kind = null)
 {
 	$mime_type = mgr_detect_mime_from_file($file_path);
 
@@ -12,7 +12,13 @@ function mgr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
 		$kind = 'document';
 	}
 
-	return mgr_file_extention($file_path, $mime_type);
+	return mgr_file_extension($file_path, $mime_type);
+}
+
+/** @deprecated Use mgr_file_kind_extension() instead. */
+function mgr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
+{
+	return mgr_file_kind_extension($file_path, $mime_type, $kind);
 }
 
 /**
@@ -22,7 +28,7 @@ function mgr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
  * @param string $filepath Optional filename or file path for fallback extension extraction
  * @return string|false File extension (without dot) or false if not found
  */
-function mgr_file_extention($filepath = '', $mime_type = '')
+function mgr_file_extension($filepath = '', $mime_type = '')
 {
 	if (!empty($filepath)) {
 		$extension = pathinfo($filepath, PATHINFO_EXTENSION);
@@ -36,12 +42,9 @@ function mgr_file_extention($filepath = '', $mime_type = '')
 	}
 
 	// Fallback: extract extension from filename/path
-	static $mimes;
-	if (!is_array($mimes)) {
-		$mimes = get_mimes();
-		if (empty($mimes)) {
-			return false;
-		}
+	$mimes = mgr_mimes_config();
+	if (empty($mimes)) {
+		return false;
 	}
 
 	// Try to find extension by MIME type first
@@ -55,12 +58,36 @@ function mgr_file_extention($filepath = '', $mime_type = '')
 	return false;
 }
 
-if (!function_exists('mgr_mime_extention')) {
-	function mgr_mime_extention($extension)
+/** @deprecated Use mgr_file_extension() instead. */
+function mgr_file_extention($filepath = '', $mime_type = '')
+{
+	return mgr_file_extension($filepath, $mime_type);
+}
+
+if (!function_exists('mgr_mimes_config')) {
+	/**
+	 * config/mimes.php is a return-style file (`return [...]`), not the
+	 * $config-variable style Config::load() requires — load it via config
+	 * path resolution (respects env overrides / package config path) plus a
+	 * direct include(), whose return value IS that array, instead.
+	 */
+	function &mgr_mimes_config()
 	{
-		$CI = &get_instance();
-		$CI->config->load('mimes');
-		$mimes = $CI->config->item('mimes');
+		static $mimes;
+
+		if (!is_array($mimes)) {
+			$path = get_instance()->config->path('mimes');
+			$mimes = ($path !== null) ? include($path) : [];
+		}
+
+		return $mimes;
+	}
+}
+
+if (!function_exists('mgr_mime_extension')) {
+	function mgr_mime_extension($extension)
+	{
+		$mimes = mgr_mimes_config();
 
 		// Remove dot if present
 		$extension = ltrim($extension, '.');
@@ -71,6 +98,14 @@ if (!function_exists('mgr_mime_extention')) {
 		}
 
 		return 'application/octet-stream'; // Default fallback
+	}
+}
+
+if (!function_exists('mgr_mime_extention')) {
+	/** @deprecated Use mgr_mime_extension() instead. */
+	function mgr_mime_extention($extension)
+	{
+		return mgr_mime_extension($extension);
 	}
 }
 

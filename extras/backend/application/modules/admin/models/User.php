@@ -4,19 +4,7 @@
 
 class User extends MY_Model
 {
-	private $user_groups = null;
-
-	public function __construct()
-	{
-		//overrides
-		//$this->connection_name = '';
-		//$this->table_name = '';
-		//$this->override_column = '';
-		//$this->soft_delete = true;
-
-		//initialize after overriding
-		parent::__construct();
-	}
+	private ?array $user_groups = null;
 
 	public function validate_group($user_id, $group, $url = false)
 	{

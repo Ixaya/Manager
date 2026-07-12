@@ -1,6 +1,6 @@
 <?php
 
-class MGR_Bootsrap
+class MGR_Bootstrap
 {
 	//Example of different kind of imports if load timming doesnt matter
 	public function init()

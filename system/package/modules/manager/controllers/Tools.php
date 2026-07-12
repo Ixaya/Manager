@@ -149,9 +149,9 @@ class Tools extends CI_Controller
 		// $seeder->call($name);
 	}
 
-	public function model($name)
+	public function model($name, $module)
 	{
-		$this->make_model_file($name);
+		$this->make_model_file($name, $module);
 	}
 
 	protected function make_migration_file($name, $database = 'default', $module = '')
@@ -179,17 +179,16 @@ class Tools extends CI_Controller
 
 		$migration_template = "<?php
 
-class Migration_$name extends CI_Migration {
+class Migration_$name extends MGR_Migration_builder {
 
 	public function up() {
 		\$this->dbforge->add_field([
-			'id' => [
-				'type'           => 'INT',
-				'unsigned'       => true,
-				'auto_increment' => true,
-			]
-	]);
-		\$this->dbforge->add_key('id', TRUE);
+			...\$this->field_id('id'),
+			...\$this->field(name: 'name', type: MgrFieldType::VarChar, constraint: 100),
+			...\$this->field_timestamps()
+		]);
+
+		\$this->dbforge->add_key('id', true);
 		\$this->dbforge->create_table('$table_name');
 	}
 
@@ -255,9 +254,9 @@ class $name extends Seeder {
 		echo "$path seeder has successfully been created." . PHP_EOL;
 	}
 
-	protected function make_model_file($name)
+	protected function make_model_file($name, $module)
 	{
-		$path = APPPATH . "modules/admin/models/$name.php";
+		$path = APPPATH . "modules/$module/models/$name.php";
 
 		$my_model = fopen($path, "w") or die("Unable to create model file!");
 

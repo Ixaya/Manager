@@ -23,6 +23,9 @@ class MGR_Cache_redis extends CI_Cache_redis
 	/** @var String */
 	protected $channelPrefix;
 
+	/** @var int */
+	protected $default_ttl;
+
 	/**
 	 * Class constructor
 	 *
@@ -54,6 +57,7 @@ class MGR_Cache_redis extends CI_Cache_redis
 		}
 
 		$this->channelPrefix = $config['channel_prefix'] ?? '';
+		$this->default_ttl = $config['default_ttl'] ?? 600;
 	}
 
 	/**
@@ -66,8 +70,10 @@ class MGR_Cache_redis extends CI_Cache_redis
 	 * @param	bool	$raw	Whether to store the raw value (unused)
 	 * @return	bool	TRUE on success, FALSE on failure
 	 */
-	public function save($id, $data, $ttl = 60, $raw = false)
+	public function save($id, $data, $ttl = null, $raw = false)
 	{
+		$ttl ??= $this->default_ttl;
+
 		if (is_array($data) or is_object($data)) {
 			$data = self::SERIALIZE_PREFIX . serialize($data);
 		}
@@ -88,8 +94,9 @@ class MGR_Cache_redis extends CI_Cache_redis
 	 * @param bool   $prepend If true, add to beginning (lPush), if false add to end (rPush)
 	 * @return bool
 	 */
-	public function save_list($id, $data, $ttl = 60, $prepend = false)
+	public function save_list($id, $data, $ttl = null, $prepend = false)
 	{
+		$ttl ??= $this->default_ttl;
 		$items = is_array($data) ? $data : [$data];
 
 		if ($prepend) {
@@ -118,8 +125,9 @@ class MGR_Cache_redis extends CI_Cache_redis
 	 * @param int    $ttl   Seconds (0 = no expiry)
 	 * @return bool
 	 */
-	public function save_set(string $id, mixed $data, int $ttl = 60)
+	public function save_set(string $id, mixed $data, ?int $ttl = null)
 	{
+		$ttl ??= $this->default_ttl;
 		$items = is_array($data) ? $data : [$data];
 		$result = $this->_redis->sAdd($id, ...$items);
 
@@ -147,8 +155,10 @@ class MGR_Cache_redis extends CI_Cache_redis
 	 * @param int    $ttl  Seconds (0 = no expiry)
 	 * @return bool
 	 */
-	public function save_zset(string $id, mixed $data, int $ttl = 60)
+	public function save_zset(string $id, mixed $data, ?int $ttl = null)
 	{
+		$ttl ??= $this->default_ttl;
+
 		// Normalize: if it's a single ['value'=>..., 'score'=>...] wrap it
 		$items = isset($data['value']) ? [$data] : $data;
 
@@ -181,8 +191,10 @@ class MGR_Cache_redis extends CI_Cache_redis
 	 * @param int    $ttl  Seconds (0 = no expiry)
 	 * @return bool
 	 */
-	public function save_hash(string $id, array $data, int $ttl = 60)
+	public function save_hash(string $id, array $data, ?int $ttl = null)
 	{
+		$ttl ??= $this->default_ttl;
+
 		if (empty($data)) {
 			return false;
 		}

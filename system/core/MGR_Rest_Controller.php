@@ -6,12 +6,14 @@ require dirname(__FILE__) . "/../third_party/REST_Controller.php";
 
 class MGR_Rest_Controller extends REST_Controller
 {
+	/** @var string */
 	protected $user_id = '';
-	protected $group_methods = [];
+	/** @var array<string, array{level?: int, group?: mixed}> */
+	protected array $group_methods = [];
+	/** @var string|null */
 	protected $time_zone = null;
 
-	public $logged_in_level;
-	public $user_group;
+	public ?int $logged_in_level = null;
 
 	public function __construct()
 	{
@@ -25,7 +27,7 @@ class MGR_Rest_Controller extends REST_Controller
 		if (isset($this->_apiuser)) {
 			$offset = mgr_get_time_zone_offset($this->time_zone);
 			if ($offset !== false) {
-				$this->rest->db->query("SET SESSION time_zone='$offset'");
+				$this->set_rest_timezone($offset);
 			}
 
 			$this->process_api_user();
@@ -47,9 +49,26 @@ class MGR_Rest_Controller extends REST_Controller
 		$this->load->model('ion_auth_model');
 		$user_groups = $this->ion_auth_model->get_users_groups($this->user_id)->result();
 		foreach ($user_groups as $user_group) {
-			if ($this->logged_in_level < $user_group->level) {
-				$this->logged_in_level = $user_group->level;
+			$user_group_level = (int) $user_group->level;
+			if ($this->logged_in_level < $user_group_level) {
+				$this->logged_in_level = $user_group_level;
 			}
+		}
+	}
+
+	protected function set_rest_timezone(string $offset)
+	{
+		$offset = $this->rest->db->escape_str($offset);
+		$driver = MgrDriver::fromCI($this->rest->db->dbdriver ?? '');
+		$sql = match ($driver) {
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB  => "SET SESSION time_zone = '{$offset}'",
+			MgrDriver::Postgres => "SET TIME ZONE '{$offset}'",
+			default             => null,
+		};
+
+		if ($sql !== null) {
+			$this->rest->db->query($sql);
 		}
 	}
 
@@ -135,7 +154,7 @@ class MGR_Rest_Controller extends REST_Controller
 
 	public function validate_group($group, $url = null)
 	{
-		if (!isset($this->user)) {
+		if (!isset($this->rest_user)) {
 			$this->load->model('rest_user');
 		}
 
@@ -152,7 +171,7 @@ class MGR_Rest_Controller extends REST_Controller
 			return false;
 		}
 
-		if (!isset($this->user)) {
+		if (!isset($this->rest_user)) {
 			$this->load->model('rest_user');
 		}
 
@@ -196,6 +215,6 @@ class MGR_Rest_Controller extends REST_Controller
 		$now = mgr_get_now_date_time();
 
 		$timestamp = $now->format('Y-m-d H:i:s');
-		echo(PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
+		echo (PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
 	}
 }
