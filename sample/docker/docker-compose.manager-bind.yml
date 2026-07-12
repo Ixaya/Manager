@@ -1,0 +1,34 @@
+# OPT-IN dev "live framework" override. Bind-mounts a host checkout of
+# ixaya/manager's system/ (read-only) over the vendor/ixaya/manager/system
+# baked into the image. Enabled only via
+# `./docker_manage.sh -e <instance> -m <args>` — without -m, the stack is
+# byte-identical to core/prod. Fully independent of -b/--bind: use either
+# alone, or both together (e.g. testing a sample/ change alongside a
+# framework change in the same checkout).
+#
+# Exception to the general "never bind vendor/" rule (see
+# docs/development/01-docker/gotchas.md — Hard rules), scoped narrowly to
+# this one opt-in file: ixaya/manager ships no composer `autoload` section
+# and no PSR-4 namespaces anywhere under system/, so it's loaded by CI3/MX
+# path-convention discovery exactly like application/ — no composer
+# classmap, no `dump-autoload`, no rebuild boundary for new classes either.
+#
+# Requires MANAGER_BIND_PATH in the instance's env-file (host path containing
+# an ixaya/manager checkout's system/ directory) — the ${VAR:?...} form below
+# aborts rather than silently falling back to baked vendor code if it's unset.
+
+services:
+  php:
+    volumes:
+      - ${MANAGER_BIND_PATH:?MANAGER_BIND_PATH is required in the instance env-file for -m/--manager-bind mode}/system:/var/www/html/vendor/ixaya/manager/system:ro
+      - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro
+
+  ws:
+    volumes:
+      - ${MANAGER_BIND_PATH:?MANAGER_BIND_PATH is required in the instance env-file for -m/--manager-bind mode}/system:/var/www/html/vendor/ixaya/manager/system:ro
+      - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro
+
+  cron:
+    volumes:
+      - ${MANAGER_BIND_PATH:?MANAGER_BIND_PATH is required in the instance env-file for -m/--manager-bind mode}/system:/var/www/html/vendor/ixaya/manager/system:ro
+      - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro

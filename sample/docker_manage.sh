@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docker_manage.sh — the single entrypoint for every Docker Compose operation.
 #
-#   ./docker_manage.sh -e <instance> [-b|--bind] <docker compose args...>
+#   ./docker_manage.sh -e <instance> [-b|--bind] [-m|--manager-bind] <docker compose args...>
 #
 # Examples:
 #   ./docker_manage.sh -e dev build
@@ -10,6 +10,8 @@
 #   ./docker_manage.sh -e dev exec php bash
 #   ./docker_manage.sh -e dev logs -f php
 #   ./docker_manage.sh -e local -b up -d      # dev live-code bind mode, see below
+#   ./docker_manage.sh -e local -m up -d      # live-framework bind mode, see below
+#   ./docker_manage.sh -e local -b -m up -d   # both together, independent flags
 #
 # It wraps:
 #   docker compose -f docker/docker-compose.yml -p <instance> \
@@ -36,6 +38,14 @@
 # falling back to baked code. Without -b, the compose invocation is
 # unchanged from before this flag existed.
 #
+# -m / --manager-bind (optional, may appear before or after -b): also passes
+# `-f docker/docker-compose.manager-bind.yml`, which bind-mounts an
+# ixaya/manager checkout's system/ (from MANAGER_BIND_PATH) over
+# vendor/ixaya/manager/system in the baked image. Fully independent of -b —
+# use either alone, or both together. NEVER use for prod instances. Requires
+# MANAGER_BIND_PATH=<path> set in the instance's DOCKER env-file; without it,
+# this aborts rather than silently falling back to baked vendor code.
+#
 # Fail loud: a missing instance name or required file aborts immediately.
 set -euo pipefail
 
@@ -45,18 +55,22 @@ DOCKER_DIR="${SCRIPT_DIR}/docker"
 die() { echo "docker_manage.sh: FATAL: $*" >&2; exit 1; }
 
 # ── Parse -e <instance> (must come first) ─────────────────────────────────────
-[[ "${1:-}" == "-e" ]] || die "usage: ./docker_manage.sh -e <instance> [-b|--bind] <docker compose args...>"
+[[ "${1:-}" == "-e" ]] || die "usage: ./docker_manage.sh -e <instance> [-b|--bind] [-m|--manager-bind] <docker compose args...>"
 INSTANCE="${2:-}"
 [[ -n "$INSTANCE" ]]   || die "missing <instance> after -e"
 [[ "$INSTANCE" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || die "invalid instance name '$INSTANCE' (use [a-z0-9_-])"
 shift 2
 
-# ── Parse optional -b / --bind (must come right after -e <instance>) ─────────
+# ── Parse optional -b/--bind and -m/--manager-bind, in either order ──────────
 BIND_MODE=false
-if [[ "${1:-}" == "-b" || "${1:-}" == "--bind" ]]; then
-    BIND_MODE=true
-    shift
-fi
+MANAGER_BIND_MODE=false
+while true; do
+    case "${1:-}" in
+        -b|--bind)         BIND_MODE=true; shift ;;
+        -m|--manager-bind) MANAGER_BIND_MODE=true; shift ;;
+        *) break ;;
+    esac
+done
 
 DOCKER_ENV_FILE="${DOCKER_DIR}/env/${INSTANCE}.docker.env"
 ENV_FILE="${DOCKER_DIR}/env/${INSTANCE}.env"
@@ -68,6 +82,11 @@ if [[ "$BIND_MODE" == true ]]; then
     grep -qE '^CODE_BIND_PATH=.+$' "$DOCKER_ENV_FILE" \
         || die "usage: -b/--bind requires CODE_BIND_PATH=<host path containing application/ and public/> in docker/env/${INSTANCE}.docker.env"
     COMPOSE_FILE_ARGS+=(-f "${DOCKER_DIR}/docker-compose.dev-bind.yml")
+fi
+if [[ "$MANAGER_BIND_MODE" == true ]]; then
+    grep -qE '^MANAGER_BIND_PATH=.+$' "$DOCKER_ENV_FILE" \
+        || die "usage: -m/--manager-bind requires MANAGER_BIND_PATH=<host path containing an ixaya/manager checkout's system/> in docker/env/${INSTANCE}.docker.env"
+    COMPOSE_FILE_ARGS+=(-f "${DOCKER_DIR}/docker-compose.manager-bind.yml")
 fi
 
 # Paths below are RELATIVE TO docker/ (the compose file's directory), because

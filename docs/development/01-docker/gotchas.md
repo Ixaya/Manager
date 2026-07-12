@@ -73,13 +73,26 @@ examples of that split in practice — new entries should follow the same
 
 ## Hard rules
 
-- **Never bind `vendor/` or `bin/` in any dev-bind override.** `vendor/` is
-  composer-managed, read-only, and none of this stack's design assumes it
-  can drift from what's baked into the image. `bin/` must keep the image's
-  Alpine-corrected `docker/php/bin/cli_run.sh` (see "Never patch the wrong
-  cli_run.sh" below) — binding the repo's `bin/` over it silently
-  reintroduces a path bug that only manifests on Alpine, not on a dev's
-  Mac/Linux host, so it can look fine locally and fail in the container.
+- **Never bind `vendor/` or `bin/` in the `-b`/`--bind` override
+  (`docker-compose.dev-bind.yml`).** `vendor/` is composer-managed,
+  read-only, and that file's design assumes it can't drift from what's
+  baked into the image. `bin/` must keep the image's Alpine-corrected
+  `docker/php/bin/cli_run.sh` (see "Never patch the wrong cli_run.sh"
+  below) — binding the repo's `bin/` over it silently reintroduces a path
+  bug that only manifests on Alpine, not on a dev's Mac/Linux host, so it
+  can look fine locally and fail in the container.
+  - **Narrow, deliberate exception:** `docker-compose.manager-bind.yml`
+    (the `-m`/`--manager-bind` override, §7b in the README) binds
+    `vendor/ixaya/manager/system` specifically — nothing else under
+    `vendor/`, and never `bin/`. This is safe *only* because
+    `ixaya/manager`'s `composer.json` declares no `autoload` section and no
+    file under `system/` uses a PSR-4 namespace — it's loaded by CI3/MX
+    path-convention discovery exactly like `application/`, so there's no
+    composer classmap to go stale and no `dump-autoload` step to miss.
+    Do not extend this pattern to any other vendor package without
+    re-verifying that same autoload-free precondition first — a package
+    that's autoload/namespace-based would silently break on new classes
+    while bound.
 - **Never patch `vendor/`.** It's composer-managed — `ixaya/manager` is a
   public Packagist dependency (resolved via Packagist's default, no
   `repositories` entry in `composer.json`), and a local patch will be

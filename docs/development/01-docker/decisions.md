@@ -210,3 +210,45 @@ somewhere content actually renders, not just a header-presence check.
 Revisit when: the edge layer's CSP (if/when defined) needs verification
 against real page content — that's a real testing gap this decision
 doesn't close, just correctly assigns elsewhere.
+
+**`-m`/`--manager-bind`: a scoped exception to "never bind `vendor/`", independent of `-b`.**
+Decision: a second opt-in override, `docker-compose.manager-bind.yml`, binds
+`${MANAGER_BIND_PATH}/system` (a host `ixaya/manager` checkout) over
+`vendor/ixaya/manager/system`, read-only, on `php`/`ws`/`cron` — mirroring
+`-b`'s shape but as a fully independent flag with its own required var, not
+a mode of `-b`.
+Why: the existing `-b`/`--bind` workflow (README §7) exists to test
+`application/`/`public/` changes live; there was no equivalent for testing
+`ixaya/manager` framework changes without a `composer.lock` bump/publish/
+tag cycle. `vendor/` is off-limits by the hard rule in `gotchas.md` because
+that rule assumes composer-classmap-based loading that can silently go
+stale — but `ixaya/manager`'s own `composer.json` declares no `autoload`
+section, and a repo-wide grep found zero PSR-4 `namespace` declarations
+under `system/`: it loads via the same CI3/MX path-convention discovery as
+`application/`, so the classmap-staleness risk the hard rule guards against
+doesn't apply to this one package. Kept as an independent flag (not `-m`
+implying `-b`, not `-b` implying `-m`) because the more common real-world
+use of `-m` alone is a downstream consumer isolating a suspected framework
+bug by mounting their own `vendor/ixaya/manager` checkout — they may not be
+running `-b` at all, and forcing `CODE_BIND_PATH` to also be set for that
+case would be exactly the kind of silent, unrelated coupling this stack's
+fail-loud design otherwise avoids. `-b -m` together (either order) is fully
+supported for the self-testing case (one checkout, both vars pointed at
+it) — verified the merged compose config resolves both mounts cleanly, and
+that the duplicated `99-dev-opcache.ini` mount both files independently
+carry (needed so `-m` gets live-reload standalone) is deduplicated by
+Compose itself (identical source+target → one mount, confirmed via
+`docker compose config` on `php`/`ws`/`cron`, both flag orders), not a
+conflict.
+Evidence: `composer.json` (repo root, no `autoload` key);
+`grep -rl '^namespace ' system --include=*.php` (zero matches);
+`docker/docker-compose.manager-bind.yml`; `docker_manage.sh`'s
+`-m`/`--manager-bind` parsing; `gotchas.md` "Hard rules" carve-out.
+Cost: a second vendor-adjacent exception to reason about, narrowly scoped
+to this one package/directory — do not extend the pattern to another
+vendor package without re-checking that package has no composer autoload
+section and no PSR-4 namespaces first.
+Revisit when: `ixaya/manager` ever adopts a composer `autoload` section or
+PSR-4 namespaces — at that point this override needs a `dump-autoload`
+step (or a rebuild boundary, like `-b`'s classmap caveat) or it will
+silently fail to pick up new classes while bound.

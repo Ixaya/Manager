@@ -359,6 +359,68 @@ A single-checkout setup (this repo testing itself) can just set
 
 ---
 
+## 7b. Live-framework workflow (`-m` / `--manager-bind`)
+
+A second, **fully independent** opt-in override — same shape as `-b`
+(§7), but for testing changes to the `ixaya/manager` **framework** itself
+(`system/`) instead of the consuming app's `application/`/`public/`. Use it
+to exercise a framework fix or investigate a suspected framework bug
+without a `composer.lock` bump, a tagged release, or a git push.
+
+**Never used for prod instances.** Same posture as `-b`.
+
+### How it works
+
+```bash
+./docker_manage.sh -e <instance> -m <compose args...>
+```
+
+- Appends `-f docker/docker-compose.manager-bind.yml` to the compose
+  invocation.
+- That file bind-mounts, **read-only**:
+  - `${MANAGER_BIND_PATH}/system` →
+    `/var/www/html/vendor/ixaya/manager/system` (php, ws, cron)
+  - `docker/php/conf.d.dev/99-dev-opcache.ini` — the same live-reload ini
+    `-b` uses, included here too so `-m` gets live-reload **standalone**,
+    without also requiring `-b`.
+- `MANAGER_BIND_PATH` **must** be set in the instance's docker env-file
+  (`docker/env/<instance>.docker.env`), pointing at the root of an
+  `ixaya/manager` checkout (the directory containing `system/`) — not the
+  `system/` path itself. Without it, `docker_manage.sh` aborts before
+  compose runs, same fail-loud contract as `CODE_BIND_PATH`.
+- Independent of `-b` in both directions: `-m` does **not** require
+  `CODE_BIND_PATH`/`-b`, and `-b` does not require `MANAGER_BIND_PATH`/`-m`.
+  Pass whichever flag(s) match what you're testing, in either order
+  (`-b -m` and `-m -b` both work).
+- **Why `vendor/` here and nowhere else:** `gotchas.md`'s hard rule bans
+  binding `vendor/` in `-b`'s override because that assumes a composer
+  classmap that can go stale. `ixaya/manager` itself declares no composer
+  `autoload` section and uses no PSR-4 namespaces anywhere under `system/`
+  — it loads via the same CI3/MX path-convention discovery `application/`
+  does, so there's no classmap to go stale and no rebuild boundary for new
+  classes either (see `decisions.md` for the full evidence). This is a
+  narrow, deliberate exception scoped to this one package/directory — see
+  `gotchas.md` "Hard rules" before reusing the pattern elsewhere.
+- **Combining with `-b`:** both override files independently carry the
+  same `99-dev-opcache.ini` mount (so each works alone). When both flags
+  are passed, Compose merges the two identical bind-mounts (same
+  source+target) into one — confirmed via `docker compose config`, no
+  conflict, no duplicate mount error.
+
+### Self-testing this repo
+
+Since this repo *is* an `ixaya/manager` checkout, point `MANAGER_BIND_PATH`
+at its own root (two levels up from `docker/`: `docker/` → the consuming
+app → the repo root) — see `docker/env/local.docker.env`. Combine with `-b`
+pointed at the same checkout to exercise a framework change and an
+app-side change together:
+
+```bash
+./docker_manage.sh -e local -b -m up -d
+```
+
+---
+
 ## 8. Agent access (smoke-test module)
 
 Procedure only — no credential values live in this file. Real values live in
