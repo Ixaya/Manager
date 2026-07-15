@@ -38,6 +38,7 @@ parameters:
           - application/database/
           - application/language/
           - application/tests/
+          - application/modules/test/
 
     ignoreErrors:
         # Level 1 – Critical (likely bugs or fatal issues)

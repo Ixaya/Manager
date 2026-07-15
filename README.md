@@ -96,6 +96,7 @@ The package ships its coding conventions as agent skills (open `SKILL.md` format
 | `ixaya-code-style` | Style baseline: typing, PHPDoc, named parameters, comments |
 | `ixaya-models` | `MY_Model` / `APP_Model_Dyn` — any database access |
 | `ixaya-rest-controller` | API endpoints, auth, response envelope |
+| `ixaya-auth` | Ion Auth stack: login/sessions, lockout, password reset, tenancy, security invariants |
 | `ixaya-web-controllers` | Web page controllers, views, theming/layouts |
 | `ixaya-migrations` | Schema changes (`MGR_Migration_builder`) |
 | `ixaya-cli-modules` | CLI commands, crons, background exec, HMVC modules |

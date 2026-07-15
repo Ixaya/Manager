@@ -54,7 +54,7 @@ patches/                # composer patches for dependencies
 The skills in `system/skills/ixaya-*/SKILL.md` are the source of truth for how
 code is written here and in consuming projects. `ixaya-code-style` applies to
 every line in this repo; consult the topic skill before touching its area
-(models, REST, web controllers/theming, migrations, libraries,
+(models, REST, auth, web controllers/theming, migrations, libraries,
 cache/websockets, CLI/modules).
 
 **Testing framework code:** write throwaway test/validation controllers in
@@ -62,7 +62,8 @@ cache/websockets, CLI/modules).
 (`sample/application/modules/.gitignore`), exists only for framework
 development, and never ships to consuming projects (the sample is copied
 from a git checkout, where it's absent). Don't scatter test code anywhere
-else in `sample/` or `system/`.
+else in `sample/` or `system/`. The probe conventions (authenticated-not-
+bypassed, Docker recipe, log channels) are in the `ixaya-live-probes` skill.
 
 ## Documentation
 
@@ -105,7 +106,9 @@ analysis that will later be consolidated into permanent documentation.
 - **`system/third_party/` is upstream-tracked — leave it as-is.** MX, the BE
   Ion Auth fork, and REST_Controller are kept close to their upstreams so
   updates merge cleanly. No style sweeps, no refactors; surgical bug fixes
-  only, and prefer fixing in the MGR_ subclass layer instead.
+  only, and prefer fixing in the MGR_ subclass layer instead. The BE Ion Auth
+  fork carries a documented set of deliberate edits and purposeful deviations
+  — see `docs/development/02-auth/upstream.md` before/after any upstream merge.
 - Every PHP file starts with the `BASEPATH` guard; formatting is PSR-12 with
   tabs (run the fixer before finishing).
 - **Git operations are off-limits.** Agents must never perform git operations
@@ -120,4 +123,6 @@ Each `docs/workspace/<task>/` directory contains a
 `handoff.md` recording current state, blockers, and context for continuing that
 specific investigation or initiative. When a workspace task is complete, its
 handoff is distilled into permanent documentation (design/, architecture/,
-development/, modules/) or deleted if inconsequential.
+development/, modules/) or deleted if inconsequential. The full methodology for
+running a findings/fix campaign through the workspace (validation, baselines,
+session planning) is `docs/development/03-spec-campaigns/README.md`.

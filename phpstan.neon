@@ -39,6 +39,7 @@ parameters:
           - */database/*
           - */language/*
           - */tests/*
+          - */test/*
 
     ignoreErrors:
         # Level 1 – Critical (likely bugs or fatal issues)

@@ -51,14 +51,30 @@ files.
 
 ## Comments
 
-- **Inline comments: only when necessary, and short.** They state a constraint
-  or a *why* the code can't express — never what the next line does, never
-  narration for a reviewer or agent.
+Two kinds, two audiences:
+
+- **Function-header comments (PHPDoc): for whoever *calls* the function.** What it
+  does, what to pass, what comes back, what it throws — enough to use it without
+  reading the body. Keep it SHORT (see Hard rule 2); no internals, no history.
+- **Inline comments inside a function: for whoever next *edits* it.** Only when
+  necessary, and short — **1–2 lines**, up to **4** for a constraint/consequence
+  warning stated as a direct effect ("must stay above X, or Y breaks"). Each one
+  earns its place by flagging a gotcha the next dev/agent would miss from the code
+  alone — a non-obvious constraint, an assumption, a *why* the code can't express.
+  Never narrate what the next line does.
+
+Both kinds:
+
+- **No pointers to other docs.** A comment must never say "see README.md", "see
+  gotchas.md", or link any document. If a comment feels like it needs that
+  pointer, the content itself belongs in that doc — not a pointer in the code.
+- **Never address the comment to an LLM or agent** ("verify this before
+  proceeding", "read the version via `…`"). Write for the reader of the code.
+- **No history in comments:** no dates, no "Item 5"/"Phase 2"/review-session
+  labels, no "we decided X" — that belongs in the Decisions log.
 - Good: `// runs all upstream logic`, `// 64-bit assumed for 14-digit timestamps`,
   the cross-engine behavior matrix in `MGR_Migration_builder`'s DocBlock.
-- Bad: `// loop through the users`, `// call the model`, `// fixed per review`.
-- Section dividers are welcome in long classes:
-  `// ── Validation ────────────────────────────────────────────`
+- Bad: `// loop through the users`, `// call the model`, `// fixed per review`, `// see gotchas.md`.
 
 ## Patterns from the reference code
 
