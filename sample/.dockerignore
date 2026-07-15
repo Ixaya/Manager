@@ -23,3 +23,6 @@
 # composer.lock IS needed in the build context for a reproducible,
 # --classmap-authoritative install. Keep it un-ignored.
 !composer.lock
+
+# Local-only probe/test module (gitignored) — must never enter a build context
+application/modules/test/

@@ -393,3 +393,16 @@ function mgr_build_field_select(
 	$sql = (new MgrFunctionBuilder($function, $driver, $args))->build();
 	return "{$sql} AS {$name}";
 }
+
+/**
+ * Whether a string is a plain (optionally dotted) SQL identifier —
+ * column, table.column or schema.table.column; nothing escapable.
+ *
+ * @param string $identifier Candidate column or table name.
+ *
+ * @return bool
+ */
+function mgr_is_sql_identifier(string $identifier): bool
+{
+	return (bool)preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', $identifier);
+}

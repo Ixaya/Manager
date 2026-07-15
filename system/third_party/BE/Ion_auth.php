@@ -32,7 +32,7 @@ if (! defined('BASEPATH')) {
  * @method self users($groups = null)
  * @method string set_message(string $message)
  * @method string set_error(string $error)
- * @method object|false row()
+ * @method object|null row()
  */
 
 class BE_Ion_auth
@@ -43,13 +43,6 @@ class BE_Ion_auth
 	 * @var object
 	 */
 	protected $configAuth;
-
-	/**
-	 * Allow load session lib
-	 *
-	 * @var bool
-	 */
-	protected $useSessions = false;
 
 	/**
 	 * __construct
@@ -65,15 +58,19 @@ class BE_Ion_auth
 
 		$this->load->model('ion_auth_model');
 
-		$CI = & get_instance();
-		$this->useSessions = isset($CI->session) && $CI->session instanceof CI_Session;
-
-		//auto-login the user if they are remembered
-		if (!$this->logged_in() && get_cookie($this->configAuth->identityCookieName) && get_cookie($this->configAuth->rememberCookieName)) {
-			$this->ion_auth_model->login_remembered_user();
-		}
-
 		$this->ion_auth_model->trigger_events('library_constructor');
+	}
+
+	/**
+	 * Whether sessions are available, re-checked at call time.
+	 *
+	 * @return bool
+	 */
+	protected function use_sessions(): bool
+	{
+		// single source of truth: delegate to the model so disable_session()
+		// applies to the library's session checks (logout/logged_in) too.
+		return $this->ion_auth_model->use_sessions();
 	}
 
 	/**
@@ -90,12 +87,6 @@ class BE_Ion_auth
 	{
 		if (!method_exists($this->ion_auth_model, $method)) {
 			throw new Exception('Undefined method Ion_auth::' . $method . '() called');
-		}
-		if ($method == 'create_user') {
-			return call_user_func_array([$this, 'register'], $arguments);
-		}
-		if ($method == 'update_user') {
-			return call_user_func_array([$this, 'update'], $arguments);
 		}
 		return call_user_func_array([$this->ion_auth_model, $method], $arguments);
 	}
@@ -265,12 +256,12 @@ class BE_Ion_auth
 	public function send_activation_email(string $identity)
 	{
 		if (empty($identity)) {
-			$this->set_error('empty_identity');
+			$this->set_error('activation_email_unsuccessful');
 			return false;
 		}
 
 		if (!$this->ion_auth_model->identity_check($identity)) {
-			$this->set_error("unregistered_identity");
+			$this->set_error('activation_email_unsuccessful');
 			return false;
 		}
 
@@ -284,7 +275,7 @@ class BE_Ion_auth
 		}
 
 		if ($user->active) {
-			$this->set_error("already_activated_identity");
+			$this->set_error('activation_email_unsuccessful');
 			return false;
 		}
 
@@ -307,6 +298,7 @@ class BE_Ion_auth
 			'id'         		  => $user->id,
 			'email'      		  => $user->email,
 			'activation' 		  => $activationCode,
+			'subject'    		  => $this->lang->line('email_activation_subject'),
 		];
 
 		$this->ion_auth_model->trigger_events(['activation_email_successful']);
@@ -322,21 +314,23 @@ class BE_Ion_auth
 	 */
 	public function logout(): bool
 	{
-		if (!$this->useSessions) {
+		if (!$this->use_sessions()) {
 			return false;
 		}
 
 		$this->ion_auth_model->trigger_events('logout');
 
-		$identity = $this->configAuth->identity;
+		// the identity VALUE must be read before the session keys are unset,
+		// or the clear-code calls below match nothing
+		$identity = $this->session->userdata('identity');
 
-		$this->session->unset_userdata([$identity, 'id', 'user_id']);
+		$this->session->unset_userdata([$this->configAuth->identity, 'id', 'user_id']);
 
 		// delete the remember me cookies if they exist
 		delete_cookie($this->configAuth->rememberCookieName);
 
 		// Clear all codes
-		if (isset($identity)) {
+		if ($identity) {
 			$this->ion_auth_model->clear_forgotten_password_code($identity);
 			$this->ion_auth_model->clear_remember_code($identity);
 		}
@@ -361,7 +355,7 @@ class BE_Ion_auth
 	 */
 	public function logged_in(): bool
 	{
-		if (!$this->useSessions) {
+		if (!$this->use_sessions()) {
 			return false;
 		}
 
@@ -385,7 +379,7 @@ class BE_Ion_auth
 	 **/
 	public function get_user_id(): ?int
 	{
-		if (!$this->useSessions) {
+		if (!$this->use_sessions()) {
 			return null;
 		}
 
@@ -444,8 +438,8 @@ class BE_Ion_auth
 	 */
 	public function deactivate(int $id): bool
 	{
-		if ($this->useSessions && $this->logged_in() && $this->get_user_id() == $id) {
-			$this->ion_auth_model->set_error('IonAuth.deactivate_current_user_unsuccessful');
+		if ($this->use_sessions() && $this->logged_in() && $this->get_user_id() == $id) {
+			$this->ion_auth_model->set_error('deactivate_unsuccessful');
 			return false;
 		}
 

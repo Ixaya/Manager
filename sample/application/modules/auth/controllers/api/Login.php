@@ -39,7 +39,8 @@ class Login extends APP_Rest_Controller
 
 		$device_uuid = $this->post('device_uuid');
 
-		$result = $this->ion_auth->login($username, $password, false, true);
+		$this->ion_auth->disable_session();
+		$result = $this->ion_auth->login($username, $password);
 
 
 
@@ -68,13 +69,14 @@ class Login extends APP_Rest_Controller
 
 			$this->ion_auth->activate($user_id);
 
-			$result = $this->ion_auth->login($username, $password, false, true);
+			$this->ion_auth->disable_session();
+			$result = $this->ion_auth->login($username, $password);
 			$json = $this->___processJSONResponse($result);
 
 			$this->response($json, REST_Controller::HTTP_OK);
 		}
 
-		$this->response(['status' => -1, 'message' => "User previously registered."], REST_Controller::HTTP_OK);
+		$this->response(['status' => -1, 'message' => "Unable to register."], REST_Controller::HTTP_OK);
 	}
 
 	public function password_recovery_post()

@@ -61,12 +61,12 @@ $config['identityExtraColumns'] = mgr_env_array('AUTH_IDENTITY_EXTRA_COLUMNS', [
 $config['emailActivation'] = mgr_env_bool('AUTH_EMAIL_ACTIVATION', false); // Require email activation on registration
 $config['manualActivation'] = mgr_env_bool('AUTH_MANUAL_ACTIVATION', true); // Require manual activation on registration
 $config['rememberUsers'] = false; // Allow remember-me / auto-login
-$config['userExpire'] = 1; // Remember-me duration in seconds, 0 for no expiration
+$config['userExpire'] = 1; // Remember-me duration in seconds. 1 = semi-disabled (cookie dies after 1s); use 0 for NO expiration (max cookie lifetime, 2 years), not for disabling
 $config['userExtendOnLogin'] = false; // Extend remember-me cookie on each auto-login
 
 // --- Login Protection ---
 $config['trackLoginAttempts'] = mgr_env_bool('AUTH_TRACK_LOGIN_ATTEMPTS', true); // Track failed login attempts per user or IP
-$config['trackLoginIpAddress'] = mgr_env_bool('AUTH_TRACK_LOGIN_IP', false); // Track by IP if true, by identity if false
+$config['trackLoginIpAddress'] = mgr_env_bool('AUTH_TRACK_LOGIN_IP', true); // Lockout scope: identity+IP if true, identity alone if false (one attacker can lock a user out everywhere)
 $config['maximumLoginAttempts'] = mgr_env_int('AUTH_MAX_LOGIN_ATTEMPTS', 3); // Max failed attempts before lockout
 $config['lockoutTime'] = mgr_env_int('AUTH_LOCKOUT_TIME', 600); // Lockout duration in seconds, minimum 60
 
@@ -82,10 +82,8 @@ $config['recheckTimer'] = mgr_env_int('AUTH_RECHECK_TIMER', 0);
  | Cookie options.
  | -------------------------------------------------------------------------
  | remember_cookie_name Default: remember_code
- | identity_cookie_name Default: identity
  */
 $config['rememberCookieName'] = 'remember_code';
-$config['identityCookieName'] = 'identity';
 
 /*
  | -------------------------------------------------------------------------
@@ -153,7 +151,7 @@ $config['templates'] = [
 | For more information, check the password_hash function help: http://php.net/manual/en/function.password-hash.php
 |
 */
-$config['hashMethod'] = mgr_env('AUTH_HASH_METHOD', 'argon2id'); // bcrypt, argon2 (argon2i) or argon2id
+$config['hashMethod'] = mgr_env('AUTH_HASH_METHOD', 'argon2id'); // bcrypt, argon2 (= argon2id, legacy alias), argon2id or argon2i
 
 // Run test_bcrypt.php on server to determine config
 $config['bcryptDefaultCost'] = mgr_env('AUTH_BCRYPT_COST', 12); // Set cost according to your server benchmark - but no lower than 12 (default PHP value)
@@ -163,4 +161,14 @@ $config['argon2DefaultParams'] = [
 	'memory_cost' => mgr_env('AUTH_ARGON2_MEMORY_COST', 65536), //64 MB
 	'time_cost' => mgr_env('AUTH_ARGON2_TIME_COST', 2),
 	'threads' => mgr_env('AUTH_ARGON2_THREADS', 1),
+];
+
+// Admin variants: only read when useRoleBasedHashing is enabled — the model
+// subclass disables it on purpose (uniform hash cost, no admin timing leak)
+$config['bcryptAdminCost'] = mgr_env('AUTH_BCRYPT_ADMIN_COST', 13);
+
+$config['argon2AdminParams'] = [
+	'memory_cost' => mgr_env('AUTH_ARGON2_ADMIN_MEMORY_COST', 131072), //128 MB
+	'time_cost' => mgr_env('AUTH_ARGON2_ADMIN_TIME_COST', 3),
+	'threads' => mgr_env('AUTH_ARGON2_ADMIN_THREADS', 1),
 ];

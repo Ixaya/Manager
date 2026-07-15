@@ -23,7 +23,7 @@ class MGR_Model_Dyn_clause
 	 */
 	public static function assert_identifier(string $identifier): void
 	{
-		if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', $identifier)) {
+		if (!mgr_is_sql_identifier($identifier)) {
 			throw new InvalidArgumentException(
 				"MGR_Model_Dyn: invalid SQL identifier '{$identifier}'."
 			);
