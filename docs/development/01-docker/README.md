@@ -275,7 +275,7 @@ achieves the same thing.
 ## 7. Dev live-code workflow (`-b` / `--bind`)
 
 An **opt-in** override for local, multi-dev testing: bind-mount `application/`
-and `public/` from a host checkout over the code baked into the images, so
+from a host checkout over the code baked into the images, so
 several developers can exercise **combined** changes before opening a PR —
 without touching how production images are built or deployed.
 
@@ -291,25 +291,28 @@ immutable image. `-b` exists only to shorten the loop while iterating.
 - Appends `-f docker/docker-compose.dev-bind.yml` to the compose invocation.
 - That file bind-mounts, **read-only**:
   - `${CODE_BIND_PATH}/application` → `/var/www/html/application` (php, ws, cron)
-  - `${CODE_BIND_PATH}/public` → `/var/www/html/public` (php, ws, cron, nginx)
   - `docker/php/conf.d.dev/99-dev-opcache.ini`, which sets
     `opcache.validate_timestamps=1` so FPM picks up edits on the very next
     request — no reload, no `kill -USR2 1` (contrast with §6, the baked-image
     deploy path, which deliberately disables this for performance).
-- `vendor/` and `bin/` are **never** bound. `vendor/` is composer-managed and
-  read-only; `bin/` must keep the image's Alpine-corrected
-  `docker/php/bin/cli_run.sh` rather than a host copy.
+- `public/`, `vendor/`, and `bin/` are **never** bound. `public/` holds only
+  `index.php` (rare bootstrap edits — rebuild) plus the separately-bound
+  `media/`, whose nested mount a read-only `public/` bind would break;
+  `vendor/` is composer-managed and read-only; `bin/` must keep the image's
+  Alpine-corrected `docker/php/bin/cli_run.sh` rather than a host copy.
 - `CODE_BIND_PATH` **must** be set in the instance's docker env-file
-  (`docker/env/<instance>.docker.env`). Without it, `docker_manage.sh` aborts
-  with a usage message before compose even runs — it never silently falls
-  back to baked code. `docker-compose.dev-bind.yml` also declares the
-  variable as `${CODE_BIND_PATH:?...}` (Compose's required-variable syntax)
-  as a second, independent guard.
+  (`docker/env/<instance>.docker.env`). A relative value resolves against
+  `docker/`, never the caller's cwd — `..` is the app root containing
+  `application/` (the project root in a consuming project; `sample/` in the
+  framework repo). If it's unset, `docker_manage.sh` aborts before compose
+  runs, and it pre-verifies the resolved path contains `application/` —
+  Docker would otherwise silently auto-create an empty source directory and
+  mount that. `docker-compose.dev-bind.yml` also declares the variable as
+  `${CODE_BIND_PATH:?...}` as a second, independent guard.
 - Named volumes and existing binds (`app-logs` over `application/logs`, the
-  `media`/`private` binds under `public/`/the app root) keep working nested
-  inside the new read-only binds — Docker/runc establishes mounts
-  parent-before-child by path depth regardless of declaration order, so the
-  more specific mount always wins.
+  `media`/`private` binds) keep working nested inside the new read-only
+  binds — Docker/runc establishes mounts parent-before-child by path depth
+  regardless of declaration order, so the more specific mount always wins.
 - Without `-b`, the compose invocation is byte-for-byte what it was before
   this flag existed — `docker-compose.dev-bind.yml` is never referenced.
 
@@ -363,7 +366,7 @@ A single-checkout setup (this repo testing itself) can just set
 
 A second, **fully independent** opt-in override — same shape as `-b`
 (§7), but for testing changes to the `ixaya/manager` **framework** itself
-(`system/`) instead of the consuming app's `application/`/`public/`. Use it
+(`system/`) instead of the consuming app's `application/`. Use it
 to exercise a framework fix or investigate a suspected framework bug
 without a `composer.lock` bump, a tagged release, or a git push.
 
@@ -386,8 +389,10 @@ without a `composer.lock` bump, a tagged release, or a git push.
 - `MANAGER_BIND_PATH` **must** be set in the instance's docker env-file
   (`docker/env/<instance>.docker.env`), pointing at the root of an
   `ixaya/manager` checkout (the directory containing `system/`) — not the
-  `system/` path itself. Without it, `docker_manage.sh` aborts before
-  compose runs, same fail-loud contract as `CODE_BIND_PATH`.
+  `system/` path itself. Relative values resolve against `docker/`, same as
+  `CODE_BIND_PATH` — never the caller's cwd. Without it, `docker_manage.sh`
+  aborts before compose runs, and it pre-verifies the resolved path contains
+  `system/` — same fail-loud contract as `CODE_BIND_PATH`.
 - Independent of `-b` in both directions: `-m` does **not** require
   `CODE_BIND_PATH`/`-b`, and `-b` does not require `MANAGER_BIND_PATH`/`-m`.
   Pass whichever flag(s) match what you're testing, in either order
@@ -425,7 +430,10 @@ app-side change together:
 
 Procedure only — no credential values live in this file. Real values live in
 `docker/env/<instance>.agent.env` (gitignored, mode 600; see
-`docker/env/sample.agent.env` for the template).
+`docker/env/sample.agent.env` for the template). First-time setup on a
+fresh database: run `manager/tools/claim_admin` (one-shot; see the
+`ixaya-auth` skill, Bootstrap section) to obtain the credentials to put
+there.
 
 1. Source `<instance>.agent.env` for `AGENT_BASE_URL`, `AGENT_USERNAME`,
    `AGENT_PASSWORD`.

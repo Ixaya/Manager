@@ -93,7 +93,7 @@ The package ships its coding conventions as agent skills (open `SKILL.md` format
 
 | Skill | Covers |
 |---|---|
-| `ixaya-code-style` | Style baseline: typing, PHPDoc, named parameters, comments |
+| `ixaya-code-style` | Style baseline for all code and config: typing, PHPDoc, named parameters, comments |
 | `ixaya-models` | `MY_Model` / `APP_Model_Dyn` — any database access |
 | `ixaya-rest-controller` | API endpoints, auth, response envelope |
 | `ixaya-auth` | Ion Auth stack: login/sessions, lockout, password reset, tenancy, security invariants |

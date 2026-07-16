@@ -5,6 +5,10 @@ description: Use when creating or editing a database migration, adding/modifying
 
 # Ixaya Migrations (MGR_Migration_builder)
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers migrations and schema changes.
+
 New migrations extend **`MGR_Migration_builder`** and declare columns with the
 typed `field()` builder. Do NOT extend `CI_Migration` with hand-written dbforge
 arrays — that is the legacy style (still visible in older projects under the
@@ -65,6 +69,16 @@ class Migration_Attachment extends MGR_Migration_builder
 }
 ```
 
+If the model sets `$soft_delete = true` (see `ixaya-models`), the table needs a
+`deleted` + `enabled` pair — the model filters `WHERE deleted = 0` on reads and
+sets `deleted = 1, enabled = 0` on delete. There is no shorthand; declare both
+explicitly as `0`/`1` flag columns:
+
+```php
+...$this->field(name: 'enabled', type: MgrFieldType::SmallInt, unsigned: true, default: 1),
+...$this->field(name: 'deleted', type: MgrFieldType::SmallInt, unsigned: true, default: 0),
+```
+
 `field()` returns `[name => spec]`, so specs are **spread (`...`)** into the
 dbforge array. Named parameters:
 
@@ -90,7 +104,23 @@ Timestamp Year Json Uuid Enum`. Pick the semantic type and let the builder map i
 Postgres, `Uuid` → CHAR(36) on MySQL / native UUID on Postgres). Invalid
 combinations throw `InvalidArgumentException` at construction — no silent bad DDL.
 
+Use `Bool` only for true boolean semantics (`true`/`false` values). For `0`/`1`
+flag columns (`enabled`, `deleted`, …) use `SmallInt`/`TinyInt`: `Bool` maps to
+Postgres `BOOLEAN`, which does **not** implicitly cast an integer `1`/`0` on
+insert, so `INSERT ... enabled = 1` fails with *"column is of type boolean but
+expression is of type integer"*. `SmallInt` is portable across all engines.
+
+```php
+...$this->field(name: 'is_verified', type: MgrFieldType::Bool, default: false),   // boolean semantics
+...$this->field(name: 'enabled', type: MgrFieldType::SmallInt, unsigned: true, default: 1), // 0/1 flag
+```
+
 ## Altering tables
+
+Use `modify_column` to change a column's type, constraint, or default — never
+drop+add an existing column. Drop+add works on an empty table but silently
+loses data on a live one and obscures intent (a reader can't tell a type change
+from a column removal).
 
 ```php
 $this->dbforge->add_column('user', [

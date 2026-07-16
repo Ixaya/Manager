@@ -46,18 +46,36 @@ Framework conventions live as skills in `.claude/skills/ixaya-*/SKILL.md`
 by symlinking the package skills (see the framework README's "Agent skills"
 section for the loop; re-run it after major framework updates). If the
 symlinks are missing, read the skills directly from the vendor path.
-Consult the matching skill BEFORE writing code of that kind:
+Before writing or editing ANY code, script, or config file (not just PHP),
+invoke the `ixaya-code-style` skill first — the topic skills below do not
+replace it. **Comments are never documentation** — the comments policy lives
+in that skill. Then consult the matching topic skill BEFORE writing code of
+that kind:
 
 | Skill | Covers |
 |---|---|
-| `ixaya-code-style` | Style baseline for ALL PHP: typing, PHPDoc, named parameters, comments, where documentation lives |
+| `ixaya-code-style` | Style baseline for ALL code and config (PHP, shell, YAML, env): typing, PHPDoc, named parameters, comments, where documentation lives |
 | `ixaya-models` | MY_Model / APP_Model_Dyn — any database access |
 | `ixaya-rest-controller` | API endpoints, auth, response envelope |
+| `ixaya-auth` | Login/session/API-key auth, account lockout, first-admin bootstrap (`claim_admin`) |
 | `ixaya-web-controllers` | Web page controllers, views, theming/layouts |
 | `ixaya-migrations` | Schema changes (MGR_Migration_builder) |
 | `ixaya-cli-modules` | CLI commands, crons, background exec, HMVC modules |
 | `ixaya-helpers-libraries` | Utility functions, packaged libraries, creating new libraries |
 | `ixaya-cache-websockets` | Caching, Redis, pub/sub, websocket notifications |
+
+Read `ixaya-auth` whenever end-to-end API testing is in scope, not only when
+writing auth code: obtaining a first credential (`claim_admin`), logging in, and
+calling an endpoint with a real `X-API-KEY` all live there. A request rejected
+with *"Invalid API key"* is the framework refusing an unauthenticated call — it
+is not evidence that auth works.
+
+When the prompt is silent on a security- or safety-relevant choice (auth mode,
+deletion, data exposure, permissions), take the documented safe default; a
+nearby file never justifies dropping below it (a sibling that matches or
+tightens the default is fine). State the assumption you made. Ask only when
+interactive and no safe default exists; an autonomous run picks the conservative
+option and says so.
 
 ## Architecture
 

@@ -5,6 +5,10 @@ description: Use when creating or editing a web page controller, loading views, 
 
 # Web controllers, views & theming
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers web controllers, views, and theming.
+
 ## Key files
 
 - `vendor/ixaya/manager/system/core/MGR/Controller.php` — the implementation:

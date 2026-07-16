@@ -5,6 +5,10 @@ description: Use when needing utility functions (hashing, env vars, dates/timezo
 
 # Ixaya Helpers & Libraries
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers the helper/library catalog and library authoring.
+
 Before writing a utility function or pulling a Composer package, check this map —
 the framework probably ships it. Helpers are global functions (`mgr_*` prefix);
 libraries are classes loaded via `$this->load->library('{name}')`.

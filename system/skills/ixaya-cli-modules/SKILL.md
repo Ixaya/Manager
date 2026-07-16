@@ -5,13 +5,17 @@ description: Use when writing CLI commands or cron jobs, running background task
 
 # Ixaya CLI Tools & HMVC Modules
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers CLI controllers, crons, and HMVC modules.
+
 Source of truth (read for full signatures):
 - `vendor/ixaya/manager/system/package/modules/manager/controllers/Tools.php` — reference CLI controller (migrate/plan/scaffolding commands)
 - `vendor/ixaya/manager/system/libraries/MGR_Async_exec_lib.php` — background CLI dispatch
 - `vendor/ixaya/manager/system/third_party/MX/` — HMVC (Modular Extensions) implementation
 - `vendor/ixaya/manager/README.md` — module structure overview
-- App example: `application/modules/cron/controllers/Example.php` (cron job with
-  incremental-sync checkpoints via `manager_option`)
+- Cron example: `references/cron-example.md` (incremental-sync checkpoints via
+  `manager_option`)
 
 ## CLI execution model
 

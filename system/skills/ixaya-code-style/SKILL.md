@@ -1,9 +1,13 @@
 ---
 name: ixaya-code-style
-description: Use when writing or reviewing ANY PHP code in this codebase — naming, typing, PHPDoc, comments, formatting, error handling, and where documentation/decisions belong. The style baseline for all other ixaya skills.
+description: Invoke BEFORE your first Write or Edit of ANY code or configuration file in this codebase — PHP, shell, YAML, env templates, SQL — and whenever writing comments or PHPDoc. Covers naming, typing, PHPDoc, comments, formatting, error handling, and where documentation/decisions belong. The style baseline that complements the topic ixaya skills (models, REST, migrations…) — it does not replace them.
 ---
 
 # Ixaya Code Style
+
+> This skill covers how code *looks*. For what to *build* — models, REST
+> endpoints, migrations, any framework API — invoke the matching topic
+> `ixaya-*` skill as well; this skill does not replace them.
 
 The style exemplar is `vendor/ixaya/manager/system/core/MGR/Model.php` (with
 `MGR_Migration_builder.php` and `MGR_Model_Dyn.php`) — when unsure how something
@@ -75,6 +79,31 @@ Both kinds:
 - Good: `// runs all upstream logic`, `// 64-bit assumed for 14-digit timestamps`,
   the cross-engine behavior matrix in `MGR_Migration_builder`'s DocBlock.
 - Bad: `// loop through the users`, `// call the model`, `// fixed per review`, `// see gotchas.md`.
+
+## Non-PHP files (shell, YAML, env templates, SQL)
+
+The Comments rules above apply verbatim to `#`/`--` comments — brief,
+load-bearing only, no doc pointers, no history. Env-template comments are
+terse fragments:
+
+```bash
+#host bind-mount sources (relative to docker/, or absolute)
+MEDIA_PATH=../public/media
+PRIVATE_PATH=../private
+
+# redis: tcp://127.0.0.1:6379?timeout=10.0&prefix=mgr_session&database=1&auth=password
+#   (the CI3 redis session driver parses `auth=`, NOT `password=`; timeout must be <int>.<int>)
+CF_SESS_SAVE_PATH=
+```
+
+A terse fragment for structure; a full constraint line only when there is a
+real gotcha the value can't show.
+
+An entry-point script's header may be longer — it documents the file's
+contract and examples, PHPDoc-style — but every line still has to earn its
+place. PHP-specific rules (typing, PHPDoc tags, named parameters) do not
+transfer. Markdown documentation is not code — it follows the project's
+documentation guidelines, not this skill.
 
 ## Patterns from the reference code
 

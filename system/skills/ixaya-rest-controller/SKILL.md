@@ -5,6 +5,10 @@ description: Use when creating or editing a REST API endpoint (controllers under
 
 # Ixaya REST Controllers (APP_Rest_Controller)
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers REST endpoints and API auth.
+
 API endpoints extend `APP_Rest_Controller` (alias chain: `MGR_Rest_Controller` →
 `REST_Controller`, a CI3 REST library fork). Auth, HTTP-verb routing, and output
 formatting are handled by the base — never `echo json_encode()` or check API keys
@@ -19,7 +23,7 @@ Source of truth (only read if something here is insufficient):
 - `application/core/APP_Rest_Controller.php`, `application/core/APP_API_Model.php` — app aliases
 - Canonical example: `vendor/ixaya/manager/sample/application/modules/admin/controllers/api/Sysusers.php`
   (the vendor sample is the reference — API controllers inside `application/` may predate current conventions)
-- Public-endpoint example (`auth_override`): `application/modules/auth/controllers/api/Login.php`
+- Public-endpoint example (`auth_override`, login → API key): `references/public-endpoint.md`
 
 Note: `REST_Controller` extends `MY_Controller`, so API controllers inherit the
 framework controller helpers too — `upload_image()`, `upload_file()`, `put_file()`,
@@ -51,6 +55,22 @@ A valid key sets `$this->_apiuser`, and `MGR_Rest_Controller` then populates:
 - `$this->logged_in_level` — highest Ion Auth group level of that user
 - stamps `last_api_date` / `last_api_os` on the `user` row
 
+If the prompt doesn't specify, the endpoint is **authenticated** — that's the
+default and it needs no configuration:
+
+```php
+class Report extends APP_Rest_Controller
+{
+    public function __construct()
+    {
+        parent::__construct(); // API key required — nothing to set
+    }
+}
+```
+
+`auth_override = 'none'` is only for endpoints that are *intentionally* public
+(login, registration, device pairing) — see `references/public-endpoint.md`.
+
 ### Rule 1 — auth overrides go BEFORE parent::__construct()
 
 The parent constructor runs the key check immediately; overrides set after it are dead code.
@@ -60,7 +80,7 @@ class Login extends APP_Rest_Controller
 {
     public function __construct()
     {
-        $this->methods['*']['auth_override'] = 'none'; // public endpoint — BEFORE parent
+        $this->methods['*']['auth_override'] = 'none'; // intentionally public — BEFORE parent
         parent::__construct();
     }
 }

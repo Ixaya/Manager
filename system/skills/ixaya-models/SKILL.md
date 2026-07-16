@@ -5,6 +5,10 @@ description: Use when creating or editing a model, or writing any database query
 
 # Ixaya Models (MY_Model / APP_Model_Dyn)
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers models and database queries.
+
 Every model extends `MY_Model` (alias of `MGR_Model`, which extends `CI_Model`).
 Never query `$this->db` directly from controllers, and never hand-write SQL when a
 model method exists. The base model handles connection selection, tenant scoping,
@@ -46,6 +50,12 @@ class Invoice extends MY_Model
 
 Load from controllers with the module prefix: `$this->load->model('admin/invoice');`
 then use as `$this->invoice->get_all()`.
+
+Don't name a model after a REST verb (`get`, `post`, `put`, `delete`). Loaded
+into a REST controller it collides visually with the input methods: `$this->post`
+is the `Post` model but `$this->post('title')` is `REST_Controller::post()`
+reading a body field. PHP tells property access from a method call so there's no
+runtime error, but it invites mistakes — name it `article`/`blog_post` instead.
 
 ## Configuration properties
 

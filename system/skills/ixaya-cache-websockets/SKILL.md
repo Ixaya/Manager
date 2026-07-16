@@ -5,6 +5,10 @@ description: Use when caching data (Redis-backed cache driver, lists/sets/hashes
 
 # Ixaya Cache & WebSockets
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers caching and websocket messaging.
+
 The framework extends CI3's cache driver with configurable serialization, a
 default TTL, Redis collection types (list/set/zset/hash), and Redis pub/sub —
 which is also how the backend pushes real-time messages to websocket clients.

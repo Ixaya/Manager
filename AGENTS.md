@@ -52,10 +52,15 @@ patches/                # composer patches for dependencies
 ## Conventions
 
 The skills in `system/skills/ixaya-*/SKILL.md` are the source of truth for how
-code is written here and in consuming projects. `ixaya-code-style` applies to
-every line in this repo; consult the topic skill before touching its area
+code is written here and in consuming projects. Before writing or editing ANY
+code, script, or config file (not just PHP), invoke the `ixaya-code-style`
+skill first — topic skills do not replace it. Then consult the topic skill before touching its area
 (models, REST, auth, web controllers/theming, migrations, libraries,
-cache/websockets, CLI/modules).
+cache/websockets, CLI/modules). Read `ixaya-auth` whenever end-to-end API
+testing is in scope, not only when writing auth code — obtaining a first
+credential (`claim_admin`), logging in, and calling with a real `X-API-KEY`
+live there. A request rejected with *"Invalid API key"* is the framework
+refusing an unauthenticated call, not evidence that auth works.
 
 **Testing framework code:** write throwaway test/validation controllers in
 `sample/application/modules/test/` — that module is gitignored
@@ -109,6 +114,14 @@ analysis that will later be consolidated into permanent documentation.
   only, and prefer fixing in the MGR_ subclass layer instead. The BE Ion Auth
   fork carries a documented set of deliberate edits and purposeful deviations
   — see `docs/development/02-auth/upstream.md` before/after any upstream merge.
+- **Comments are never documentation.** The comments policy (and all style
+  rules) live in the `ixaya-code-style` skill — invoke it before writing code.
+- **When the prompt is silent on a security- or safety-relevant choice**
+  (auth mode, deletion, data exposure, permissions), take the documented safe
+  default; a nearby file never justifies dropping below it (a sibling that
+  matches or tightens the default is fine). State the assumption you made. Ask
+  only when interactive and no safe default exists; an autonomous run picks the
+  conservative option and says so.
 - Every PHP file starts with the `BASEPATH` guard; formatting is PSR-12 with
   tabs (run the fixer before finishing).
 - **Git operations are off-limits.** Agents must never perform git operations
@@ -125,4 +138,6 @@ specific investigation or initiative. When a workspace task is complete, its
 handoff is distilled into permanent documentation (design/, architecture/,
 development/, modules/) or deleted if inconsequential. The full methodology for
 running a findings/fix campaign through the workspace (validation, baselines,
-session planning) is `docs/development/03-spec-campaigns/README.md`.
+session planning) is `docs/development/03-spec-campaigns/README.md`. The
+release check where a fresh agent sets up the framework from scratch is
+`docs/development/04-agent-smoke-test/README.md`.

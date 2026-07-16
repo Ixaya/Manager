@@ -1,9 +1,13 @@
 ---
 name: ixaya-auth
-description: Use when working on authentication — login/logout, sessions vs sessionless API auth, account lockout, password reset, remember-me, user groups, or multi-tenant client_id — in this codebase. Teaches the Ion Auth stack of the ixaya/manager framework (BE_ fork → package subclasses → config), its extension seams, and the security invariants that must never be regressed.
+description: Use when working on authentication — login/logout, sessions vs sessionless API auth, account lockout, password reset, remember-me, user groups, multi-tenant client_id, or bootstrapping the first admin credential/API key on a fresh install — in this codebase. Teaches the Ion Auth stack of the ixaya/manager framework (BE_ fork → package subclasses → config), its extension seams, and the security invariants that must never be regressed.
 ---
 
 # Ixaya Auth (Ion Auth stack)
+
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code. It owns naming, typing, PHPDoc, and the comments
+> policy; this skill only covers the auth stack.
 
 Authentication is a CI3 backport of Ion Auth 4, layered so upstream merges
 stay clean and all Ixaya behavior lives in thin subclasses:
@@ -58,7 +62,27 @@ Source of truth (read only if something here is insufficient):
 - `vendor/ixaya/manager/system/libraries/MGR_Ion_auth.php` — wrappers, `get_client_id()`, `reset_password_with_code()`
 - `vendor/ixaya/manager/system/models/MGR_Ion_auth_model.php` — `disable_session()`, seams, identifier guards
 - `vendor/ixaya/manager/system/package/config/ion_auth.php` — every key below, with comments
-- Endpoint example: `application/modules/auth/controllers/api/Login.php` (sessionless login + API key issuance)
+- Endpoint example: the ixaya-rest-controller skill's `references/public-endpoint.md` (sessionless login + API key issuance)
+
+## Bootstrap: the first admin credential
+
+A fresh database is seeded (Ion_Auth migration) with one admin user whose
+factory password is treated as unusable. The ONLY sanctioned way to obtain
+the first working credential is the one-shot CLI claim:
+
+```bash
+bin/cli_run.sh manager/tools/claim_admin
+# Docker: ./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/claim_admin
+```
+
+It prints the identity and a generated password ONCE. It only works while
+the admin row still carries the exact factory hash — after the claim (or any
+password change) the gate closes permanently and the normal password-reset
+flow applies. From there: log in through the normal auth endpoint to get an
+`api_key`, and store credentials only in gitignored files (e.g.
+`docker/env/<instance>.agent.env`). Never bootstrap by inserting into
+`user`/`user_key` with raw SQL, and never write the factory password's
+plaintext into docs, templates, or code.
 
 ## Login: session vs sessionless
 
@@ -87,7 +111,7 @@ lifecycle live in the ixaya-rest-controller skill.
 **Uniform failure messaging:** login, registration, and recovery endpoints
 must return the same response for every failure cause (wrong password,
 locked out, already-registered, unknown email) — differentiated messages are
-a username-enumeration surface. `Login.php` is the reference: bad password
+a username-enumeration surface. The endpoint example above shows it: bad password
 and locked-out both get "Username/password incorrect"; registration failure
 is a neutral "Unable to register."; recovery always claims success.
 

@@ -118,3 +118,13 @@ traceability to commits and probe names. The resulting rules live in
 - **Do-not-regress invariants** (uniform hash cost, selector/validator
   design, session regeneration, one-KDF-op failure symmetry) are recorded
   in the ixaya-auth skill as permanent constraints on future cleanups.
+- **2026-07-15: first-credential bootstrap via `manager/tools/claim_admin`,
+  gated on the exact factory hash string.** One-shot: the gate compares the
+  seeded admin row's hash to the migration's literal (`hash_equals`, not
+  `password_verify`), so it closes permanently on any password change —
+  chosen over documenting a default password (normalizes a known-public
+  credential) and over register-then-SQL group grants (same bypass smell as
+  raw inserts). Generates and prints the password once; no argv argument.
+  The migration keeps its plain literal on purpose — migrations are the
+  most-copied files in the repo, so the sync constants and their warning
+  live in `Tools` instead, accepting hash-drift as a loud, fixable failure.

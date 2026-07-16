@@ -63,3 +63,14 @@ Item numbers (#1-#18) are the workspace numbering, kept for traceability.
   reaches dbforge through it). Any future attempt starts with a subclass
   inventory across consuming projects and keeps `__get` as a deprecated
   fallback for at least one release; never a hard removal.
+- **2026-07-15 (dev-bind): `-b` binds `application/` only; bind sources are
+  pre-verified.** `public/` holds just `index.php` and the separately-bound
+  `media/`, and a read-only `public/` bind breaks that nested mount (the
+  mountpoint must pre-exist inside the parent bind's host source) — so it
+  was dropped from `docker-compose.dev-bind.yml` rather than validated
+  around. `docker_manage.sh` now resolves `CODE_BIND_PATH`/
+  `MANAGER_BIND_PATH` the way compose does (relative to `docker/`, never
+  the caller's cwd) and requires the marker subdir before compose runs,
+  because Docker silently auto-creates an empty source directory for a
+  wrong path. `--project-directory` was rejected: it would invert every
+  existing relative path in every instance env file.

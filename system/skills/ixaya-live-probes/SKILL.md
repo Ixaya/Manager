@@ -5,6 +5,10 @@ description: Use when live-testing a code change end-to-end against the running 
 
 # Ixaya Live Probes (runtime verification via the test module)
 
+> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> before writing any code (probe controllers are code too). It owns naming,
+> typing, PHPDoc, and the comments policy; this skill only covers runtime probing.
+
 Reading a diff confirms it looks right; it doesn't confirm it executes right
 against a real DB, a real authenticated request, or the live session driver.
 Not every change needs a live probe — a string/comment fix is confirmed by a
