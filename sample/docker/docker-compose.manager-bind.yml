@@ -6,16 +6,16 @@
 # alone, or both together (e.g. testing a sample/ change alongside a
 # framework change in the same checkout).
 #
-# Exception to the general "never bind vendor/" rule (see
-# docs/development/01-docker/gotchas.md — Hard rules), scoped narrowly to
+# Exception to the general "never bind vendor/" rule, scoped narrowly to
 # this one opt-in file: ixaya/manager ships no composer `autoload` section
 # and no PSR-4 namespaces anywhere under system/, so it's loaded by CI3/MX
 # path-convention discovery exactly like application/ — no composer
 # classmap, no `dump-autoload`, no rebuild boundary for new classes either.
 #
-# Requires MANAGER_BIND_PATH in the instance's env-file (host path containing
-# an ixaya/manager checkout's system/ directory) — the ${VAR:?...} form below
-# aborts rather than silently falling back to baked vendor code if it's unset.
+# Requires MANAGER_BIND_PATH in the instance's DOCKER env-file: a host path
+# containing an ixaya/manager checkout's system/ (relative to docker/, or
+# absolute) — the ${VAR:?...} form below aborts rather than silently falling
+# back to baked vendor code if it's unset.
 
 services:
   php:

@@ -1,36 +1,31 @@
 # OPT-IN dev "live code" override. Bind-mounts a host checkout's
-# application/ and public/ (read-only) over the baked image code. Enabled
-# only via `./docker_manage.sh -e <instance> -b <args>` — without -b, the
-# stack is byte-identical to core/prod.
+# application/ (read-only) over the baked image code. Enabled only via
+# `./docker_manage.sh -e <instance> -b <args>` — without -b, the stack is
+# byte-identical to core/prod.
 #
-# Fixed design — do not add services or bind vendor/ or bin/ here:
+# Fixed design — do not add services or bind public/, vendor/, or bin/ here:
+#   - public/ holds only index.php and media/; media/ is already bound by the
+#     base compose, and a read-only public/ bind breaks that nested mount.
 #   - vendor/ is composer-managed, read-only, never bind-mounted.
 #   - bin/ is deliberately excluded so the image's Alpine-corrected
 #     docker/php/bin/cli_run.sh always wins over a host copy.
 #
-# Requires CODE_BIND_PATH in the instance's env-file (host path containing
-# application/ and public/) — the ${VAR:?...} form below aborts rather than
+# Requires CODE_BIND_PATH in the instance's DOCKER env-file (relative to
+# docker/, or absolute) — the ${VAR:?...} form below aborts rather than
 # silently falling back to baked code if it's unset.
 
 services:
   php:
     volumes:
       - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/application:/var/www/html/application:ro
-      - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/public:/var/www/html/public:ro
       - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro
 
   ws:
     volumes:
       - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/application:/var/www/html/application:ro
-      - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/public:/var/www/html/public:ro
       - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro
 
   cron:
     volumes:
       - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/application:/var/www/html/application:ro
-      - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/public:/var/www/html/public:ro
       - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro
-
-  nginx:
-    volumes:
-      - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/public:/var/www/html/public:ro

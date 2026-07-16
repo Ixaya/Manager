@@ -690,7 +690,7 @@ class MGR_Model extends CI_Model
 		}
 
 		if ($this->soft_delete) {
-			$this->my_db->where('deleted', 0);
+			$this->my_db->where("{$this->table}.deleted", 0);
 		}
 	}
 

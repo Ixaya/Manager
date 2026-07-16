@@ -31,12 +31,12 @@
 #   APP_ENV_FILE / APP_SECRETS_MOUNT / VALKEY_SECRET_FILE / DB_*_FILE
 #
 # -b / --bind (optional, must come right after -e <instance>): also passes
-# `-f docker/docker-compose.dev-bind.yml`, which bind-mounts application/ and
-# public/ from CODE_BIND_PATH (a host checkout) over the baked image code.
-# NEVER use for prod instances. Requires CODE_BIND_PATH=<path> set in the
-# instance's DOCKER env-file; without it, this aborts rather than silently
-# falling back to baked code. Without -b, the compose invocation is
-# unchanged from before this flag existed.
+# `-f docker/docker-compose.dev-bind.yml`, which bind-mounts application/
+# from CODE_BIND_PATH (a host checkout) over the baked image code.
+# NEVER use for prod instances. Requires CODE_BIND_PATH (relative to
+# docker/, or absolute) set in the instance's DOCKER env-file; without it,
+# this aborts rather than silently falling back to baked code. Without -b,
+# the compose invocation is unchanged from before this flag existed.
 #
 # -m / --manager-bind (optional, may appear before or after -b): also passes
 # `-f docker/docker-compose.manager-bind.yml`, which bind-mounts an
@@ -77,15 +77,28 @@ ENV_FILE="${DOCKER_DIR}/env/${INSTANCE}.env"
 [[ -f "$DOCKER_ENV_FILE" ]] || die "docker env file not found: docker/env/${INSTANCE}.docker.env  (copy docker/env/sample.docker.env)"
 [[ -f "$ENV_FILE" ]]        || die "env file not found: docker/env/${INSTANCE}.env  (copy docker/env/sample.env)"
 
+# Resolve a bind-source var the way compose will (relative to docker/, not
+# the caller's cwd) and require the marker subdir — Docker would otherwise
+# silently auto-create an empty source directory and mount that.
+require_bind_dir() {
+    local var="$1" subdir="$2" value resolved
+    value="$(grep -E "^${var}=" "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)"
+    [[ "$value" == /* ]] && resolved="$value" || resolved="${DOCKER_DIR}/${value}"
+    [[ -d "${resolved}/${subdir}" ]] \
+        || die "${var}='${value}' in docker/env/${INSTANCE}.docker.env resolves to '${resolved}', which has no ${subdir}/ (relative paths resolve against docker/, not your cwd — use '..' for the app root, or an absolute path)"
+}
+
 COMPOSE_FILE_ARGS=(-f "${DOCKER_DIR}/docker-compose.yml")
 if [[ "$BIND_MODE" == true ]]; then
     grep -qE '^CODE_BIND_PATH=.+$' "$DOCKER_ENV_FILE" \
-        || die "usage: -b/--bind requires CODE_BIND_PATH=<host path containing application/ and public/> in docker/env/${INSTANCE}.docker.env"
+        || die "usage: -b/--bind requires CODE_BIND_PATH=<host path containing application/> in docker/env/${INSTANCE}.docker.env"
+    require_bind_dir CODE_BIND_PATH application
     COMPOSE_FILE_ARGS+=(-f "${DOCKER_DIR}/docker-compose.dev-bind.yml")
 fi
 if [[ "$MANAGER_BIND_MODE" == true ]]; then
     grep -qE '^MANAGER_BIND_PATH=.+$' "$DOCKER_ENV_FILE" \
         || die "usage: -m/--manager-bind requires MANAGER_BIND_PATH=<host path containing an ixaya/manager checkout's system/> in docker/env/${INSTANCE}.docker.env"
+    require_bind_dir MANAGER_BIND_PATH system
     COMPOSE_FILE_ARGS+=(-f "${DOCKER_DIR}/docker-compose.manager-bind.yml")
 fi
 

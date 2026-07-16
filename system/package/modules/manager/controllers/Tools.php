@@ -24,9 +24,11 @@ class Tools extends CI_Controller
 		$result .= "php index.php tools migrate [\"version_number\"]	Run all migrations. The version number is optional.\n";
 		$result .= "php index.php tools seeder \"file_name\"			Creates a new seed file.\n";
 		$result .= "php index.php tools seed \"file_name\"			  Run the specified seed file.\n";
+		$result .= "php index.php manager/tools/claim_admin			 One-shot: rotate the seeded admin's factory password and print the new one.\n";
 
 		echo $result . PHP_EOL;
 	}
+
 	public function generate_migration_timestamp(string $name)
 	{
 		$timestamp = date('YmdHis');
@@ -34,13 +36,13 @@ class Tools extends CI_Controller
 		echo $timestamp . '_' . $name . ".php\r\n";
 	}
 
-	public function generate_enc_key($length = 16)
+	public function generate_enc_key(string $length = '16')
 	{
 		$this->load->library('encryption');
-		$key = bin2hex($this->encryption->create_key($length));
+		$key = bin2hex($this->encryption->create_key((int)$length));
 		die($key);
 	}
-	public function migration($name)
+	public function migration(string $name)
 	{
 		$this->make_migration_file($name);
 	}
@@ -70,7 +72,7 @@ class Tools extends CI_Controller
 		}
 	}
 
-	public function version_list($module_key = null, $database = null)
+	public function version_list(?string $module_key = null, ?string $database = null)
 	{
 		$this->load->library('migration_module_lib');
 
@@ -90,7 +92,7 @@ class Tools extends CI_Controller
 		}
 	}
 
-	public function version_set($version = null, $module_key = null, $database = 'default')
+	public function version_set(?string $version = null, ?string $module_key = null, string $database = 'default')
 	{
 		if ($version === null) {
 			echo "[FAIL] version required" . PHP_EOL;
@@ -106,7 +108,7 @@ class Tools extends CI_Controller
 		echo $this->migration_module_lib->version_set($database, $module_key, $version) . PHP_EOL;
 	}
 
-	public function migrate($version = null, $module_key = null)
+	public function migrate(?string $version = null, ?string $module_key = null)
 	{
 		if ($module_key !== null) {
 			$module_key = str_replace(':', '/', $module_key);
@@ -118,7 +120,7 @@ class Tools extends CI_Controller
 		}
 	}
 
-	public function migrate_database($connection_name = 'default', $version = null, $module_key = null)
+	public function migrate_database(string $connection_name = 'default', ?string $version = null, ?string $module_key = null)
 	{
 		$this->load->library('migration_module_lib');
 
@@ -134,12 +136,12 @@ class Tools extends CI_Controller
 		}
 	}
 
-	public function seeder($name)
+	public function seeder(string $name)
 	{
 		$this->make_seed_file($name);
 	}
 
-	public function seed($name)
+	public function seed(string $name)
 	{
 		//Note: add "fzaninotto/faker" to composer and uncomment
 		// $this->faker = Faker\Factory::create();
@@ -205,7 +207,7 @@ class Migration_$name extends MGR_Migration_builder {
 		echo "$path migration has successfully been created." . PHP_EOL;
 	}
 
-	protected function make_seed_file($name)
+	protected function make_seed_file(string $name)
 	{
 		$path = APPPATH . "database/seeds/$name.php";
 
@@ -254,7 +256,7 @@ class $name extends Seeder {
 		echo "$path seeder has successfully been created." . PHP_EOL;
 	}
 
-	protected function make_model_file($name, $module)
+	protected function make_model_file(string $name, string $module)
 	{
 		$path = APPPATH . "modules/$module/models/$name.php";
 
@@ -277,7 +279,7 @@ class $name extends MY_Model {
 		echo "$path model has successfully been created." . PHP_EOL;
 	}
 
-	public function cli_exec($module, $library, $function, $identifier = '')
+	public function cli_exec(string $module, string $library, string $function, string $identifier = '')
 	{
 		if (!is_cli()) {
 			show_error('CLI only', 403);
@@ -286,5 +288,52 @@ class $name extends MY_Model {
 		$this->load->library('async_exec_lib');
 
 		$this->async_exec_lib->run_library_call($module, $library, $function, $identifier);
+	}
+
+	/**
+	 * One-shot bootstrap: rotate the seeded admin's factory password to a
+	 * generated one, printed once. Refuses once the row no longer carries
+	 * the exact factory hash. Takes no password argument on purpose —
+	 * argv would leak it into shell history and process lists.
+	 */
+	public function claim_admin()
+	{
+		//Admin seed, copied verbatim from the Ion_Auth migration (which stays plain on purpose).
+		$SEED_ADMIN_IDENTITY = 'admin@admin.com';
+		$SEED_ADMIN_PASSWORD_HASH = '$2y$11$cXuqWNc/NGzL3.cpCGkAvOMn/Thyu6yWEgW1CTIHLADiPw7uwuBlK';
+
+		$this->load->database();
+
+		$user = $this->db
+			->select('id, password')
+			->where('username', $SEED_ADMIN_IDENTITY)
+			->get('user')
+			->row();
+
+		if ($user === null) {
+			echo 'No seeded admin user (' . $SEED_ADMIN_IDENTITY . ') found — nothing to claim.' . PHP_EOL;
+			return;
+		}
+
+		if (!hash_equals($SEED_ADMIN_PASSWORD_HASH, (string) $user->password)) {
+			echo 'Admin account already claimed — use the normal password-reset flow.' . PHP_EOL;
+			return;
+		}
+
+		$password = bin2hex(random_bytes(16));
+
+		$this->load->library('ion_auth');
+
+		if (!$this->ion_auth->reset_password($SEED_ADMIN_IDENTITY, $password)) {
+			echo 'Password update failed: ' . strip_tags((string) $this->ion_auth->errors()) . PHP_EOL;
+			return;
+		}
+
+		log_message('info', 'claim_admin: seeded admin account claimed, factory password rotated via CLI');
+
+		echo 'Seeded admin claimed.' . PHP_EOL;
+		echo 'Identity: ' . $SEED_ADMIN_IDENTITY . PHP_EOL;
+		echo 'Password: ' . $password . PHP_EOL;
+		echo '(shown once — store it now, it is not recoverable)' . PHP_EOL;
 	}
 }
