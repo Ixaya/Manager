@@ -95,6 +95,13 @@ services:
       - /tmp
     mem_limit: ${NGINX_MEM_LIMIT:-128m}
     cpus: ${NGINX_CPUS:-1.0}
+    # Container FD ceiling — must stay ≥ nginx.conf `worker_rlimit_nofile`
+    # (4096) so nginx can actually apply it; raise both together. Set explicitly
+    # (not left to the host default) so the limit is deterministic across hosts.
+    ulimits:
+      nofile:
+        soft: ${NGINX_NOFILE:-8192}
+        hard: ${NGINX_NOFILE:-8192}
     depends_on:
       php: { condition: service_healthy }
     healthcheck:

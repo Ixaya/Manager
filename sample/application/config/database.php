@@ -78,9 +78,12 @@ $db['default'] = [
 	'dsn'	=> '',
 	'hostname' => mgr_env('DB_HOST', 'localhost'),
 	'port' => mgr_env('DB_PORT', null),
-	'username' => mgr_env('DB_USER', 'root'),
+	// Identifiers are required-or-fail: a silent 'root'/'' fallback either
+	// connects as the wrong identity or leaves conn_id=false with db_debug
+	// off (production), surfacing as an unexplained 500 on every request.
+	'username' => mgr_env_required('DB_USER'),
 	'password' => mgr_env('DB_PASS', ''),
-	'database' => mgr_env('DB_NAME', ''),
+	'database' => mgr_env_required('DB_NAME'),
 	'dbdriver' => mgr_env('DB_DRIVER', 'mysqli'),
 	'dbprefix' => '',
 	'pconnect' => false,

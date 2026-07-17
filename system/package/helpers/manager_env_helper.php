@@ -10,6 +10,14 @@ if (!function_exists('mgr_env')) {
 	}
 }
 
+if (!function_exists('mgr_env_required')) {
+	// Get required environment variable — throws when unset or empty
+	function mgr_env_required($key)
+	{
+		return Env_lib::get_required($key);
+	}
+}
+
 if (!function_exists('mgr_env_strict')) {
 	// Get environment variable forcing check if not empty
 	function mgr_env_strict($key, $default = null)

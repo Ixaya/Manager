@@ -19,14 +19,31 @@ class Tools extends CI_Controller
 
 	public function help()
 	{
-		$result = "The following are the available command line interface commands\n\n";
-		$result .= "php index.php tools migration \"file_name\"		 Create new migration file\n";
-		$result .= "php index.php tools migrate [\"version_number\"]	Run all migrations. The version number is optional.\n";
-		$result .= "php index.php tools seeder \"file_name\"			Creates a new seed file.\n";
-		$result .= "php index.php tools seed \"file_name\"			  Run the specified seed file.\n";
-		$result .= "php index.php manager/tools/claim_admin			 One-shot: rotate the seeded admin's factory password and print the new one.\n";
+		$commands = [
+			// [invocation, description] — <arg> required, [arg] optional (positional: skipping one skips the rest)
+			['migrate [version] [module_key]', 'Run pending migrations on every configured database (optionally to a target version).'],
+			['migrate_database [connection] [version] [module_key]', 'Run migrations on one database connection only.'],
+			['plan', 'Per-module migration status: current/latest/pending per database.'],
+			['version_list [module_key] [database]', 'List recorded migration versions (or one module\'s migration files).'],
+			['version_set <version> [module_key] [database]', 'Force the recorded migration version without running migrations.'],
+			['migration <name>', 'Create a new migration file from the MGR_Migration_builder template.'],
+			['generate_migration_timestamp <name>', 'Print a timestamped migration file name.'],
+			['seeder <name>', 'Create a new seed file.'],
+			['seed <name>', 'Run the specified seed file (stub — not implemented).'],
+			['model <name> <module>', 'Create a new MY_Model skeleton in the given module.'],
+			['generate_enc_key [length]', 'Generate a random encryption key (hex, default 16 bytes).'],
+			['claim_admin', 'One-shot: rotate the seeded admin\'s factory password and print the new one.'],
+			['env_check [key]', 'Per-key env source report (values never printed). No key = framework must-haves.'],
+			['cli_exec <module> <library> <function> [identifier]', 'Run a library call in-process (async_exec_lib dispatch target).'],
+			['message [name]', 'Smoke-test echo.'],
+			['help', 'This list.'],
+		];
 
-		echo $result . PHP_EOL;
+		echo 'Available commands (php index.php manager/tools/<command>) — <arg> required, [arg] optional' . PHP_EOL . PHP_EOL;
+		foreach ($commands as [$invocation, $description]) {
+			echo sprintf("  %-62s %s" . PHP_EOL, $invocation, $description);
+		}
+		echo PHP_EOL;
 	}
 
 	public function generate_migration_timestamp(string $name)
@@ -335,5 +352,44 @@ class $name extends MY_Model {
 		echo 'Identity: ' . $SEED_ADMIN_IDENTITY . PHP_EOL;
 		echo 'Password: ' . $password . PHP_EOL;
 		echo '(shown once — store it now, it is not recoverable)' . PHP_EOL;
+	}
+
+	/**
+	 * Per-key env resolution report: which layer answered (process env,
+	 * $_ENV, .env.priv, .env) with set-state and length. Values are never
+	 * printed — every key is treated as secret.
+	 *
+	 * With a key argument, checks that single key; with none, checks the
+	 * keys the framework cannot run without.
+	 */
+	public function env_check(?string $key = null)
+	{
+		$keys = $key !== null ? [$key] : [
+			'APP_ENV',
+			'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS',
+			'CF_ENCRYPTION_KEY', 'CF_SESS_SAVE_PATH',
+			'LIB_REDIS_HOST', 'LIB_REDIS_PASSWORD',
+		];
+
+		$missing = 0;
+		foreach ($keys as $check_key) {
+			$row = Env_lib::resolve_source($check_key, ENVIRONMENT);
+
+			echo sprintf(
+				"%-36s source=%-12s set=%-3s len=%d" . PHP_EOL,
+				$check_key,
+				$row['source'],
+				$row['set'] ? 'yes' : 'NO',
+				$row['length']
+			);
+
+			if (!$row['set']) {
+				$missing++;
+			}
+		}
+
+		if ($key === null && $missing > 0) {
+			echo PHP_EOL . "[WARN] {$missing} framework key(s) missing — the app will misbehave without them." . PHP_EOL;
+		}
 	}
 }
