@@ -201,8 +201,8 @@ show all of these intact:
      — probe-module hits calling the current API are expected noise.
 3. Run the gitignored probe suite against the `local` Docker stack
    (`-b -m`, real `X-Api-Key`, keyless hit must 403 — see
-   `docs/development/01-docker/README.md` §7b and the `ixaya-live-probes`
-   skill):
+   `sample/docs/development/docker.md` "Live-code dev modes" and the
+   `ixaya-live-probes` skill):
    - `GET /test/api/auth_migration/all` (b8, b2b3, lb1, lb3, pb1, c9, pb2,
      c2, c10, c5c6)
    - `GET /test/api/auth_security/all` (f1, f6)

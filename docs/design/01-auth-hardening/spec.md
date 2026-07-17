@@ -43,7 +43,7 @@ Four independent review passes, ~60 auth findings total:
 
 - Conventions and invariants: `system/skills/ixaya-auth/SKILL.md`.
 - `BE_` edit inventory and upstream-merge procedure:
-  `docs/development/02-auth/upstream.md`.
+  `docs/development/auth-upstream.md`.
 - Consumer migration guidance: `MIGRATION.md` (Ion Auth items 1-5).
 - Decisions with rationale: `decisions.md` here.
 - Validation results and final state: `review.md` / `handoff.md` here.

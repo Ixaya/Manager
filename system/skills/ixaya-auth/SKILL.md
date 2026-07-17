@@ -52,7 +52,7 @@ system/package/models/Ion_auth_model.php                  (unprefixed alias shim
   empty alias shims (standard alias chain), and never the `BE_` files.
   The `BE_` fork carries a small set of deliberate direct edits as a
   documented exception; that inventory and the merge procedure live in
-  `docs/development/02-auth/upstream.md` (this repo only, not shipped). If
+  `docs/development/auth-upstream.md` (this repo only, not shipped). If
   a change seems to need a `BE_` edit, stop and get an explicit operator
   decision first.
 

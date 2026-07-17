@@ -7,7 +7,7 @@ decision recorded in `decisions.md`); everything verified per `review.md`.
 
 - `BE_` fork: bug-fix batch, lockout trio, lazy `use_sessions()`, logout
   code-clearing fix, builder-state hygiene, fail-soft accessors, flat lang
-  keys, seam methods. Full inventory: `docs/development/02-auth/upstream.md`.
+  keys, seam methods. Full inventory: `docs/development/auth-upstream.md`.
 - Subclasses: `disable_session()`, PB1 wrappers, repaired `get_client_id()`,
   `client_id` write/purge mirror in `set_session()`,
   `recheck_session_unset_keys()` append, `reset_password_with_code()`,
@@ -37,6 +37,6 @@ decision recorded in `decisions.md`); everything verified per `review.md`.
   subclass code moved to `system/libraries/MGR_Ion_auth.php` /
   `system/models/MGR_Ion_auth_model.php`; the package files are now empty
   alias shims (`Ion_auth extends MGR_Ion_auth`), matching the framework's
-  alias chain. Skill and upstream.md updated. Note the full alias chain in
+  alias chain. Skill and auth-upstream.md updated. Note the full alias chain in
   a consuming project is now `Ion_auth` (app copy, optional) ->
   `Ion_auth` (package shim) -> `MGR_Ion_auth` -> `BE_Ion_auth`.

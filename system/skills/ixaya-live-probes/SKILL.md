@@ -138,6 +138,11 @@ warning/notice/deprecation. Three channels, they don't overlap:
 - **CI app log** — `/var/log/manager/app/` in-container. Empty = no
   error-level entries.
 
+**All channels empty but the request still 500s?** The failure precedes
+logger init — no amount of re-checking these channels will show it. Use the
+silent-fatal wrapper in `references/silent-fatal-probe.md`; if the trace has
+the `... on false` DB signature, run `manager/tools/env_check` first.
+
 ## If something unexpected surfaces mid-test
 
 Stop and flag it with a proposed correction — don't live-debug it into the

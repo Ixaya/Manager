@@ -2,21 +2,29 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+| Version | Supported |
+| ------- | --------- |
+| 2.x     | Yes — security fixes land here |
+| 1.x     | No — end of life; upgrade via `MIGRATION.md` |
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 8.3.x   | :white_check_mark: |
-| 8.2.x   | :white_check_mark: |
-| 8.1.x   | :white_check_mark: |
-| 7.4.x   | :white_check_mark: |
-| < 7.3   | :x:                |
+The framework requires PHP 8.2 or newer; security fixes are only validated
+against supported PHP versions.
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please do NOT open a public issue for security problems.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Report privately through GitHub's vulnerability reporting on this
+repository (Security tab, "Report a vulnerability"). If that is not
+available to you, email the maintainers listed in `composer.json`.
+
+What to include: an affected version, a description of the issue and its
+impact, and reproduction steps or a proof of concept if you have one.
+
+What to expect: an acknowledgment within a few business days; if the
+report is accepted, a fix is developed privately and released with credit
+to the reporter (unless you prefer otherwise). If declined, you get the
+reasoning.
+
+Auth-related invariants worth reading before reporting (what the framework
+deliberately does and why): the `ixaya-auth` skill in `system/skills/`.

@@ -58,7 +58,7 @@ all three lang files. phpstan and php-cs-fixer clean (operator-run).
 ## Standing runbook items (per release / per deploy)
 
 - Re-verify the `BE_` edit inventory after any upstream Ion Auth merge —
-  procedure in `docs/development/02-auth/upstream.md`.
+  procedure in `docs/development/auth-upstream.md`.
 - Pre-deploy schema gate on the target DB: three `*_selector` columns
   present, `salt` absent — note the physical table is `user`, singular
   (migration `20260213175009_Ion_auth_v2.php`).

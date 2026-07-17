@@ -200,7 +200,8 @@ match the sample's wiring (compare against
   existing config.php; keep every project value as-is.
 - **`autoload.php`** — `$autoload['packages'] = [MGRPATH . 'package'];` plus
   the `manager_*` helper autoload list.
-- **`hooks.php`** — the `MGR_Bootsrap` hook registration.
+- **`hooks.php`** — the `MGR_Bootstrap` hook registration (optional — the
+  sample ships it commented out; port it only if your project enables it).
 
 Keeping your per-environment config dirs (`development/`, `production/`) is
 FINE at this stage — env migration is optional (see Big picture). Only the
@@ -334,6 +335,21 @@ Note: this fixes the CONNECTION. Existing tables created as utf8mb3 keep
 their column charset — converting them (`ALTER TABLE ... CONVERT TO
 CHARACTER SET utf8mb4`) is a data migration with its own risks; plan it
 separately, don't bundle it here.
+
+### Legacy global error handlers: delete them
+
+Older projects registered their own global handlers (typically a
+`my_error_handler` / `my_exception_handler` / `my_fatal_handler` /
+`assert_options` block in a config or bootstrap file). Delete the whole
+block, no replacement — it shadows the framework's own exception
+rendering, and removing it is what lets `MGR_Exceptions` take over:
+uncaught errors then return the proper JSON/REST response (or the CLI
+error format) instead of raw HTML dumps.
+
+```bash
+grep -rn "set_error_handler\|set_exception_handler\|assert_options" application/ --include="*.php"
+# expect zero hits — each one found is a legacy handler to delete
+```
 
 ### REST controllers: missing permission gates and stale properties
 
@@ -570,8 +586,10 @@ deployed copies on each server, which drift:
 
 ```bash
 exec /usr/bin/nice -n 10 $php_bin -f $public_path/index.php ${all_args[@]}
-``` Nuances that make
-this its own project: per-env value differences must be flattened into
+```
+
+Nuances that make the env migration its own project: per-env value
+differences must be flattened into
 env-var defaults, session/cache/redis values interact with deployment shape
 (see the docker env docs if containerizing), and every config file you
 convert needs its own smoke test. Do it file-by-file, not big-bang —

@@ -30,7 +30,7 @@ system/
 ├── core/               # MGR classes: Model, Controller, Loader, Router, Exceptions,
 │   │                   #   MGR_Model_Dyn, MGR_Api_Model, MGR_Rest_Controller
 │   └── MGR/
-├── hooks/              # MGR_Bootsrap.php (framework bootstrap hook)
+├── hooks/              # MGR_Bootstrap.php (framework bootstrap hook)
 ├── libraries/          # MGR_* implementations (upload, aws, jwt, mailing, async exec,
 │   │                   #   websocket, migration builder/module lib)
 │   └── MGR/            # Cache + Cache_redis, Migration runner
@@ -72,24 +72,11 @@ bypassed, Docker recipe, log channels) are in the `ixaya-live-probes` skill.
 
 ## Documentation
 
-All project documentation lives under `docs/`. See `docs/documentation.md` for
-the complete structure and lifecycle.
-
-Key locations:
-
-- **`docs/architecture/`** — long-lived architecture and system design
-- **`docs/development/`** — operational/developer guides (local dev, Docker, deployment)
-- **`docs/design/<initiative>/`** — permanent records of completed initiatives
-  (each initiative has `spec.md`, `decisions.md`, `handoff.md`, `review.md`)
-- **`docs/modules/`** — permanent documentation of modules and major components
-- **`docs/workspace/<task>/`** — **temporary working area** for active investigations
-  (never committed; after completion, knowledge is distilled into permanent docs
-  or deleted if inconsequential)
-- **`docs/generated/`** — automatically generated documentation (never edit manually)
-
-The `workspace/` directory is already excluded from git via `docs/.gitignore`.
-Use it as a staging ground for work-in-progress specs, reviews, handoffs, and
-analysis that will later be consolidated into permanent documentation.
+All project documentation lives under `docs/`. The canonical documentation
+standard — layout, categories, lifecycle, drift rules — is the **shipped**
+`sample/docs/documentation.md` (it governs this repo too);
+`docs/documentation.md` is the thin framework-only addendum on top of it.
+Read both before creating or reorganizing any doc.
 
 ## Hard rules
 
@@ -113,7 +100,7 @@ analysis that will later be consolidated into permanent documentation.
   updates merge cleanly. No style sweeps, no refactors; surgical bug fixes
   only, and prefer fixing in the MGR_ subclass layer instead. The BE Ion Auth
   fork carries a documented set of deliberate edits and purposeful deviations
-  — see `docs/development/02-auth/upstream.md` before/after any upstream merge.
+  — see `docs/development/auth-upstream.md` before/after any upstream merge.
 - **Comments are never documentation.** The comments policy (and all style
   rules) live in the `ixaya-code-style` skill — invoke it before writing code.
 - **When the prompt is silent on a security- or safety-relevant choice**
@@ -138,6 +125,6 @@ specific investigation or initiative. When a workspace task is complete, its
 handoff is distilled into permanent documentation (design/, architecture/,
 development/, modules/) or deleted if inconsequential. The full methodology for
 running a findings/fix campaign through the workspace (validation, baselines,
-session planning) is `docs/development/03-spec-campaigns/README.md`. The
+session planning) is `docs/development/spec-campaigns.md`. The
 release check where a fresh agent sets up the framework from scratch is
-`docs/development/04-agent-smoke-test/README.md`.
+`docs/development/agent-smoke-test.md`.

@@ -1,276 +1,58 @@
-# Documentation Guidelines
-
-## Purpose
-
-This document defines how documentation is organized throughout the
-project. Its goals are:
-
--   Keep documentation easy to find.
--   Keep the repository free of scattered Markdown files.
--   Give every document a single, obvious home.
--   Make documentation easy to maintain over the lifetime of the
-    project.
-
-## Core Principles
-
--   Documentation belongs where people expect to find it.
--   Every document should have a single owner.
--   Keep entry-point documents short.
--   Store detailed knowledge under `docs/`.
--   Prefer updating existing documents over creating new ones.
--   Separate generated documentation from hand-written documentation.
--   Separate permanent documentation from implementation history.
-
-## Repository Root
-
-The repository root should contain only standard entry-point files that
-are expected by developers or common tooling.
-
-Typical examples:
-
--   `README.md`
--   `LICENSE`
--   `CHANGELOG.md`
--   `SECURITY.md`
--   `MIGRATION.md`
--   `AGENTS.md` (or equivalent project entry point)
-
-`README.md` is the public face of the project. It should remain stable
-and should not accumulate implementation notes or working documentation.
-
-Avoid adding design notes, reviews, handoffs, operational guides, or
-feature documentation to the repository root.
-
-## AGENTS.md
-
-The project entry-point should act as an index, not a knowledge base.
-
-Its responsibilities are to:
-
--   Describe the project.
--   Point readers to relevant documentation.
--   Reference reusable skills or tooling.
--   Define high-level project conventions.
-
-Detailed documentation belongs under `docs/`.
-
-## Documentation Layout
-
-All project documentation should live under `docs/`.
-
-Suggested layout:
-
-``` text
-docs/
-├── architecture/
-├── development/
-├── design/
-├── modules/
-├── workspace/          (temporary, not committed)
-└── generated/
-```
-
-Only create additional directories when they provide meaningful
-organization.
-
-## Decision Matrix
-
-  If you're documenting...           Location
-  ---------------------------------- ------------------------------------------
-  Repository overview                `README.md`
-  Upgrade guidance                   `MIGRATION.md`
-  Project architecture               `docs/architecture/`
-  Development or operations          `docs/development/`
-  Engineering initiatives (complete) `docs/design/<initiative>/`
-  Work-in-progress investigations    `docs/workspace/<task>/` (temporary)
-  Long-lived module reference        `docs/modules/`
-  Generated information              `docs/generated/`
-
-## Documentation Categories
-
-### architecture/
-
-Long-lived documentation explaining how the project is structured.
-
-Examples:
-
--   system architecture
--   application flow
--   extension points
--   major subsystems
-
-### development/
-
-Operational documentation for developers.
-
-Examples:
-
--   local development
--   Docker
--   deployment
--   testing
--   debugging
--   release process
-
-### design/
-
-Documentation for engineering initiatives.
-
-Each initiative should have its own directory.
-
-Example:
-
-``` text
-docs/design/
-└── 01-docker-stack/
-    ├── spec.md
-    ├── decisions.md
-    ├── handoff.md
-    └── review.md
-```
-
-Typical documents:
-
--   **spec.md** --- what should be built.
--   **decisions.md** --- important architectural decisions.
--   **handoff.md** --- current implementation status, remaining work,
-    and context for continuing.
--   **review.md** --- findings, recommendations, and validation.
-
-Avoid versioned documents such as:
-
--   `review2.md`
--   `handoff-final.md`
--   `review-v3.md`
-
-Update existing documents instead.
-
-### workspace/
-
-Temporary working area for ongoing investigations and implementation work.
-
-Each task gets its own numbered directory (e.g., `01-docker`, `03-auth-migration`).
-
-Typical documents:
-
--   **spec.md** --- findings, analysis, and work scope while in progress.
--   **handoff.md** --- current state, blockers, and context for continuing work.
--   **review.md** --- intermediate reviews or validation results.
-
-**Important:** The `workspace/` directory is not committed to the repository.
-After a task is complete, its useful knowledge is distilled into permanent
-documentation (design/, architecture/, development/, modules/) or deleted if
-inconsequential.
-
-This directory is a working area, not a historical record.
-
-### modules/
-
-Permanent documentation about project modules or major components.
-
-This documents the current state of the project, not its implementation
-history.
-
-### generated/
-
-Documentation produced automatically from code or tooling.
-
-Examples:
-
--   route inventories
--   module indexes
--   service catalogs
-
-Generated documentation should never be edited manually.
-
-## Specifications
-
-A specification describes what should be built.
-
-It defines goals, requirements, and expected behavior.
-
-It is not an execution log.
-
-## Handoffs
-
-A handoff captures:
-
--   current implementation state
--   completed work
--   remaining tasks
--   known issues
--   important context for future work
-
-It exists to continue development efficiently.
-
-## Reviews
-
-Reviews evaluate the implementation against the specification and
-architecture.
-
-They record findings and recommendations rather than implementation
-history.
-
-## Documentation Lifecycle
-
-Long-running initiatives generally evolve like this:
-
-``` text
-spec.md (in workspace/)
-    ↓
-implementation
-    ↓
-review.md (in workspace/)
-    ↓
-handoff.md (in workspace/) — current state recorded
-    ↓
-distillation (knowledge extracted from workspace)
-    ↓
-permanent documentation (design/, architecture/, development/, modules/)
-or deletion (if inconsequential)
-```
-
-The `workspace/` directory holds temporary working files during development.
-
-The `design/` directory preserves permanent project history (completed initiatives).
-
-The other documentation directories describe the current system.
-
-## Keeping Documentation Healthy
-
--   Prefer a few well-maintained documents over many small ones.
--   Use `workspace/` for active work — don't leave unfinished investigations in permanent docs.
--   After completing workspace tasks, distill findings into permanent docs or delete.
--   Consolidate temporary notes into permanent documentation.
--   Remove obsolete documentation instead of archiving multiple
-    revisions.
--   Keep documentation synchronized with the codebase.
--   Generate documentation whenever it can be derived automatically.
--   Do not use emojis in any Markdown documentation. Some IDEs and
-    terminals fail to render them correctly, and plain words (e.g. "Yes"/
-    "No", status labels) are clearer and searchable.
-
-## Documentation Hierarchy
-
-1.  Code is the source of truth.
-2.  Generated documentation reflects the current code.
-3.  Hand-written documentation explains intent, architecture, and
-    operation.
-4.  Entry-point documents help readers discover information.
-
-Documentation should improve discoverability without increasing
-repository clutter.
-
-## Repository Configuration
-
-The `docs/workspace/` directory should be excluded from version control.
-
-Add to `.gitignore`:
-
-``` text
-docs/workspace/
-```
-
-This keeps the repository free of temporary working files while allowing
-developers to use workspace as a staging ground for active investigations
-and work-in-progress documentation.
+# Documentation Guidelines — framework addendum
+
+> Scope: the **ixaya/manager framework repository**. The canonical
+> documentation standard lives in the shipped scaffold —
+> `sample/docs/documentation.md` — and governs this repo too; read it
+> first. This file carries only what is framework-specific. Nothing here
+> duplicates the base standard: every shared principle lives there, once.
+
+## Framework deltas to the base standard
+
+- **Repository root** additionally carries `MIGRATION.md` (upgrade
+  guidance for consuming projects — its home whenever the decision matrix
+  would ask) and `SECURITY.md`.
+- **`README.md` is the package's public face** and changes rarely,
+  deliberately, and minimally: when installation steps actually change,
+  when a major capability ships, or to fix an error. Keep diffs surgical —
+  no restructuring, no session learnings, no operational detail (that
+  belongs under `docs/` or the scaffold's docs). Any command shown must be
+  verified against the current scaffold before committing.
+- **`docs/workspace/` is already ignored** here via `docs/.gitignore` — no
+  setup needed.
+
+## Framework-only drift rules
+
+These apply on top of the base standard's Drift Rules:
+
+1. **References are one-way.** Files under `sample/` ship to consuming
+   projects and must never reference this repo's `docs/` or
+   `docs/workspace/` — those paths do not exist in a consuming project.
+   Framework docs may deep-link into `sample/` freely. Check:
+   `grep -rn 'docker-decisions' sample/` must stay empty — same for any
+   other framework-side doc name.
+2. **Claims about "this repo" must be true of this repo** — not of the
+   project the content was first written in (VCS type, hosting,
+   infrastructure).
+3. **Nothing shipped carries workspace or campaign references — HARD
+   rule.** Anything under `sample/` (docs, code comments, env templates,
+   configs) must never cite this repo's workspace docs, handoff sections,
+   decision logs, or campaign item/task numbers ("Item 5", "Phase 2",
+   "HANDOFF §2.1") — a consuming project can never resolve them, and they
+   leak internal history into the product. This has shipped before: an env
+   template comment citing a handoff section survived into the scaffold.
+   The lifecycle *vocabulary* (a doc explaining what a handoff is) is fine;
+   citing a *specific* one is not. At distillation time, sweep for
+   history citations and justify every hit:
+   `grep -rniE '§|item [0-9]|phase [0-9]|workspace/[0-9]' sample/`
+   (the only expected hit is the shipped standard quoting these examples).
+
+## Maintaining the shipped standard
+
+`sample/docs/documentation.md` is a **product**, not a mirror of this
+file: every consuming project bootstraps its documentation culture from it,
+the same way it bootstraps its code conventions from the sample PHP and the
+skills. Editing it is a product change and rides the same review bar as
+sample code (AGENTS.md hard rule: `sample/` is the canonical example
+source) — edit it deliberately, never as a side effect of reorganizing this
+repo's own docs. It must stay fully self-contained: a consuming project
+sees only that file.

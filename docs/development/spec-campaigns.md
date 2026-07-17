@@ -100,7 +100,7 @@ re-check the claim before applying it.
 - **Where fixes go:** prefer the subclass/config/extension seam; never edit
   upstream-tracked directories (`system/third_party/`) except as a
   deliberate, documented, one-commit exception recorded for re-verification
-  after upstream merges (see `docs/development/02-auth/upstream.md` for the
+  after upstream merges (see `docs/development/auth-upstream.md` for the
   worked example).
 - **Stop-and-flag on surprises.** A bug surfaced mid-item that isn't the
   item is its own finding — flag it for a decision, don't silently patch or
@@ -202,7 +202,8 @@ even though they're in the docs: repetition there is cheap insurance.
 2. **Distillation** (this campaign's worked example is
    `docs/design/01-auth-hardening/` + `02-system-fixes/`): durable
    conventions to skills; decisions + final state + validation record to
-   `docs/design/<initiative>/` per `docs/documentation.md`; operational
+   `docs/design/<initiative>/` per the documentation standard
+   (`sample/docs/documentation.md` + the framework addendum); operational
    runbooks to `docs/development/`; consumer traps to MIGRATION.md — one
    source of truth, pointers not duplicates. Then list what remains, get
    operator approval, and delete the workspace sections.

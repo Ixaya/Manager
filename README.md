@@ -10,23 +10,22 @@ The framework is **always consumed as a Composer dependency**: your project boot
 
 ### Features
 
-- CodeIgniter upgradeable through Composer (always use latest version)
+- CodeIgniter base upgradeable through Composer
 - HMVC, organize your code into self-contained modules, each with its own controllers, models and views
 - Modern, typed PHP (8.2+) codebase — enums, `match`, named parameters, readonly value objects
-- Support for MySQL, PostgreSQL, MSSQL, Sqlite, or any database that is supported in CodeIgniter 3.
+- Support for MySQL/MariaDB, PostgreSQL, SQL Server, SQLite, or any database supported by CodeIgniter 3
 - Different Database connection/technology per Model. (you can have a model that loads a Database from Postgres and another Model that loads a Database from MySQL)
 - Typed base model (`MY_Model`) with soft deletes, audit history, tenant scoping, and a dynamic query builder
 - REST framework with API-key auth, group/level permissions, and content-negotiated JSON errors
 - Cross-engine migration builder — one migration runs on MySQL/MariaDB, PostgreSQL, SQL Server, and SQLite
 - Per-module migration versioning with plan/dry-run tooling
 - Redis-augmented cache (lists, sets, hashes, pub/sub) and a WebSocket server for real-time notifications
-- Responsive Theme (SB Admin 2 Template for the Backend)
 - Login protected Admin module
 - Examples to create a REST API
 - Agent skills included (`system/skills/`) so coding agents follow the framework conventions
 - Production Tested
-- try { } catch { } logic for errors (an improvement over CodeIgniter's)
-- Secured Application Folder from Public.
+- Framework-level exception handling: uncaught errors return proper JSON responses with the right HTTP status and CORS headers
+- Application code kept outside the public web root
 
 ---
 
@@ -89,19 +88,13 @@ composer require adhocore/jwt            # WebSocket authentication
 
 ## Agent skills
 
-The package ships its coding conventions as agent skills (open `SKILL.md` format, usable by any coding agent) in `system/skills/`:
-
-| Skill | Covers |
-|---|---|
-| `ixaya-code-style` | Style baseline for all code and config: typing, PHPDoc, named parameters, comments |
-| `ixaya-models` | `MY_Model` / `APP_Model_Dyn` — any database access |
-| `ixaya-rest-controller` | API endpoints, auth, response envelope |
-| `ixaya-auth` | Ion Auth stack: login/sessions, lockout, password reset, tenancy, security invariants |
-| `ixaya-web-controllers` | Web page controllers, views, theming/layouts |
-| `ixaya-migrations` | Schema changes (`MGR_Migration_builder`) |
-| `ixaya-cli-modules` | CLI commands, crons, background exec, HMVC modules |
-| `ixaya-helpers-libraries` | Utility functions, packaged libraries, creating libraries |
-| `ixaya-cache-websockets` | Caching, Redis, pub/sub, websocket notifications |
+The package ships its coding conventions as agent skills (open `SKILL.md`
+format, usable by any coding agent) in `system/skills/`. They cover the whole
+development surface — code style, database models, REST endpoints and auth,
+web controllers and theming, migrations, CLI and background jobs, helpers and
+libraries, caching and websockets, and live runtime testing — and each skill
+describes when to use it. The scaffold's `AGENTS.md` carries the per-skill
+routing table for agents working in your project.
 
 Link them into your project (run from the project root; re-run after major framework updates):
 

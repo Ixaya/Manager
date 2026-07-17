@@ -63,6 +63,7 @@ that kind:
 | `ixaya-cli-modules` | CLI commands, crons, background exec, HMVC modules |
 | `ixaya-helpers-libraries` | Utility functions, packaged libraries, creating new libraries |
 | `ixaya-cache-websockets` | Caching, Redis, pub/sub, websocket notifications |
+| `ixaya-live-probes` | Live-testing changes against the running Docker stack: probe controllers, real auth, log channels |
 
 Read `ixaya-auth` whenever end-to-end API testing is in scope, not only when
 writing auth code: obtaining a first credential (`claim_admin`), logging in, and
@@ -173,26 +174,14 @@ Run via `bin/cli_run.sh`, never plain `php`:
 
 ## Docker stack
 
-First-time instance setup (env files, secrets, DB engine matrix):
-`docs/development/docker.md`. Day-to-day commands are in "Commands" above.
+Setup, deploy, rotation, tuning, and troubleshooting:
+`docs/development/docker.md`. Editing the files under `docker/` themselves
+(hard rules, env-var placement, build gotchas):
+`docs/development/docker-internals.md`. Day-to-day commands are in
+"Commands" above.
 
 ## Documentation
 
-All project documentation lives under `docs/`. See `docs/documentation.md` for
-the complete structure and lifecycle.
-
-Key locations:
-
-- **`docs/architecture/`** — long-lived architecture and system design
-- **`docs/development/`** — operational/developer guides (local dev, Docker, deployment)
-- **`docs/design/<initiative>/`** — permanent records of completed initiatives
-  (each initiative has `spec.md`, `decisions.md`, `handoff.md`, `review.md`)
-- **`docs/modules/`** — permanent documentation of modules and major components
-- **`docs/workspace/<task>/`** — **temporary working area** for active investigations
-  (never committed; after completion, knowledge is distilled into permanent docs
-  or deleted if inconsequential)
-- **`docs/generated/`** — automatically generated documentation (never edit manually)
-
-The `workspace/` directory is excluded from git (add to `.gitignore`). Use it as
-a staging ground for work-in-progress specs, reviews, handoffs, and analysis
-that will later be consolidated into permanent documentation.
+All project documentation lives under `docs/`. The layout, categories,
+lifecycle, and drift rules are defined in `docs/documentation.md` — read it
+before creating or reorganizing any doc.

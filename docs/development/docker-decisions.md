@@ -1,7 +1,9 @@
 # Docker stack — design decisions
 
-One-time rationale with evidence, kept compact. See `README.md` for the
-operational procedures these decisions inform.
+One-time rationale with evidence, kept compact. The operational and
+stack-editing docs ship with the stack itself — see
+`sample/docs/development/docker.md` and `docker-internals.md`; `README.md`
+here explains the split.
 
 **Lockstep images.**
 Decision: nginx bakes `public/` from the PHP image at the same `IMAGE_TAG`;
@@ -60,8 +62,35 @@ Revisit when: `ixaya/manager` adds a second Redis connection
 (`LIB_REDIS_STATE_*`) — then migrate queues/pub-sub to `valkey-state` db2
 (Path A) and this repo just adds the new connection's env vars.
 
+**Concurrency sizing — nginx waiting room vs. FPM execution slots.**
+Decision: `worker_connections 1024` (per worker), `worker_rlimit_nofile 4096`
+with a matching nginx `ulimits.nofile` (8192) in `docker-compose.yml`;
+`PHP_PM_MAX_CHILDREN` stays 20 dev / ~50 prod.
+Why: two independent populations, sized separately. WebSockets proxy to the
+`ws` service (`conf.d/ws.conf`), never to PHP-FPM — they hold an nginx
+connection slot + ~2 FDs each for up to 3600s (they accumulate), but consume
+zero FPM children. PHP requests are brief (1–3s) and are the only thing that
+sizes `pm.max_children`. Reference workload: an internal portal of ~100–200
+users, ~50 concurrent, worst case ~200 each holding one WebSocket. nginx must
+absorb ~200 sticky WS + an HTTP burst; 1024/worker covers that even on a
+single-core container (`auto` → 1 worker). FPM only sees the brief PHP
+concurrency (a few dozen at peak), so ~50 is ample — WebSockets add nothing.
+nginx cannot raise its own hard FD limit without `CAP_SYS_RESOURCE`, so the
+container ceiling is pinned in compose (`ulimits.nofile`) rather than left to
+the host default; raise it and `worker_rlimit_nofile` together.
+Evidence: prod baseline (Apache mpm_event) caps at `MaxRequestWorkers 150` and
+has never logged `pm.max_children` exhaustion; measured FD hard limits there are
+524288, so 4096 takes effect for real. The previous `4096`/`65535` were copied
+defaults ~100× the real workload; 65535 also exceeds locked-down sandbox NOFILE
+ceilings, producing a harmless startup `[alert]`.
+Cost: a spike beyond ~1024 concurrent per worker would queue in the TCP
+backlog rather than being served immediately.
+Revisit when: concurrent WebSocket clients approach `worker_connections`, the
+portal opens to the public, or the `ws` service's own connection ceiling
+becomes the binding limit before nginx's.
+
 **Session password param is `auth=`, not `password=`.**
-Decision: `CF_SESS_SAVE_PATH` uses `...&auth=<pw>` (see README §3 for the
+Decision: `CF_SESS_SAVE_PATH` uses `...&auth=<pw>` (see `sample/docs/development/docker.md`, "Session save_path", for the
 exact form).
 Why: the CI3 redis session driver's parser only recognizes `auth=` and
 requires the timeout as `<int>.<int>` — a literal `...&password=<pw>` form
@@ -80,14 +109,15 @@ delta, in order:
 1. Valkey must not run as root, and its password must not be visible in
    argv/`docker top` — a network-reachable store running as root with its
    password in argv is a different risk class. (Argv exposure is already
-   closed — see `gotchas.md`, `docker/valkey/entrypoint.sh`.)
+   closed — see `sample/docs/development/docker-internals.md`,
+   `docker/valkey/entrypoint.sh`.)
 2. Expose cache and state separately — and question exposing state at
    all: whoever holds `valkey-state`'s password holds every user session.
    If the need is a shared cache/queue, publish ONLY `valkey-cache`.
 3. Compose `ports:` must bind the specific private interface
    (`"<vpc-ip>:<port>:6379"`, distinct host ports per instance) — never a
    bare port (= 0.0.0.0). The new vars are compose-interpolation-only →
-   `<i>.docker.env`, per `gotchas.md` "Env var placement".
+   `<i>.docker.env`, per `docker-internals.md` "Env var placement".
 4. Replace the single `requirepass` god-user with ACL users per consumer;
    remote users get dangerous commands removed (`-@admin`, no
    `FLUSHALL`/`FLUSHDB`/`CONFIG`/`DEBUG`/`SHUTDOWN`/`KEYS`). The ACL file
@@ -98,8 +128,8 @@ delta, in order:
 6. Security-group/firewall scoping to exact client CIDRs; re-evaluate
    idle `timeout` for remote clients (pub/sub subscribers stay exempt);
    and update IN THE SAME CHANGE: the compose header comment ("Only nginx
-   publishes ports…"), README §3's "Valkey ports are never published" line,
-   and README §4's rotation procedure (the password now travels to other
+   publishes ports…"), the shipped docker.md's "Valkey ports are never published" line
+   and its rotation procedure (the password now travels to other
    hosts).
 
 **Database extensions: `mysqli`/`pgsql`, not `pdo_mysql`/`pdo_pgsql`.**
@@ -140,7 +170,7 @@ during `docker build`, not by the entrypoint).
 Why: this lets `php` run with a **read-only rootfs** (nothing needs to
 write pool config at runtime) — same posture as `nginx` and `valkey`.
 Cost: resizing the pool needs a rebuild (`./docker_manage.sh -e <i> build`),
-not just a restart — see README §5.
+not just a restart — see the shipped docker.md tuning section.
 Revisit when: never, unless the pool needs to resize without a rebuild
 (would require reintroducing a writable rootfs for `php`).
 
@@ -157,26 +187,33 @@ after this fix and follows the same `${DB_USER:?...}` form from the start.
 Revisit when: never — this is the correct steady-state form, matching
 `DB_NAME`.
 
-**The app's own `DB_USER` default is the framework-layer twin of the fixed
-compose fallback — not yet fixed.**
-Decision (not yet made — flagged for the next opportunity): `mgr_env('DB_USER',
-'root')` in `application/config/database.php` still silently falls back to
-`'root'` if `DB_USER` is ever absent from the app's process environment, the
-exact same silent-default shape the compose-level `DB_USER` fix (above)
-just closed one layer down.
-Why not fixed now: `application/config/database.php` is application code,
-not docker infrastructure — out of scope for the docker/env split, and
-changing default-handling in a shared config file needs its own review
-independent of docker.
-Revisit when: the next `ixaya/manager`/app-config touch point — the
-backport-worthy fix is "required-or-fail for DB identifiers" (no silent
-default) at the `mgr_env`/config layer, mirroring what compose already
-does.
+**The app's own DB identifiers are required-or-fail — the framework-layer
+twin of the compose `${DB_USER:?}` fix.**
+Decision: `MGR_Env_lib::get_required()` (+ `mgr_env_required()` helper)
+throws a `RuntimeException` naming the missing key and pointing at
+`manager/tools/env_check`; `database.php` uses it for `DB_USER` and
+`DB_NAME`. `DB_HOST` keeps its `localhost` default (a legitimate universal
+convention); `DB_PASS` keeps `''` (an empty password is a real
+configuration, and its absence is one `env_check` away).
+Why not `''` as the default: an empty username/database doesn't fail loud —
+with `db_debug` off (production) the connect failure leaves
+`conn_id === false` silently and every request 500s with empty logs (the
+exact `... on false` trap a docker smoke test burned a session on), and an
+empty `database` even connects successfully before failing confusingly on
+the first query. A silent `'root'` was worse still: it can *succeed* as the
+wrong identity on a dev box.
+Evidence: throw fires when CI loads the DB config — after `MY_Exceptions`
+is wired for web requests, so it renders as a real error, not another
+silent 500. Verified live: stack boots normally with `DB_USER` set; with it
+unset the request dies with the named-key message.
+Cost: none for existing consumers — `sample/` ships to new projects only;
+the helper is additive.
+Revisit when: never — this is the steady-state form, matching compose.
 
 **Env scope split: `env_file:` loads the whole file.**
 Decision: `<i>.docker.env` (compose/build-arg/wrapper-only vars) is
 intentionally never referenced by any service's `env_file:` — see the
-"Env files" table in README §1.
+"Env files" table in the shipped docker.md.
 Why: `env_file:` has no way to load a subset of a file, so keeping
 build/wrapper-only vars out of `<i>.env` entirely is the only way to keep
 them out of the container's real process environment (and thus out of
@@ -186,7 +223,7 @@ sensitive (a credential). At that point it doesn't move to `.env` — it
 moves to `.priv.env` (the secrets file), following the same rule as every
 other secret. If a var currently in `.docker.env` ever needs to be read by
 the app or an in-container script, re-run the classification check in
-`gotchas.md` ("Env var placement") before moving it — don't assume
+`docker-internals.md` ("Env var placement") before moving it — don't assume
 the reverse move is symmetric with the forward one.
 
 **HSTS/CSP/rate limiting ownership: not nginx, in either environment.**
@@ -217,10 +254,10 @@ Decision: a second opt-in override, `docker-compose.manager-bind.yml`, binds
 `vendor/ixaya/manager/system`, read-only, on `php`/`ws`/`cron` — mirroring
 `-b`'s shape but as a fully independent flag with its own required var, not
 a mode of `-b`.
-Why: the existing `-b`/`--bind` workflow (README §7) exists to test
+Why: the existing `-b`/`--bind` workflow exists to test
 `application/`/`public/` changes live; there was no equivalent for testing
 `ixaya/manager` framework changes without a `composer.lock` bump/publish/
-tag cycle. `vendor/` is off-limits by the hard rule in `gotchas.md` because
+tag cycle. `vendor/` is off-limits by the hard rule in `docker-internals.md` because
 that rule assumes composer-classmap-based loading that can silently go
 stale — but `ixaya/manager`'s own `composer.json` declares no `autoload`
 section, and a repo-wide grep found zero PSR-4 `namespace` declarations
@@ -243,7 +280,7 @@ conflict.
 Evidence: `composer.json` (repo root, no `autoload` key);
 `grep -rl '^namespace ' system --include=*.php` (zero matches);
 `docker/docker-compose.manager-bind.yml`; `docker_manage.sh`'s
-`-m`/`--manager-bind` parsing; `gotchas.md` "Hard rules" carve-out.
+`-m`/`--manager-bind` parsing; `docker-internals.md` "Hard rules" carve-out.
 Cost: a second vendor-adjacent exception to reason about, narrowly scoped
 to this one package/directory — do not extend the pattern to another
 vendor package without re-checking that package has no composer autoload
@@ -252,3 +289,35 @@ Revisit when: `ixaya/manager` ever adopts a composer `autoload` section or
 PSR-4 namespaces — at that point this override needs a `dump-autoload`
 step (or a rebuild boundary, like `-b`'s classmap caveat) or it will
 silently fail to pick up new classes while bound.
+
+**Docker docs ship with the stack — root keeps only decisions.**
+Decision: the operate doc (`sample/docs/development/docker.md`) and the
+stack-editing doc (`sample/docs/development/docker-internals.md`) live in
+`sample/` and ship to every consuming project; framework-side only
+`docker-decisions.md` (rationale + evidence) and the `docker.md` pointer
+remain, as flat files under `docs/development/`. Reference
+direction is one-way: root docs may deep-link into `sample/…`; shipped docs
+must never reference framework-root `docs/` or `docs/workspace/` (those
+paths don't exist in a consuming project). Guard:
+`grep -rn 'docker-decisions' sample/` must stay empty — same for any other
+framework-side doc name (`docs/workspace` mentions inside
+`sample/docs/documentation.md` are the project's own convention, not
+framework paths).
+Why: the previous split was by where the writing happened, not by audience —
+operational knowledge (rotation, OPcache reload, tuning, troubleshooting)
+accumulated in root files consumers never receive, and new consumer-relevant
+notes kept landing there by default. Consumers also develop the stack (it
+lives in their tree), so the editing conventions ship too; only evidence
+dossiers and internal context stay framework-side, since consuming projects
+grow their own decisions.
+Evidence: during the split, four stale imports from the stack's origin
+project surfaced and were removed — the SVN hard rule ("this repo is
+Subversion" — false here), the SVN_COMMANDS.md references, the already-fixed
+supercronic-amd64 verification gap, and a missing-but-referenced
+`bin/supercronic-checksums.sh` (recreated; verified it reproduces the
+Dockerfile's existing pins from aptible's published SHA1s).
+Cost: two docs to keep scoped (each carries a scope header naming its
+audience); rationale is deliberately NOT duplicated into shipped files
+beyond one-line whys.
+Revisit when: a consuming project needs deep rationale routinely — then
+consider shipping a condensed decisions extract, not a link.

@@ -4,14 +4,14 @@ Operator decisions with their rationale, condensed from the workspace
 records. Item ids (C10, F4, LB3...) are the workspace numbering, kept for
 traceability to commits and probe names. The resulting rules live in
 `system/skills/ixaya-auth/SKILL.md`; the `BE_` edit inventory in
-`docs/development/02-auth/upstream.md`.
+`docs/development/auth-upstream.md`.
 
 ## Structural
 
 - **2026-07-12: `BE_` files may be edited, as one-commit documented
   exceptions.** The subclass-preference rule stands, but genuine defects in
   the fork with no clean subclass seam are fixed directly in the `BE_`
-  files, batched in single coherent commits, recorded in `upstream.md`, and
+  files, batched in single coherent commits, recorded in `auth-upstream.md`, and
   re-verified after any upstream merge. Scattering them across unrelated
   commits is forbidden.
 - **2026-07-12: lang keys are FLAT (CI3 style).** The half-finished upstream
