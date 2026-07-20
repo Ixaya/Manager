@@ -66,8 +66,9 @@ which one was used:
 
 Scope guards: API-only (no web/UI), one DB engine per run, stop-and-ask on
 real blockers. Build in a real module (the blog module), never the throwaway
-`test/` module — its siblings are public no-auth probes, and agents pattern-
-match on nearby files, so building there teaches the wrong conventions.
+`probes/` module — its siblings are throwaway validation probes, and agents
+pattern-match on nearby files, so building there teaches the wrong
+conventions.
 
 ## Evaluating a run (evaluator-only)
 

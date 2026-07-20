@@ -6,6 +6,7 @@ use PhpCsFixer\Finder;
 $finder = PhpCsFixer\Finder::create()
 	->in([
 		__DIR__ . '/application/',
+		__DIR__ . '/tests/',
 	])
 	->name('*.php')
 	->ignoreDotFiles(true)

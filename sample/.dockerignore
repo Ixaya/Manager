@@ -24,5 +24,8 @@
 # --classmap-authoritative install. Keep it un-ignored.
 !composer.lock
 
-# Local-only probe/test module (gitignored) — must never enter a build context
-application/modules/test/
+# Local-only probes module (gitignored) — must never enter a build context
+application/modules/probes/
+# Hand-copied smoke module (for -b instances) — images bake it from
+# docker/php/smoke/ via INCLUDE_SMOKE_MODULE, never from a leftover copy
+application/modules/smoke/

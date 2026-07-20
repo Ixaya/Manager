@@ -1,6 +1,10 @@
 # AGENTS.md
 
-This file provides guidance to coding agents working with code in this repository.
+This file guides coding agents (and new developers) working on this
+application, which is built on the `ixaya/manager` framework (a CodeIgniter 3
+HMVC superset) consumed via Composer — framework code lives under `vendor/`
+and is never edited here. Adapt this paragraph when bootstrapping a new
+project: one sentence on what THIS application is and who uses it.
 
 ## Commands
 
@@ -31,11 +35,12 @@ vendor/bin/phpstan analyse
 ./docker_manage.sh -e <instance> logs -f php
 ```
 
-A PHPUnit test suite is configured (`phpunit.xml`, PHPUnit 12): tests live in
-`application/tests/unit/`, bootstrapped by `application/tests/Bootstrap.php`
-with `.env.testing` as the environment. Run with `phpunit` (or
-`vendor/bin/phpunit` if installed locally). Add new unit tests under
-`application/tests/unit/`. PHPStan is the static-analysis gate.
+A PHPUnit test suite is configured (`phpunit.xml`, PHPUnit 13): tests live in
+`tests/unit/`, bootstrapped by `tests/Bootstrap.php` with `.env.testing` as
+the environment. Run with `vendor/bin/phpunit` (a `require-dev` dependency;
+without host PHP use the docker `tools` service — see
+`docs/development/docker.md`). Add new unit tests under `tests/unit/`.
+PHPStan is the static-analysis gate.
 
 ## Agent skills
 
@@ -70,13 +75,6 @@ writing auth code: obtaining a first credential (`claim_admin`), logging in, and
 calling an endpoint with a real `X-API-KEY` all live there. A request rejected
 with *"Invalid API key"* is the framework refusing an unauthenticated call — it
 is not evidence that auth works.
-
-When the prompt is silent on a security- or safety-relevant choice (auth mode,
-deletion, data exposure, permissions), take the documented safe default; a
-nearby file never justifies dropping below it (a sibling that matches or
-tightens the default is fine). State the assumption you made. Ask only when
-interactive and no safe default exists; an autonomous run picks the conservative
-option and says so.
 
 ## Architecture
 
@@ -160,9 +158,9 @@ API routes are under `application/modules/*/controllers/api/` (or `*/controllers
 ### Migrations & Seeds
 
 New migrations live inside their module
-(`application/modules/{module}/migrations/{connection}/`); the root
-`application/database/migrations/` folder holds legacy/app-level migrations
-only — don't add new ones there. Seeds live in
+(`application/modules/{module}/migrations/{connection}/`); older projects may
+also carry a root `application/database/migrations/` folder of legacy
+app-level migrations — frozen history, don't add new ones there. Seeds live in
 `application/database/seeds/`. Authoring conventions: see the
 `ixaya-migrations` skill.
 
@@ -185,3 +183,20 @@ Setup, deploy, rotation, tuning, and troubleshooting:
 All project documentation lives under `docs/`. The layout, categories,
 lifecycle, and drift rules are defined in `docs/documentation.md` — read it
 before creating or reorganizing any doc.
+
+## Hard rules
+
+- **PHP 8.2 floor, 8.4-era style.** No 8.3/8.4-only features (typed class
+  constants, `#[\Override]`, property hooks, asymmetric visibility).
+- **Never edit anything under `vendor/`.** Framework fixes go in this
+  project's extension seams (`application/core/` subclasses, config
+  overrides); framework changes belong upstream in the `ixaya/manager`
+  package.
+- **When the prompt is silent on a security- or safety-relevant choice**
+  (auth mode, deletion, data exposure, permissions), take the documented
+  safe default; a nearby file never justifies dropping below it (a sibling
+  that matches or tightens the default is fine). State the assumption you
+  made. Ask only when interactive and no safe default exists; an autonomous
+  run picks the conservative option and says so.
+- **Git: agents never commit** — the operator reviews and commits. (Adapt
+  to your team's policy when bootstrapping a new project.)

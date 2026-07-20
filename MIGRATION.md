@@ -608,8 +608,8 @@ config files, extract them during (or after) the env migration.
 adopt the existing DB state with `manager/tools/version_set` instead of
 re-running history. Legacy migration files stay frozen where they are.
 
-**Tests skeleton.** Copy `sample/application/tests/` (phpunit bootstrap +
-example) if the project has none.
+**Tests skeleton.** Copy `sample/tests/` (phpunit bootstrap + example) to
+the project root if the project has none.
 
 **Agent docs.** Symlink the package skills (`system/skills/` — command in the
 README) and adopt a root `AGENTS.md` for project-wide rules.

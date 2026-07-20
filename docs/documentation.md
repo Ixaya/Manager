@@ -30,10 +30,7 @@ These apply on top of the base standard's Drift Rules:
    Framework docs may deep-link into `sample/` freely. Check:
    `grep -rn 'docker-decisions' sample/` must stay empty — same for any
    other framework-side doc name.
-2. **Claims about "this repo" must be true of this repo** — not of the
-   project the content was first written in (VCS type, hosting,
-   infrastructure).
-3. **Nothing shipped carries workspace or campaign references — HARD
+2. **Nothing shipped carries workspace or campaign references — HARD
    rule.** Anything under `sample/` (docs, code comments, env templates,
    configs) must never cite this repo's workspace docs, handoff sections,
    decision logs, or campaign item/task numbers ("Item 5", "Phase 2",

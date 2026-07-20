@@ -37,6 +37,32 @@ and doubles the extension build).
 Revisit when: never, unless composer itself becomes a runtime dependency
 (it is not — the app uses the generated autoloader, which is self-contained).
 
+**Dev tooling (phpstan/phpunit) runs in the `vendor-builder` stage — no
+separate testing image, no prod/dev mode switch.**
+Decision: `composer.json` carries `phpstan/phpstan` + `phpunit/phpunit` +
+`friendsofphp/php-cs-fixer` in `require-dev` (phpunit as
+`^11 || ^12 || ^13` — 13 needs PHP 8.4, the OR keeps `composer install`
+working at the framework's 8.2 floor); a profile-gated `tools` compose
+service reuses the
+`vendor-builder` build target and mounts the project tree at `/work`.
+Why: fidelity — the tools run under the exact PHP + extension set the runtime
+ships, so composer's platform checks and phpstan's analysis match reality; a
+separate testing Dockerfile would duplicate those decisions and drift.
+Prod-image safety needs no mode flag because three independent guarantees
+already hold: `composer install --no-dev` is hard-coded in the only stage
+that runs composer; the runtime image contains no composer; and the build
+context never copies a host `vendor/` (explicit COPY list).
+Evidence: with dev packages present in `composer.lock`, a rebuilt
+`vendor-builder` image contains neither `vendor/phpstan` nor
+`vendor/phpunit` (verified 2026-07); `docker compose run` targets the
+profile-gated service without `--profile`, so `docker_manage.sh` needed no
+changes.
+Cost: dev `vendor/` lives in the host tree (root-owned writes on Linux
+hosts); a persistent named volume (`composer-cache`) for composer's cache.
+Revisit when: CI needs static analysis without building `php-base`'s
+extension set — then derive a slim stage `FROM` the same base rather than
+writing a second Dockerfile.
+
 **Path B — Valkey cache/queues/pub-sub share one connection with cache.**
 Decision: `LIB_REDIS_*` (cache + queues + pub-sub) → `valkey-cache`
 (allkeys-lru); sessions alone → `valkey-state` (noeviction, AOF).

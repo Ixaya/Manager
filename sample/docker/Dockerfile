@@ -110,15 +110,15 @@ COPY public/      ./public/
 # /usr/local/bin/php). The repo's own bin/ is deliberately not copied.
 COPY --chmod=755 docker/php/bin/ ./bin/
 
-# Optional smoke-test module, baked only when INCLUDE_TEST_MODULE=true
+# Optional smoke-test module, baked only when INCLUDE_SMOKE_MODULE=true
 # (local images only). Runtime-guarded too — 403s outside development.
-ARG INCLUDE_TEST_MODULE=false
-RUN --mount=type=bind,source=docker/php/tests,target=/mnt/tests \
+ARG INCLUDE_SMOKE_MODULE=false
+RUN --mount=type=bind,source=docker/php/smoke,target=/mnt/smoke \
     set -eux; \
-    if [ "$INCLUDE_TEST_MODULE" = "true" ]; then \
-        mkdir -p ./application/modules/tests; \
-        cp -r /mnt/tests/. ./application/modules/tests/; \
-        echo "INCLUDE_TEST_MODULE=true: baked docker/php/tests into application/modules/tests"; \
+    if [ "$INCLUDE_SMOKE_MODULE" = "true" ]; then \
+        mkdir -p ./application/modules/smoke; \
+        cp -r /mnt/smoke/. ./application/modules/smoke/; \
+        echo "INCLUDE_SMOKE_MODULE=true: baked docker/php/smoke into application/modules/smoke"; \
     fi
 
 # FPM pool: {{PM_*}} placeholders rendered here at build time from

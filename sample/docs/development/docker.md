@@ -79,6 +79,7 @@ can be any non-empty value):
 | `mariadb` | `mariadb` | MariaDB — lighter local alternative, NOT Aurora-compatible | No — dev/local only |
 | `postgres` | `postgres` | PostgreSQL 16 | No — dev/local only |
 | `cli` | `cli` | Interactive shell / one-off commands | As needed |
+| `tools` | `tools` | composer / phpstan / phpunit on the host tree | No — dev only |
 
 Production uses an **external** database (`DB_HOST=<managed endpoint>`, no db
 profile). Valkey ports are **never** published; only nginx publishes
@@ -215,6 +216,28 @@ its own instance so `-b` sessions never collide: unique
   `application/` — MX resolves these by file path convention at request
   time. Edit and refresh; that's it.
 
+## Static analysis & unit tests (`tools` service)
+
+phpstan/phpunit/php-cs-fixer run through the `tools` service — the image's own
+`vendor-builder` stage (composer plus the exact runtime PHP and extensions),
+with the project tree mounted at `/work`. Dev dependencies land in the host
+tree's `vendor/`; baked images never contain them (the build's
+`composer install --no-dev` plus a runtime image with no composer at all).
+
+```bash
+./docker_manage.sh -e <i> --profile tools build tools   # once, and after Dockerfile changes
+./docker_manage.sh -e <i> run --rm tools composer install
+./docker_manage.sh -e <i> run --rm tools vendor/bin/phpstan analyse
+./docker_manage.sh -e <i> run --rm tools vendor/bin/phpunit
+./docker_manage.sh -e <i> run --rm tools vendor/bin/php-cs-fixer check --diff
+```
+
+`run` targets the profile-gated service directly — no `--profile tools`
+needed — and `up` never starts it. `run` joins the instance's network, so
+DB-backed tests reach the db/valkey services with no extra wiring. On Linux
+hosts composer's writes (`vendor/`, an updated `composer.lock`) come out
+root-owned — `chown` them back if that gets in your workflow's way.
+
 ## First login on a fresh database
 
 Migrations seed one admin user whose factory password is unusable until
@@ -328,22 +351,23 @@ database run `manager/tools/claim_admin` first (see "First login" above).
 There is no separate token mechanism for agents — this is the same login →
 API-key flow any client goes through.
 
-`docker/php/tests/` holds a thin CI3 module (`tests`) of live-wiring probes
-(e.g. `GET /tests/async`, which dispatches a real async CLI job). Probes
-only — no assertions, fixtures, or reporting. Auth is the normal API-key
+`docker/php/smoke/` holds a thin CI3 module (`smoke`) of live-wiring probes
+(`GET /smoke/async` dispatches a real async CLI job; `GET /smoke/whoami`
+proves the full login → X-API-KEY chain). Probes only — no assertions,
+fixtures, or reporting. Auth is the normal API-key
 auth above, never a bypass, and every controller 403s loudly if
 `ENVIRONMENT === 'production'`. Two ways to use it:
 
 ```bash
-# Baked into a local image (INCLUDE_TEST_MODULE=true, local images only):
+# Baked into a local image (INCLUDE_SMOKE_MODULE=true, local images only):
 ./docker_manage.sh -e local build && ./docker_manage.sh -e local up -d
 
 # Hand-copied for a -b instance (no rebuild needed):
-cp -r docker/php/tests/* application/modules/tests/
+cp -r docker/php/smoke/* application/modules/smoke/
 ```
 
 With the flag `false` (the default), the module never enters an image layer
-at all. `application/modules/tests/` is gitignored specifically so the
+at all. `application/modules/smoke/` is gitignored specifically so the
 hand-copy never gets committed — remove the directory when done.
 
 ## Troubleshooting

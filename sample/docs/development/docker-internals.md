@@ -34,7 +34,7 @@ like it needs that pointer, the content belongs here instead.
 | `docker-compose.manager-bind.yml` | Opt-in override, only loaded with `-m`/`--manager-bind`. Same caution. |
 | `docker_manage.sh` (repo root) | The only supported entrypoint — computes per-instance file paths the compose file depends on. |
 | `env/sample.docker.env`, `env/sample.env`, `env/sample.secrets.env`, `env/sample.agent.env` | The four committed templates (short comments by design — per-var background lives in "Env template notes" below). Every other file under `env/` is a per-instance, ignored instantiation. |
-| `php/tests/` | The smoke-test module's **committed source**. Never ignored anywhere — if you ever see an ignore rule that would catch it, that's a bug; stop and report it. |
+| `php/smoke/` | The smoke-test module's **committed source**. Never ignored anywhere — if you ever see an ignore rule that would catch it, that's a bug; stop and report it. |
 
 ## Hard rules
 
@@ -55,6 +55,11 @@ like it needs that pointer, the content belongs here instead.
     re-verifying that same autoload-free precondition — an
     autoload/namespace-based package would silently break on new classes
     while bound.
+  - **The `tools` service is not an exception either.** It mounts the whole
+    project tree (`vendor/` and `bin/` included) at `/work` — a
+    build/analysis sandbox, never a runtime service; the bind rules above
+    protect the runtime services' `/var/www/html`, which `tools` never
+    touches.
 - **Never patch `vendor/`.** It's composer-managed; a local patch is
   silently discarded on the next `composer install`/rebuild. Fixes belong in
   the app layer (`application/`, a version bump, or an upstream issue).
@@ -177,7 +182,7 @@ single deliberate omission — hard rule above), keep the bottom sections.
   only ever sees the fixed TARGET.
 - `RUN_MIGRATIONS` — set `true` on exactly ONE php instance to migrate on
   boot.
-- `INCLUDE_TEST_MODULE` — build arg; local images only.
+- `INCLUDE_SMOKE_MODULE` — build arg; local images only.
 
 `sample.secrets.env` — the `MUST equal docker/secrets/<i>.*` pairings are
 load-bearing: `LIB_REDIS_PASSWORD` ↔ `<i>.valkey_password`, `DB_PASS` ↔
@@ -286,7 +291,7 @@ which runs the auth check immediately) is owned by the
 `ixaya-rest-controller` skill — read it before editing any REST controller.
 
 The docker-specific extension, used by the smoke-test module
-(`docker/php/tests/controllers/`): a controller that must never run in
+(`docker/php/smoke/controllers/`): a controller that must never run in
 production checks `ENVIRONMENT === 'production'` **AFTER**
 `parent::__construct()` — in addition to the normal auth check, never
 instead of it.

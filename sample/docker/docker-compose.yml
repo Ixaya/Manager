@@ -42,7 +42,7 @@ services:
         # Baked in at build time — changing this value rebuilds the image.
         PHP_PM_MAX_CHILDREN: ${PHP_PM_MAX_CHILDREN:-20}
         # Bakes the opt-in smoke-test module into the image; false by default.
-        INCLUDE_TEST_MODULE: ${INCLUDE_TEST_MODULE:-false}
+        INCLUDE_SMOKE_MODULE: ${INCLUDE_SMOKE_MODULE:-false}
     restart: unless-stopped
     working_dir: /var/www/html
     environment:
@@ -245,6 +245,32 @@ services:
       disable: true
     profiles: [cli]
 
+  # ── Tools: composer/phpstan/phpunit on the host tree (profile: tools) ──────
+  # Reuses the vendor-builder stage (composer + the exact runtime PHP and
+  # extensions). Mounts the project tree at /work — NOT over /var/www/html —
+  # so the runtime services' baked --no-dev vendor/ is never touched. Never
+  # started by `up` (profile-gated); invoke via `run`:
+  #   ./docker_manage.sh -e <i> run --rm tools composer install
+  #   ./docker_manage.sh -e <i> run --rm tools vendor/bin/phpstan analyse
+  tools:
+    image: ${IMAGE_REPO:-manager/app}-tools:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: vendor-builder
+    working_dir: /work
+    networks: [appnet]
+    logging: *logging
+    <<: *security
+    volumes:
+      - ..:/work
+      - composer-cache:/root/.composer/cache
+    mem_limit: ${TOOLS_MEM_LIMIT:-2048m}
+    cpus: ${TOOLS_CPUS:-2.0}
+    healthcheck:
+      disable: true
+    profiles: [tools]
+
   # ── MySQL 8.4 (profile: mysql — dev/local only) ────────────────────────────
   # Aurora-compatible profile — use when parity with the Aurora MySQL
   # dev/prod server matters. DB_USER/DB_NAME must be set in the env-file
@@ -346,6 +372,7 @@ services:
 # ── Volumes ─────────────────────────────────────────────────────────────────
 volumes:
   manager-logs:      # unified Manager logs (/var/log/manager: app/, cli/ subdirs)
+  composer-cache:    # tools service only — speeds up repeated composer installs
   valkey-state-data: # AOF/RDB for durable Valkey — cache has NO volume by design
   mysql-data:
   mariadb-data:

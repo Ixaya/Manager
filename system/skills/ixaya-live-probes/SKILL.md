@@ -1,9 +1,9 @@
 ---
 name: ixaya-live-probes
-description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly. Teaches the gitignored test-module probe pattern, the authenticated-not-bypassed rule, the Docker run recipe, and the three log channels that catch silent errors.
+description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly. Teaches the gitignored probes-module pattern, the authenticated-not-bypassed rule, the Docker run recipe, and the three log channels that catch silent errors.
 ---
 
-# Ixaya Live Probes (runtime verification via the test module)
+# Ixaya Live Probes (runtime verification via the probes module)
 
 > **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
 > before writing any code (probe controllers are code too). It owns naming,
@@ -30,9 +30,9 @@ Everything else below is identical in both modes.
 
 ## Where probes live
 
-Write a throwaway REST controller under the gitignored test module
-(`application/modules/test/controllers/api/`; in the framework repo that is
-`sample/application/modules/test/...`). Never under the app proper, never
+Write a throwaway REST controller under the gitignored probes module
+(`application/modules/probes/controllers/api/`; in the framework repo that is
+`sample/application/modules/probes/...`). Never under the app proper, never
 committed — the module ships to no one.
 
 - **Controller name = the task/section being verified** (e.g. `Auth_security`
@@ -58,10 +58,10 @@ the tree (production included) ships the probes. Verify and self-repair
 before writing probes:
 
 ```bash
-grep -qx 'application/modules/test/' .dockerignore || cat >> .dockerignore <<'EOF'
+grep -qx 'application/modules/probes/' .dockerignore || cat >> .dockerignore <<'EOF'
 
-# Local-only probe/test module (gitignored) — must never enter a build context
-application/modules/test/
+# Local-only probes module (gitignored) — must never enter a build context
+application/modules/probes/
 EOF
 ```
 
@@ -88,7 +88,7 @@ after real auth (`$logged_in_level`, timezone side effects of
 ## Probe base class
 
 Every probe controller extends a shared base pasted once per repo as
-`application/modules/test/controllers/api/Test_probe.php` (gitignored).
+`application/modules/probes/controllers/api/Test_probe.php` (gitignored).
 The full class (auth-safe REST base, E_ALL capture, DB helpers, assert
 utilities) is in `references/probe-base-class.md` beside this file — read
 it the first time you probe in a repo, or when the base is missing.
@@ -110,8 +110,8 @@ source docker/env/<i>.agent.env      # AGENT_BASE_URL / _USERNAME / _PASSWORD
 KEY=$(curl -s -X POST "$AGENT_BASE_URL/auth/api/login" \
   -d "username=$AGENT_USERNAME&password=$AGENT_PASSWORD" \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['api_key'])")
-curl -s -H "X-Api-Key: $KEY" "$AGENT_BASE_URL/test/api/<controller>/<item>"
-curl -s -o /dev/null -w "%{http_code}\n" "$AGENT_BASE_URL/test/api/<controller>/<item>"  # keyless must 401/403
+curl -s -H "X-Api-Key: $KEY" "$AGENT_BASE_URL/probes/api/<controller>/<item>"
+curl -s -o /dev/null -w "%{http_code}\n" "$AGENT_BASE_URL/probes/api/<controller>/<item>"  # keyless must 401/403
 ./docker_manage.sh -e <i> -b [-m] --profile <db> down -v   # include EVERY --profile used
 ```
 
@@ -131,7 +131,8 @@ flag) at the end.
 A probe returning the right value can still emit a silent
 warning/notice/deprecation. Three channels, they don't overlap:
 
-- **In-process** (`capture_errors()` above) — the only one that sees what
+- **In-process** (the probe base's `capture_errors()`, from
+  `references/probe-base-class.md`) — the only one that sees what
   the app's `error_reporting` masks, notably `E_DEPRECATED`.
 - **Container stderr** — `docker logs <i>-php-1` (PHP `error_log`). Echo a
   boundary marker to stderr first to scope it.

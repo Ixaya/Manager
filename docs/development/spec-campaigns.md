@@ -29,12 +29,18 @@ commits; agents never do.
 ```
 docs/workspace/
 ├── 00-shared/
-│   ├── conventions.md   process rules shared by every section (read FIRST)
-│   └── prompts.md       OPERATOR-ONLY session runbook (agents never load it)
+│   ├── methodology.md   standing procedure, agent-facing — operator-owned,
+│   │                    persists across campaigns (every session reads it FIRST)
+│   ├── conventions.md   THIS campaign's scratchpad: campaign-wide rules and
+│   │                    knots (read second; swept at distillation)
+│   └── pending.md       indefinitely parked items — title + pointer only
 └── NN-section/          one numbered directory per domain
     ├── spec.md          task log: the findings; fixed = entry DELETED
     ├── handoff.md       validated baselines + running applied-change record
-    └── review.md        provenance/historic record (how findings were made)
+    ├── review.md        provenance/historic record (how findings were made)
+    └── prompts.md       OPERATOR-ONLY session runbook for this campaign
+                         (agents write it when asked to plan sessions,
+                         never load it as instructions)
 ```
 
 Sectioning: split a big findings list by DOMAIN (one section per subsystem
@@ -45,6 +51,50 @@ an item (a "knot"), name it in conventions and decide it ONCE.
 `spec.md` is a task log, not documentation: fix an item, then delete its
 entry. Durable conventions go to skills/AGENTS.md at distillation time, so
 errors are never cemented into standing docs.
+
+### Bootstrapping `00-shared/`
+
+`methodology.md` is seeded ONCE, not per campaign. Open it with a short
+"where state lives" block — the four per-campaign file roles (spec /
+handoff / review / prompts, the runbook flagged operator-only and never
+loaded as instructions) and the shared files beside it, condensed from
+the Workspace anatomy above. Then copy this playbook's
+"Fix-pass process" and "Live-testing" sections into it, plus a condensed
+session-gates block — the task-list approval gate, a generic
+look-for-applicable-skills line, the per-item restatement (the fourth
+gate, baseline-mismatch = stop, is already in the fix-pass rules). Keep
+the file lean: every session re-reads it, so every line is a recurring
+cost — per-item machinery (skill pointers, traps, closing checks) stays
+in the campaign prompts. From then on the file is the operator's.
+Personal process adjustments (reporting language, summary format, extra
+gates) are direct edits to the copy; there is no separate deviations
+list. This playbook stays the canonical standard; `methodology.md` is
+the standard as this operator runs it.
+
+`conventions.md` is seeded at each campaign start from this template:
+
+```
+# Campaign conventions — <campaign name>
+
+> Standing procedure lives in methodology.md beside this file — this one
+> carries only what is specific to THIS campaign. Agents read both, this
+> file second, before any section files.
+
+## Campaign-wide rules
+
+Rules every section of this campaign shares — stated here once instead
+of repeated per section.
+
+## Knots
+
+Items two or more sections share. Name the knot, decide it ONCE here;
+section specs point at this entry instead of re-deciding.
+
+- <knot>: <decision, or OPEN>
+```
+
+`pending.md` needs no seed: it is created the first time an item is
+parked, and stays titles + pointers only.
 
 ## Validation before fixing
 
@@ -131,10 +181,22 @@ follow it, don't re-derive. Campaign-proven additions:
 
 ## Session planning (operator)
 
-Keep `00-shared/prompts.md` as the runbook: one prompt per session, each
-pasted into a CLEAN context (never chain two sessions in one window), with
-the `/model` + `/effort` choice recorded above the prompt. Mark sessions
-that worked; the runbook doubles as the campaign's execution log.
+Each campaign keeps its own runbook, `<section>/prompts.md`, authored FOR
+the operator by the campaign's planning/validation session — the strong
+model writes the prompts the cheaper execution sessions will run — and
+appended to when a later pass (a closing review, new findings) adds work.
+It opens with an OPERATOR-ONLY header: agents touch it only when
+explicitly asked to plan sessions, and never load it as instructions.
+
+One prompt per session, each pasted into a CLEAN context (never chain two
+sessions in one window), with the `/model` + `/effort` choice recorded
+above the prompt. Mark sessions that worked or failed; the runbook doubles
+as the campaign's execution log. The file always ENDS with the
+closing-review and distillation prompts — seeded as skeletons when the
+runbook is written, filled in as the campaign closes — so the exit is
+planned from day one. The runbook dies with the campaign directory at
+distillation; a shared runbook that outlives its campaigns only goes
+stale. Durable prompt lessons belong here, in this playbook.
 
 Model/effort selection — the expensive reasoning already happened during
 validation, so match the tier to the item class:
@@ -156,28 +218,37 @@ Every session prompt follows this shape (assembled from the campaign's
 best-performing prompts):
 
 ```
-Read docs/workspace/00-shared/conventions.md first, then <section>/spec.md
-<the exact items/sections in scope>, with <section>/handoff.md open beside
-it — every item has a verified baseline; before editing, confirm the code
-still matches the quote. If it doesn't, stop and report.
+<Role frame, one line — the session type and the state it inherits:
+"You're picking up a validated findings list.">
+Read docs/workspace/00-shared/methodology.md and conventions.md first,
+then the spec entries for the items in scope (listed below) in
+<section>/spec.md, with <section>/handoff.md open beside it — every item
+has a verified baseline; before editing, confirm the code still matches
+the quote. If it doesn't, stop and report.
 
 After reading all the tasks, list them in a message — title/headline only —
-and wait for the operator to approve the list. Accept the deviation if the
-operator says to skip or defer any of them; annotate the decision.
+and wait for the operator to approve the list — the approved list becomes
+the scope. When an item carries an open DECISION, lay out the options with
+a recommendation and wait: decisions get made in conversation, never
+buried in a diff.
 
 Before coding, always load the code-style skill, and look for any other
-skill that applies to the modification you are working on.
+skill that applies to the modification you are working on. <Per-item
+skill pointers when you know them: "ixaya-models for #1".>
 
-Scope: <items, in order; what is explicitly OUT of scope>.
-Process: one at a time. When you START an item — after reading its code,
-handoff row, and spec text — open with a one-line RESTATEMENT of the
-finding in plain language: translate the technical headline into what it
-actually means (what breaks, for whom). <Approve-before-edit if
-behavior-sensitive.> <Per-item notes and traps — repeat anything
-load-bearing from the item text, agents skim.> Diff each fix against the
-handoff quote, record deviations in handoff.md immediately, delete
-finished entries from spec.md. No commits. Finish by listing what you
-fixed and what you skipped and why.
+Scope: <items, in order; the priority item if one exists; what is
+explicitly OUT of scope — including items that are the operator's alone>.
+Process: one at a time, each prefixed "Item N of M". When you START an
+item — after reading its code, handoff row, and spec text — open with a
+one-line RESTATEMENT of the finding in plain language: translate the
+technical headline into what it actually means (what breaks, for whom).
+<Approve-before-edit if behavior-sensitive.> <Per-item notes and traps —
+repeat anything load-bearing from the item text, agents skim.> Diff each
+fix against the handoff quote, record deviations in handoff.md
+immediately, delete finished entries from spec.md. <Closing check when
+the batch has one: "verify after: <grep> — must return zero hits".>
+No commits. Finish by listing what you fixed and what you skipped and
+why.
 ```
 
 The task-list approval gate, the skill-loading line, the per-item
@@ -192,6 +263,86 @@ and writing it forces the digestion before the first edit. Per-item trap notes
 (what NOT to convert, which sub-claim was disproven) belong in the prompt
 even though they're in the docs: repetition there is cheap insurance.
 
+That repetition is the only sanctioned one. Everything else in the
+skeleton is pointers and process, never content — the state (findings,
+baselines, prior deviations) lives in the workspace files. That is what
+makes the shape cheap and repeatable: twenty lines fully brief a session
+at any model tier, and the same prompt re-run a week later still binds
+to current reality, because the files moved with it. Pasted code or
+findings are a second copy of state — they drift, and they bill every
+turn. A prompt that seems to need a page of pasted context is a symptom:
+the handoff is missing a baseline. The two read pointers do the same job
+for prompts that skip the skeleton: a three-line prompt that opens with
+methodology.md and conventions.md still runs a disciplined session,
+because the standing process lives in the file, not in the prompt.
+
+### Worked example
+
+The skeleton filled in — a three-item fix batch on a fictional export
+section:
+
+```
+You're picking up a validated findings list. Read
+docs/workspace/00-shared/methodology.md and conventions.md first, then
+the spec entries for #1-#3 in 03-export-engine/spec.md, with
+03-export-engine/handoff.md open beside it — every item has a verified
+baseline; before editing, confirm the code still matches the quote. If
+it doesn't, stop and report.
+
+After reading all the tasks, list them in a message — title/headline
+only — and wait for my approval; the approved list becomes the scope.
+
+Before coding, always load the code-style skill, and look for any other
+skill that applies — ixaya-models for #2.
+
+Scope: #1, #2, #3 in that order; #2 is the priority. OUT of scope: #4
+(operator decision pending) and anything touching the queue workers.
+Process: one at a time, each prefixed "Item N of 3". When you START an
+item, open with a one-line RESTATEMENT: what breaks, for whom. #3 trap:
+the date format lives in both the builder and the spreadsheet helper —
+fix both or neither. Diff each fix against the handoff quote, record
+deviations in handoff.md immediately, delete finished entries from
+spec.md. Verify after: grep for the old format string — must return
+zero hits. No commits. Finish by listing what you fixed and what you
+skipped and why.
+```
+
+### The other session shapes
+
+The skeleton is the fix-session shape, but its bones — role frame,
+context files, approval gate, one-at-a-time process, exit report — carry
+every session type; only the per-item process changes:
+
+- **Judgment/decision session** (design-sensitive items, open DECISIONs):
+  per item, restate the finding, check the handoff verdict, run or design
+  the confirming test if it is unverified, then present the options with
+  a recommendation and WAIT. Record every verdict inline in the doc as
+  you go, the keep-as-is ones included — the record is the deliverable.
+- **Closing review** ("You're the closing reviewer."): the per-item
+  process is the one under Endgame below — re-diff against baselines,
+  punch list, fix nothing.
+- **Distillation**: propose the distillation plan and wait for approval;
+  then one deliverable at a time, per Endgame — and ask before deleting
+  anything.
+
+### Prompt anti-patterns
+
+The failures new operators hit first — each is the negative of a rule
+above:
+
+- **The kitchen-sink session.** Thirty items across sections; a narrow
+  session beats it on quality and cost both.
+- **The mixed-tier batch.** One design-sensitive item hidden among ten
+  renames sets the whole session's tier — pull it into its own session.
+- **Pasting code the handoff already quotes.** A second copy of state
+  that drifts and bills every turn; point, don't paste.
+- **No out-of-scope line.** Agents helpfully fix adjacent things — say
+  what is NOT in scope, especially items that are the operator's alone.
+- **Chaining a second task in the same window.** State lives in the
+  files; a new task gets a clean context and a fresh prompt.
+- **Asking for reframes at the approval gate.** Before the code is read,
+  a reframe is a guess — the restatement comes later, per item.
+
 ## Endgame: closing review, then distillation
 
 1. **Closing review** (separate session, strong model): for every item
@@ -205,5 +356,9 @@ even though they're in the docs: repetition there is cheap insurance.
    `docs/design/<initiative>/` per the documentation standard
    (`sample/docs/documentation.md` + the framework addendum); operational
    runbooks to `docs/development/`; consumer traps to MIGRATION.md — one
-   source of truth, pointers not duplicates. Then list what remains, get
-   operator approval, and delete the workspace sections.
+   source of truth, pointers not duplicates. Sweep `00-shared/conventions.md`
+   in the same pass: campaign rules that proved durable go to skills or
+   this playbook, parked-but-alive items to `pending.md` (title + pointer),
+   the rest dies with the workspace — `methodology.md` is the operator's
+   and is never swept. Then list what remains, get operator approval, and
+   delete the workspace sections.

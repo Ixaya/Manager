@@ -127,7 +127,7 @@ Update existing documents instead of creating versioned copies
 Temporary working area for active investigations and feature development.
 Each task gets its own numbered directory (e.g. `01-auth-overhaul`,
 `02-caching-layer`) holding its working `spec.md` / `handoff.md` /
-`review.md`.
+`review.md`, plus the operator's `prompts.md` session runbook.
 
 **Important:** `workspace/` is not committed. After a task completes, its
 useful knowledge is distilled into permanent documentation (`design/`,
@@ -193,6 +193,9 @@ suggestions — check them whenever editing or reorganizing docs:
 7. **Twin documents declare each other.** Any file maintained in parallel
    with a sibling opens with a scope header naming the sibling and the
    audience split.
+8. **Claims about "this repo" must be true of this repo** — not of the
+   project the content was first written in. Copied content imports false
+   facts: VCS type, hosting, infrastructure.
 
 ## Keeping Documentation Healthy
 

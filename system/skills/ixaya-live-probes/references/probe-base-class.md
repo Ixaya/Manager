@@ -1,7 +1,7 @@
 # Probe base class (paste once per repo)
 
 Every probe controller needs the same utilities. Paste this once as
-`application/modules/test/controllers/api/Test_probe.php` (gitignored — it
+`application/modules/probes/controllers/api/Test_probe.php` (gitignored — it
 can't ship as package code because it must extend the app-level
 `APP_Rest_Controller`) and extend it:
 

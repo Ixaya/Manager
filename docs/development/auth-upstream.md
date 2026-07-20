@@ -203,9 +203,9 @@ show all of these intact:
    (`-b -m`, real `X-Api-Key`, keyless hit must 403 — see
    `sample/docs/development/docker.md` "Live-code dev modes" and the
    `ixaya-live-probes` skill):
-   - `GET /test/api/auth_migration/all` (b8, b2b3, lb1, lb3, pb1, c9, pb2,
+   - `GET /probes/api/auth_migration/all` (b8, b2b3, lb1, lb3, pb1, c9, pb2,
      c2, c10, c5c6)
-   - `GET /test/api/auth_security/all` (f1, f6)
+   - `GET /probes/api/auth_security/all` (f1, f6)
    Green on postgres is the baseline; the 2026-07-14 pass was green on
    postgres, MySQL 8.4, and MariaDB 12.3.
 4. Pre-deploy on a real target: the schema gate

@@ -1,21 +1,23 @@
 .DS_Store
-.vscode
-.zed
-.nova
-.gram
-.claude
-.obsidian
+/.vscode
+/.zed
+/.nova
+/.gram
+/.claude
+/.obsidian
+/CLAUDE.md
 
-composer.lock
-patches.lock.json
-.php-cs-fixer.cache
+/composer.lock
+/sample/composer.lock
+/patches.lock.json
+/.php-cs-fixer.cache
 /vendor
 
 # Ignore all .env files
-.env*
+/.env*
 # Except these
-!.env.sample*
-!.env.testing
+!/.env.sample*
+!/.env.testing
 
 #Ignore local tests
 # *_local.php

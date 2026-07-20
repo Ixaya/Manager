@@ -62,8 +62,8 @@ credential (`claim_admin`), logging in, and calling with a real `X-API-KEY`
 live there. A request rejected with *"Invalid API key"* is the framework
 refusing an unauthenticated call, not evidence that auth works.
 
-**Testing framework code:** write throwaway test/validation controllers in
-`sample/application/modules/test/` — that module is gitignored
+**Testing framework code:** write throwaway probe/validation controllers in
+`sample/application/modules/probes/` — that module is gitignored
 (`sample/application/modules/.gitignore`), exists only for framework
 development, and never ships to consuming projects (the sample is copied
 from a git checkout, where it's absent). Don't scatter test code anywhere
