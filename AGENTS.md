@@ -69,6 +69,20 @@ development, and never ships to consuming projects (the sample is copied
 from a git checkout, where it's absent). Don't scatter test code anywhere
 else in `sample/` or `system/`. The probe conventions (authenticated-not-
 bypassed, Docker recipe, log channels) are in the `ixaya-live-probes` skill.
+Permanent, order-independent assertions belong in the sample's PHPUnit suite
+(`sample/tests/unit/`) instead — see `sample/AGENTS.md`.
+
+**Running sample phpunit/tools against this checkout:** the sample's vendor
+mirror (`sample/vendor/ixaya/manager/`) lags the working tree and is never
+updated by agents. Any `tools` run that *executes* framework code must mount
+the live checkout over it — the run-level equivalent of `-m`, which only
+covers the runtime services:
+
+```bash
+./docker_manage.sh -e <i> run --rm \
+    -v /abs/path/to/manager8/system:/work/vendor/ixaya/manager/system:ro \
+    tools vendor/bin/phpunit --testdox
+```
 
 ## Documentation
 

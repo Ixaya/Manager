@@ -36,11 +36,16 @@ vendor/bin/phpstan analyse
 ```
 
 A PHPUnit test suite is configured (`phpunit.xml`, PHPUnit 13): tests live in
-`tests/unit/`, bootstrapped by `tests/Bootstrap.php` with `.env.testing` as
-the environment. Run with `vendor/bin/phpunit` (a `require-dev` dependency;
-without host PHP use the docker `tools` service — see
-`docs/development/docker.md`). Add new unit tests under `tests/unit/`.
-PHPStan is the static-analysis gate.
+`tests/unit/`, bootstrapped by `tests/Bootstrap.php`, which boots the full
+framework once per run with `.env.testing` (non-secret config, committed) plus
+`.env.testing.priv` (`DB_PASS`, gitignored). These are integration tests — they
+hit the instance's normal dev DB with namespaced, self-cleaning fixtures, not
+mocks. Writing and extending tests — the `CITestCase`/`AuthTestCase` bases,
+fixtures, DB-free vs DB-backed — is covered in `docs/development/testing.md`;
+`tests/unit/auth/` is the reference suite. Run with `vendor/bin/phpunit
+--testdox` (a `require-dev` dependency; without host PHP use the docker `tools`
+service — see `docs/development/docker.md`, including the schema-migration step
+for a fresh DB). PHPStan is the static-analysis gate.
 
 ## Agent skills
 

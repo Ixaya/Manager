@@ -152,25 +152,28 @@ composer require --dev phpunit/phpunit
 ./vendor/bin/phpunit
 ```
 
-**Run specific test file:**
+**Run one testsuite (as named in phpunit.xml):**
 
 ```bash
-./vendor/bin/phpunit application/tests/unit/ExampleTest.php
+./vendor/bin/phpunit --testsuite Auth
 ```
 
-**Run tests with verbose output:**
+**Run a specific test file** (absolute path — the framework's CLI boot
+changes the working directory, so relative file arguments don't resolve):
 
 ```bash
-./vendor/bin/phpunit --verbose
+./vendor/bin/phpunit "$PWD/tests/unit/auth/LoginTest.php"
 ```
 
-**Run tests in specific group/category:**
+**Run tests matching a class or method name:**
 
 ```bash
-./vendor/bin/phpunit --group unit
+./vendor/bin/phpunit --filter LoginTest
+./vendor/bin/phpunit --filter test_login_fails
 ```
 
 > **Tip:** Use `--testdox` flag for readable test output, or `--stop-on-failure` to halt execution on the first failed test.
+> **Note:** Projects without host PHP can run it through the docker `tools` service — see `docs/development/docker.md`.
 
 ### PHP Code Formatting
 

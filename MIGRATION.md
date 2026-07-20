@@ -104,6 +104,8 @@ application/core/MY_Controller.php   → extends MGR_Controller
 application/core/MY_Loader.php       → extends MGR_Loader
 application/core/MY_Router.php       → extends MGR_Router
 application/core/MY_Exceptions.php   → extends MGR_Exceptions
+application/core/MY_Config.php       → extends MGR_Config
+application/core/MY_Lang.php         → extends MGR_Lang
 application/libraries/MY_Migration.php           → extends MGR_Migration
 application/libraries/Cache/MY_Cache.php         → extends MGR_Cache
 application/libraries/Cache/drivers/MY_Cache_redis.php → extends MGR_Cache_redis
@@ -608,8 +610,14 @@ config files, extract them during (or after) the env migration.
 adopt the existing DB state with `manager/tools/version_set` instead of
 re-running history. Legacy migration files stay frozen where they are.
 
-**Tests skeleton.** Copy `sample/tests/` (phpunit bootstrap + example) to
-the project root if the project has none.
+**Tests skeleton.** Copy `sample/tests/` (framework-booting bootstrap,
+`support/` base classes, and the Ion Auth reference suite under `unit/auth/`)
+to the project root if the project has none, plus `phpunit.xml` and
+`.env.testing` (point it at the project's dev DB; `DB_PASS` goes in a
+gitignored `.env.testing.priv`). The suite requires the `MY_Config` and
+`MY_Lang` shims from 2b — without them the framework's config/lang classes
+degrade to the plain CI versions when booted under PHPUnit, and module config
+reads fail.
 
 **Agent docs.** Symlink the package skills (`system/skills/` — command in the
 README) and adopt a root `AGENTS.md` for project-wide rules.

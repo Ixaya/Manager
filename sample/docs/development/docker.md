@@ -224,6 +224,10 @@ with the project tree mounted at `/work`. Dev dependencies land in the host
 tree's `vendor/`; baked images never contain them (the build's
 `composer install --no-dev` plus a runtime image with no composer at all).
 
+Writing the tests themselves — the base classes, fixtures, and the DB-free vs
+DB-backed choice — is covered in `testing.md`; this section is only how to run
+them.
+
 ```bash
 ./docker_manage.sh -e <i> --profile tools build tools   # once, and after Dockerfile changes
 ./docker_manage.sh -e <i> run --rm tools composer install
@@ -237,6 +241,33 @@ needed — and `up` never starts it. `run` joins the instance's network, so
 DB-backed tests reach the db/valkey services with no extra wiring. On Linux
 hosts composer's writes (`vendor/`, an updated `composer.lock`) come out
 root-owned — `chown` them back if that gets in your workflow's way.
+
+### DB-backed unit tests
+
+The suite runs in the `testing` environment: the committed `.env.testing`
+holds the non-secret DB config (service-name hosts, so it works from the
+tools container as-is) and the gitignored `.env.testing.priv` holds `DB_PASS`
+— same secrets split as the instance env files. Tests hit the instance's
+normal dev DB with namespaced, self-cleaning fixtures.
+
+The schema must exist. If the full stack has already run its migrations,
+nothing to do; with only the db service up, migrate through the tools
+service using the same testing env the tests will use:
+
+```bash
+./docker_manage.sh -e <i> --profile postgres up -d postgres   # or your db profile
+./docker_manage.sh -e <i> run --rm -e CI_ENV=testing -e REQUEST_METHOD=GET \
+    tools php -f public/index.php manager/tools/migrate
+./docker_manage.sh -e <i> run --rm tools vendor/bin/phpunit --testdox
+```
+
+One gotcha: single-file runs need absolute paths (`vendor/bin/phpunit
+/work/tests/unit/auth/LoginTest.php`) because the CLI boot chdir()s to
+`public/`.
+
+> **Test error visibility.** `.env.testing` sets `APP_ENV=development`, so PHP
+> errors surface in the phpunit output. Set `APP_ENV=testing` there (or pass
+> `-e APP_ENV=testing`, which process env outranks) to silence them.
 
 ## First login on a fresh database
 
