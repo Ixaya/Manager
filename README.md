@@ -55,7 +55,7 @@ This gives you a complete working structure — controllers, models, views, conf
 ### 3. Configure environment
 
 ```bash
-cp .env.sample.dev .env
+cp .env.sample .env
 cp .env.sample.priv .env.priv
 ```
 

@@ -77,6 +77,11 @@ ENV_FILE="${DOCKER_DIR}/env/${INSTANCE}.env"
 [[ -f "$DOCKER_ENV_FILE" ]] || die "docker env file not found: docker/env/${INSTANCE}.docker.env  (copy docker/env/sample.docker.env)"
 [[ -f "$ENV_FILE" ]]        || die "env file not found: docker/env/${INSTANCE}.env  (copy docker/env/sample.env)"
 
+# Base non-secret config: the single source, shared with the non-docker
+# CI_ENV=<instance> load; docker overrides layer on top (see below). Required
+# like the other env files — the bootstrap step in docker.md creates it.
+[[ -f "${DOCKER_DIR}/../.env.${INSTANCE}" ]] || die "base env file not found: .env.${INSTANCE}  (copy .env.sample — see docker.md bootstrap)"
+
 # Resolve a bind-source var the way compose will (relative to docker/, not
 # the caller's cwd) and require the marker subdir — Docker would otherwise
 # silently auto-create an empty source directory and mount that.
@@ -104,6 +109,8 @@ fi
 
 # Paths below are RELATIVE TO docker/ (the compose file's directory), because
 # compose resolves env_file:, secrets:, and bind-mount sources from there.
+# Base first (loaded before overrides); path is relative to docker/.
+export APP_BASE_ENV_FILE="../.env.${INSTANCE}"
 export APP_ENV_FILE="env/${INSTANCE}.env"
 # Leading ./ so compose treats this as a bind-mount source, not a named volume.
 export APP_SECRETS_MOUNT="./env/${INSTANCE}.priv.env"
@@ -113,7 +120,7 @@ export DB_ROOT_PASSWORD_FILE="secrets/${INSTANCE}.db_root_password"
 
 # The app secrets file and the Valkey password are required for any real run.
 # (Compose only reads DB_* secret files when a db profile is active.)
-require_file() { [[ -f "${DOCKER_DIR}/$1" ]] || die "required file missing: docker/$1  (copy from docker/env/sample.secrets.env)"; }
+require_file() { [[ -f "${DOCKER_DIR}/$1" ]] || die "required file missing: docker/$1  (copy from docker/env/sample.priv.env)"; }
 require_file "$APP_SECRETS_MOUNT"
 require_file "$VALKEY_SECRET_FILE"
 

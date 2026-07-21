@@ -23,7 +23,10 @@ x-security: &security
 # Common wiring for the four services that run the php-app image.
 x-app-image: &app-image
   image: ${IMAGE_REPO:-manager/app}:${IMAGE_TAG:-latest}
+  # Base non-secret config from ../.env.<instance> (single source = root
+  # .env.sample), then the docker overrides. LAST file wins.
   env_file:
+    - ${APP_BASE_ENV_FILE:-../.env.dev}
     - ${APP_ENV_FILE:-env/dev.env}
   networks: [appnet]
   logging: *logging

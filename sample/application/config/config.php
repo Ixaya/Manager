@@ -238,7 +238,15 @@ $config['log_threshold'] = mgr_env_int('CF_LOG_THRESHOLD', 1);
 | application/logs/ directory. Use a full server path with trailing slash.
 |
 */
-$config['log_path'] = mgr_env('CF_LOG_PATH', '');
+$cf_log_path  = mgr_env('CF_LOG_PATH');   // legacy override, verbatim; null when unset/empty
+$mgr_log_path = mgr_env('MGR_LOG_PATH');  // unified log root; null when unset/empty
+if ($cf_log_path !== null) {
+	$config['log_path'] = $cf_log_path;
+} elseif ($mgr_log_path !== null) {
+	$config['log_path'] = rtrim($mgr_log_path, '/') . '/app/';
+} else {
+	$config['log_path'] = '';
+}
 
 /*
 |--------------------------------------------------------------------------

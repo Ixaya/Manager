@@ -33,7 +33,7 @@ like it needs that pointer, the content belongs here instead.
 | `docker-compose.dev-bind.yml` | Opt-in override, only loaded with `-b`/`--bind`. See "Never bind" below before touching it. |
 | `docker-compose.manager-bind.yml` | Opt-in override, only loaded with `-m`/`--manager-bind`. Same caution. |
 | `docker_manage.sh` (repo root) | The only supported entrypoint — computes per-instance file paths the compose file depends on. |
-| `env/sample.docker.env`, `env/sample.env`, `env/sample.secrets.env`, `env/sample.agent.env` | The four committed templates (short comments by design — per-var background lives in "Env template notes" below). Every other file under `env/` is a per-instance, ignored instantiation. |
+| `env/sample.docker.env`, `env/sample.env`, `env/sample.priv.env`, `env/sample.agent.env` | The four committed templates (short comments by design — per-var background lives in "Env template notes" below). Every other file under `env/` is a per-instance, ignored instantiation. |
 | `php/smoke/` | The smoke-test module's **committed source**. Never ignored anywhere — if you ever see an ignore rule that would catch it, that's a bug; stop and report it. |
 
 ## Hard rules
@@ -105,14 +105,16 @@ values not names" is the definition of a passing secrets audit.
 
 ## Env var placement — check before adding any new var
 
-Every instance has three env files, split by actual consumer, not by "feels
-secret or not". The rule:
+Every instance has a base file plus three per-instance files, split by
+actual consumer, not by "feels secret or not". The rule:
 
 1. **Does the PHP app read it** (`mgr_env`/`getenv` anywhere under
-   `application/` or the vendor framework)? → `<i>.env`.
+   `application/` or the vendor framework)? → the base `.env.<i>` for its
+   normal value; put it in `<i>.env` ONLY when docker needs a value that
+   differs from that base (overrides load last and win).
 2. **Does a script running INSIDE a container read it** (currently only
-   `docker/php/entrypoint.sh`)? → `<i>.env`. (`entrypoint.sh` only sees
-   what `env_file:` bulk-loads, which is `<i>.env` alone.)
+   `docker/php/entrypoint.sh`)? → `<i>.env`. (`entrypoint.sh` sees everything
+   `env_file:` bulk-loads, which is now the base `.env.<i>` and `<i>.env`.)
 3. **Is it ONLY ever referenced as `${VAR}` inside the compose files or by
    `docker_manage.sh` itself** (ports, image tags, build args,
    `mem_limit`/`cpus`, bind-mount source paths)? → `<i>.docker.env`.
@@ -120,7 +122,7 @@ secret or not". The rule:
    → `<i>.priv.env`, regardless of 1–3.
 
 **Before moving or reclassifying an existing var**, grep every `${VAR...}`
-in the compose files against where it's actually defined across all three
+in the compose files against where it's actually defined across all four
 file types — compose interpolation can only read `--env-file`-supplied
 files, never the bind-mounted priv file, and a var that's interpolated but
 defined only in `.priv.env` silently resolves empty.
@@ -138,22 +140,26 @@ per-var background lives here.
 AND injected into php/ws/cron/cli via `env_file:`. Its values ARE visible in
 `docker inspect` — by design; it's the non-secret file.
 
-Layout: base sections (a verbatim mirror of the root `.env.sample`) followed
-by two override sections at the bottom — **the LAST occurrence of a key
-wins** in both consumption paths. Duplicate keys are therefore intentional —
-never "dedupe" this file.
+Layout: docker OVERRIDES only. The base non-secret config is NOT restated
+here — it comes from `../.env.<instance>` (a copy of root `.env.sample`),
+which compose loads FIRST in the `env_file:` list; this file loads AFTER and
+its keys win. Root `.env.sample` is the single source of base values, so the
+two can never drift (this replaced an earlier full mirror that did drift).
 
 - **"Docker specific"** — keys whose value ALWAYS differs in docker
   (`MGR_LOG_PATH`, `CACHE_ADAPTER=redis`, `CF_SESS_DRIVER=redis`,
-  `LIB_REDIS_HOST=valkey-cache`, `WEBSOCKET_*`, instance identity). Never
-  "fix" these to match the root sample.
+  `LIB_REDIS_HOST=valkey-cache`, `WEBSOCKET_*`, instance identity). Includes
+  **`CF_LOG_PATH=`** cemented empty: docker must be empty (it logs under
+  `MGR_LOG_PATH`) and a project's base is not guaranteed to leave it empty,
+  so docker asserts it rather than trusting the base. Never "fix" these to
+  match the root sample.
 - **"Docker deployment-dependent"** — the `DB_*` block, valid only with the
   bundled db profile; instances on an external/managed DB delete it and set
-  the base `DB_*` values to the managed endpoint.
+  `DB_*` in the base `../.env.<instance>` to the managed endpoint.
 
-Refreshing after the root sample changes is mechanical: paste the root
-`.env.sample` over the base sections, delete any `CF_LOG_PATH` line (the
-single deliberate omission — hard rule above), keep the bottom sections.
+Refreshing after the root sample changes needs NO action here — the base is
+loaded from `../.env.<instance>`, not copied in. Only add a key to this file
+when docker's value must differ from that base.
 
 - `MGR_LOG_PATH` — unified root for all Manager log streams; the app
   derives `app/` and `cli/` subdirs from it; the entrypoint creates both on
@@ -184,7 +190,7 @@ single deliberate omission — hard rule above), keep the bottom sections.
   boot.
 - `INCLUDE_SMOKE_MODULE` — build arg; local images only.
 
-`sample.secrets.env` — the `MUST equal docker/secrets/<i>.*` pairings are
+`sample.priv.env` — the `MUST equal docker/secrets/<i>.*` pairings are
 load-bearing: `LIB_REDIS_PASSWORD` ↔ `<i>.valkey_password`, `DB_PASS` ↔
 `<i>.db_password`. `CF_SESS_SAVE_PATH` embeds the same Valkey password via
 `auth=` — the CI3 redis session driver parses `auth=` (NOT `password=`) and

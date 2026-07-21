@@ -32,7 +32,8 @@ Values reach the process as real environment variables:
   (non-secret) and the bind-mounted `.env.priv` file (secrets) — see
   `docs/development/docker.md`.
 - **Outside Docker:** root `.env` / `.env.priv` files (templates:
-  `.env.sample.dev` / `.env.sample.prod` / `.env.sample.priv`).
+  `.env.sample` (full) + `.env.sample.prod` (production overlay, not a
+  runtime file) / `.env.sample.priv`).
 - **Testing:** `.env.testing` (committed, non-secret) + `.env.testing.priv`
   (secrets only, gitignored). The PHPUnit bootstrap sets `CI_ENV=testing`,
   which makes the loader pick these files *instead of* `.env`/`.env.priv`.

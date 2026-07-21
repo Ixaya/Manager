@@ -566,8 +566,10 @@ commit — you don't have to). The target state: delete
 `application/config/{development,production}/` entirely; each base config
 file reads env vars via `mgr_env()` (copy the sample's config as the base and
 port your values); secrets live in `.env.priv`, the rest in `.env`, both
-bootstrapped from the package's `.env.sample.dev/.prod/.priv` (two-section
-layout: Package variables first, Project section below). File resolution:
+bootstrapped from the package's `.env.sample` + `.env.sample.priv`
+(two-section layout: Package variables first, Project section below;
+`.env.sample.prod` is a production overlay applied on top, not a runtime
+file). File resolution:
 `Env_lib` tries `.env.{CI_ENV}` / `.env.{CI_ENV}.priv` first (e.g.
 `.env.dev`), then falls back to plain `.env` / `.env.priv`; missing files
 are silently skipped, and process-level env vars (docker `env_file:`)

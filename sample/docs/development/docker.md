@@ -22,10 +22,14 @@ Every instance needs its own non-committed env files and secrets.
 Pick an instance name (`<you>` — your username, or `local`):
 
 ```bash
-cp docker/env/sample.env         docker/env/<you>.env
-cp docker/env/sample.docker.env  docker/env/<you>.docker.env
-cp docker/env/sample.secrets.env docker/env/<you>.priv.env
+cp docker/env/sample.env         docker/env/<you>.env          # docker overrides (non-secret)
+cp docker/env/sample.docker.env  docker/env/<you>.docker.env   # infra / compose interpolation
+cp docker/env/sample.priv.env    docker/env/<you>.priv.env     # secrets (mounted, not env)
 chmod 600 docker/env/<you>.priv.env
+
+# base non-secret config (shared with a non-docker CI_ENV=<you> run) — copy
+# only if you don't already have it; for dev/prod instances you usually do
+[ -f .env.<you> ] || cp .env.sample .env.<you>
 
 openssl rand -hex 24 > docker/secrets/<you>.valkey_password
 openssl rand -hex 24 > docker/secrets/<you>.db_password
@@ -37,6 +41,13 @@ Copy those same values into `<you>.priv.env`: the valkey password goes in
 `LIB_REDIS_PASSWORD` and the `auth=` param of `CF_SESS_SAVE_PATH`; the DB
 password goes in `DB_PASS`.
 
+The **base** non-secret config lives in `.env.<you>` at the app root (the same
+file a non-docker `CI_ENV=<you>` run loads) and is the single source of the
+framework's base values — the `[ -f … ] || cp` line above creates it from
+`.env.sample` only if you don't already have one. `docker_manage.sh` requires
+it and aborts if it's missing. `<you>.env` above carries **only** the docker
+overrides, layered on top of the base by compose (last wins).
+
 > Write secret files with `printf`/`openssl` (no trailing newline). The
 > consumers strip a trailing newline anyway, but keeping them clean avoids
 > surprises.
@@ -47,12 +58,13 @@ Split by who consumes each variable — not by "secret vs non-secret" alone:
 
 | File | Who reads it | Injected into containers? | Visible in `docker inspect`? |
 |------|---------------|---------------------------|-------------------------------|
+| `.env.<i>` (app root) | The PHP app (`mgr_env`/`getenv`); base non-secret values, single source (= root `.env.sample`) | **Yes** — loaded FIRST via `env_file:` | Yes (non-secret by design) |
 | `<i>.docker.env` | compose interpolation and `docker_manage.sh` only (ports, image tags, build args, `mem_limit`/`cpus`, bind-mount source paths) | **No** | N/A (never enters a container) |
-| `<i>.env` | The PHP app (`mgr_env`/`getenv`) and `docker/php/entrypoint.sh` | **Yes** — the only file loaded via `env_file:` | Yes (non-secret by design) |
+| `<i>.env` | The PHP app and `docker/php/entrypoint.sh`; docker OVERRIDES only | **Yes** — loaded AFTER the base, so it wins | Yes (non-secret by design) |
 | `<i>.priv.env` | The PHP app, via the bind-mounted `/var/www/html/.env.priv` **file** (not process env) | Mounted as a file | **No** |
 
-`docker_manage.sh` requires all of them to exist and aborts loudly if any is
-missing. Before adding a new variable to any of these files, read the
+`docker_manage.sh` requires all four (the base `.env.<i>`, `<i>.docker.env`,
+`<i>.env`, and the secrets) to exist and aborts loudly if any is missing. Before adding a new variable to any of these files, read the
 "Env var placement" decision tree in `docker-internals.md`.
 
 ## Pick a database engine
