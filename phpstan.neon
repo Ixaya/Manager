@@ -38,8 +38,8 @@ parameters:
           - */config/*
           - */database/*
           - */language/*
-          - */tests/*
-          - */test/*
+          - sample/application/modules/probes/*
+          - sample/application/modules/smoke/*
 
     ignoreErrors:
         # Level 1 – Critical (likely bugs or fatal issues)

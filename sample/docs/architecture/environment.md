@@ -39,3 +39,34 @@ Values reach the process as real environment variables:
   which makes the loader pick these files *instead of* `.env`/`.env.priv`.
   Process env still outranks both (e.g. `DB_HOST=127.0.0.1 vendor/bin/phpunit`
   for a host-side run against a published db port).
+
+## Empty values vs defaults
+
+Precedence: process env → `$_ENV` → merged files (`.env.priv` then `.env`) →
+the caller's default, short-circuiting at the first source that mentions the
+key. A present-but-empty value (blank or whitespace-only) from any source
+resolves to the default rather than its literal value — the key still wins
+precedence, it just doesn't resurrect a lower source. For a key where blank
+is meaningful, pass `''` as the default.
+
+`mgr_env($key, $default, $strict = true)`: `$strict` defaults to `true`,
+applying the rule above. `strict=false` opts back into the verbatim empty
+value, but only when `$default` is non-null (a `null` default always
+normalizes to `null` — e.g. `CF_LOG_PATH`). Typed helpers
+(`mgr_env_bool/int/float/array/json`) and `mgr_env_required()` always force
+`strict=true`.
+
+## Quoting
+
+A matched pair of wrapping quotes (`KEY="value"` / `KEY='value'`) is stripped
+before the empty check above, from every source. Only a genuine matching
+pair is stripped — a stray or mismatched quote is left as literal data.
+`KEY=""` strips to `''` and then follows the same rule as bare `KEY=`.
+
+Docker Compose's own `env_file:` parser already strips matched quotes (and
+rejects a mismatched one outright); this framework's stripping additionally
+covers file-based (`.env` / `.env.priv`) and non-Compose sources.
+
+`manager/tools env_check` reports raw, pre-strip byte lengths, but its
+`set`/missing verdict follows the same resolution as `mgr_env()` — a
+quoted-empty required key still triggers the missing-key warning.

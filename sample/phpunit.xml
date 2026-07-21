@@ -13,6 +13,9 @@
     <testsuite name="Auth">
       <directory>tests/unit/auth</directory>
     </testsuite>
+    <testsuite name="Env">
+      <directory>tests/unit/env</directory>
+    </testsuite>
   </testsuites>
   <logging>
     <junit outputFile="tests/reports/logs/junit.xml"/>

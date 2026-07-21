@@ -5,7 +5,11 @@ class MGR_Env_lib
 	protected static $loaded = false;
 	protected static $env_vars = [];
 
-	public static function load($enviorment = null)
+	/**
+	 * Boot the env layer — parses .env / .env.priv (or their $enviorment
+	 * suffixed variants) into the merged file cache. Idempotent.
+	 */
+	public static function load(?string $enviorment = null): void
 	{
 		if (self::$loaded) {
 			return;
@@ -16,7 +20,11 @@ class MGR_Env_lib
 
 		self::$loaded = true;
 	}
-	public static function load_env($enviorment = null, $private = false)
+
+	/**
+	 * Parse one file (base or priv) and merge it into the file cache.
+	 */
+	public static function load_env(?string $enviorment = null, bool $private = false): void
 	{
 		$file_path = static::get_file_path($enviorment, $private);
 
@@ -24,9 +32,8 @@ class MGR_Env_lib
 	}
 
 	/**
-	 * Parse a dotenv-style file into key=>value pairs.
-	 * Same rules as the runtime loader: '#' comments skipped, quotes
-	 * stripped, empty values dropped.
+	 * Parse a dotenv-style file into key=>value pairs. Quoting and
+	 * empty-value handling happen centrally in process_value(), not here.
 	 *
 	 * @return array<string, string>
 	 */
@@ -49,22 +56,17 @@ class MGR_Env_lib
 			}
 
 			list($key, $value) = explode('=', $line, 2);
-			$value = trim(trim($value), '"\'');
-
-			// Only a truly empty value means unset — !empty() would also drop
-			// a literal KEY=0, since "0" is falsy in PHP.
-			if ($value !== '') {
-				$vars[trim($key)] = $value;
-			}
+			$vars[trim($key)] = trim($value);
 		}
 
 		return $vars;
 	}
 
 	/**
-	 * Diagnostic only — reports which layer get() would answer from,
-	 * without returning the value. Walks the same chain in the same
-	 * precedence order: process env, $_ENV, .env.priv, .env.
+	 * Diagnostic only — reports which source get() would resolve from and
+	 * whether it resolves to a value, without returning it. Stops at the
+	 * first source that mentions the key even if blank: a blank .env.priv
+	 * hides .env in the merged cache, it does not fall through to it.
 	 *
 	 * @return array{source: string, set: bool, length: int}
 	 */
@@ -72,28 +74,32 @@ class MGR_Env_lib
 	{
 		$value = getenv($key);
 		if ($value !== false) {
-			return ['source' => 'process-env', 'set' => true, 'length' => strlen($value)];
+			return ['source' => 'process-env', 'set' => self::process_value($value, null, true) !== null, 'length' => strlen($value)];
 		}
 
 		if (isset($_ENV[$key])) {
-			return ['source' => '$_ENV', 'set' => true, 'length' => strlen((string) $_ENV[$key])];
+			$value = (string) $_ENV[$key];
+
+			return ['source' => '$_ENV', 'set' => self::process_value($value, null, true) !== null, 'length' => strlen($value)];
 		}
 
-		// Priv file is loaded second at runtime, so it wins over .env in the merged cache.
 		$priv = self::parse_file(static::get_file_path($enviorment, true));
 		if (isset($priv[$key])) {
-			return ['source' => '.env.priv', 'set' => true, 'length' => strlen($priv[$key])];
+			return ['source' => '.env.priv', 'set' => self::process_value($priv[$key], null, true) !== null, 'length' => strlen($priv[$key])];
 		}
 
 		$base = self::parse_file(static::get_file_path($enviorment, false));
 		if (isset($base[$key])) {
-			return ['source' => '.env', 'set' => true, 'length' => strlen($base[$key])];
+			return ['source' => '.env', 'set' => self::process_value($base[$key], null, true) !== null, 'length' => strlen($base[$key])];
 		}
 
 		return ['source' => 'MISSING', 'set' => false, 'length' => 0];
 	}
 
-	public static function get($key, $default = null, $strict = false)
+	/**
+	 * Resolve an env var: process env → $_ENV → parsed files → $default.
+	 */
+	public static function get(string $key, mixed $default = null, bool $strict = true): mixed
 	{
 		$value = getenv($key);
 		if ($value !== false) {
@@ -134,7 +140,7 @@ class MGR_Env_lib
 	/**
 	 * Get environment variable as boolean
 	 */
-	public static function get_bool($key, $default = false)
+	public static function get_bool(string $key, mixed $default = false): bool
 	{
 		$value = self::get($key, $default, true);
 
@@ -148,7 +154,7 @@ class MGR_Env_lib
 	/**
 	 * Get environment variable as integer
 	 */
-	public static function get_int($key, $default = 0)
+	public static function get_int(string $key, mixed $default = 0): int
 	{
 		$value = self::get($key, $default, true);
 
@@ -158,7 +164,7 @@ class MGR_Env_lib
 	/**
 	 * Get environment variable as float
 	 */
-	public static function get_float($key, $default = 0.0)
+	public static function get_float(string $key, mixed $default = 0.0): float
 	{
 		$value = self::get($key, $default, true);
 
@@ -167,8 +173,10 @@ class MGR_Env_lib
 
 	/**
 	 * Get environment variable as array (comma-separated)
+	 *
+	 * @return array<int, mixed>
 	 */
-	public static function get_array($key, $default = [], $separator = ',')
+	public static function get_array(string $key, array $default = [], string $separator = ','): array
 	{
 		$value = self::get($key, $default, true);
 
@@ -182,7 +190,7 @@ class MGR_Env_lib
 	/**
 	 * Get environment variable as JSON decoded array/object
 	 */
-	public static function get_json($key, $default = null, $associative = true)
+	public static function get_json(string $key, mixed $default = null, bool $associative = true): mixed
 	{
 		$value = self::get($key, $default, true);
 
@@ -196,7 +204,11 @@ class MGR_Env_lib
 		return $default;
 	}
 
-	protected static function get_file_path($enviorment, $private = false)
+	/**
+	 * Resolve the effective env file path — the $enviorment-suffixed variant
+	 * if it exists, else the plain fallback; null if neither exists.
+	 */
+	protected static function get_file_path(?string $enviorment, bool $private = false): ?string
 	{
 		$file_path = FCPATH . '../.env';
 		$suffix = $private ? '.priv' : '';
@@ -216,8 +228,23 @@ class MGR_Env_lib
 		return null;
 	}
 
-	protected static function process_value($value, $default, $strict)
+	/**
+	 * Normalize a resolved raw value: strip a matched quote pair, then
+	 * collapse a blank result to $default (in strict mode, or when
+	 * $default is null).
+	 */
+	protected static function process_value(mixed $value, mixed $default, bool $strict): mixed
 	{
+		// Strip a matched quote pair before the blank check, so KEY="" collapses
+		// like bare KEY=. Only a genuine matching pair is stripped — a stray or
+		// mismatched quote (e.g. a password ending in ') survives untouched.
+		if (is_string($value)) {
+			$length = strlen($value);
+			if ($length >= 2 && ($value[0] === '"' || $value[0] === "'") && $value[0] === $value[$length - 1]) {
+				$value = substr($value, 1, -1);
+			}
+		}
+
 		$use_strict = $strict || ($default === null);
 		if ($use_strict == true && is_string($value) && trim($value) === '') {
 			return $default;

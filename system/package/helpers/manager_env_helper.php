@@ -4,7 +4,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 if (!function_exists('mgr_env')) {
 	// Get environment variable
-	function mgr_env($key, $default = null, $strict = false)
+	function mgr_env($key, $default = null, $strict = true)
 	{
 		return Env_lib::get($key, $default, $strict);
 	}
