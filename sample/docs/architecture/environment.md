@@ -34,8 +34,9 @@ Values reach the process as real environment variables:
 - **Outside Docker:** root `.env` / `.env.priv` files (templates:
   `.env.sample` (full) + `.env.sample.prod` (production overlay, not a
   runtime file) / `.env.sample.priv`).
-- **Testing:** `.env.testing` (committed, non-secret) + `.env.testing.priv`
-  (secrets only, gitignored). The PHPUnit bootstrap sets `CI_ENV=testing`,
+- **Testing:** `.env.testing` (committed, profile-independent config) +
+  `.env.testing.priv` (the DB block — profile-dependent, gitignored; template:
+  `.env.sample.testing.priv`). The PHPUnit bootstrap sets `CI_ENV=testing`,
   which makes the loader pick these files *instead of* `.env`/`.env.priv`.
   Process env still outranks both (e.g. `DB_HOST=127.0.0.1 vendor/bin/phpunit`
   for a host-side run against a published db port).

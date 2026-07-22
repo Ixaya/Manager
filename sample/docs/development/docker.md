@@ -257,10 +257,14 @@ root-owned — `chown` them back if that gets in your workflow's way.
 ### DB-backed unit tests
 
 The suite runs in the `testing` environment: the committed `.env.testing`
-holds the non-secret DB config (service-name hosts, so it works from the
-tools container as-is) and the gitignored `.env.testing.priv` holds `DB_PASS`
-— same secrets split as the instance env files. Tests hit the instance's
-normal dev DB with namespaced, self-cleaning fixtures.
+holds the profile-independent config, and the gitignored `.env.testing.priv`
+holds the DB block (`DB_HOST`/`DB_PORT`/`DB_DRIVER`/`DB_NAME`/`DB_USER`/
+`DB_PASS`/`DB_CHAR_SET`/`DB_COLLATION`) — more than just the password, because
+`DB_HOST`/`DB_DRIVER` depend on which local DB profile (mysql/mariadb/postgres)
+is active, and switching profiles shouldn't mean editing a tracked file. Copy
+`.env.sample.testing.priv` to `.env.testing.priv` and uncomment the block for
+your profile. Tests hit the instance's normal dev DB with namespaced,
+self-cleaning fixtures.
 
 The schema must exist. If the full stack has already run its migrations,
 nothing to do; with only the db service up, migrate through the tools

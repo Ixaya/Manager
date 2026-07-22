@@ -16,8 +16,11 @@ The bootstrap and setup are sound and internally consistent:
   succeeds with no test DB, and the output buffer discards the echo.
 - **Paths survive the boot's `chdir`** — `index.php` `chdir()`s into `public/`
   in CLI mode, but every `require` in the bootstrap is `__DIR__`-anchored.
-- **Env split verified** — `.env.testing` tracked (non-secret); `.env.testing.priv`
-  confirmed gitignored (secrets never committed).
+- **Env split verified** — `.env.testing` tracked (profile-independent config
+  only); `.env.testing.priv` confirmed gitignored (the full DB block, which is
+  profile-dependent, never committed). Re-validated by bringing up the `local`
+  instance's `postgres` profile and running the suite against
+  `.env.testing.priv`: 64/64 passing.
 - **The Config/Lang seam is a real root-cause fix**, not a workaround, and is
   inert in normal web/CLI boots.
 - **Support bases are `abstract`** (never collected as tests) and are required

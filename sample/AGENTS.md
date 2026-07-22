@@ -37,8 +37,9 @@ vendor/bin/phpstan analyse
 
 A PHPUnit test suite is configured (`phpunit.xml`, PHPUnit 13): tests live in
 `tests/unit/`, bootstrapped by `tests/Bootstrap.php`, which boots the full
-framework once per run with `.env.testing` (non-secret config, committed) plus
-`.env.testing.priv` (`DB_PASS`, gitignored). These are integration tests — they
+framework once per run with `.env.testing` (profile-independent config,
+committed) plus `.env.testing.priv` (the DB block, gitignored — `DB_HOST`/
+`DB_DRIVER` vary per local DB profile). These are integration tests — they
 hit the instance's normal dev DB with namespaced, self-cleaning fixtures, not
 mocks. Writing and extending tests — the `CITestCase`/`AuthTestCase` bases,
 fixtures, DB-free vs DB-backed — is covered in `docs/development/testing.md`;

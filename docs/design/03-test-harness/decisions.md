@@ -13,11 +13,15 @@ ever needs truncation-level isolation.
 
 ## Environment split
 
-Committed `.env.testing` carries non-secret config only (service-name DB hosts,
-so it works from the tools container as-is); gitignored `.env.testing.priv`
-carries `DB_PASS` — the same secrets split as the instance env files. The
-bootstrap forces `CI_ENV=testing`, so `Env_lib` loads `.env.testing` instead of
-`.env`; process env still outranks both for one-off host-side overrides.
+Committed `.env.testing` carries the profile-independent config (`APP_ENV`,
+`APP_TIMEZONE`, `CF_LOG_THRESHOLD`); gitignored `.env.testing.priv` carries the
+full DB block (`DB_HOST`/`DB_PORT`/`DB_DRIVER`/`DB_NAME`/`DB_USER`/`DB_PASS`/
+`DB_CHAR_SET`/`DB_COLLATION`) — not just `DB_PASS`, because `DB_HOST` and
+`DB_DRIVER` differ per local DB profile (mysql/mariadb/postgres/sqlite) and
+switching profiles shouldn't mean editing a tracked file. `.env.sample.testing.priv`
+is the committed template showing the profile blocks. The bootstrap forces
+`CI_ENV=testing`, so `Env_lib` loads `.env.testing` instead of `.env`; process
+env still outranks both for one-off host-side overrides.
 
 `.env.testing` sets `APP_ENV=development` (not `testing`/`production`). File
 selection keys on `CI_ENV`, but `ENVIRONMENT` — and therefore error visibility
