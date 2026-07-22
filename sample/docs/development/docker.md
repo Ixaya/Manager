@@ -383,6 +383,17 @@ on the HOST (not container-settable) and Valkey warns at startup if missing:
 `vm.overcommit_memory = 1` (via `/etc/sysctl.conf` + `sysctl`) and
 transparent huge pages disabled.
 
+## Logging
+
+`CF_LOG_THRESHOLD` (see `docs/architecture/environment.md` for how env vars
+resolve):
+
+| Value | Use |
+|---|---|
+| 1 | Production — errors only |
+| 2 | Dev default — errors + debug, skips per-request INFO/ALL boilerplate |
+| 4 | Temporary — bump while chasing a bug, revert after |
+
 ## Agent access & smoke-test module
 
 Procedure only — credential values live in `docker/env/<instance>.agent.env`
