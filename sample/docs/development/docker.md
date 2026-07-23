@@ -12,7 +12,7 @@ All operations go through the wrapper — never `docker compose` directly:
 
 `<instance>` selects the env files, secret files, project name, and published
 ports, so multiple instances coexist without cross-talk. Instance names are
-per `docker/env/<instance>.*`; `local` ships out of the box.
+per `docker/env/<instance>.*`;
 
 ## Your own instance
 

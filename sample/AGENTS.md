@@ -17,7 +17,7 @@ vendor/bin/phpstan analyse
 
 # Docker: always via docker_manage.sh, never `docker compose` directly —
 # it wires the per-instance env files and secrets the compose file needs.
-# Instance names are per docker/env/<instance>.*; "local" ships out of the box.
+# Instance names are per docker/env/<instance>.*;
 
 # ── Local development: full stack incl. a local DB, on this machine ────────
 # ws/cron are server-only — leave them off, rarely needed in dev. Set up
@@ -37,14 +37,18 @@ vendor/bin/phpstan analyse
 
 A PHPUnit test suite is configured (`phpunit.xml`, PHPUnit 13): tests live in
 `tests/unit/`, bootstrapped by `tests/Bootstrap.php`, which boots the full
-framework once per run with `.env.testing` (profile-independent config,
+framework once per run. Config comes from `.env.testing` (profile-independent,
 committed) plus `.env.testing.priv` (the DB block, gitignored — `DB_HOST`/
-`DB_DRIVER` vary per local DB profile). These are integration tests — they
-hit the instance's normal dev DB with namespaced, self-cleaning fixtures, not
-mocks. Writing and extending tests — the `CITestCase`/`AuthTestCase` bases,
-fixtures, DB-free vs DB-backed — is covered in `docs/development/testing.md`;
-`tests/unit/auth/` is the reference suite. Run with `vendor/bin/phpunit
---testdox` (a `require-dev` dependency; without host PHP use the docker `tools`
+`DB_DRIVER` vary per local DB profile).
+
+These are integration tests — they hit the instance's normal dev DB with
+namespaced, self-cleaning fixtures, not mocks. Writing and extending tests —
+the `CITestCase`/`AuthTestCase` bases, fixtures, DB-free vs DB-backed — is
+covered in `docs/development/testing.md`; `tests/unit/auth/` is the reference
+suite.
+
+Run with `vendor/bin/phpunit --testdox` (a `require-dev` dependency; without
+host PHP use the docker `tools`
 service — see `docs/development/docker.md`, including the schema-migration step
 for a fresh DB). PHPStan is the static-analysis gate.
 
@@ -128,11 +132,11 @@ Modules contain `controllers/` and optionally `models/`, `migrations/`,
 `views/`, `helpers/`, `language/`, `config/`, `libraries/` — create
 subdirectories as needed; MX resolves them by convention.
 
-### MY_Model (`application/core/MY_Model.php`)
+### Models (`application/core/MY_Model.php`, `application/core/APP_Model_Dyn.php`)
 
-A thin project-owned subclass of `MGR_Model` (`vendor/ixaya/manager/system/core/MGR/Model.php`) — that's where the actual ORM implementation lives. `MY_Model` itself is usually an empty shim, but since it's project code (not vendor), it can carry local overrides — check it too when tracing model behavior, don't assume it's always empty.
+Thin project-owned subclasses of `MGR_Model` and `MGR_Model_Dyn` (`vendor/ixaya/manager/system/core/`) — that's where the actual ORM implementation lives. These app-level classes are usually empty shims, but since they're project code (not vendor), they can carry local overrides — check them too when tracing model behavior, don't assume they're always empty.
 
-Model properties, defaults, and CRUD conventions: see the `ixaya-models` skill.
+Model properties, CRUD conventions, and dynamic/filterable queries (joins, `MGR_Model_Dyn_clause` filters): see the `ixaya-models` skill.
 
 ### Authentication
 

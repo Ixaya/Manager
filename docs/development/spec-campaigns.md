@@ -361,4 +361,8 @@ above:
    this playbook, parked-but-alive items to `pending.md` (title + pointer),
    the rest dies with the workspace — `methodology.md` is the operator's
    and is never swept. Then list what remains, get operator approval, and
-   delete the workspace sections.
+   archive: `tar cJf docs/workspace/archive/<n>-<name>.tar.xz -C docs/workspace <n>-<name>`,
+   then delete the live folder. The archive keeps the campaign out of the
+   active workspace while letting the operator uncompress it later for a
+   detailed recount — `docs/workspace/archive` is gitignored, same as the
+   rest of `docs/workspace/`.

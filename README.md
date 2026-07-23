@@ -50,7 +50,7 @@ Copy the sample application structure from the package into your project root. T
 cp -r vendor/ixaya/manager/sample/. .
 ```
 
-This gives you a complete working structure — controllers, models, views, config, and entry points — ready to customize.
+This gives you a complete working structure — controllers, models, views, config, and entry points — ready to customize. The sample's `composer.json` adds `require-dev` packages your lock file doesn't have yet, so run `composer update` (not `install`) next.
 
 ### 3. Configure environment
 
@@ -138,7 +138,7 @@ composer require --dev phpstan/phpstan
 
 ### PHP Unit Testing
 
-Run using PHPUnit
+Run using PHPUnit. For DB-backed suites, copy `.env.sample.testing.priv` to `.env.testing.priv` and fill in a DB profile first — review your project's documentation for the full setup.
 
 **First time, install PHPUnit:**
 
