@@ -70,7 +70,7 @@ and `Ci.php`, by contrast, explicitly write `global $CFG;`, which always
 binds to the true global regardless of nesting. So under PHPUnit, the real
 `$CFG` never got set from CI3's side, `Modules.php`'s `instanceof` check
 sees an unset global, and creates a bare `MX_Config` that's missing every
-manager-added method (`path()`, `path_env()`, `path_module()`, `read()`).
+manager-added method (`path()`, `read()`).
 
 Confirmed empirically: instrumenting the fallback with a log line showed it
 firing on every PHPUnit run and never on a normal web request or CLI

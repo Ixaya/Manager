@@ -40,25 +40,6 @@ class MGR_Config extends MX_Config
 		return $this->path_module($file, $_module);
 	}
 
-	protected function path_env(string $file = ''): ?string
-	{
-		foreach ($this->_config_paths as $path) {
-			foreach ([$file, ENVIRONMENT . DIRECTORY_SEPARATOR . $file] as $location) {
-				$file_path = $path . 'config/' . $location . '.php';
-				if (in_array($file_path, $this->is_loaded, true)) {
-					return $file_path;
-				}
-
-				if (! file_exists($file_path)) {
-					continue;
-				}
-
-				return $file_path;
-			}
-		}
-		return null;
-	}
-
 	/**
 	 * Load and return config array without storing it in $this->config
 	 * Useful for reading sensitive configs that you don't want to keep in memory

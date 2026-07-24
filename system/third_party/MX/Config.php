@@ -37,6 +37,25 @@ defined('BASEPATH') or exit('No direct script access allowed');
  **/
 class MX_Config extends CI_Config
 {
+	protected function path_env(string $file = ''): ?string
+	{
+		foreach ($this->_config_paths as $path) {
+			foreach ([$file, ENVIRONMENT . DIRECTORY_SEPARATOR . $file] as $location) {
+				$file_path = $path . 'config/' . $location . '.php';
+				if (in_array($file_path, $this->is_loaded, true)) {
+					return $file_path;
+				}
+
+				if (! file_exists($file_path)) {
+					continue;
+				}
+
+				return $file_path;
+			}
+		}
+		return null;
+	}
+
 	protected function path_module(string $file = '', string $_module = '', bool $fallback = true): ?string
 	{
 		$_module or $_module = CI::$APP->router->fetch_module();
