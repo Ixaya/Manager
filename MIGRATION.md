@@ -32,7 +32,7 @@ ls application/third_party/MX application/helpers/manager_*_helper.php 2>/dev/nu
 1. In `composer.json`, set `"ixaya/manager": "^2."` (bump from `^1.`, or add
    if absent) and align companion dependencies with 2.0's expectations — the
    reference migration also bumped `phpoffice/phpspreadsheet` `^1.28` →
-   `^5.0`; diff against `vendor/ixaya/manager/sample/composer.json` for the
+   `^5.0`; diff against `vendor/ixaya/manager/sample/composer.json.sample` for the
    current set, plus any `extra`/patch entries (msgpack). Then
    `composer update ixaya/manager` (with the companion bumps).
 2. Replace `public/index.php` and `public/.htaccess` with the sample's

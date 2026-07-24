@@ -31,6 +31,8 @@ The framework is **always consumed as a Composer dependency**: your project boot
 
 ## How to Install
 
+This is the quick version. If you want a more in depth guide follow `SETUP.md` instead, which covers this setup in full.
+
 ### Requirements
 
 - PHP 8.2+
@@ -50,7 +52,7 @@ Copy the sample application structure from the package into your project root. T
 cp -r vendor/ixaya/manager/sample/. .
 ```
 
-This gives you a complete working structure — controllers, models, views, config, and entry points — ready to customize. The sample's `composer.json` adds `require-dev` packages your lock file doesn't have yet, so run `composer update` (not `install`) next.
+This gives you a complete working structure — controllers, models, views, config, and entry points — ready to customize. The sample ships `composer.json.sample`, a template, so this never overwrites your own `composer.json`; integrate its `require-dev` block into yours, then run `composer update` (not `install`).
 
 ### 3. Configure environment
 

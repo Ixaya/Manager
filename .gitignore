@@ -8,6 +8,7 @@
 /CLAUDE.md
 
 /composer.lock
+/sample/composer.json
 /sample/composer.lock
 /patches.lock.json
 /.php-cs-fixer.cache
