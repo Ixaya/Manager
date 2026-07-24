@@ -33,8 +33,11 @@
 	},
 	"suggest": {
 		"amphp/websocket-server": "Required to use the built-in Websocket Server features.",
+		"amphp/log": "Required to use the built-in Websocket Server features.",
 		"amphp/redis": "Required for Redis-backed Websocket scaling.",
-		"adhocore/jwt": "Required for Websocket authentication."
+		"adhocore/jwt": "Required for Websocket authentication.",
+		"aws/aws-sdk-php": "Required to use the Amazon AWS integration (S3, CloudFront, Textract, Bedrock).",
+		"phpoffice/phpspreadsheet": "Required to use the spreadsheet import/export helpers."
 	},
 	"extra": {
 		"branch-alias": {

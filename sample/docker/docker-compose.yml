@@ -266,7 +266,7 @@ services:
     logging: *logging
     <<: *security
     volumes:
-      - ..:/work
+      - ${TOOLS_BIND_PATH:-..}:/work
       - composer-cache:/root/.composer/cache
     mem_limit: ${TOOLS_MEM_LIMIT:-2048m}
     cpus: ${TOOLS_CPUS:-2.0}

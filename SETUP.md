@@ -77,8 +77,11 @@ of its own. Put one in place by whichever path fits:
 - **You already have a real `composer.json`** (step 1 required the package,
   or the operator did): merge the template's `require-dev` block (the
   static-analysis, unit-test, and code-style tools) into it by hand,
-  keeping your own `ixaya/manager` version constraint and `php` requirement
-  as they are:
+  keeping your own `ixaya/manager` version constraint as it is. Also check
+  the `php` key in `require`: if one is already set, leave it; if it's
+  missing entirely, set it to the template's constraint (or whatever PHP
+  floor the project documents) — don't just carry over "no `php` key" as
+  the correct state:
 
   ```bash
   diff composer.json vendor/ixaya/manager/sample/composer.json.sample
@@ -292,6 +295,22 @@ the manifests (a moved base image, re-pulled OS packages).
 - Building the app images before finalizing the lock in step 7 — runtime
   optional packages then aren't present until the next rebuild. Do step 7
   first.
+- A container crash-looping or misbehaving in a way that doesn't match the
+  source files on disk (for example a config error that shouldn't be
+  possible given what you just edited) can mean a baked file came out empty
+  or truncated — a build-cache/disk-read glitch, not a config bug. Confirm
+  by reading the file back out of the image itself before debugging the
+  config:
+
+  ```bash
+  docker run --rm --entrypoint sh <image> -c "cat <path-inside-image>"
+  ```
+
+  If it doesn't match the source, force a clean re-read of that layer:
+
+  ```bash
+  ./docker_manage.sh -e local build --no-cache <service>
+  ```
 
 ## 9. Run migrations
 
