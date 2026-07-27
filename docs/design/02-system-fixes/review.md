@@ -39,4 +39,6 @@ none exist).
 
 `sample/application/modules/test/controllers/api/System_migration.php` —
 gitignored, authenticated probes (`item16_post`, `putfile_blob_post`,
-`base64_missing_get`, and the #15 checks), re-runnable per item.
+`base64_missing_get`, and the #15 checks), re-runnable per item. (Module
+since renamed to `probes/`; this gitignored file no longer exists at this
+path.)

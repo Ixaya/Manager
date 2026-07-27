@@ -1,7 +1,7 @@
 # System fixes (2026-07) — scope
 
 Companion initiative to `01-auth-hardening`: 18 general framework/system
-findings (non-auth), collected while authoring the `ixaya-*` agent skills
+findings (non-auth), collected while authoring the `mgr-*` agent skills
 and from the docs/skills standardization work (2026-07-09). Ran in the
 (gitignored, since deleted) `docs/workspace/04-system-migration/` section.
 
@@ -23,7 +23,7 @@ and from the docs/skills standardization work (2026-07-09). Ran in the
 
 ## Where the knowledge lives now
 
-- Conventions: the `ixaya-*` skills (migrations, models, rest-controller,
+- Conventions: the `mgr-*` skills (migrations, models, rest-controller,
   helpers-libraries, code-style) — updated in the same passes.
 - Decisions with rationale: `decisions.md` here.
 - Validation and live-test record: `review.md` here.

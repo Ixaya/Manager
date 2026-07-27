@@ -25,7 +25,9 @@ verdict classification. Results:
 - **REST probes** (gitignored, repeatable):
   `sample/application/modules/test/controllers/api/Auth_migration.php`
   (`/test/api/auth_migration/{b8,b2b3,lb1,lb3,pb1,c9,pb2,c2,c10,c5c6,all}`)
-  and `Auth_security.php` (`/test/api/auth_security/{f1,f6,all}`). Notable
+  and `Auth_security.php` (`/test/api/auth_security/{f1,f6,all}`). (Module
+  since renamed to `probes/`; these gitignored files no longer exist at this
+  path.) Notable
   catches during probe runs: the postgres burned-`LASTVAL()` trap (forced
   the C2 fix to guard the INSERT return, not the id), the
   `login()`-clears-forgotten-code lifecycle fact (F6), and the

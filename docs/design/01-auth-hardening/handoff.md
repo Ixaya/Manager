@@ -14,7 +14,7 @@ decision recorded in `decisions.md`); everything verified per `review.md`.
   `mgr_is_sql_identifier()` guards.
 - Config: identity+IP lockout default, admin hash params, argon2 alias
   comment, `userExpire` clarification; `identityCookieName` removed.
-- Docs/skills: `system/skills/ixaya-auth/SKILL.md` (conventions +
+- Docs/skills: `system/skills/mgr-auth/SKILL.md` (conventions +
   invariants), MIGRATION.md Ion Auth items 1-5 (consumer traps),
   rest-controller skill password-reset note, helpers skill
   `mgr_is_sql_identifier` entry.
@@ -23,10 +23,12 @@ decision recorded in `decisions.md`); everything verified per `review.md`.
 
 - REST probes: `sample/application/modules/test/controllers/api/
   {Auth_migration,Auth_security}.php` — gitignored, one endpoint per item,
-  re-runnable in isolation.
+  re-runnable in isolation. (Module since renamed to `probes/`; these
+  gitignored files no longer exist at this path.)
 - CLI suites: `sample/application/modules/test/controllers/
   {Auth_validate,Auth_lib_validate}.php` — API-focused regression baseline
-  (71 + 32 asserts), idempotent via preclean.
+  (71 + 32 asserts), idempotent via preclean. (Same rename note applies;
+  these files are gone too.)
 
 ## Open / deferred
 

@@ -3,7 +3,7 @@
 Operator decisions with their rationale, condensed from the workspace
 records. Item ids (C10, F4, LB3...) are the workspace numbering, kept for
 traceability to commits and probe names. The resulting rules live in
-`system/skills/ixaya-auth/SKILL.md`; the `BE_` edit inventory in
+`system/skills/mgr-auth/SKILL.md`; the `BE_` edit inventory in
 `docs/development/auth-upstream.md`.
 
 ## Structural
@@ -117,7 +117,7 @@ traceability to commits and probe names. The resulting rules live in
   email-activation flow.
 - **Do-not-regress invariants** (uniform hash cost, selector/validator
   design, session regeneration, one-KDF-op failure symmetry) are recorded
-  in the ixaya-auth skill as permanent constraints on future cleanups.
+  in the mgr-auth skill as permanent constraints on future cleanups.
 - **2026-07-15: first-credential bootstrap via `manager/tools/claim_admin`,
   gated on the exact factory hash string.** One-shot: the gate compares the
   seeded admin row's hash to the migration's literal (`hash_equals`, not

@@ -41,7 +41,7 @@ Four independent review passes, ~60 auth findings total:
 
 ## Where the knowledge lives now
 
-- Conventions and invariants: `system/skills/ixaya-auth/SKILL.md`.
+- Conventions and invariants: `system/skills/mgr-auth/SKILL.md`.
 - `BE_` edit inventory and upstream-merge procedure:
   `docs/development/auth-upstream.md`.
 - Consumer migration guidance: `MIGRATION.md` (Ion Auth items 1-5).

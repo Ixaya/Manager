@@ -59,7 +59,7 @@ graduates to smoke only if it proves generic.
 
 ## Deferred / follow-up
 
-- **`ixaya-testing` skill — deferred.** The authoring guide
+- **`mgr-testing` skill — deferred.** The authoring guide
   (`sample/docs/development/testing.md`) ships now; a skill waits until the
   pattern has been exercised in a real consuming project, so an immature
   convention does not propagate.

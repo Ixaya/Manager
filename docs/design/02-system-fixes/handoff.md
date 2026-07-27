@@ -11,11 +11,11 @@ Everything verified per `review.md`.
   first; constraints in `decisions.md`. Do not pick up in a routine pass,
   and do not add the pattern anywhere new.
 - **#5 — composer post-install symlinks for the skills: optional
-  nice-to-have.** Projects create `.claude/skills/ixaya-*` symlinks
+  nice-to-have.** Projects create `.claude/skills/mgr-*` symlinks
   manually per the README one-liner.
 - **README canonicality flag: RESOLVED** — `README-v2.md` was promoted to
   `README.md` (the tracked README now carries the "Agent skills" table;
-  ixaya-auth added 2026-07-14).
+  mgr-auth added 2026-07-14).
 - **SQL Server:** `sync_commit_enabled()`'s driver match has no `SQLServer`
   branch (T-SQL rejects `NOT <col>` as a scalar) — handle if that driver
   ever becomes a real target.
