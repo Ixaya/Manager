@@ -1,9 +1,13 @@
 # Docker stack — design decisions
 
+> Scope: this repo's Docker design rationale — decisions, evidence,
+> revisit conditions. For running or editing the stack itself, see
+> `docker.md` (beside this file), which points at the shipped docs.
+
 One-time rationale with evidence, kept compact. The operational and
 stack-editing docs ship with the stack itself — see
-`sample/docs/development/docker.md` and `docker-internals.md`; `README.md`
-here explains the split.
+`sample/docs/development/docker.md` and `docker-internals.md`;
+`docs/development/docker.md` explains the split.
 
 **Lockstep images.**
 Decision: nginx bakes `public/` from the PHP image at the same `IMAGE_TAG`;
@@ -28,25 +32,26 @@ invalidates the dependency-install layer. `vendor-builder` descends from
 against the exact extension set the runtime ships.
 Evidence: application code is outside composer's autoload scope
 (`composer.json` has no `autoload` section; the app loads via CI's MX loader),
-verified by a classmap diff — 38,332 entries byte-identical with `application/`
-present or absent — so the previous second `composer dump-autoload` was a no-op
-and was removed. Runtime image 681MB→567MB after the split.
+verified by a classmap diff — 38,332 entries byte-identical with
+`application/` present or absent — so the previous second
+`composer dump-autoload` was a no-op and was removed. Runtime image
+681MB→567MB after the split.
 Cost: two extra stages to reason about; both descend from `php-base`, so
 never collapse them back (that reintroduces composer + its cache into runtime
 and doubles the extension build).
 Revisit when: never, unless composer itself becomes a runtime dependency
 (it is not — the app uses the generated autoloader, which is self-contained).
 
-**Dev tooling (phpstan/phpunit) runs in the `vendor-builder` stage — no
+**Dev tooling (PHPStan/PHPUnit) runs in the `vendor-builder` stage — no
 separate testing image, no prod/dev mode switch.**
 Decision: `composer.json` carries `phpstan/phpstan` + `phpunit/phpunit` +
-`friendsofphp/php-cs-fixer` in `require-dev` (phpunit as
+`friendsofphp/php-cs-fixer` in `require-dev` (PHPUnit as
 `^11 || ^12 || ^13` — 13 needs PHP 8.4, the OR keeps `composer install`
 working at the framework's 8.2 floor); a profile-gated `tools` compose
 service reuses the
 `vendor-builder` build target and mounts the project tree at `/work`.
 Why: fidelity — the tools run under the exact PHP + extension set the runtime
-ships, so composer's platform checks and phpstan's analysis match reality; a
+ships, so composer's platform checks and PHPStan's analysis match reality; a
 separate testing Dockerfile would duplicate those decisions and drift.
 Prod-image safety needs no mode flag because three independent guarantees
 already hold: `composer install --no-dev` is hard-coded in the only stage
@@ -116,15 +121,17 @@ portal opens to the public, or the `ws` service's own connection ceiling
 becomes the binding limit before nginx's.
 
 **Session password param is `auth=`, not `password=`.**
-Decision: `CF_SESS_SAVE_PATH` uses `...&auth=<pw>` (see `sample/docs/development/docker.md`, "Session save_path", for the
-exact form).
+Decision: `CF_SESS_SAVE_PATH` uses `...&auth=<pw>` (see
+`sample/docs/development/docker.md`, "Session save_path", for the exact
+form).
 Why: the CI3 redis session driver's parser only recognizes `auth=` and
 requires the timeout as `<int>.<int>` — a literal `...&password=<pw>` form
 would connect without auth and fail against a password-protected Valkey.
 Evidence: `vendor/nielbuys/framework/system/libraries/Session/drivers/Session_redis_driver.php:137-148`.
 Revisit when: never, unless the vendor driver's parser changes.
 
-**Valkey is never network-exposed — with a pre-planned delta if that changes.**
+**Valkey is never network-exposed — with a pre-planned delta if that
+changes.**
 Decision: no Valkey port is ever published; only nginx publishes ports
 (`HTTP_PORT`, `WS_PORT`). Enforced by the compose file (no `ports:` on
 either valkey service).
@@ -143,18 +150,19 @@ delta, in order:
 3. Compose `ports:` must bind the specific private interface
    (`"<vpc-ip>:<port>:6379"`, distinct host ports per instance) — never a
    bare port (= 0.0.0.0). The new vars are compose-interpolation-only →
-   `<i>.docker.env`, per `docker-internals.md` "Env var placement".
+   `<instance>.docker.env`, per `docker-internals.md` "Env var placement".
 4. Replace the single `requirepass` god-user with ACL users per consumer;
    remote users get dangerous commands removed (`-@admin`, no
    `FLUSHALL`/`FLUSHDB`/`CONFIG`/`DEBUG`/`SHUTDOWN`/`KEYS`). The ACL file
-   is a new secret → `docker/secrets/<i>.*` pattern, mode 600.
+   is a new secret → `docker/secrets/<instance>.*` pattern, mode 600.
 5. Decide TLS-in-VPC consciously: Valkey supports native TLS (`tls-port`,
    cert mounts, disable the plain port); plaintext inside a VPC is a
    defensible policy call — record whichever is chosen here.
 6. Security-group/firewall scoping to exact client CIDRs; re-evaluate
    idle `timeout` for remote clients (pub/sub subscribers stay exempt);
    and update IN THE SAME CHANGE: the compose header comment ("Only nginx
-   publishes ports…"), the shipped docker.md's "Valkey ports are never published" line
+   publishes ports…"), the shipped docker.md's "Valkey ports are never
+   published" line
    and its rotation procedure (the password now travels to other
    hosts).
 
@@ -195,7 +203,8 @@ Decision: `PHP_PM_MAX_CHILDREN` is a build arg (`www.conf` is rendered
 during `docker build`, not by the entrypoint).
 Why: this lets `php` run with a **read-only rootfs** (nothing needs to
 write pool config at runtime) — same posture as `nginx` and `valkey`.
-Cost: resizing the pool needs a rebuild (`./docker_manage.sh -e <i> build`),
+Cost: resizing the pool needs a rebuild
+(`./docker_manage.sh -e <instance> build`),
 not just a restart — see the shipped docker.md tuning section.
 Revisit when: never, unless the pool needs to resize without a rebuild
 (would require reintroducing a writable rootfs for `php`).
@@ -237,11 +246,11 @@ the helper is additive.
 Revisit when: never — this is the steady-state form, matching compose.
 
 **Env scope split: `env_file:` loads the whole file.**
-Decision: `<i>.docker.env` (compose/build-arg/wrapper-only vars) is
+Decision: `<instance>.docker.env` (compose/build-arg/wrapper-only vars) is
 intentionally never referenced by any service's `env_file:` — see the
 "Env files" table in the shipped docker.md.
 Why: `env_file:` has no way to load a subset of a file, so keeping
-build/wrapper-only vars out of `<i>.env` entirely is the only way to keep
+build/wrapper-only vars out of `<instance>.env` entirely is the only way to keep
 them out of the container's real process environment (and thus out of
 `docker exec ... env`/`docker inspect`).
 Revisit when: a var currently in `.docker.env` ever needs to become
@@ -274,7 +283,8 @@ Revisit when: the edge layer's CSP (if/when defined) needs verification
 against real page content — that's a real testing gap this decision
 doesn't close, just correctly assigns elsewhere.
 
-**`-m`/`--manager-bind`: a scoped exception to "never bind `vendor/`", independent of `-b`.**
+**`-m`/`--manager-bind`: a scoped exception to "never bind `vendor/`",
+independent of `-b`.**
 Decision: a second opt-in override, `docker-compose.manager-bind.yml`, binds
 `${MANAGER_BIND_PATH}/system` (a host `ixaya/manager` checkout) over
 `vendor/ixaya/manager/system`, read-only, on `php`/`ws`/`cron` — mirroring
@@ -283,7 +293,8 @@ a mode of `-b`.
 Why: the existing `-b`/`--bind` workflow exists to test
 `application/`/`public/` changes live; there was no equivalent for testing
 `ixaya/manager` framework changes without a `composer.lock` bump/publish/
-tag cycle. `vendor/` is off-limits by the hard rule in `docker-internals.md` because
+tag cycle. `vendor/` is off-limits by the hard rule in `docker-internals.md`
+because
 that rule assumes composer-classmap-based loading that can silently go
 stale — but `ixaya/manager`'s own `composer.json` declares no `autoload`
 section, and a repo-wide grep found zero PSR-4 `namespace` declarations
@@ -291,7 +302,7 @@ under `system/`: it loads via the same CI3/MX path-convention discovery as
 `application/`, so the classmap-staleness risk the hard rule guards against
 doesn't apply to this one package. Kept as an independent flag (not `-m`
 implying `-b`, not `-b` implying `-m`) because the more common real-world
-use of `-m` alone is a downstream consumer isolating a suspected framework
+use of `-m` alone is a consuming project isolating a suspected framework
 bug by mounting their own `vendor/ixaya/manager` checkout — they may not be
 running `-b` at all, and forcing `CODE_BIND_PATH` to also be set for that
 case would be exactly the kind of silent, unrelated coupling this stack's
@@ -347,3 +358,27 @@ audience); rationale is deliberately NOT duplicated into shipped files
 beyond one-line whys.
 Revisit when: a consuming project needs deep rationale routinely — then
 consider shipping a condensed decisions extract, not a link.
+
+**Docker is the only supported development path — never a bare host command.**
+Decision: `composer`, PHPStan, php-cs-fixer, and the PHPUnit suite always run
+through the stack — `docker_manage.sh ... run --rm tools <command>`, or the
+`-b`/`-m` bound runtime services — never as a bare host command positioned as
+an equal or fallback alternative. This holds regardless of whether the host
+happens to have a working PHP install.
+Scope: binds `docs/development/` and `system/skills/`, where the reader is
+guaranteed this repo's or the sample's Docker stack. Root guides may adopt
+it by choice; a root document describing an environment this repo doesn't
+control is judged on its own terms.
+Why: a bare host run substitutes whatever PHP version and extension set the
+developer's machine happens to have for the exact ones the stack pins — a
+missing extension `.so` (ImageMagick) or a host PHP outside the framework's
+8.2 floor / 8.4-era style reproduces a host artifact, not a framework bug, and
+wastes a debugging session on the wrong layer.
+Evidence: the corpus's five host-first sites (`sample/AGENTS.md`'s `composer
+install`/`vendor/bin/phpstan analyse`/PHPUnit paragraph, `README.md`'s
+PHPUnit note, `sample/docs/development/docker.md`'s `tools` row) now state
+Docker as the sole path, not a fallback.
+Cost: none — the `tools` service already exists for exactly this; the change
+is presentational, not new tooling.
+Revisit when: never — a future exception needs its own documented rationale,
+not a silently reappearing bare command.

@@ -1,7 +1,52 @@
-# MX/HMVC boot wiring
+# How the framework attaches, boots, and resolves classes
 
-How `system/third_party/MX/` gets loaded, and why `MGR_Config` mirrors
-itself into the global `$CFG`.
+> Scope: how a project attaches `ixaya/manager` (`MGRPATH`, the package
+> autoload, module locations, the optional bootstrap hook), how
+> `system/third_party/MX/` loads once CodeIgniter boots, and how a
+> `MGR_*` class resolves to the project's own `MY_`/`APP_` subclass.
+
+How a project attaches `ixaya/manager` (`MGRPATH`, the package autoload,
+module locations, the optional bootstrap hook); how `system/third_party/MX/`
+gets loaded once CodeIgniter boots and why `MGR_Config` mirrors itself into
+the global `$CFG`; and how a `MGR_*` class resolves to the project's own
+`MY_`/`APP_` subclass.
+
+## How a project attaches the framework
+
+`public/index.php` is copied once from `sample/public/` and defines two
+constants before CodeIgniter boots, each validated with a 503 exit if the
+directory doesn't resolve:
+
+- `MGRPATH` — the absolute path to `vendor/ixaya/manager/system/`. Every
+  require, autoload entry, and config include below resolves through this
+  constant; nothing in a project may hardcode a framework path of its own.
+- `APPMGRPATH` — the same location expressed relative to `APPPATH`, because
+  MX's module and hook loaders take paths relative to `APPPATH`/
+  `APPPATH/controllers/`, not absolute ones.
+
+Three project config files pull the package in from there:
+
+- `application/config/autoload.php` — `$autoload['packages'] =
+  [MGRPATH . 'package']`, so everything under `system/package/` (helpers,
+  libraries, models, config) autoloads exactly like a project's own
+  `application/` tree.
+- `application/config/config.php` — `$config['modules_locations']` adds
+  `MGRPATH . 'package/modules/' => '../' . APPMGRPATH . 'package/modules/'`,
+  so MX's `Modules::autoload()`/`Modules::find()` resolve `manager/*` module
+  controllers (`system/package/modules/manager/`) the same way they resolve
+  `application/modules/*`.
+- `application/config/constants.php` and `application/config/hooks.php` —
+  each `include`s the framework's own copy (`MGRPATH . 'config/constants.php'`
+  / `.../hooks.php`) if it exists, folding framework-defined constants
+  (`EXIT_*` codes) and any hook registrations the framework ships in
+  alongside the project's own.
+
+Optional: `MGR_Bootstrap` (`system/hooks/MGR_Bootstrap.php`) is a
+`pre_controller` hook, shipped commented out in `hooks.php`, that
+force-loads `MGR_*` libraries before any controller runs — for the rare case
+where a library is needed from inside a base controller constructor or
+another hook, where lazy-loading via `$this->load->library()` would be too
+late.
 
 ## Load chain
 
@@ -29,6 +74,40 @@ directly, never `MX_Controller`, so nothing ever requires `Controller.php`
 (the only file that requires `Base.php`). Both `Base.php` and `Ci.php`
 declare `class CI`, but they can never collide — only `Ci.php` is ever
 actually loaded.
+
+## Class resolution: `MGR_*` → package alias → `MY_`/`APP_`
+
+A `MGR_*` class resolves to the class a project actually instantiates
+through one of two shapes, depending on whether it's a core CI class or a
+library.
+
+**Core classes** (`Model`, `Controller`, `Rest_Controller`, `Model_Dyn`) go
+straight from the framework class to the project's subclass, with no
+intermediate alias file. CI3's own `subclass_prefix` mechanism
+(`$config['subclass_prefix'] = 'MY_'`, set in `application/config/config.php`)
+is what makes this work: CI loads `MY_Model`/`MY_Controller` by name, and
+those files simply `extend` the `MGR_*` base directly —
+`MY_Model extends MGR_Model` (`system/core/MGR/Model.php`),
+`MY_Controller extends MGR_Controller`, `APP_Rest_Controller extends
+MGR_Rest_Controller`, `APP_Model_Dyn extends MGR_Model_Dyn`. All four
+project-side files live in `application/core/`.
+
+**Libraries** add one more link: `MGR_X_lib` (the real code, in
+`system/libraries/`) is extended by an unprefixed alias `X_lib` in
+`system/package/libraries/` — a thin shim (`class Jwt_lib extends
+MGR_Jwt_lib {}`) that autoloads via the package path
+(`$autoload['packages'] = [MGRPATH . 'package']`) so CI resolves `X_lib` by
+its bare name. A project that needs to customize further extends that
+unprefixed alias with its own `MY_X_lib`, the same `subclass_prefix`
+mechanism as the core classes. The auth stack is the fullest instance of
+this shape: `BE_Ion_auth` (upstream-tracked fork) → `MGR_Ion_auth` (library
+subclass, the code) → `Ion_auth` (unprefixed package alias) → a project's
+own subclass, if it has one.
+
+Either way, the chain is why `AGENTS.md`'s "never break the alias chain"
+rule exists: renaming a public method or changing a signature on any
+`MGR_*` class breaks every project subclass sitting on top of it, and
+nothing in the resolution mechanism itself would catch that at build time.
 
 ## Why MX keeps its own `CI::$APP` / global `$CFG`, not `get_instance()`
 

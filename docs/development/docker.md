@@ -1,5 +1,11 @@
 # Docker stack — maintainer pointer
 
+> Scope: where this repo's Docker documentation lives and how it splits
+> across trees. For running or editing the stack itself, see
+> `sample/docs/development/docker.md`/`docker-internals.md`, which ship
+> with it; for design rationale, see `docker-decisions.md` (beside this
+> file).
+
 The stack itself lives in `sample/docker/` (with `sample/docker_manage.sh`
 as the only entrypoint), and **its documentation ships with it**:
 

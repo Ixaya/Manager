@@ -76,8 +76,8 @@ A passing run, discovered by the agent without being told:
 
 - Migration via `MGR_Migration_builder`, model via `MY_Model`, controller
   via `APP_Rest_Controller` with the response envelope — graded against
-  the `ixaya-*` skills; note which skills the agent actually loaded.
-- Baseline skill loading: confirm `ixaya-code-style` loaded, not just the
+  the `mgr-*` skills; note which skills the agent actually loaded.
+- Baseline skill loading: confirm `mgr-code-style` loaded, not just the
   topic skills — it's the one agents skip, pulled in only via the topic
   skills' prerequisite line. It's effort-gated: low-effort runs reliably
   miss it, medium+ load it. Test at medium or higher, and judge comment
