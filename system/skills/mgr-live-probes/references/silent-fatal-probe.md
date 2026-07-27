@@ -18,8 +18,8 @@ form needs no nginx change and cleans up by deleting one file.
 ```php
 <?php
 // silent_fatal_probe.php — throwaway, run via:
-//   docker cp silent_fatal_probe.php <i>-php-1:/tmp/
-//   docker exec <i>-php-1 php /tmp/silent_fatal_probe.php
+//   docker cp silent_fatal_probe.php <instance>-php-1:/tmp/
+//   docker exec <instance>-php-1 php /tmp/silent_fatal_probe.php
 // Delete from the container when done.
 
 // Catches true fatals that never reach a catch block.
@@ -48,11 +48,9 @@ Notes:
 
 - Output goes to **stderr** so it can't be swallowed by output buffering the
   app may have started.
-- If the suspect is DB-shaped (`... on false` signature — see the docker
-  doc's "Silent 500" troubleshooting entry, `docs/development/docker.md`;
-  in the framework repo, `sample/docs/development/docker.md`), run
-  `manager/tools/env_check` FIRST; it
-  answers "did the credential even load" in one command and usually makes
+- If the suspect is DB-shaped (`... on false` signature — see the "Silent 500"
+  entry in `docs/development/docker.md`), run `manager/tools/env_check` FIRST;
+  it answers "did the credential even load" in one command and usually makes
   this probe unnecessary.
 - If the failing path is an HTTP request specifically (auth, session,
   routing), reproduce it CLI-side when possible; only if the failure is

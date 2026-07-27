@@ -1,28 +1,36 @@
 ---
-name: ixaya-migrations
+name: mgr-migrations
 description: Use when creating or editing a database migration, adding/modifying tables or columns, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns) of the ixaya/manager framework — the legacy CI_Migration/dbforge-array style is deprecated.
 ---
 
-# Ixaya Migrations (MGR_Migration_builder)
+# Manager Migrations (MGR_Migration_builder)
 
-> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> **Prerequisite:** this skill assumes `mgr-code-style` is loaded — invoke it
 > before writing any code. It owns naming, typing, PHPDoc, and the comments
 > policy; this skill only covers migrations and schema changes.
 
 New migrations extend **`MGR_Migration_builder`** and declare columns with the
-typed `field()` builder. Do NOT extend `CI_Migration` with hand-written dbforge
-arrays — that is the legacy style (still visible in older projects under the
-root `application/database/migrations/` folder and, misleadingly, in the
-template that `manager/tools/migration` scaffolds; rewrite that template
-output if you use it).
-The builder validates fields at construction time and translates types per DB
-engine (MySQL/MariaDB, PostgreSQL, SQL Server, SQLite) automatically.
+typed `field()` builder. Do NOT extend `CI_Migration` with hand-written
+dbforge arrays — that is the legacy style (still visible in older projects
+under the root `application/database/migrations/` folder and, misleadingly, in
+the template that `manager/tools/migration` scaffolds; rewrite that template
+output if you use it). The builder validates fields at construction time and
+translates types per DB engine (MySQL/MariaDB, PostgreSQL, SQL Server, SQLite)
+automatically.
 
-Source of truth (read for full signatures/translation tables):
-- `vendor/ixaya/manager/system/libraries/MGR_Migration_builder.php` — `field()`, shorthands, index helpers, `MgrFieldType` enum, cross-engine translation matrix
-- `vendor/ixaya/manager/system/libraries/MGR/Migration.php` — runner (per-module version tracking); app alias `application/libraries/MY_Migration.php`
-- `vendor/ixaya/manager/system/libraries/MGR_Migration_module_lib.php` — plan/run/version API used by the CLI
-- Canonical examples: `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Attachment.php` (create table), `.../20260213175009_Ion_auth_v2.php` (modify/add/drop columns, rename, indexes)
+Source of truth (only read if something here is insufficient):
+- `vendor/ixaya/manager/system/libraries/MGR_Migration_builder.php` —
+  `field()`, shorthands, index helpers, `MgrFieldType` enum, cross-engine
+  translation matrix
+- `vendor/ixaya/manager/system/libraries/MGR/Migration.php` — runner
+  (per-module version tracking); app alias
+  `application/libraries/MY_Migration.php`
+- `vendor/ixaya/manager/system/libraries/MGR_Migration_module_lib.php` —
+  plan/run/version API used by the CLI
+- Canonical examples:
+  `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Attachment.php`
+  (create table), `.../20260213175009_Ion_auth_v2.php` (modify/add/drop
+  columns, rename, indexes)
 
 ## File placement and naming
 
@@ -69,10 +77,10 @@ class Migration_Attachment extends MGR_Migration_builder
 }
 ```
 
-If the model sets `$soft_delete = true` (see `ixaya-models`), the table needs a
-`deleted` + `enabled` pair — the model filters `WHERE deleted = 0` on reads and
-sets `deleted = 1, enabled = 0` on delete. There is no shorthand; declare both
-explicitly as `0`/`1` flag columns:
+If the model sets `$soft_delete = true` (see mgr-models), the table needs a
+`deleted` + `enabled` pair — the model filters `WHERE deleted = 0` on reads
+and sets `deleted = 1, enabled = 0` on delete. There is no shorthand; declare
+both explicitly as `0`/`1` flag columns:
 
 ```php
 ...$this->field(name: 'enabled', type: MgrFieldType::SmallInt, unsigned: true, default: 1),
@@ -98,29 +106,37 @@ $this->field(
 ```
 
 `MgrFieldType` values: `TinyInt SmallInt Int BigInt Decimal Float Double Char
-VarChar Text MediumText LongText Blob MediumBlob LongBlob Bool Date Time DateTime
-Timestamp Year Json Uuid Enum`. Pick the semantic type and let the builder map it
-(e.g. `Json` → JSONB on Postgres, `Bool` → TINYINT(1) on MySQL / BOOLEAN on
-Postgres, `Uuid` → CHAR(36) on MySQL / native UUID on Postgres). Invalid
-combinations throw `InvalidArgumentException` at construction — no silent bad DDL.
+VarChar Text MediumText LongText Blob MediumBlob LongBlob Bool Date Time
+DateTime Timestamp Year Json Uuid Enum`. Pick the semantic type and let the
+builder map it (e.g. `Json` → JSONB on Postgres, `Bool` → TINYINT(1) on MySQL
+/ BOOLEAN on Postgres, `Uuid` → CHAR(36) on MySQL / native UUID on Postgres).
+Invalid combinations throw `InvalidArgumentException` at construction — no
+silent bad DDL.
 
-Use `Bool` only for true boolean semantics (`true`/`false` values). For `0`/`1`
-flag columns (`enabled`, `deleted`, …) use `SmallInt`/`TinyInt`: `Bool` maps to
-Postgres `BOOLEAN`, which does **not** implicitly cast an integer `1`/`0` on
-insert, so `INSERT ... enabled = 1` fails with *"column is of type boolean but
-expression is of type integer"*. `SmallInt` is portable across all engines.
+Use `Bool` only for true boolean semantics (`true`/`false` values). For
+`0`/`1` flag columns (`enabled`, `deleted`, …) use `SmallInt`/`TinyInt`:
+`Bool` maps to Postgres `BOOLEAN`, which does **not** implicitly cast an
+integer `1`/`0` on insert, so `INSERT ... enabled = 1` fails with *"column is
+of type boolean but expression is of type integer"*. `SmallInt` is portable
+across all engines.
 
 ```php
 ...$this->field(name: 'is_verified', type: MgrFieldType::Bool, default: false),   // boolean semantics
 ...$this->field(name: 'enabled', type: MgrFieldType::SmallInt, unsigned: true, default: 1), // 0/1 flag
 ```
 
+`Enum` is enforced on MySQL only. The builder emits a native `ENUM` there but
+`VARCHAR(max_len)` on PostgreSQL, `NVARCHAR(max_len)` on SQL Server and plain
+`TEXT` on SQLite — on three of the four engines the column accepts any value,
+so the constraint you think you declared does not exist. Use `VarChar` and
+validate in application code unless the table is MySQL-only by design.
+
 ## Altering tables
 
 Use `modify_column` to change a column's type, constraint, or default — never
 drop+add an existing column. Drop+add works on an empty table but silently
-loses data on a live one and obscures intent (a reader can't tell a type change
-from a column removal).
+loses data on a live one and obscures intent (a reader can't tell a type
+change from a column removal).
 
 ```php
 $this->dbforge->add_column('user', [
@@ -136,7 +152,8 @@ $this->add_index(table: 'user', columns: ['email'], unique: true);  // cross-eng
 $this->drop_index(table: 'user', columns: ['email']);
 ```
 
-`down()` must reverse `up()` (see `Ion_auth_v2.php` for a full symmetric example).
+`down()` must reverse `up()` (see `Ion_auth_v2.php` for a full symmetric
+example).
 
 ## Running migrations
 
@@ -158,20 +175,39 @@ manager/tools/version_set {version} {app|module:key} {conn}  # record version WI
 `RUN_MIGRATIONS=true` on one instance migrates on startup.
 
 Version tracking: the application sequence lives in the `migrations` table
-(single row); each module tracks independently in `migrations_path` (one row per
-module key). Module keys in CLI use `:` for `/` (e.g. `manager:tools`). Targets
-are auto-discovered: the app dir plus every module with a `migrations/{conn}/` dir
-— including modules shipped inside the vendor package.
+(single row); each module tracks independently in `migrations_path` (one row
+per module key). Module keys in CLI use `:` for `/` (e.g. `manager:tools`).
+Targets are auto-discovered: the app dir plus every module with a
+`migrations/{conn}/` dir — including modules shipped inside the vendor
+package.
 
 ## Rules
 
 - One concern per migration; never edit an applied migration — add a new one.
-- Migrations run through dbforge/`$this->db` on the connection being migrated —
-  don't load models inside migrations.
+- Migrations run through dbforge/`$this->db` on the connection being migrated
+  — don't load models inside migrations.
 - Legacy files under the root `application/database/migrations/` folder are
   frozen history: never imitate them, never renumber them. New migrations live
   in their module (`application/modules/{module}/migrations/{connection}/`).
 - Write engine-neutral DDL: no raw `ENUM(...)` strings, no MySQL-only column
   clauses — that's what `MgrFieldType` and the index helpers are for. Raw
-  `$this->db->query()` DDL is a last resort and must handle each `MgrDriver` case
-  (see `modify_field_timestamp()` in the builder for the pattern).
+  `$this->db->query()` DDL is a last resort and must handle each `MgrDriver`
+  case (see `modify_field_timestamp()` in the builder for the pattern).
+
+## Anti-patterns
+
+```php
+// WRONG — drop+add to change an existing column (silently loses data on a live table)
+$this->dbforge->drop_column('user', 'email');
+$this->dbforge->add_column('user', [
+    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254, unique: true),
+]);
+
+// WRONG — same change, raw MySQL-only DDL (breaks on Postgres, SQL Server, SQLite)
+$this->db->query("ALTER TABLE user MODIFY email VARCHAR(254) NOT NULL UNIQUE");
+
+// RIGHT
+$this->dbforge->modify_column('user', [
+    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254, unique: true),
+]);
+```

@@ -2,8 +2,8 @@
 
 Condensed from the vendor sample `Sysusers`
 (`vendor/ixaya/manager/sample/application/modules/admin/controllers/api/Sysusers.php`).
-Demonstrates: level gating, point-of-use model loading, response caching,
-the three-tier envelope, and correct HTTP codes.
+Demonstrates: level gating, point-of-use model loading, response caching, the
+three-tier envelope, and correct HTTP codes.
 
 ```php
 <?php
@@ -81,4 +81,5 @@ class Sysusers extends APP_Rest_Controller
 ```
 
 The paired `get_list()` model pattern (dynamic search, whitelisted ordering,
-`['data','total']` return) is documented in the `ixaya-models` skill.
+`['data','total']` return) is the mgr-models skill's
+`references/list-endpoint.md`.

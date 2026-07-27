@@ -8,9 +8,7 @@ can't ship as package code because it must extend the app-level
 ```php
 <?php
 
-if (! defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * Base for throwaway live probes. Real auth, no bypasses.

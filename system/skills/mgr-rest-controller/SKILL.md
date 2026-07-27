@@ -1,33 +1,42 @@
 ---
-name: ixaya-rest-controller
+name: mgr-rest-controller
 description: Use when creating or editing a REST API endpoint (controllers under modules/*/controllers/api/), handling API authentication, or returning JSON responses in this codebase. Teaches the APP_Rest_Controller conventions of the ixaya/manager framework — auth_override ordering, group/level gating, response envelope — instead of vanilla CI3 controllers or hand-rolled JSON output.
 ---
 
-# Ixaya REST Controllers (APP_Rest_Controller)
+# Manager REST Controllers (APP_Rest_Controller)
 
-> **Prerequisite:** this skill assumes `ixaya-code-style` is loaded — invoke it
+> **Prerequisite:** this skill assumes `mgr-code-style` is loaded — invoke it
 > before writing any code. It owns naming, typing, PHPDoc, and the comments
 > policy; this skill only covers REST endpoints and API auth.
 
-API endpoints extend `APP_Rest_Controller` (alias chain: `MGR_Rest_Controller` →
-`REST_Controller`, a CI3 REST library fork). Auth, HTTP-verb routing, and output
-formatting are handled by the base — never `echo json_encode()` or check API keys
-by hand.
+API endpoints extend `APP_Rest_Controller` (alias chain: `MGR_Rest_Controller`
+→ `REST_Controller`, a CI3 REST library fork). Auth, HTTP-verb routing, and
+output formatting are handled by the base — never `echo json_encode()` or
+check API keys by hand.
 
 Source of truth (only read if something here is insufficient):
-- `vendor/ixaya/manager/system/core/MGR_Rest_Controller.php` — auth gating, helpers
-- `vendor/ixaya/manager/system/third_party/REST_Controller.php` — key validation, response(), HTTP constants
-- `vendor/ixaya/manager/system/package/config/rest.php` — REST config (header name, key table…)
-- `vendor/ixaya/manager/system/package/models/Rest_key_model.php` — API key issuance/lifecycle
-- `vendor/ixaya/manager/system/core/MGR/Exceptions.php` — content-negotiated error rendering
-- `application/core/APP_Rest_Controller.php`, `application/core/APP_API_Model.php` — app aliases
-- Canonical example: `vendor/ixaya/manager/sample/application/modules/admin/controllers/api/Sysusers.php`
-  (the vendor sample is the reference — API controllers inside `application/` may predate current conventions)
-- Public-endpoint example (`auth_override`, login → API key): `references/public-endpoint.md`
+- `vendor/ixaya/manager/system/core/MGR_Rest_Controller.php` — auth gating,
+  helpers
+- `vendor/ixaya/manager/system/third_party/REST_Controller.php` — key
+  validation, response(), HTTP constants
+- `vendor/ixaya/manager/system/package/config/rest.php` — REST config (header
+  name, key table…)
+- `vendor/ixaya/manager/system/package/models/Rest_key_model.php` — API key
+  issuance/lifecycle
+- `vendor/ixaya/manager/system/core/MGR/Exceptions.php` — content-negotiated
+  error rendering
+- `application/core/APP_Rest_Controller.php`,
+  `application/core/APP_API_Model.php` — app aliases
+- Canonical example:
+  `vendor/ixaya/manager/sample/application/modules/admin/controllers/api/Sysusers.php`
+  (the vendor sample is the reference — API controllers inside `application/`
+  may predate current conventions)
+- Public-endpoint example (`auth_override`, login → API key):
+  `references/public-endpoint.md`
 
-Note: `REST_Controller` extends `MY_Controller`, so API controllers inherit the
-framework controller helpers too — `upload_image()`, `upload_file()`, `put_file()`,
-`get_file_base64()`, `display_image()`.
+`REST_Controller` extends `MY_Controller`, so API controllers inherit
+the framework controller helpers too — `upload_image()`, `upload_file()`,
+`put_file()`, `get_file_base64()`, `display_image()`.
 
 ## Placement and routing
 
@@ -43,13 +52,15 @@ delete_post    POST /module/api/name/delete
 ```
 
 The codebase convention is GET for reads and POST for everything else (not
-PUT/DELETE verbs). Plural controller class names (`Examples`, `Cards`, `Suppliers`).
+PUT/DELETE verbs). Plural controller class names (`Examples`, `Cards`,
+`Suppliers`).
 
 ## Authentication
 
 By default every request must carry a valid API key in the `X-API-KEY` header
-(config `rest_key_name`), checked against the keys table **in the constructor**.
-A valid key sets `$this->_apiuser`, and `MGR_Rest_Controller` then populates:
+(config `rest_key_name`), checked against the keys table **in the
+constructor**. A valid key sets `$this->_apiuser`, and `MGR_Rest_Controller`
+then populates:
 
 - `$this->user_id` — the key's user
 - `$this->logged_in_level` — highest Ion Auth group level of that user
@@ -73,7 +84,8 @@ class Report extends APP_Rest_Controller
 
 ### Rule 1 — auth overrides go BEFORE parent::__construct()
 
-The parent constructor runs the key check immediately; overrides set after it are dead code.
+The parent constructor runs the key check immediately; overrides set after it
+are dead code.
 
 ```php
 class Login extends APP_Rest_Controller
@@ -86,13 +98,29 @@ class Login extends APP_Rest_Controller
 }
 ```
 
-`auth_override` values: `'none'` (skip all auth), `'allow'`, `'basic'`, `'digest'`,
+`auth_override` values: `'none'`, `'allow'`, `'basic'`, `'digest'`,
 `'session'`, `'whitelist'`. Scope per method instead of `'*'` with
 `$this->methods['index_get']['auth_override'] = 'none';`.
 
+**`'none'` vs `'allow'`.** Both make the endpoint public; only `'allow'` still
+identifies the caller. `'none'` skips the key lookup entirely — `$_apiuser` is
+never set, so `process_api_user()` never runs and `user_id` /
+`logged_in_level` stay empty. `'allow'` reads `X-API-KEY` and looks it up: an
+absent or unknown key still passes, but a valid one populates `user_id`,
+`logged_in_level` and the `last_api_date` stamp. Use `'allow'` for one
+endpoint that serves anonymous callers and personalizes for authenticated
+ones, instead of shipping a public endpoint plus an authenticated twin.
+
 ### Rule 2 — permission gating via group_methods
 
-`_remap()` checks these before any action runs, responding 401 automatically:
+`_remap()` checks these before any action runs, responding 401 automatically —
+but only for a caller it could identify: the gate sits behind
+`isset($this->_apiuser)`. **Don't pair `group_methods` with `auth_override =
+'allow'`.** An anonymous request skips the gate and gets the public response,
+while an authenticated caller below the level gets 401 — authenticating makes
+the user worse off. On an `'allow'` endpoint, check inside the method with
+`validate_level()` / `validate_group()` and branch to the public response
+yourself.
 
 ```php
 public function __construct()
@@ -104,19 +132,19 @@ public function __construct()
 }
 ```
 
-If both `level` and `group` are set, passing **either** grants access. Constants
-(`LEVEL_ADMIN` = 10, `GROUP_ADMIN` = 'admin', `GROUP_ADMIN_ID`, `GROUP_MEMBER_ID`, …)
-live in `application/config/constants.php`.
+If both `level` and `group` are set, passing **either** grants access.
+Constants (`LEVEL_ADMIN` = 10, `GROUP_ADMIN` = 'admin', `GROUP_ADMIN_ID`,
+`GROUP_MEMBER_ID`, …) live in `application/config/constants.php`.
 
 Manual checks inside a method: `$this->validate_level($level)`,
 `$this->validate_group($group)`, `$this->validate_access($level, $group)`.
 
 ### Rule 3 — load libraries in the method that uses them
 
-The constructor runs on every request to the controller; loading libraries there
-taxes endpoints that don't need them. Load libraries AND models at point of use —
-the vendor sample loads `$this->load->model('admin/user')` inside each action, not
-in the constructor.
+The constructor runs on every request to the controller; loading libraries
+there taxes endpoints that don't need them. Load libraries AND models at point
+of use — the vendor sample loads `$this->load->model('admin/user')` inside
+each action, not in the constructor.
 
 ```php
 public function report_get()
@@ -144,8 +172,8 @@ if (empty($key)) {
 
 Use `$this->ion_auth->reset_password_with_code($code, $new_password)` and
 never expose a reset path reachable with an identity alone — the full rules
-(raw-method gating, sessions, lockout, tenancy, do-not-regress invariants)
-are in the ixaya-auth skill.
+(raw-method gating, sessions, lockout, tenancy, do-not-regress invariants) are
+in the mgr-auth skill.
 
 ## Request input
 
@@ -164,17 +192,19 @@ $p = $this->build_list_params(default_order_by: 'id', default_order: 'ASC', defa
 ```
 
 Client platform: `$this->get_platform()` (0 web / 1 iOS / 2 Android),
-`$this->add_agent_data($data)` adds `os_kind` + `user_agent` to a write payload.
+`$this->add_agent_data($data)` adds `os_kind` + `user_agent` to a write
+payload.
 
 ## Responses
 
-`$this->response($data, $http_code)` serializes (JSON by default) and **exits** —
-code after it never runs, which is why guard clauses need no `return`.
+`$this->response($data, $http_code)` serializes (JSON by default) and
+**exits** — code after it never runs, which is why guard clauses need no
+`return`.
 
-Envelope convention — `status` is three-tier: `1` = success, `0` = domain failure
-(validation, not found, auth), `-1` = exception/framework-level error (you rarely
-emit this yourself — the framework does). `message` = human text; `response` =
-payload wrapper:
+Envelope convention — `status` is three-tier: `1` = success, `0` = domain
+failure (validation, not found, auth), `-1` = exception/framework-level error
+(you rarely emit this yourself — the framework does). `message` = human text;
+`response` = payload wrapper:
 
 ```php
 // success
@@ -188,22 +218,27 @@ $this->response(['status' => 0, 'message' => 'Error: ' . $e->getMessage()], REST
 // auth failure (emitted by the framework): ['status' => 0, 'message' => 'User not authorized'] + HTTP 401
 ```
 
-Match the HTTP code to the failure with the `REST_Controller::HTTP_*` constants
-(`HTTP_OK`, `HTTP_BAD_REQUEST`, `HTTP_NOT_FOUND`, `HTTP_UNAUTHORIZED`,
-`HTTP_INTERNAL_SERVER_ERROR`, …), never bare ints.
+Match the HTTP code to the failure with the `REST_Controller::HTTP_*`
+constants (`HTTP_OK`, `HTTP_BAD_REQUEST`, `HTTP_NOT_FOUND`,
+`HTTP_UNAUTHORIZED`, `HTTP_INTERNAL_SERVER_ERROR`, …), never bare ints.
 
 ### Uncaught errors already return JSON
 
 `MGR_Exceptions` content-negotiates all error output: when the client doesn't
-accept HTML (API calls), uncaught exceptions, PHP errors, and 404s automatically
-render as `{status: -1, error: <class>, message, file, line}` with CORS headers
-and parsed DB errors. So an endpoint without try/catch still fails with
-structured JSON — don't wrap everything defensively. Use `try/catch (Exception $e)`
-when you want a friendlier message, cleanup, or a specific HTTP code
-(respond `HTTP_INTERNAL_SERVER_ERROR`, log with `mgr_process_exception($e)`).
-CLI-visible logging inside API code: `$this->print_log($object)` (timestamped, class-tagged).
+accept HTML (API calls), uncaught exceptions, PHP errors, and 404s
+automatically render as `{status: -1, error: <class>, message, file, line}`
+with CORS headers and parsed DB errors. So an endpoint without try/catch still
+fails with structured JSON — don't wrap everything defensively. Use `try/catch
+(Exception $e)` when you want a friendlier message, cleanup, or a specific
+HTTP code (respond `HTTP_INTERNAL_SERVER_ERROR`, log with
+`mgr_process_exception($e)`). CLI-visible logging inside API code:
+`$this->print_log($object)` (timestamped, class-tagged).
 
 ### Response caching (expensive list endpoints)
+
+TTLs, serialization and the bypass-IP behaviour that governs these calls are
+in mgr-cache-websockets — in particular, the response must still be correct
+when the cache misses.
 
 ```php
 $params = $this->build_list_params();
@@ -222,8 +257,9 @@ $this->response($response, REST_Controller::HTTP_OK);
 
 ## API models
 
-Models that need to know the calling user extend `APP_Api_Model` (a `MY_Model` with
-`public $user_id`). Wire them with:
+Models that need to know the calling user extend `APP_Api_Model` (a `MY_Model`
+with `public $user_id`; see mgr-models for the model API itself). Wire them
+with:
 
 ```php
 $this->setup_model('billing/invoice', 'invoice');
@@ -231,7 +267,8 @@ $this->setup_model('billing/invoice', 'invoice');
 // and injects $this->user_id when the model is an API model
 ```
 
-Plain `$this->load->model('module/name')` is fine for models that don't need user context.
+Plain `$this->load->model('module/name')` is fine for models that don't need
+user context.
 
 ## Full example
 
@@ -255,4 +292,8 @@ echo json_encode(['ok' => true]);
 
 // WRONG — bare status code and ad-hoc envelope
 $this->response(['success' => true], 200);
+
+// RIGHT
+$this->methods['*']['auth_override'] = 'none';   // BEFORE parent::__construct()
+$this->response(['status' => 1, 'response' => $data], REST_Controller::HTTP_OK);
 ```
