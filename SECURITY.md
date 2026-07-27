@@ -3,7 +3,7 @@
 ## Supported Versions
 
 | Version | Supported |
-| ------- | --------- |
+|---|---|
 | 2.x     | Yes — security fixes land here |
 | 1.x     | No — end of life; upgrade via `MIGRATION.md` |
 
@@ -27,4 +27,4 @@ to the reporter (unless you prefer otherwise). If declined, you get the
 reasoning.
 
 Auth-related invariants worth reading before reporting (what the framework
-deliberately does and why): the `ixaya-auth` skill in `system/skills/`.
+deliberately does and why): the `mgr-auth` skill in `system/skills/`.

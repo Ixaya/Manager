@@ -10,7 +10,8 @@ ixaya/manager is an HMVC CodeIgniter-based framework, always consumed as a
 Composer dependency. A project bootstraps once from the included scaffold,
 and from then on the framework lives in `vendor/ixaya/manager` and upgrades
 with `composer update`. Framework code is never copied into or edited
-inside a project.
+inside a project — see the scaffolded project's
+`docs/development/upgrading.md` for what to reconcile after an upgrade.
 
 **Prerequisites:** Docker, plus PHP 8.2+ and Composer if you run the initial
 install yourself (step 1). After scaffolding, everything else — including

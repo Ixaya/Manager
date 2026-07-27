@@ -1,9 +1,8 @@
 # AGENTS.md
 
-This file provides guidance to coding agents working on the **ixaya/manager
-package itself**. If you are working on an application that *consumes* this
-package, use that project's AGENTS.md instead — and never edit files under
-`vendor/`.
+> Scope: coding agents working on the **ixaya/manager package itself**. If
+> you are working on an application that *consumes* this package, use that
+> project's AGENTS.md instead — and never edit files under `vendor/`.
 
 ## What this is
 
@@ -14,13 +13,17 @@ framework code never lives inside a project.
 
 ## Commands
 
-```bash
-composer install
-vendor/bin/phpstan analyse          # uses this repo's phpstan.neon
-vendor/bin/php-cs-fixer fix         # PSR-12, tabs — see .php-cs-fixer.php
-```
+PHPStan and the CS fixer are the quality gates. Both run through Docker only
+— never a bare host `composer`/`vendor/bin/...` — via the `tools` service,
+which pins the exact PHP version and extensions the stack ships, so a host
+run is not a valid test of a bug or of its absence. Day-to-day invocations:
+`docs/development/framework-workflow.md`.
 
-There is no test suite; PHPStan and the CS fixer are the quality gates.
+The framework has no suite of its own: it is tested through the bundled
+`sample/`, whose PHPUnit suite ships to every consuming project. That is the
+point of testing there rather than here — a project gets the suite for free,
+and when it overrides a shim (`MY_Model`, `APP_Rest_Controller`) it can
+verify its own subclass still drives the framework correctly.
 
 ## Repo map
 
@@ -49,40 +52,46 @@ sample/                 # project scaffold — copied ONCE into new projects
 patches/                # composer patches for dependencies
 ```
 
+**Reading a skill's paths in this repo.** The skills state placement in
+project terms (`application/models/`, `application/modules/{module}/…`)
+because that is where most of their readers work. Three trees here are
+application-shaped and substitute for that root: `sample/application/` (the
+scaffold — a real project), `system/package/` (the CI package path autoloaded
+into every app; same subdirectories, and its models extend `MY_Model` like any
+project model), and a consuming project's own `application/`. Read
+`application/x/y` as `<root>/x/y` and pick the root from what you are
+changing.
+
+`system/core/` and `system/libraries/` are NOT such a root. Code there is the
+base class or implementation the application-shaped trees extend, so "the same
+file at a different root" does not apply — a change lands in every consuming
+project at once. Adding a library is the one placement that is not a root swap
+either: it is three files, under "Where a change goes" in
+`docs/development/framework-workflow.md`.
+
 ## Conventions
 
-The skills in `system/skills/ixaya-*/SKILL.md` are the source of truth for how
+The skills in `system/skills/mgr-*/SKILL.md` are the source of truth for how
 code is written here and in consuming projects. Before writing or editing ANY
-code, script, or config file (not just PHP), invoke the `ixaya-code-style`
-skill first — topic skills do not replace it. Then consult the topic skill before touching its area
-(models, REST, auth, web controllers/theming, migrations, libraries,
-cache/websockets, CLI/modules). Read `ixaya-auth` whenever end-to-end API
-testing is in scope, not only when writing auth code — obtaining a first
-credential (`claim_admin`), logging in, and calling with a real `X-API-KEY`
-live there. A request rejected with *"Invalid API key"* is the framework
-refusing an unauthenticated call, not evidence that auth works.
+code, script, or config file (not just PHP), invoke the `mgr-code-style`
+skill first — topic skills do not replace it. Then consult the topic skill
+before touching its area (models, REST, auth, web controllers/theming,
+migrations, libraries, cache/websockets, CLI/modules). Read `mgr-auth`
+whenever end-to-end API testing is in scope, not only when writing auth code —
+obtaining a first credential (`claim_admin`), logging in, and calling with a
+real `X-API-KEY` live there. A request rejected with *"Invalid API key"* is the
+framework refusing an unauthenticated call, not evidence that auth works.
 
-**Testing framework code:** write throwaway probe/validation controllers in
-`sample/application/modules/probes/` — that module is gitignored
-(`sample/application/modules/.gitignore`), exists only for framework
-development, and never ships to consuming projects (the sample is copied
-from a git checkout, where it's absent). Don't scatter test code anywhere
-else in `sample/` or `system/`. The probe conventions (authenticated-not-
-bypassed, Docker recipe, log channels) are in the `ixaya-live-probes` skill.
-Permanent, order-independent assertions belong in the sample's PHPUnit suite
-(`sample/tests/unit/`) instead — see `sample/AGENTS.md`.
+Working on a skill itself — writing a new one, editing one, or validating a
+set produced by another agent — is `docs/development/skill-authoring.md`.
 
-**Running sample phpunit/tools against this checkout:** the sample's vendor
-mirror (`sample/vendor/ixaya/manager/`) lags the working tree and is never
-updated by agents. Any `tools` run that *executes* framework code must mount
-the live checkout over it — the run-level equivalent of `-m`, which only
-covers the runtime services:
-
-```bash
-./docker_manage.sh -e <i> run --rm \
-    -v /abs/path/to/manager8/system:/work/vendor/ixaya/manager/system:ro \
-    tools vendor/bin/phpunit --testdox
-```
+**Testing framework code:** the development loop — quality gates, throwaway
+probes versus the sample's PHPUnit suite, running the sample's `tools`
+service against this checkout instead of its lagging vendor mirror, and the
+cross-engine matrix — is documented under `docs/development/`. Read it before
+verifying a change; the probe conventions themselves (authenticated-not-
+bypassed, log channels) are in the `mgr-live-probes` skill. Test code never
+goes anywhere else in `sample/` or `system/`.
 
 ## Documentation
 
@@ -91,6 +100,10 @@ standard — layout, categories, lifecycle, drift rules — is the **shipped**
 `sample/docs/documentation.md` (it governs this repo too);
 `docs/documentation.md` is the thin framework-only addendum on top of it.
 Read both before creating or reorganizing any doc.
+
+How the framework attaches to a project, boots, and resolves a class name to
+a file (`MGRPATH` / the CI package path, the MX load chain, `MGR_*` →
+package alias → `MY_`/`APP_`) is in `docs/architecture/`.
 
 ## Hard rules
 
@@ -116,7 +129,7 @@ Read both before creating or reorganizing any doc.
   fork carries a documented set of deliberate edits and purposeful deviations
   — see `docs/development/auth-upstream.md` before/after any upstream merge.
 - **Comments are never documentation.** The comments policy (and all style
-  rules) live in the `ixaya-code-style` skill — invoke it before writing code.
+  rules) live in the `mgr-code-style` skill — invoke it before writing code.
 - **When the prompt is silent on a security- or safety-relevant choice**
   (auth mode, deletion, data exposure, permissions), take the documented safe
   default; a nearby file never justifies dropping below it (a sibling that
@@ -128,8 +141,8 @@ Read both before creating or reorganizing any doc.
 - **Git operations are off-limits.** Agents must never perform git operations
   (commit, push, branch creation/deletion, rebase, merge, etc.) with the sole
   exception of adding `.gitignore`, `.gitattributes`, or `.gitkeep` files. All
-  other git operations — even if they seem necessary — require explicit human
-  authorization or belong in a human-run workflow step.
+  other git operations — even if they seem necessary — require explicit
+  human authorization or belong in a human-run workflow step.
 
 ## Pending work
 

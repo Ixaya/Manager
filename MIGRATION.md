@@ -1,3 +1,5 @@
+# Manager 1.x → 2.0 migration guide
+
 Guide for upgrading a legacy project from **Manager 1.x — which shipped
 framework files inside the project tree** (`application/third_party/MX/`,
 `manager_*` helpers, `Ix_*`/`MNGR_*` classes) — to **Manager 2.0, where the
@@ -25,43 +27,43 @@ grep -rl "IX_Rest_Controller\|API_Model\|ix_mailing\|ix_upload_lib\|ix_domain\|i
 ls application/third_party/MX application/helpers/manager_*_helper.php 2>/dev/null
 ```
 
-**Verify:** you have a list of affected files and the framework copy is located.
+**Verify:** you have a list of affected files and the framework copy is
+located.
 
 ## Phase 1 — Install the package, replace the entry point
 
 1. In `composer.json`, set `"ixaya/manager": "^2."` (bump from `^1.`, or add
-   if absent) and align companion dependencies with 2.0's expectations — the
-   reference migration also bumped `phpoffice/phpspreadsheet` `^1.28` →
-   `^5.0`; diff against `vendor/ixaya/manager/sample/composer.json.sample` for the
-   current set, plus any `extra`/patch entries (msgpack). Then
-   `composer update ixaya/manager` (with the companion bumps).
+   if absent) and align companion dependencies with 2.0's expectations — if
+   the project uses the spreadsheet helpers, `phpoffice/phpspreadsheet` moves
+   `^1.28` → `^5.0`; diff against
+   `vendor/ixaya/manager/sample/composer.json.sample` for the current set,
+   plus any `extra`/patch entries (msgpack). Then `composer update
+   ixaya/manager` (with the companion bumps).
 2. Replace `public/index.php` and `public/.htaccess` with the sample's
    (`vendor/ixaya/manager/sample/public/`), then re-apply project
-   customizations by diffing against your old copies. What the 2.0 entry
-   point changes — this is the migration's structural core:
+   customizations by diffing against your old copies. What the 2.0 entry point
+   changes — this is the migration's structural core:
    - Defines `MGRPATH` + `APPMGRPATH` pointing at
-     `vendor/ixaya/manager/system` (validated with 503 exits). Every shim
-     and config-wiring entry in later phases resolves through these —
-     nothing in the project may define framework paths itself anymore.
-     `$system_path` (the CodeIgniter core via `nielbuys/framework`) is
-     unchanged from 1.x.
+     `vendor/ixaya/manager/system` (validated with 503 exits). Every shim and
+     config-wiring entry in later phases resolves through these — nothing in
+     the project may define framework paths itself anymore. `$system_path`
+     (the CodeIgniter core via `nielbuys/framework`) is unchanged from 1.x.
    - Boots the env layer BEFORE CodeIgniter: `Env_lib::load()` +
-     `manager_env_helper`, then
-     `define('ENVIRONMENT', mgr_env('APP_ENV') ?? $ci_env ?? 'development')`.
-     The fallback chain is deliberate: with no `.env` files, `CI_ENV`
-     deployments keep selecting per-env config dirs exactly as in 1.x —
-     this is what makes the full env migration optional (Big picture).
-     A `local` environment case is also recognized now.
+     `manager_env_helper`, then `define('ENVIRONMENT', mgr_env('APP_ENV') ??
+     $ci_env ?? 'development')`. The fallback chain is deliberate: with no
+     `.env` files, `CI_ENV` deployments keep selecting per-env config dirs
+     exactly as in 1.x — this is what makes the full env migration optional
+     (Big picture). A `local` environment case is also recognized now.
    - **Environment-selection gotcha:** the 2.0 `.htaccess` DROPS the 1.x
-     `<IfModule mod_env.c> SetEnv CI_ENV ...` block. If your deployment
-     relied on it, replacing `.htaccess` makes `ENVIRONMENT` silently fall
-     back to `development` — on production that means dev error display.
-     Either set `APP_ENV` in the minimal `.env` below (recommended) or
-     re-add your `SetEnv` block as a kept customization.
-   - **Timezone gotcha:** 1.x hardcoded the timezone in `index.php`; 2.0
-     reads `APP_TIMEZONE` and does NOTHING when it's unset — the app then
-     silently runs on php.ini's timezone. Even on the bare-minimum path,
-     create a minimal `.env` next to `public/`'s parent with just:
+     `<IfModule mod_env.c> SetEnv CI_ENV ...` block. If your deployment relied
+     on it, replacing `.htaccess` makes `ENVIRONMENT` silently fall back to
+     `development` — on production that means dev error display. Either set
+     `APP_ENV` in the minimal `.env` below (recommended) or re-add your
+     `SetEnv` block as a kept customization.
+   - **Timezone gotcha:** 1.x hardcoded the timezone in `index.php`; 2.0 reads
+     `APP_TIMEZONE` and does NOTHING when it's unset — the app then silently
+     runs on php.ini's timezone. Even on the bare-minimum path, create a
+     minimal `.env` next to `public/`'s parent with just:
 
      ```
      APP_ENV=development        # production on prod — replaces the .htaccess SetEnv
@@ -70,7 +72,8 @@ ls application/third_party/MX application/helpers/manager_*_helper.php 2>/dev/nu
 3. Copy `phpstan.neon` + `phpstan-bootstrap.php` from the sample (points the
    analyzer at the vendor framework instead of the in-tree copy).
 
-**Verify:** `composer install` succeeds; `vendor/ixaya/manager/system/` exists.
+**Verify:** `composer install` succeeds; `vendor/ixaya/manager/system/`
+exists.
 
 ## Phase 2 — Delete the copied framework, shim the extension points
 
@@ -78,8 +81,8 @@ ls application/third_party/MX application/helpers/manager_*_helper.php 2>/dev/nu
 customizations that accumulated while it lived in the project. Before
 deleting, diff it against the package's version
 (`vendor/ixaya/manager/system/...`). Anything project-specific gets ported to
-an app-side subclass (the same pattern as `Attachment_invoice_lib extends`
-the package attachment lib) — never edited into `vendor/`.
+an app-side subclass (the same pattern as `Attachment_invoice_lib extends` the
+package attachment lib) — never edited into `vendor/`.
 
 ### 2a. Delete outright — the package now provides these
 
@@ -125,14 +128,15 @@ APP_Model_Dyn.php         (new capability)
 `Admin_Controller`, `Site_Controller`, `Private_Controller` stay app-owned —
 update them to the new parents/patterns using the sample's copies as
 reference, keeping project logic. One 2.0 requirement is easy to miss:
-layout/view resolution now depends on `$this->_container` and
-`$this->_theme`, so each web base controller must set them explicitly in its
-constructor BEFORE `parent::__construct()` (the reference migration added
-`$this->_container = 'frontend'; $this->_theme = 'default';` to
-`Site_Controller`; `Admin_Controller` sets `'admin'`/`'default'`). Blank
-pages or wrong-layout rendering after migration usually trace back to this.
+layout/view resolution now depends on `$this->_container` and `$this->_theme`,
+so each web base controller must set them explicitly in its constructor BEFORE
+`parent::__construct()` — a front-end base controller sets `$this->_container
+= 'frontend'; $this->_theme = 'default';`, an admin one `'admin'`/`'default'`.
+Blank pages or wrong-layout rendering after migration usually trace back to
+this.
 
-**Verify:** `grep -rl "third_party/MX\|manager_helper" application/` returns nothing.
+**Verify:** `grep -rl "third_party/MX\|manager_helper" application/` returns
+nothing.
 
 ## Phase 3 — Mechanical renames (grep-driven)
 
@@ -179,27 +183,27 @@ heuristic, not mechanical:
 - exercise the app and watch for `Attempt to read property ... on array`;
 - PHPStan flags many of these once the shims are in place (Phase 2).
 
-**Stopgap for large codebases — `$legacy_mode`:** setting
-`protected bool $legacy_mode = true;` on a model restores OBJECT returns for
-its **single-row** methods only (lists stay arrays — matching the old mixed
+**Stopgap for large codebases — `$legacy_mode`:** setting `protected bool
+$legacy_mode = true;` on a model restores OBJECT returns for its
+**single-row** methods only (lists stay arrays — matching the old mixed
 behavior). Use it to migrate module-by-module instead of big-bang: enable it
 on the models whose consumers you haven't converted yet, keep a burn-down
 list, and remove each flag as its consumers go array-pure. Never enable it on
-new models (the `ixaya-code-style` skill forbids it in new code).
+new models (the `mgr-code-style` skill forbids it in new code).
 
-**Verify:** grep `legacy_mode` returns only the models on your burn-down
-list — ideally zero.
+**Verify:** grep `legacy_mode` returns only the models on your burn-down list
+— ideally zero.
 
 ## Phase 5 — Config wiring (REQUIRED minimum)
 
-The package resolves through CI's package-path mechanism; two files MUST
-match the sample's wiring (compare against
+The package resolves through CI's package-path mechanism; two files MUST match
+the sample's wiring (compare against
 `vendor/ixaya/manager/sample/application/config/`):
 
 - **`config.php`** — the package bootstrap entries: `subclass_prefix`,
-  composer autoload path, the `Modules::$locations` entry mapping
-  `MGRPATH . 'package/modules/'`, enabled hooks. Port these entries into your
-  existing config.php; keep every project value as-is.
+  composer autoload path, the `Modules::$locations` entry mapping `MGRPATH .
+  'package/modules/'`, enabled hooks. Port these entries into your existing
+  config.php; keep every project value as-is.
 - **`autoload.php`** — `$autoload['packages'] = [MGRPATH . 'package'];` plus
   the `manager_*` helper autoload list.
 - **`hooks.php`** — the `MGR_Bootstrap` hook registration (optional — the
@@ -207,8 +211,8 @@ match the sample's wiring (compare against
 
 Keeping your per-environment config dirs (`development/`, `production/`) is
 FINE at this stage — env migration is optional (see Big picture). Only the
-wiring above is mandatory, in the base config dir and any per-env overrides
-of those two files.
+wiring above is mandatory, in the base config dir and any per-env overrides of
+those two files.
 
 **Verify:** `php public/index.php manager/tools/help` prints the tools help —
 proves package modules, loader, and hooks resolve.
@@ -232,9 +236,9 @@ vendor/bin/phpstan analyse
   `application/`, `public/`, `composer.json`, analyzer configs.
 
 Commit the migration here. Phases 7–9 are cleanup passes that follow as
-**separate commits each** (the reference history did exactly this: r178
-migration, r179 style, r180 line endings) — mixing them into the migration
-commit buries real changes under mechanical noise and ruins reviewability.
+**separate commits each** — one for the migration, one for style, one for line
+endings. Mixing them into the migration commit buries real changes under
+mechanical noise and ruins reviewability.
 
 ## Phase 7 — PHPStan pass (fix the egregious, park the noise)
 
@@ -244,9 +248,9 @@ vendor/bin/phpstan analyse --memory-limit=512M
 
 Fix the **egregious errors** — they are usually real migration leftovers:
 unknown classes/functions (a missed rename from Phase 3), property access on
-arrays (a missed Phase 4 conversion), calls to methods that no longer exist
-on the 2.0 base classes. Add `@property` docblocks where PHPStan can't see
-CI's magic loader properties.
+arrays (a missed Phase 4 conversion), calls to methods that no longer exist on
+the 2.0 base classes. Add `@property` docblocks where PHPStan can't see CI's
+magic loader properties.
 
 If the remaining findings are numerous and non-severe (implicit-mixed
 warnings, legacy type looseness), do NOT chase them now — park them:
@@ -316,37 +320,37 @@ still clean.
 
 ## Legacy drift audit — for projects that lagged behind 1.x updates
 
-The reference project tracked Manager closely; a project that didn't will
-carry older patterns that the mechanical phases above won't touch. Audit
-each of these during the migration — they're cheap to grep and expensive to
-discover in production.
+A project that tracked Manager's 1.x releases closely will have little of
+this; one that lagged carries older patterns the mechanical phases above won't
+touch. Audit each of these during the migration — they're cheap to grep and
+expensive to discover in production.
 
 ### DB charset: utf8 is secretly utf8mb3
 
-Older configs used `utf8`, which MySQL treats as the 3-byte `utf8mb3` —
-emoji and some CJK input silently corrupt or reject. Connections must use
-the per-engine values from the env sample's charset/collation matrix
-(MySQL 8: `utf8mb4`/`utf8mb4_0900_ai_ci`; MariaDB: `utf8mb4`/
-`utf8mb4_uca1400_ai_ci`; PostgreSQL: `UTF8`/empty).
+Older configs used `utf8`, which MySQL treats as the 3-byte `utf8mb3` — emoji
+and some CJK input silently corrupt or reject. Connections must use the
+per-engine values from the env sample's charset/collation matrix (MySQL 8:
+`utf8mb4`/`utf8mb4_0900_ai_ci`; MariaDB: `utf8mb4`/ `utf8mb4_uca1400_ai_ci`;
+PostgreSQL: `UTF8`/empty).
 
 ```bash
 grep -rn "utf8'" application/config/ | grep -v utf8mb4   # connection side
 ```
 
-Note: this fixes the CONNECTION. Existing tables created as utf8mb3 keep
-their column charset — converting them (`ALTER TABLE ... CONVERT TO
-CHARACTER SET utf8mb4`) is a data migration with its own risks; plan it
-separately, don't bundle it here.
+Note: this fixes the CONNECTION. Existing tables created as utf8mb3 keep their
+column charset — converting them (`ALTER TABLE ... CONVERT TO CHARACTER SET
+utf8mb4`) is a data migration with its own risks; plan it separately, don't
+bundle it here.
 
 ### Legacy global error handlers: delete them
 
 Older projects registered their own global handlers (typically a
 `my_error_handler` / `my_exception_handler` / `my_fatal_handler` /
-`assert_options` block in a config or bootstrap file). Delete the whole
-block, no replacement — it shadows the framework's own exception
-rendering, and removing it is what lets `MGR_Exceptions` take over:
-uncaught errors then return the proper JSON/REST response (or the CLI
-error format) instead of raw HTML dumps.
+`assert_options` block in a config or bootstrap file). Delete the whole block,
+no replacement — it shadows the framework's own exception rendering, and
+removing it is what lets `MGR_Exceptions` take over: uncaught errors then
+return the proper JSON/REST response (or the CLI error format) instead of raw
+HTML dumps.
 
 ```bash
 grep -rn "set_error_handler\|set_exception_handler\|assert_options" application/ --include="*.php"
@@ -357,23 +361,22 @@ grep -rn "set_error_handler\|set_exception_handler\|assert_options" application/
 
 Older API controllers often declare NO `group_methods` restrictions — any
 valid API key reaches every action. Every controller under `controllers/api/`
-must declare its gate (see the `ixaya-rest-controller` skill):
+must declare its gate (see the `mgr-rest-controller` skill):
 
 ```bash
 grep -rL "group_methods\|auth_override" application/modules/*/controllers/api/*.php
 # every file listed is ungated — decide level/group or an explicit auth_override
 ```
 
-While in there, delete stale legacy properties the cleanup commits removed
-from the reference project: unused cache-enabled flags and hand-rolled
-api-key properties on controllers — auth state comes from the base class
-(`$this->user_id`, `$this->logged_in_level`), never from a controller's own
-property.
+While in there, delete stale legacy properties: unused cache-enabled flags and
+hand-rolled api-key properties on controllers — auth state comes from the base
+class (`$this->user_id`, `$this->logged_in_level`), never from a controller's
+own property.
 
 ### Models: direct `$this->db` access
 
-`$this->db` in a model bypasses the base model's connection management and
-its multi-engine handling — 2.0 models go through the base-model API
+`$this->db` in a model bypasses the base model's connection management and its
+multi-engine handling — 2.0 models go through the base-model API
 (`get`/`get_all`/`update`/`query()`...) or, where the query builder is
 genuinely needed, `$this->my_db`:
 
@@ -385,12 +388,12 @@ grep -rn '\$this->db->' application/modules/*/models/ application/models/ 2>/dev
 ### Controllers reimplementing file upload/download/image display
 
 Older controllers sometimes hand-roll the whole file paradigm —
-`move_uploaded_file()`, `readfile()` + manual headers, ad-hoc image
-resizing. The framework already provides it, inherited by every controller
-(web AND REST): `$this->upload_file()`, `$this->upload_image()` (with
-resizing), `$this->put_file()`, `$this->get_file_base64()`,
-`$this->display_image()` — plus `attachment_lib` when files belong to a DB
-record. Replace, don't keep parallel implementations:
+`move_uploaded_file()`, `readfile()` + manual headers, ad-hoc image resizing.
+The framework already provides it, inherited by every controller (web AND
+REST): `$this->upload_file()`, `$this->upload_image()` (with resizing),
+`$this->put_file()`, `$this->get_file_base64()`, `$this->display_image()` —
+plus `attachment_lib` when files belong to a DB record. Replace, don't keep
+parallel implementations:
 
 ```bash
 grep -rn "move_uploaded_file\|readfile(\|Content-Disposition\|imagecreate" \
@@ -404,12 +407,12 @@ grep -rn "move_uploaded_file\|readfile(\|Content-Disposition\|imagecreate" \
 The 2.0 Ion Auth backport (Phase 2 replaces the in-tree `Ion_auth` /
 `Ion_auth_model` with the package version) changed two consumer-facing
 contracts that fail SILENTLY — no error, just wrong behavior. (Current auth
-conventions and invariants: the `ixaya-auth` skill; this section covers only
-the legacy-to-2.0 traps.)
+conventions and invariants: the `mgr-auth` skill; this section covers only the
+legacy-to-2.0 traps.)
 
-**1. `forgotten_password()` return key renamed** — `forgotten_password_code`
-→ `forgottenPasswordCode`. A controller reading the old key off the return
-array gets `null`, so the reset email ships an empty link.
+**1. `forgotten_password()` return key renamed** — `forgotten_password_code` →
+`forgottenPasswordCode`. A controller reading the old key off the return array
+gets `null`, so the reset email ships an empty link.
 
 ```bash
 grep -rn "forgotten_password_code" application/ --include="*.php" \
@@ -423,14 +426,14 @@ them) — only the array key moved. Note `clear_forgotten_password_code($x)` and
 `remember_user($x)` also changed to take the IDENTITY, not a code/id — audit
 those call sites pass an identity.
 
-**2. `login()` lost its 4th `$returnUser` arg.** Legacy
-`login($identity, $password, $remember, $returnUser = true)` returned the user
-object before establishing a session; the 2.0 signature is
-`login(string $identity, string $password, bool $remember = false)`. A legacy
-`login($u, $p, false, true)` still runs, but the 4th arg is silently
-DISCARDED — whether you get a session or the bare user object then depends on
-whether a session library happens to be loaded. For the REST/API path (you
-want the user object and no session), declare intent explicitly:
+**2. `login()` lost its 4th `$returnUser` arg.** Legacy `login($identity,
+$password, $remember, $returnUser = true)` returned the user object before
+establishing a session; the 2.0 signature is `login(string $identity, string
+$password, bool $remember = false)`. A legacy `login($u, $p, false, true)`
+still runs, but the 4th arg is silently DISCARDED — whether you get a session
+or the bare user object then depends on whether a session library happens to
+be loaded. For the REST/API path (you want the user object and no session),
+declare intent explicitly:
 
 ```bash
 grep -rnE "->login\([^)]*,[^)]*,[^)]*," application/ --include="*.php"
@@ -451,10 +454,10 @@ sessionless path — the remember-me block only runs when sessions are on.
 
 **2b. `forgotten_password_check()` lost its by-ref `&$profile` param.** Legacy
 `forgotten_password_check($code, &$profile)` returned a bool and filled
-`$profile` by reference; 2.0 returns the user object directly (`object|false`).
-A legacy call still runs — PHP silently ignores the extra argument — and the
-truthiness check still passes, but `$profile` stays null, so downstream code
-reading it half-works and masks the break.
+`$profile` by reference; 2.0 returns the user object directly
+(`object|false`). A legacy call still runs — PHP silently ignores the extra
+argument — and the truthiness check still passes, but `$profile` stays null,
+so downstream code reading it half-works and masks the break.
 
 ```bash
 grep -rnE "forgotten_password_check\([^)]+,[^)]+\)" application/ --include="*.php"
@@ -468,14 +471,13 @@ if ($profile = $this->ion_auth->forgotten_password_check($code)) { ... }
 ```
 
 **2c. `messages()` / `errors()` output format changed.** Legacy returned
-delimiter-wrapped strings (configurable, incl. the
-`delimiters_source = 'form_validation'` reflection option); 2.0 renders view
-templates (`templates` config keys → packaged
-`views/auth/messages/{list,list_errors,single}.php`). Pages echoing them get
-`<ul><li>…` markup instead of the old delimiters, `messages_array()` /
-`errors_array()` items arrive unwrapped, and the delimiter config keys plus
-`set_message_delimiters()` / `set_error_delimiters()` are GONE (calls throw via
-`__call`).
+delimiter-wrapped strings (configurable, incl. the `delimiters_source =
+'form_validation'` reflection option); 2.0 renders view templates (`templates`
+config keys → packaged `views/auth/messages/{list,list_errors,single}.php`).
+Pages echoing them get `<ul><li>…` markup instead of the old delimiters,
+`messages_array()` / `errors_array()` items arrive unwrapped, and the
+delimiter config keys plus `set_message_delimiters()` /
+`set_error_delimiters()` are GONE (calls throw via `__call`).
 
 ```bash
 grep -rnE "ion_auth->(messages|errors)(_array)?\(" application/ --include="*.php"
@@ -483,13 +485,13 @@ grep -rnE "ion_auth->(messages|errors)(_array)?\(" application/ --include="*.php
 # or point the ion_auth `templates` config keys at your own
 ```
 
-**3. `get_users_groups()` / `add_to_group()` — id-less fallback is LIBRARY-only.**
-The CI4 originals defaulted the id and fell back to the session user. In 2.0 the
-MODEL methods require the id (`get_users_groups(int $id)`,
-`add_to_group(array|int $groupIds, int $userId)`), but the LIBRARY provides
-session-fallback wrappers — so `$this->ion_auth->get_users_groups()` /
-`add_to_group($gid)` still work id-less against the current session user (the
-path old session+HTML code uses). A **model-direct** id-less call
+**3. `get_users_groups()` / `add_to_group()` — id-less fallback is
+LIBRARY-only.** The CI4 originals defaulted the id and fell back to the
+session user. In 2.0 the MODEL methods require the id (`get_users_groups(int
+$id)`, `add_to_group(array|int $groupIds, int $userId)`), but the LIBRARY
+provides session-fallback wrappers — so `$this->ion_auth->get_users_groups()`
+/ `add_to_group($gid)` still work id-less against the current session user
+(the path old session+HTML code uses). A **model-direct** id-less call
 (`$this->ion_auth_model->get_users_groups()`) throws `ArgumentCountError`.
 
 ```bash
@@ -501,14 +503,15 @@ Fallback shapes when there is no session user: `add_to_group()` returns `0`;
 `get_users_groups()` returns an empty (but chainable) result — `->result()` /
 `->row()` keep working.
 
-**4. `client_id` session lifecycle is now framework-managed (tenant projects).**
-Legacy projects set the `client_id` session key in their own login controllers
-and read it back via `get_client_id()`. In 2.0 the whole cycle lives in the
-package: `set_session()` stores the tenant id at login when the user row
-carries a `client_id` column, `get_client_id()` returns it (repaired — the 1.x
-accessor guarded on a nonexistent flag and always returned `null`), and it is
-cleared on logout AND on the periodic active-user recheck when the user was
-deactivated (1.x left it lingering on a half-torn-down session).
+**4. `client_id` session lifecycle is now framework-managed (tenant
+projects).** Legacy projects set the `client_id` session key in their own
+login controllers and read it back via `get_client_id()`. In 2.0 the whole
+cycle lives in the package: `set_session()` stores the tenant id at login when
+the user row carries a `client_id` column, `get_client_id()` returns it
+(repaired — the 1.x accessor guarded on a nonexistent flag and always returned
+`null`), and it is cleared on logout AND on the periodic active-user recheck
+when the user was deactivated (1.x left it lingering on a half-torn-down
+session).
 
 Opt in by selecting the column instead of writing the key manually:
 
@@ -519,8 +522,8 @@ AUTH_IDENTITY_EXTRA_COLUMNS=client_id,first_name,last_name
 
 Manual `set_userdata('client_id', ...)` in a login controller keeps working
 when the column is NOT selected. When it IS selected, `set_session()` mirrors
-the user row — including UNSETTING the key when the row's `client_id` is
-empty — so drop the manual write to avoid the two fighting:
+the user row — including UNSETTING the key when the row's `client_id` is empty
+— so drop the manual write to avoid the two fighting:
 
 ```bash
 grep -rn "set_userdata('client_id'\|set_userdata(\"client_id\"" application/ --include="*.php"
@@ -561,30 +564,29 @@ after a session login and `null` after logout/deactivation.
 
 ## Big picture — optional follow-ups (each its own effort)
 
-**Env-based single configs** (what the reference migration did in the same
-commit — you don't have to). The target state: delete
-`application/config/{development,production}/` entirely; each base config
-file reads env vars via `mgr_env()` (copy the sample's config as the base and
-port your values); secrets live in `.env.priv`, the rest in `.env`, both
+**Env-based single configs** (2.0's target state; you don't have to get there
+during the migration). The end state: delete
+`application/config/{development,production}/` entirely; each base config file
+reads env vars via `mgr_env()` (copy the sample's config as the base and port
+your values); secrets live in `.env.priv`, the rest in `.env`, both
 bootstrapped from the package's `.env.sample` + `.env.sample.priv`
 (two-section layout: Package variables first, Project section below;
 `.env.sample.prod` is a production overlay applied on top, not a runtime
-file). File resolution:
-`Env_lib` tries `.env.{CI_ENV}` / `.env.{CI_ENV}.priv` first (e.g.
-`.env.dev`), then falls back to plain `.env` / `.env.priv`; missing files
-are silently skipped, and process-level env vars (docker `env_file:`)
-always win over file values.
+file). File resolution: `Env_lib` tries `.env.{CI_ENV}` / `.env.{CI_ENV}.priv`
+first (e.g. `.env.dev`), then falls back to plain `.env` / `.env.priv`;
+missing files are silently skipped, and process-level env vars (docker
+`env_file:`) always win over file values.
 
-**Server & CLI plumbing (part of the env migration).** Once the app reads
-its environment from `.env`, remove the `CI_ENV` injection from EVERY
-server layer on EVERY server — `.htaccess` `SetEnv` blocks (the 2.0 sample
-already dropped it), Apache vhost `SetEnv`, nginx `fastcgi_param`, cron
-line exports. A stale injection silently redirects which `.env.{CI_ENV}`
-file gets loaded. Audit `bin/cli_run.sh` too — the repo copy AND the
-deployed copies on each server, which drift:
+**Server & CLI plumbing (part of the env migration).** Once the app reads its
+environment from `.env`, remove the `CI_ENV` injection from EVERY server layer
+on EVERY server — `.htaccess` `SetEnv` blocks (the 2.0 sample already dropped
+it), Apache vhost `SetEnv`, nginx `fastcgi_param`, cron line exports. A stale
+injection silently redirects which `.env.{CI_ENV}` file gets loaded. Audit
+`bin/cli_run.sh` too — the repo copy AND the deployed copies on each server,
+which drift:
 
-- shebang must be `#!/bin/bash` (the arg-array syntax below is bash-only,
-  not POSIX sh);
+- shebang must be `#!/bin/bash` (the arg-array syntax below is bash-only, not
+  POSIX sh);
 - no environment exports left in the script (`CI_ENV=...` lines go);
 - it must end by `exec`-ing PHP (proper signal handling and exit codes):
 
@@ -592,25 +594,24 @@ deployed copies on each server, which drift:
 exec /usr/bin/nice -n 10 $php_bin -f $public_path/index.php ${all_args[@]}
 ```
 
-Nuances that make the env migration its own project: per-env value
-differences must be flattened into
-env-var defaults, session/cache/redis values interact with deployment shape
-(see the docker env docs if containerizing), and every config file you
-convert needs its own smoke test. Do it file-by-file, not big-bang —
-`database.php` and `config.php` first, the `lib_*.php` tail last.
+Nuances that make the env migration its own project: per-env value differences
+must be flattened into env-var defaults, session/cache/redis values interact
+with deployment shape (see the docker env docs if containerizing), and every
+config file you convert needs its own smoke test. Do it file-by-file, not
+big-bang — `database.php` and `config.php` first, the `lib_*.php` tail last.
 
-**Separation of project configs.** Project integrations get their own
-app-side config files following the library conventions: `lib_{name}.php` in
+**Separation of project configs.** Project integrations get their own app-side
+config files following the library conventions: `lib_{name}.php` in
 `application/config/` (e.g. `lib_timetracking.php`, `lib_banking.php`,
-`lib_pass.php`) consumed by `{Name}_lib` libraries — never added to the
-vendor tree, and their env vars belong in the Project section of the env
-samples. If the legacy project mixed integration settings into framework
-config files, extract them during (or after) the env migration.
+`lib_pass.php`) consumed by `{Name}_lib` libraries — never added to the vendor
+tree, and their env vars belong in the Project section of the env samples. If
+the legacy project mixed integration settings into framework config files,
+extract them during (or after) the env migration.
 
-**Per-module migrations.** New schema changes use `MGR_Migration_builder`
-(see the `ixaya-migrations` skill) with per-module `migrations/{conn}/` dirs;
-adopt the existing DB state with `manager/tools/version_set` instead of
-re-running history. Legacy migration files stay frozen where they are.
+**Per-module migrations.** New schema changes use `MGR_Migration_builder` (see
+the `mgr-migrations` skill) with per-module `migrations/{conn}/` dirs; adopt
+the existing DB state with `manager/tools/version_set` instead of re-running
+history. Legacy migration files stay frozen where they are.
 
 **Tests skeleton.** Copy `sample/tests/` (framework-booting bootstrap,
 `support/` base classes, and the Ion Auth reference suite under `unit/auth/`)
@@ -624,7 +625,16 @@ reads fail.
 **Agent docs.** Symlink the package skills (`system/skills/` — command in the
 README) and adopt a root `AGENTS.md` for project-wide rules.
 
-**Not part of migrating:** the reference commit also shipped unrelated
-feature work (new endpoints, new models). Resist bundling features into the
-migration commit — it makes the diff unreviewable and the rollback story
-worse.
+The skills were renamed from an `ixaya-` to an `mgr-` prefix (`ixaya-auth` →
+`mgr-auth`, and so on for all ten). `mgr-` matches the namespace the rest of
+the framework already uses — `MGR_` classes, `mgr_*` helpers, `MGRPATH` — so a
+skill name reads as framework provenance rather than as a vendor label. This
+is a soft break: existing symlinks under `.claude/skills/ixaya-*` go stale and
+`/ixaya-*` invocations stop resolving. Delete the old symlinks (the README's
+link loop only writes the names it finds, so it will not clear them), re-run
+that loop, and invoke `/mgr-*` from then on. Nothing in application code
+references a skill name, so no code changes.
+
+**Not part of migrating:** resist bundling unrelated feature work (new
+endpoints, new models) into the migration commit — it makes the diff
+unreviewable and the rollback story worse.

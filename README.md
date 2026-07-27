@@ -1,12 +1,14 @@
 # Manager — by [Ixaya](https://www.ixaya.com)
 
-HMVC Code Igniter based Framework for creating backends and complete websites
+HMVC CodeIgniter 3 based Framework for creating backends
 
 ## About this package
 
-**Ixaya Manager** is a set of files, libraries, and modules that allows you to use Code Igniter to build a Backend with Login or a Complete Website if you prefer.
+**Ixaya Manager** extends CodeIgniter 3 with HMVC module loading, a typed
+base model, a REST framework with API-key auth, and a cross-engine migration
+builder.
 
-The framework is **always consumed as a Composer dependency**: your project bootstraps once from the included scaffold, and from then on the framework lives in `vendor/ixaya/manager` and upgrades with `composer update`. Framework code is never copied into or edited inside a project.
+The framework is **always consumed as a Composer dependency**: your project bootstraps once from the included scaffold, and from then on the framework lives in `vendor/ixaya/manager` and upgrades with `composer update`. Framework code is never copied into or edited inside a project — see `docs/development/upgrading.md` in your project to learn how to update your project's files after an upgrade.
 
 ### Features
 
@@ -23,7 +25,6 @@ The framework is **always consumed as a Composer dependency**: your project boot
 - Login protected Admin module
 - Examples to create a REST API
 - Agent skills included (`system/skills/`) so coding agents follow the framework conventions
-- Production Tested
 - Framework-level exception handling: uncaught errors return proper JSON responses with the right HTTP status and CORS headers
 - Application code kept outside the public web root
 
@@ -94,7 +95,7 @@ The package ships its coding conventions as agent skills (open `SKILL.md`
 format, usable by any coding agent) in `system/skills/`. They cover the whole
 development surface — code style, database models, REST endpoints and auth,
 web controllers and theming, migrations, CLI and background jobs, helpers and
-libraries, caching and websockets, and live runtime testing — and each skill
+libraries, caching and WebSockets, and live runtime testing — and each skill
 describes when to use it. The scaffold's `AGENTS.md` carries the per-skill
 routing table for agents working in your project.
 
@@ -175,7 +176,7 @@ changes the working directory, so relative file arguments don't resolve):
 ```
 
 > **Tip:** Use `--testdox` flag for readable test output, or `--stop-on-failure` to halt execution on the first failed test.
-> **Note:** Projects without host PHP can run it through the docker `tools` service — see `docs/development/docker.md`.
+> **Note:** Run it through the docker `tools` service — see `docs/development/docker.md`. This is the supported path regardless of what's installed on the host.
 
 ### PHP Code Formatting
 
@@ -220,7 +221,7 @@ All operations go through the wrapper script — never `docker compose` directly
 # Development: full stack with a local database
 ./docker_manage.sh -e <instance> --profile <mysql|mariadb|postgres> up -d
 
-# Server / deployment: websocket + cron enabled, database is external/managed
+# Server / deployment: WebSocket + cron enabled, database is external/managed
 ./docker_manage.sh -e <instance> --profile ws --profile cron up -d
 
 # Useful commands
@@ -277,7 +278,10 @@ composer install
 
 ### Project Setup
 
-We recommend creating a root folder named `app` and checking out the project inside it. The framework follows an HMVC (Hierarchical Model-View-Controller) architecture based on CodeIgniter.
+Create a root folder named `app` and upload the project inside it — on a
+server that is where the project lives, in place of `public_html` or similar. The
+framework follows an HMVC (Hierarchical Model-View-Controller) architecture
+based on CodeIgniter.
 
 ### Root Directory
 
