@@ -28,7 +28,7 @@ like it needs that pointer, the content belongs here instead.
 ## File map
 
 | Path | What it is |
-|------|------------|
+|---|---|
 | `docker-compose.yml` | Core services + all profiles. The only compose file loaded unconditionally. |
 | `docker-compose.dev-bind.yml` | Opt-in override, only loaded with `-b`/`--bind`. See "Never bind" below before touching it. |
 | `docker-compose.manager-bind.yml` | Opt-in override, only loaded with `-m`/`--manager-bind`. Same caution. |
@@ -67,11 +67,12 @@ like it needs that pointer, the content belongs here instead.
   `environment:` block in `docker-compose.yml`**, not via the bulk
   `env_file:` load — `entrypoint.sh` reads them from the container's real
   process environment, and that block is what puts them there even though
-  both vars live in `<i>.docker.env`. **Never remove that block** without
-  moving both vars into `<i>.env`, or the entrypoint's checks silently stop
+  both vars live in `<instance>.docker.env`. **Never remove that block** without
+  moving both vars into `<instance>.env`, or the entrypoint's checks silently
+  stop
   working.
-- **`WEBSOCKET_PORT` is dual-consumer and must stay in `<i>.env`, never
-  `<i>.docker.env`.** It's read by the PHP app itself (the ws server's
+- **`WEBSOCKET_PORT` is dual-consumer and must stay in `<instance>.env`, never
+  `<instance>.docker.env`.** It's read by the PHP app itself (the ws server's
   actual bind port) *and* by compose at render time for the `ws`
   healthcheck. Moving it to `.docker.env` silently breaks the app's bind
   port while the healthcheck still renders fine — the app-level breakage
@@ -89,9 +90,10 @@ like it needs that pointer, the content belongs here instead.
 Whenever a change touches how a secret reaches a container (compose
 `secrets:`/`environment:`, a `command:`/entrypoint argument, an env file, or
 the Dockerfile), verify no credential leaks — **both ways**. Grep for the
-actual credential **values** (read them from `docker/secrets/<i>.*` and
-`docker/env/<i>.priv.env`), not just the words `password`/`secret`, across
-every running `<i>-*` container:
+actual credential **values** (read them from `docker/secrets/<instance>.*` and
+`docker/env/<instance>.priv.env`), not just the words `password`/`secret`,
+across
+every running `<instance>-*` container:
 
 - **Layer A — `docker inspect`.** The value must appear nowhere; only secret
   *file paths* (`/run/secrets/…`, bind-mount `Source`) are acceptable.
@@ -109,17 +111,18 @@ Every instance has a base file plus three per-instance files, split by
 actual consumer, not by "feels secret or not". The rule:
 
 1. **Does the PHP app read it** (`mgr_env`/`getenv` anywhere under
-   `application/` or the vendor framework)? → the base `.env.<i>` for its
-   normal value; put it in `<i>.env` ONLY when docker needs a value that
+   `application/` or the vendor framework)? → the base `.env.<instance>` for its
+   normal value; put it in `<instance>.env` ONLY when docker needs a value that
    differs from that base (overrides load last and win).
 2. **Does a script running INSIDE a container read it** (currently only
-   `docker/php/entrypoint.sh`)? → `<i>.env`. (`entrypoint.sh` sees everything
-   `env_file:` bulk-loads, which is now the base `.env.<i>` and `<i>.env`.)
+   `docker/php/entrypoint.sh`)? → `<instance>.env`. (`entrypoint.sh` sees
+   everything `env_file:` bulk-loads, which is now the base `.env.<instance>`
+   and `<instance>.env`.)
 3. **Is it ONLY ever referenced as `${VAR}` inside the compose files or by
    `docker_manage.sh` itself** (ports, image tags, build args,
-   `mem_limit`/`cpus`, bind-mount source paths)? → `<i>.docker.env`.
+   `mem_limit`/`cpus`, bind-mount source paths)? → `<instance>.docker.env`.
 4. **Is it a credential** (anything that would be bad in `docker inspect`)?
-   → `<i>.priv.env`, regardless of 1–3.
+   → `<instance>.priv.env`, regardless of 1–3.
 
 **Before moving or reclassifying an existing var**, grep every `${VAR...}`
 in the compose files against where it's actually defined across all four
@@ -190,9 +193,10 @@ when docker's value must differ from that base.
   boot.
 - `INCLUDE_SMOKE_MODULE` — build arg; local images only.
 
-`sample.priv.env` — the `MUST equal docker/secrets/<i>.*` pairings are
-load-bearing: `LIB_REDIS_PASSWORD` ↔ `<i>.valkey_password`, `DB_PASS` ↔
-`<i>.db_password`. `CF_SESS_SAVE_PATH` embeds the same Valkey password via
+`sample.priv.env` — the `MUST equal docker/secrets/<instance>.*` pairings are
+load-bearing: `LIB_REDIS_PASSWORD` ↔ `<instance>.valkey_password`, `DB_PASS` ↔
+`<instance>.db_password`. `CF_SESS_SAVE_PATH` embeds the same Valkey password
+via
 `auth=` — the CI3 redis session driver parses `auth=` (NOT `password=`) and
 requires timeout in `<int>.<int>` form. `DB_USER` is deliberately NOT here
 (identifier, not a secret — and compose interpolation for
@@ -294,7 +298,7 @@ other secret-bearing file here.
 The general constructor-order rule (set
 `$this->methods[...]['auth_override']` **before** `parent::__construct()`,
 which runs the auth check immediately) is owned by the
-`ixaya-rest-controller` skill — read it before editing any REST controller.
+`mgr-rest-controller` skill — read it before editing any REST controller.
 
 The docker-specific extension, used by the smoke-test module
 (`docker/php/smoke/controllers/`): a controller that must never run in

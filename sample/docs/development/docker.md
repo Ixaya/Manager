@@ -11,66 +11,70 @@ All operations go through the wrapper — never `docker compose` directly:
 ```
 
 `<instance>` selects the env files, secret files, project name, and published
-ports, so multiple instances coexist without cross-talk. Instance names are
-per `docker/env/<instance>.*`;
+ports, so multiple instances coexist without cross-talk. You pick the name —
+lowercase `[a-z0-9_-]`, matching the basename of your files in
+`docker/env/<instance>.*` — and the wrapper aborts on anything else.
 
 ## Your own instance
 
 Every instance needs its own non-committed env files and secrets.
 `docker/env/` and `docker/secrets/` already ignore everything except the
 `sample.*` templates, so anything you create below is never committed.
-Pick an instance name (`<you>` — your username, or `local`):
+Pick an instance name (`<instance>` — your username, or `local`):
 
 ```bash
-cp docker/env/sample.env         docker/env/<you>.env          # docker overrides (non-secret)
-cp docker/env/sample.docker.env  docker/env/<you>.docker.env   # infra / compose interpolation
-cp docker/env/sample.priv.env    docker/env/<you>.priv.env     # secrets (mounted, not env)
-chmod 600 docker/env/<you>.priv.env
+cp docker/env/sample.env         docker/env/<instance>.env          # docker overrides (non-secret)
+cp docker/env/sample.docker.env  docker/env/<instance>.docker.env   # infra / compose interpolation
+cp docker/env/sample.priv.env    docker/env/<instance>.priv.env     # secrets (mounted, not env)
+chmod 600 docker/env/<instance>.priv.env
 
-# base non-secret config (shared with a non-docker CI_ENV=<you> run) — copy
+# base non-secret config (shared with a non-docker CI_ENV=<instance> run) — copy
 # only if you don't already have it; for dev/prod instances you usually do
-[ -f .env.<you> ] || cp .env.sample .env.<you>
+[ -f .env.<instance> ] || cp .env.sample .env.<instance>
 
-openssl rand -hex 24 > docker/secrets/<you>.valkey_password
-openssl rand -hex 24 > docker/secrets/<you>.db_password
-openssl rand -hex 24 > docker/secrets/<you>.db_root_password   # only needed for --profile mysql/mariadb
-chmod 600 docker/secrets/<you>.*
+openssl rand -hex 24 > docker/secrets/<instance>.valkey_password
+openssl rand -hex 24 > docker/secrets/<instance>.db_password
+openssl rand -hex 24 > docker/secrets/<instance>.db_root_password   # only needed for --profile mysql/mariadb
+chmod 600 docker/secrets/<instance>.*
 ```
 
-Copy those same values into `<you>.priv.env`: the valkey password goes in
+Copy those same values into `<instance>.priv.env`: the valkey password goes in
 `LIB_REDIS_PASSWORD` and the `auth=` param of `CF_SESS_SAVE_PATH`; the DB
 password goes in `DB_PASS`.
 
-The **base** non-secret config lives in `.env.<you>` at the app root (the same
-file a non-docker `CI_ENV=<you>` run loads) and is the single source of the
-framework's base values — the `[ -f … ] || cp` line above creates it from
-`.env.sample` only if you don't already have one. `docker_manage.sh` requires
-it and aborts if it's missing. `<you>.env` above carries **only** the docker
-overrides, layered on top of the base by compose (last wins).
+The **base** non-secret config lives in `.env.<instance>` at the app root
+(the same file a non-docker `CI_ENV=<instance>` run loads) and is the single
+source of the framework's base values — the `[ -f … ] || cp` line above
+creates it from `.env.sample` only if you don't already have one.
+`docker_manage.sh` requires it and aborts if it's missing. `<instance>.env`
+above carries **only** the docker overrides, layered on top of the base by
+compose (last wins).
 
 > Write secret files with `printf`/`openssl` (no trailing newline). The
 > consumers strip a trailing newline anyway, but keeping them clean avoids
 > surprises.
 
-### The three env files
+### The four env files
 
 Split by who consumes each variable — not by "secret vs non-secret" alone:
 
 | File | Who reads it | Injected into containers? | Visible in `docker inspect`? |
-|------|---------------|---------------------------|-------------------------------|
-| `.env.<i>` (app root) | The PHP app (`mgr_env`/`getenv`); base non-secret values, single source (= root `.env.sample`) | **Yes** — loaded FIRST via `env_file:` | Yes (non-secret by design) |
-| `<i>.docker.env` | compose interpolation and `docker_manage.sh` only (ports, image tags, build args, `mem_limit`/`cpus`, bind-mount source paths) | **No** | N/A (never enters a container) |
-| `<i>.env` | The PHP app and `docker/php/entrypoint.sh`; docker OVERRIDES only | **Yes** — loaded AFTER the base, so it wins | Yes (non-secret by design) |
-| `<i>.priv.env` | The PHP app, via the bind-mounted `/var/www/html/.env.priv` **file** (not process env) | Mounted as a file | **No** |
+|---|---|---|---|
+| `.env.<instance>` (app root) | The PHP app (`mgr_env`/`getenv`); base non-secret values, single source (= root `.env.sample`) | **Yes** — loaded FIRST via `env_file:` | Yes (non-secret by design) |
+| `<instance>.docker.env` | compose interpolation and `docker_manage.sh` only (ports, image tags, build args, `mem_limit`/`cpus`, bind-mount source paths) | **No** | N/A (never enters a container) |
+| `<instance>.env` | The PHP app and `docker/php/entrypoint.sh`; docker OVERRIDES only | **Yes** — loaded AFTER the base, so it wins | Yes (non-secret by design) |
+| `<instance>.priv.env` | The PHP app, via the bind-mounted `/var/www/html/.env.priv` **file** (not process env) | Mounted as a file | **No** |
 
-`docker_manage.sh` requires all four (the base `.env.<i>`, `<i>.docker.env`,
-`<i>.env`, and the secrets) to exist and aborts loudly if any is missing. Before adding a new variable to any of these files, read the
-"Env var placement" decision tree in `docker-internals.md`.
+`docker_manage.sh` requires all four (the base `.env.<instance>`,
+`<instance>.docker.env`, `<instance>.env`, and the secrets) to exist and
+aborts loudly if any is missing.
+Before adding a new variable to any of these files, read the "Env var
+placement" decision tree in `docker-internals.md`.
 
 ## Pick a database engine
 
-Pick ONE engine and edit `<you>.env` to match — the base "Package" section's
-`DB_DRIVER`/`DB_CHAR_SET`/`DB_COLLATION`, and the "Docker
+Pick ONE engine and edit `<instance>.env` to match — the base "Package"
+section's `DB_DRIVER`/`DB_CHAR_SET`/`DB_COLLATION`, and the "Docker
 deployment-dependent" block's `DB_HOST`/`DB_PORT` (`DB_NAME`/`DB_USER` there
 can be any non-empty value):
 
@@ -83,7 +87,7 @@ can be any non-empty value):
 ### Profile matrix
 
 | Profile | Service | Purpose | Prod? |
-|---------|---------|---------|-------|
+|---|---|---|---|
 | _(core)_ | `php`, `nginx`, `valkey-state`, `valkey-cache` | Always on | Yes |
 | `ws` | `ws` | WebSocket server (internal :9008, published via nginx :8080) | Yes |
 | `cron` | `cron` | supercronic runs `docker/cron/crontab` | Yes |
@@ -91,7 +95,7 @@ can be any non-empty value):
 | `mariadb` | `mariadb` | MariaDB — lighter local alternative, NOT Aurora-compatible | No — dev/local only |
 | `postgres` | `postgres` | PostgreSQL 16 | No — dev/local only |
 | `cli` | `cli` | Interactive shell / one-off commands | As needed |
-| `tools` | `tools` | composer / phpstan / phpunit on the host tree | No — dev only |
+| `tools` | `tools` | composer / PHPStan / PHPUnit — the only supported way to run them, host tree bind-mounted in | No — dev only |
 
 Production uses an **external** database (`DB_HOST=<managed endpoint>`, no db
 profile). Valkey ports are **never** published; only nginx publishes
@@ -126,9 +130,9 @@ done
 ```bash
 # Local development: full stack incl. a local DB. ws/cron are server-only —
 # leave them off, rarely needed in dev.
-./docker_manage.sh -e <you> build
-./docker_manage.sh -e <you> --profile <mysql|mariadb|postgres> up -d
-./docker_manage.sh -e <you> run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/migrate"
+./docker_manage.sh -e <instance> build
+./docker_manage.sh -e <instance> --profile <mysql|mariadb|postgres> up -d
+./docker_manage.sh -e <instance> run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/migrate"
 
 # Server / deployment mode: ws + cron enabled, DB is external/managed.
 ./docker_manage.sh -e <instance> build
@@ -150,13 +154,13 @@ always deploy the pair.
 
 ```bash
 # 1. Build both targets (php-app + nginx-app) at IMAGE_TAG (from the env-file).
-./docker_manage.sh -e <i> build
+./docker_manage.sh -e <instance> build
 
 # 2. Bring up core (php, nginx, valkey-state, valkey-cache) + server profiles.
-./docker_manage.sh -e <i> --profile ws --profile cron up -d
+./docker_manage.sh -e <instance> --profile ws --profile cron up -d
 
 # 3. First run only: migrate (or set RUN_MIGRATIONS=true on ONE instance).
-./docker_manage.sh -e <i> exec php bash /var/www/html/bin/cli_run.sh manager/tools/migrate
+./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/migrate
 
 # 4. Deploy new code: rebuild at a new tag, up -d, then reload FPM (below).
 ```
@@ -168,7 +172,7 @@ re-reads changed files. After deploying new code you **must** reset OPcache
 by reloading the FPM master:
 
 ```bash
-./docker_manage.sh -e <i> exec php kill -USR2 1
+./docker_manage.sh -e <instance> exec php kill -USR2 1
 ```
 
 `SIGUSR2` gracefully reloads the FPM master (finishes in-flight requests) and
@@ -183,7 +187,7 @@ image code so edits apply without rebuilds; `-m` does the same for an
 `ixaya/manager` checkout's `system/` over the vendor copy. Both also mount a
 dev-only ini that sets `opcache.validate_timestamps=1`, so edits apply on the
 next request — no reload needed. Set the source paths in
-`docker/env/<you>.docker.env`:
+`docker/env/<instance>.docker.env`:
 
 - `CODE_BIND_PATH` (`-b`) — path containing `application/`
 - `MANAGER_BIND_PATH` (`-m`) — path containing a manager checkout's `system/`
@@ -194,8 +198,8 @@ resolved path before starting anything. `public/`, `vendor/`, and `bin/` are
 never bound — an `index.php` or composer change needs a rebuild.
 
 ```bash
-./docker_manage.sh -e <you> -b up -d        # app code live
-./docker_manage.sh -e <you> -b -m up -d     # app + framework live
+./docker_manage.sh -e <instance> -b up -d        # app code live
+./docker_manage.sh -e <instance> -b -m up -d     # app + framework live
 ```
 
 The two flags are independent and only cover their own layer: `-b` surfaces
@@ -230,7 +234,7 @@ its own instance so `-b` sessions never collide: unique
 
 ## Static analysis & unit tests (`tools` service)
 
-phpstan/phpunit/php-cs-fixer run through the `tools` service — the image's own
+PHPStan/PHPUnit/php-cs-fixer run through the `tools` service — the image's own
 `vendor-builder` stage (composer plus the exact runtime PHP and extensions),
 with the project tree mounted at `/work`. Dev dependencies land in the host
 tree's `vendor/`; baked images never contain them (the build's
@@ -241,11 +245,11 @@ DB-backed choice — is covered in `testing.md`; this section is only how to run
 them.
 
 ```bash
-./docker_manage.sh -e <i> --profile tools build tools   # once, and after Dockerfile changes
-./docker_manage.sh -e <i> run --rm tools composer install
-./docker_manage.sh -e <i> run --rm tools vendor/bin/phpstan analyse
-./docker_manage.sh -e <i> run --rm tools vendor/bin/phpunit
-./docker_manage.sh -e <i> run --rm tools vendor/bin/php-cs-fixer check --diff
+./docker_manage.sh -e <instance> --profile tools build tools   # once, and after Dockerfile changes
+./docker_manage.sh -e <instance> run --rm tools composer install
+./docker_manage.sh -e <instance> run --rm tools vendor/bin/phpstan analyse
+./docker_manage.sh -e <instance> run --rm tools vendor/bin/phpunit
+./docker_manage.sh -e <instance> run --rm tools vendor/bin/php-cs-fixer check --diff
 ```
 
 `run` targets the profile-gated service directly — no `--profile tools`
@@ -271,10 +275,10 @@ nothing to do; with only the db service up, migrate through the tools
 service using the same testing env the tests will use:
 
 ```bash
-./docker_manage.sh -e <i> --profile postgres up -d postgres   # or your db profile
-./docker_manage.sh -e <i> run --rm -e CI_ENV=testing -e REQUEST_METHOD=GET \
+./docker_manage.sh -e <instance> --profile postgres up -d postgres   # or your db profile
+./docker_manage.sh -e <instance> run --rm -e CI_ENV=testing -e REQUEST_METHOD=GET \
     tools php -f public/index.php manager/tools/migrate
-./docker_manage.sh -e <i> run --rm tools vendor/bin/phpunit --testdox
+./docker_manage.sh -e <instance> run --rm tools vendor/bin/phpunit --testdox
 ```
 
 One gotcha: single-file runs need absolute paths (`vendor/bin/phpunit
@@ -282,7 +286,7 @@ One gotcha: single-file runs need absolute paths (`vendor/bin/phpunit
 `public/`.
 
 > **Test error visibility.** `.env.testing` sets `APP_ENV=development`, so PHP
-> errors surface in the phpunit output. Set `APP_ENV=testing` there (or pass
+> errors surface in the PHPUnit output. Set `APP_ENV=testing` there (or pass
 > `-e APP_ENV=testing`, which process env outranks) to silence them.
 
 ## First login on a fresh database
@@ -291,14 +295,15 @@ Migrations seed one admin user whose factory password is unusable until
 claimed. Claim it once and store what it prints:
 
 ```bash
-./docker_manage.sh -e <you> exec php bash /var/www/html/bin/cli_run.sh manager/tools/claim_admin
+./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/claim_admin
 ```
 
-Write the printed credentials into `docker/env/<you>.agent.env` (gitignored;
+Write the printed credentials into `docker/env/<instance>.agent.env`
+(gitignored;
 template: `docker/env/sample.agent.env`) — never into committed files. Then
 log in through the normal auth endpoint to obtain an `api_key` for
 `X-API-KEY` requests. The command refuses once the account is claimed;
-details and invariants live in the `ixaya-auth` skill (Bootstrap section).
+details and invariants live in the `mgr-auth` skill (Bootstrap section).
 
 CLI commands inside the running stack — always via `bin/cli_run.sh`, never
 plain `php`:
@@ -313,7 +318,7 @@ plain `php`:
 Two Valkey instances per app instance:
 
 | Instance | Holds | Policy | Persistence | Volume |
-|----------|-------|--------|-------------|--------|
+|---|---|---|---|---|
 | `valkey-state` | **sessions** (db1) | `noeviction` | AOF (+RDB) | yes |
 | `valkey-cache` | **cache + queues + pub/sub** (`LIB_REDIS`, db2) | `allkeys-lru` | none | no |
 
@@ -335,30 +340,31 @@ CF_SESS_SAVE_PATH=tcp://valkey-state:6379?timeout=10.0&prefix=mgr_session&databa
 ## Secrets layout & rotation
 
 | What | Where | Reaches the app how | In `docker inspect`? |
-|------|-------|---------------------|----------------------|
-| App credentials (`LIB_REDIS_PASSWORD`, `CF_SESS_SAVE_PATH`, `DB_PASS`, `CF_ENCRYPTION_KEY`, API keys) | `docker/env/<i>.priv.env` (mode 600) | bind-mounted `ro` to `/var/www/html/.env.priv` | **No** |
-| Non-secret config the app/entrypoint reads (incl. `DB_USER` — an identifier, not a secret) | `docker/env/<i>.env` | `--env-file` + `env_file:` | Yes (no secrets here) |
-| Docker-infrastructure-only config (ports, tags, build args, limits) | `docker/env/<i>.docker.env` | `--env-file` interpolation only | N/A |
-| Valkey server password | `docker/secrets/<i>.valkey_password` | compose secret → `--requirepass` via entrypoint | **No** |
-| DB passwords (dev profiles) | `docker/secrets/<i>.db_password`, `.db_root_password` | compose secrets → `*_FILE` env | **No** |
+|---|---|---|---|
+| App credentials (`LIB_REDIS_PASSWORD`, `CF_SESS_SAVE_PATH`, `DB_PASS`, `CF_ENCRYPTION_KEY`, API keys) | `docker/env/<instance>.priv.env` (mode 600) | bind-mounted `ro` to `/var/www/html/.env.priv` | **No** |
+| Non-secret config the app/entrypoint reads (incl. `DB_USER` — an identifier, not a secret) | `docker/env/<instance>.env` | `--env-file` + `env_file:` | Yes (no secrets here) |
+| Docker-infrastructure-only config (ports, tags, build args, limits) | `docker/env/<instance>.docker.env` | `--env-file` interpolation only | N/A |
+| Valkey server password | `docker/secrets/<instance>.valkey_password` | compose secret → `--requirepass` via entrypoint | **No** |
+| DB passwords (dev profiles) | `docker/secrets/<instance>.db_password`, `.db_root_password` | compose secrets → `*_FILE` env | **No** |
 
 No secret is ever in an image layer, a compose env-file, or `docker inspect`.
 
 **Rotate the Valkey password** — update **both** files, then restart:
 
-1. `printf 'NEW' > docker/secrets/<i>.valkey_password`
-2. In `docker/env/<i>.priv.env`, set `LIB_REDIS_PASSWORD=NEW` **and** the
+1. `printf 'NEW' > docker/secrets/<instance>.valkey_password`
+2. In `docker/env/<instance>.priv.env`, set `LIB_REDIS_PASSWORD=NEW` **and** the
    `auth=` in `CF_SESS_SAVE_PATH=…auth=NEW`.
-3. `./docker_manage.sh -e <i> up -d` (recreates affected containers).
+3. `./docker_manage.sh -e <instance> up -d` (recreates affected containers).
    Existing session keys survive on valkey-state (AOF).
 
-**Rotate the DB password** — update `docker/secrets/<i>.db_password` **and**
+**Rotate the DB password** — update `docker/secrets/<instance>.db_password`
+**and**
 `DB_PASS` in `.priv.env`, alter the DB user, then `up -d`.
 
 ## Resource limits & tuning
 
 Every service has `mem_limit` + `cpus` (env-overridable in
-`<i>.docker.env`). FPM is `pm=dynamic` with `pm.max_children` from
+`<instance>.docker.env`). FPM is `pm=dynamic` with `pm.max_children` from
 `PHP_PM_MAX_CHILDREN` (20 dev / 50 prod reference). It is a **build arg** —
 baked into the pool at image build time — so changing it requires a rebuild,
 not a restart.
@@ -456,7 +462,7 @@ the failure is app-wide and path-hunting just produces identical 500s.
 
 The visibility ladder for a failing request, in order:
 
-1. `docker logs <i>-php-1` — PHP `error_log` → container stderr.
+1. `docker logs <instance>-php-1` — PHP `error_log` → container stderr.
 2. `/var/log/manager/{app,cli,cron}` in-container — the app's own log.
 3. `application/logs/` — CI3's default location (normally unused here).
 
@@ -468,7 +474,7 @@ Don't keep re-checking the same channels; escalate instead:
    If the body is STILL empty, the error handler itself is failing too — go
    straight to step 3.
 2. Enable `db_debug` on the DB config so connection failures surface.
-3. Use the silent-fatal probe (see the `ixaya-live-probes` skill,
+3. Use the silent-fatal probe (see the `mgr-live-probes` skill,
    `references/silent-fatal-probe.md`) — a try/catch + shutdown-function
    wrapper that forces out both catchable throwables and true fatals.
 

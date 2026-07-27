@@ -1,8 +1,8 @@
 # Writing tests
 
-How to write and extend the PHPUnit suite. For how to *run* it — the `tools`
-service, the testing environment, single-file invocation — see `docker.md`;
-this document is only about authoring.
+> Scope: writing and extending the PHPUnit suite. For how to *run* it — the
+> `tools` service, the testing environment, single-file invocation — see
+> `docker.md`; this document is only about authoring.
 
 ## The harness
 

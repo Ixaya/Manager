@@ -1,5 +1,11 @@
 # Environment & configuration resolution
 
+Where every configuration value comes from and which source wins: the boot
+sequence that loads the env layer, how `mgr_env()` and the config files
+resolve a key, and the two traps — an empty value is not a missing one, and
+quotes are stripped. Read this before adding a configuration key or debugging
+a value that is not what you expect.
+
 ## Entry point
 
 All HTTP and CLI requests route through `public/index.php`, which boots the
@@ -68,6 +74,6 @@ Docker Compose's own `env_file:` parser already strips matched quotes (and
 rejects a mismatched one outright); this framework's stripping additionally
 covers file-based (`.env` / `.env.priv`) and non-Compose sources.
 
-`manager/tools env_check` reports raw, pre-strip byte lengths, but its
+`manager/tools/env_check` reports raw, pre-strip byte lengths, but its
 `set`/missing verdict follows the same resolution as `mgr_env()` — a
 quoted-empty required key still triggers the missing-key warning.

@@ -1,121 +1,125 @@
 # AGENTS.md
 
-This file guides coding agents (and new developers) working on this
-application, which is built on the `ixaya/manager` framework (a CodeIgniter 3
-HMVC superset) consumed via Composer — framework code lives under `vendor/`
-and is never edited here. Adapt this paragraph when bootstrapping a new
-project: one sentence on what THIS application is and who uses it.
+> Scope: coding agents (and new developers) working on this application,
+> which is built on the `ixaya/manager` framework (a CodeIgniter 3 HMVC
+> superset) consumed via Composer — framework code lives under `vendor/` and
+> is never edited here. Adapt this paragraph when bootstrapping a new
+> project: one sentence on what THIS application is and who uses it.
 
 ## Commands
 
 ```bash
-# Install dependencies
-composer install
-
-# Static analysis (level 5)
-vendor/bin/phpstan analyse
+# Docker is the only supported way to run these — never a bare host
+# `composer`/`vendor/bin/...`. It pins the exact PHP version and extensions
+# the stack ships, so a host run isn't a valid test of a bug (or its absence).
+./docker_manage.sh -e <instance> run --rm tools composer install
+./docker_manage.sh -e <instance> run --rm tools vendor/bin/phpstan analyse
 
 # Docker: always via docker_manage.sh, never `docker compose` directly —
 # it wires the per-instance env files and secrets the compose file needs.
-# Instance names are per docker/env/<instance>.*;
+# You pick the instance name: lowercase [a-z0-9_-], matching your files in
+# docker/env/<instance>.*. Creating those files, picking a DB engine, server
+# profiles, deploying, and troubleshooting: docs/development/docker.md.
 
-# ── Local development: full stack incl. a local DB, on this machine ────────
-# ws/cron are server-only — leave them off, rarely needed in dev. Set up
-# your personal instance and pick a DB engine first — see docs/development/docker.md.
-./docker_manage.sh -e <you> build
-./docker_manage.sh -e <you> --profile <mysql|mariadb|postgres> up -d
-./docker_manage.sh -e <you> run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/migrate"
-
-# ── Server / deployment mode: ws + cron enabled, DB is external/managed ────
+# Day one, once your instance exists: build, start with a local DB, migrate.
+# ws/cron are server-only — leave them off, rarely needed in dev.
 ./docker_manage.sh -e <instance> build
-./docker_manage.sh -e <instance> --profile ws --profile cron up -d
+./docker_manage.sh -e <instance> --profile <mysql|mariadb|postgres> up -d
+./docker_manage.sh -e <instance> run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/migrate"
 
 # CLI commands inside the running stack — always via bin/cli_run.sh, never bare `php`
 ./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/health_checks
 ./docker_manage.sh -e <instance> logs -f php
+
+# Every framework CLI command with its arguments — the authoritative list
+./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/help
 ```
 
-A PHPUnit test suite is configured (`phpunit.xml`, PHPUnit 13): tests live in
-`tests/unit/`, bootstrapped by `tests/Bootstrap.php`, which boots the full
-framework once per run. Config comes from `.env.testing` (profile-independent,
-committed) plus `.env.testing.priv` (the DB block, gitignored — `DB_HOST`/
-`DB_DRIVER` vary per local DB profile).
-
-These are integration tests — they hit the instance's normal dev DB with
-namespaced, self-cleaning fixtures, not mocks. Writing and extending tests —
-the `CITestCase`/`AuthTestCase` bases, fixtures, DB-free vs DB-backed — is
-covered in `docs/development/testing.md`; `tests/unit/auth/` is the reference
-suite.
-
-Run with `vendor/bin/phpunit --testdox` (a `require-dev` dependency; without
-host PHP use the docker `tools`
-service — see `docs/development/docker.md`, including the schema-migration step
-for a fresh DB). PHPStan is the static-analysis gate.
+The suite in `tests/unit/` is an **integration** suite: it boots the whole
+framework and hits the instance's normal dev DB with namespaced, self-cleaning
+fixtures, not mocks. Run it through the docker `tools` service
+(`vendor/bin/phpunit --testdox`) — the supported path regardless of what's
+installed on the host. Authoring conventions and the
+`CITestCase`/`AuthTestCase` bases are in `docs/development/testing.md`
+(`tests/unit/auth/` is the reference suite); the testing environment's config
+and the Docker recipe, including the schema-migration step for a fresh DB, are
+in `docs/development/docker.md`. PHPStan is the static-analysis gate.
 
 ## Agent skills
 
-Framework conventions live as skills in `.claude/skills/ixaya-*/SKILL.md`
+Framework conventions live as skills in `.claude/skills/mgr-*/SKILL.md`
 (open SKILL.md format — readable by any tool; canonical home is the
 `ixaya/manager` package at `vendor/ixaya/manager/system/skills/`). The
 `.claude/skills/` directory is not committed — it is created as a setup step
 by symlinking the package skills (see the framework README's "Agent skills"
 section for the loop; re-run it after major framework updates). If the
 symlinks are missing, read the skills directly from the vendor path.
+
+Where a skill or a framework doc names a bare `system/…` path, it means
+`vendor/ixaya/manager/system/…` — read it there, never edit it.
+
 Before writing or editing ANY code, script, or config file (not just PHP),
-invoke the `ixaya-code-style` skill first — the topic skills below do not
+invoke the `mgr-code-style` skill first — the topic skills below do not
 replace it. **Comments are never documentation** — the comments policy lives
 in that skill. Then consult the matching topic skill BEFORE writing code of
 that kind:
 
 | Skill | Covers |
 |---|---|
-| `ixaya-code-style` | Style baseline for ALL code and config (PHP, shell, YAML, env): typing, PHPDoc, named parameters, comments, where documentation lives |
-| `ixaya-models` | MY_Model / APP_Model_Dyn — any database access |
-| `ixaya-rest-controller` | API endpoints, auth, response envelope |
-| `ixaya-auth` | Login/session/API-key auth, account lockout, first-admin bootstrap (`claim_admin`) |
-| `ixaya-web-controllers` | Web page controllers, views, theming/layouts |
-| `ixaya-migrations` | Schema changes (MGR_Migration_builder) |
-| `ixaya-cli-modules` | CLI commands, crons, background exec, HMVC modules |
-| `ixaya-helpers-libraries` | Utility functions, packaged libraries, creating new libraries |
-| `ixaya-cache-websockets` | Caching, Redis, pub/sub, websocket notifications |
-| `ixaya-live-probes` | Live-testing changes against the running Docker stack: probe controllers, real auth, log channels |
+| `mgr-code-style` | Style baseline for ALL code and config (PHP, shell, YAML, env): typing, PHPDoc, named parameters, comments, where documentation lives |
+| `mgr-models` | MY_Model / APP_Model_Dyn — any database access |
+| `mgr-rest-controller` | API endpoints, auth, response envelope |
+| `mgr-auth` | Login/session/API-key auth, account lockout, first-admin bootstrap (`claim_admin`) |
+| `mgr-web-controllers` | Web page controllers, views, theming/layouts |
+| `mgr-migrations` | Schema changes (MGR_Migration_builder) |
+| `mgr-cli-modules` | CLI commands, crons, background exec, HMVC modules |
+| `mgr-helpers-libraries` | Utility functions, packaged libraries, creating new libraries |
+| `mgr-cache-websockets` | Caching, Redis, pub/sub, WebSocket notifications |
+| `mgr-live-probes` | Live-testing changes against the running Docker stack: probe controllers, real auth, log channels |
+| *(no skill — `docs/development/`)* | Tests: the suite is an **integration** suite, not mocks |
 
-Read `ixaya-auth` whenever end-to-end API testing is in scope, not only when
+Read `mgr-auth` whenever end-to-end API testing is in scope, not only when
 writing auth code: obtaining a first credential (`claim_admin`), logging in, and
 calling an endpoint with a real `X-API-KEY` all live there. A request rejected
-with *"Invalid API key"* is the framework refusing an unauthenticated call — it
-is not evidence that auth works.
+with *"Invalid API key"* is the framework refusing an unauthenticated call —
+it is not evidence that auth works.
 
 ## Architecture
 
-**Framework:** CodeIgniter 3 with HMVC (Hierarchical MVC — the loader lives in `vendor/ixaya/manager/system/third_party/MX/`, not in `application/`). Two vendor packages: `vendor/nielbuys/framework` (the CI3 base) and `vendor/ixaya/manager` (the Manager superset this app is built on) — PHPStan scans both (see `phpstan.neon`).
+**Framework:** CodeIgniter 3 with HMVC (Hierarchical MVC — the loader lives
+in `vendor/ixaya/manager/system/third_party/MX/`, not in `application/`). Two
+vendor packages: `vendor/nielbuys/framework` (the CI3 base) and
+`vendor/ixaya/manager` (the Manager superset this app is built on) — PHPStan
+scans both.
 
-**Entry point:** all HTTP and CLI requests route through `public/index.php`, which boots the env layer (`.env`/`.env.priv` files, process env wins) before CodeIgniter and derives `ENVIRONMENT` from `APP_ENV` — full resolution order in `docs/architecture/environment.md`.
+**Entry point:** all HTTP and CLI requests route through `public/index.php`,
+which boots the env layer before CodeIgniter and derives `ENVIRONMENT` from
+`APP_ENV` — full resolution order in `docs/architecture/`.
 
-**CLI execution:** `php public/index.php module/controller/method [args]`
+**CLI execution:** framework and module commands run inside the Docker stack
+through `bin/cli_run.sh`, never a bare host `php`. Day-to-day forms are in
+"Commands" above; picking the instance and the service, and the full set of
+invocation options, are covered in `docs/development/`.
 
-### Controller hierarchy
+### Application layout
 
-```
-CI_Controller
-└── MY_Controller extends MGR_Controller   (theming/layout resolution, domain
-    │                                       detection, language, view loading)
-    └── APP_Rest_Controller extends MGR_Rest_Controller
-                                           (API key auth, permission + group
-                                            validation — logic lives in
-                                            MGR_Rest_Controller::_remap())
-```
+The project's own code lives under `application/`:
 
-Both `application/core/` classes are thin shims over their `MGR_` parents —
-project-level overrides go there. Legacy base controllers
-(`Admin_Controller`, `Site_Controller`, `Private_Controller`) are NOT part
-of this scaffold — see the `ixaya-web-controllers` skill for where to port
-them from if needed.
+- `core/` — `MY_Controller`, `APP_Rest_Controller`, `MY_Model`,
+  `APP_Model_Dyn`: thin shims over their `MGR_` parents in the package. They
+  are project code, so they can carry local overrides — check them when
+  tracing behavior, don't assume they are empty.
+- `modules/*/controllers/api/` — REST endpoints.
+  `modules/auth/controllers/api/Login.php` is the login/registration flow.
+- `modules/<module>/migrations/<connection>/` — new migrations. Older
+  projects may also carry a root `database/migrations/` folder of legacy
+  app-level migrations: frozen history, don't add new ones there.
+- `database/seeds/` — seeds.
 
 ### Modules (`application/modules/`)
 
 | Module | Purpose |
-|--------|---------|
+|---|---|
 | `admin` | Admin REST API — dashboard, system users (`controllers/api/`) |
 | `auth` | Login / registration REST API (Ion Auth, `controllers/api/`) |
 | `cron` | Scheduled background jobs (example controller) |
@@ -132,53 +136,15 @@ Modules contain `controllers/` and optionally `models/`, `migrations/`,
 `views/`, `helpers/`, `language/`, `config/`, `libraries/` — create
 subdirectories as needed; MX resolves them by convention.
 
-### Models (`application/core/MY_Model.php`, `application/core/APP_Model_Dyn.php`)
-
-Thin project-owned subclasses of `MGR_Model` and `MGR_Model_Dyn` (`vendor/ixaya/manager/system/core/`) — that's where the actual ORM implementation lives. These app-level classes are usually empty shims, but since they're project code (not vendor), they can carry local overrides — check them too when tracing model behavior, don't assume they're always empty.
-
-Model properties, CRUD conventions, and dynamic/filterable queries (joins, `MGR_Model_Dyn_clause` filters): see the `ixaya-models` skill.
-
-### Authentication
-
-**Web sessions:** Ion Auth, shipped by the package
-(`vendor/ixaya/manager/system/package/libraries/Ion_auth.php`), loaded via
-`$this->load->library('ion_auth')` — see
-`application/modules/auth/controllers/api/Login.php` for the login/register
-flow.
-
-**REST API:** API key in request header, validated in
-`MGR_Rest_Controller::_remap()` (inherited by `APP_Rest_Controller`) before
-any action runs, including per-method level/group checks.
-
 ### Configuration
 
-There are no per-environment config directories — every value in `application/config/*.php` resolves via `mgr_env()`/`mgr_env_int()`/`mgr_env_bool()` from real environment variables. How values reach the process (Docker `env_file:`, root `.env`/`.env.priv`, `.env.testing`): see `docs/architecture/environment.md`.
-
-### Views & Theming
-
-Theming is controller-based: each controller (or a shared base controller)
-sets `MGR_Controller` properties and loads views via
-`$this->load_view($page, $data)` — see the `ixaya-web-controllers` skill for
-the layout resolution, theming properties, and domain-driven theming.
-
-### REST endpoints
-
-API routes are under `application/modules/*/controllers/api/` (or `*/controllers/*/api/`). Extend `APP_Rest_Controller` and implement `index_get()`, `index_post()`, etc. The `_remap()` method handles auth automatically.
-
-### Migrations & Seeds
-
-New migrations live inside their module
-(`application/modules/{module}/migrations/{connection}/`); older projects may
-also carry a root `application/database/migrations/` folder of legacy
-app-level migrations — frozen history, don't add new ones there. Seeds live in
-`application/database/seeds/`. Authoring conventions: see the
-`ixaya-migrations` skill.
-
-Run via `bin/cli_run.sh`, never plain `php`:
-```bash
-./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/migrate
-./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/seed
-```
+There are no per-environment config directories — every value in
+`application/config/*.php` resolves from real environment variables through
+the `mgr_env*()` helper family: `mgr_env()`, `mgr_env_int()` and
+`mgr_env_bool()` for example, with required, array and JSON variants
+alongside them. Check the family for the full set rather than casting by
+hand. How values reach the process, and the full resolution order: see
+`docs/architecture/`.
 
 ## Docker stack
 
