@@ -50,6 +50,42 @@ guides to the repository root.
 It is an index, not a knowledge base — detailed documentation belongs
 under `docs/`.
 
+An entry point is the one document whose errors are believed instead of
+checked: it is auto-loaded rather than sought out, so a reader meets it
+before knowing what the task is and cannot judge which claims matter; it
+arrives framed as instructions, so its contents read as fact rather than as
+claims to verify; and nobody opens it *to answer a question*, which is the
+moment a wrong answer would be caught. A document under `docs/` is opened by
+a reader with a specific need, who notices a mismatch immediately. Three
+rules follow from that:
+
+1. **Admit content by the durable-vs-volatile test.** Ask "if this goes
+   stale, does the reader find out?" — not whether the content is prose or a
+   list. DURABLE, so admissible: rules, invariants, scope statements,
+   prohibitions, and pointers. VOLATILE, so not: commands, concrete paths,
+   counts, examples, line numbers.
+2. **Point at directories, not files, unless the pointer is load-bearing.**
+   Name a directory and its purpose (`docs/development/` — the development
+   loop; `docs/architecture/` — boot and structure), never an individual
+   document filename — unless the reader needs one specific document by
+   name for a specific task, in which case name the file. Adding a document
+   then requires no entry-point edit in the common case, and descriptive
+   filenames let a browsing reader find it. This is drift rule 1 applied to
+   the entry point.
+3. **Re-check the entry point whenever you write docs.** After adding or
+   changing a document, check whether the entry point now states,
+   duplicates, or contradicts what was just written. This fires only while
+   someone is already editing documentation — the same shape as the
+   twin-declaration rule.
+
+A hand-maintained inventory may stay in an entry point at **name plus a
+one-line purpose** only. It is admissible against drift rule 1 despite being
+concrete because it describes the project's own code — touched constantly,
+and a wrong row fails loudly, since the named artifact is not where it says.
+Once such a table grows per-artifact detail (endpoints, models,
+dependencies) it crosses into believed-not-checked and must split: the table
+keeps the name and the one line, and points at `docs/modules/<name>.md`.
+
 ## Documentation Layout
 
 All project documentation lives under `docs/`:
@@ -184,7 +220,10 @@ suggestions — check them whenever editing or reorganizing docs:
    content itself into the permanent doc; the history behind it belongs in
    `design/` records and version control, nowhere else.
 4. **Cross-reference by section name, never by section number** — numbers
-   drift silently when sections are added.
+   drift silently when sections are added. Exception: a procedure with
+   more than 10 numbered steps, or more than 5 self-references to its own
+   steps, may reference them by number instead — quoting a full heading
+   at that scale adds more bloat than the drift risk it removes.
 5. **Numbering is only for ordered history** (`design/`, `workspace/`).
    Reference documentation uses flat descriptive filenames — the name is
    the index.
@@ -210,6 +249,18 @@ suggestions — check them whenever editing or reorganizing docs:
 - Do not use emojis in any Markdown documentation. Some IDEs and terminals
   fail to render them correctly, and plain words ("Yes"/"No", status
   labels) are clearer and searchable.
+- Write table delimiter rows compactly — `|---|---|`, one `---` per column.
+  Padded and column-width-matched rows render identically but churn the diff
+  every time a cell's width changes.
+- Hard-wrap prose at roughly 76-80 columns. A reviewer diffing an unwrapped
+  paragraph sees one changed line and has to read the whole thing to find the
+  edit. Tables, fenced code, and long URLs are exempt — never break those to
+  satisfy the width.
+- Indent code inside fenced blocks with spaces, never tabs. A tab renders at
+  whatever width the reader's viewer chooses, and outside a fence Markdown
+  expands leading tabs to four-column stops, where they turn into structure.
+  A document whose whole purpose is to be pasted verbatim into a source file
+  is the exception — it carries that language's real indentation.
 
 ## Documentation Hierarchy
 

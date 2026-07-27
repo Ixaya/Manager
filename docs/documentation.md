@@ -8,9 +8,16 @@
 
 ## Framework deltas to the base standard
 
-- **Repository root** additionally carries `MIGRATION.md` (upgrade
-  guidance for consuming projects — its home whenever the decision matrix
-  would ask) and `SECURITY.md`.
+- **Repository root** additionally carries four documents the base
+  standard's clean-root rule would otherwise send under `docs/`. Each is
+  here because its reader arrives before `docs/` is reachable or relevant:
+  - `SETUP.md` — the full first-install guide. It cannot live under
+    `docs/`: a consuming project has no `docs/` until the scaffold copy
+    step inside this guide has run.
+  - `MIGRATION.md` — upgrade guidance for consuming projects on Manager
+    1.x; its home whenever the decision matrix would ask.
+  - `SECURITY.md` — vulnerability reporting; conventional root location.
+  - `CLAUDE.md` — a one-line `@AGENTS.md` import, not content.
 - **`README.md` is the package's public face** and changes rarely,
   deliberately, and minimally: when installation steps actually change,
   when a major capability ships, or to fix an error. Keep diffs surgical —
@@ -24,12 +31,19 @@
 
 These apply on top of the base standard's Drift Rules:
 
-1. **References are one-way.** Files under `sample/` ship to consuming
-   projects and must never reference this repo's `docs/` or
-   `docs/workspace/` — those paths do not exist in a consuming project.
-   Framework docs may deep-link into `sample/` freely. Check:
-   `grep -rn 'docker-decisions' sample/` must stay empty — same for any
-   other framework-side doc name.
+1. **References are one-way.** Anything that ships to a consuming project —
+   `sample/` and `system/skills/` — must never reference a path that exists
+   only in this repo: `docs/`, `docs/workspace/`, or an `export-ignore`d
+   tree such as `extras/` — unless the reference carries an explicit guard
+   naming it as framework-only (e.g. "(this repo only, not shipped)"),
+   which tells the reader the path will not exist in their own checkout. A
+   skill is normally read from inside a consuming project, so its paths
+   must resolve there (`vendor/ixaya/manager/system/…`, not a bare
+   `system/…`). Framework docs may deep-link into `sample/` and
+   `system/skills/` freely. Check:
+   `grep -rn 'docker-decisions' sample/ system/skills/` must stay empty, or
+   every hit must carry the guard — same for any other framework-side doc
+   name.
 2. **Nothing shipped carries workspace or campaign references — HARD
    rule.** Anything under `sample/` (docs, code comments, env templates,
    configs) must never cite this repo's workspace docs, handoff sections,
