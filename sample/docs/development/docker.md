@@ -499,3 +499,28 @@ Before trusting a negative test result, check: was this container running
 before the edit, and is the relevant bind mode active? Under `-b`/`-m` the
 dev ini enables timestamp validation, so edits apply on the next request and
 this confusion can't happen.
+
+### Testing a profile service with different config — favor the whole stack
+
+To test `ws` (or `cron`) with a temporarily different setting (e.g.
+`WEBSOCKET_MAX_CON=1` for a capacity test), edit the instance's `.env`
+directly — it's gitignored, so there's nothing to revert carefully, just
+change it back when done — and bring the profile up normally:
+
+```bash
+./docker_manage.sh -e <instance> -b -m --profile ws up -d
+```
+
+Prefer this over a standalone `docker compose run` override of just that
+one service. Running the whole stack exercises the real topology (nginx's
+reverse proxy included) exactly as it runs in practice, so a wiring bug
+between services doesn't go unnoticed because the test path skipped it.
+
+A standalone one-off (`run --rm -e VAR=value ws`) also has a sharp edge:
+`docker compose run` does not grant the service's default network alias —
+only `up` does. The one-off container is invisible under the hostname `ws`,
+so nginx's reverse proxy — which resolves its upstream by that exact
+service name — fails every request with `Host not found` / `502`, even
+though the container itself is healthy and reachable by its own container
+name. `--use-aliases` works around it, but reaching for the whole-stack
+approach above avoids the problem entirely instead of routing around it.

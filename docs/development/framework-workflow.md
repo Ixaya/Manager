@@ -125,6 +125,23 @@ The mount source must be an absolute host path. Confirm the bind took before
 trusting a green result — grep an edited symbol inside the container — or a
 pass may be the released package's behavior rather than yours.
 
+### Optional (suggest-only) framework dependencies
+
+Some framework features — the WebSocket server (`amphp/websocket-server`,
+`amphp/log`, `amphp/redis`, `adhocore/jwt`), the AWS integration
+(`aws/aws-sdk-php`), spreadsheet import/export (`phpoffice/phpspreadsheet`)
+— are only listed as `suggest` in `ixaya/manager`'s own `composer.json`, so
+`sample/vendor/` doesn't have them by default. Live-testing one of these
+means adding it to `sample/composer.json`'s `require` (not `require-dev` —
+the Dockerfile's build stage runs `composer install --no-dev`, so dev-only
+deps never reach the runtime image) and rebuilding.
+
+`sample/composer.json` and `sample/composer.lock` are both gitignored at
+the framework root, so there's no need to add it, test, then revert each
+session — let them accumulate whatever optional packages your local
+checkout needs. They ship minimal today only because this gitignore setup
+is recent.
+
 ### Cross-engine verification
 
 Anything touching the database must hold on MySQL/MariaDB, PostgreSQL, SQL

@@ -126,7 +126,8 @@ $this->cache->publish($channel, ['progress' => 100, 'status' => 'done']);
 
 The channel passed to `generateLink()` and to `publish()` must match — the
 WebSocket service relays published messages to the clients connected on that
-channel.
+channel. `generateLink()` returns `null` if `$channel` is null or empty —
+check the return value before using it as a URL.
 
 ## Anti-patterns
 

@@ -76,7 +76,7 @@ class MGR_Jwt_lib
 	/**
 	 * Generate JWT token for authenticated user
 	 *
-	 * @param int $user_id User database ID
+	 * @param int|string $user_id User database ID
 	 * @param string $aud Token audience identifier
 	 * @param array $scopes User permissions/roles
 	 * @param array $extra Extra data to merge (optional)
