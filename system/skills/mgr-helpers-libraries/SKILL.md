@@ -92,7 +92,8 @@ The package ships ready-made models in
 |---|---|
 | `manager_option` | **Key/value app settings** — `get_value($key, $default)` / `save_value($key, $value)`. Use for persisted app state (sync cursors, feature flags) instead of inventing one-off tables; the cron jobs use it this way |
 | `rest_key_model` | API key issuance/lifecycle (see mgr-rest-controller) |
-| `rest_user` | REST group/level checks: `validate_group()`, `get_highest_level()` — used by the framework's `_remap()` gating |
+| `rest_user` | REST user get |
+| `rest_user_group` | REST group/level checks: `validate_group()`, `get_highest_level()` — used by the framework's `_remap()` gating |
 | `attachment` | Rows behind `attachment_lib` |
 | `domain` / `theme` | Per-domain theming/redirects, web layer (see mgr-web-controllers) |
 | `ion_auth_model` | Ion Auth internals — prefer the `ion_auth` library API |

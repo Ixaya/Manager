@@ -42,7 +42,6 @@ class Auth extends Site_Controller
 				$this->session->set_flashdata('message', $this->ion_auth->messages());
 
 				$this->_redirect_to_area();
-
 			} else {
 				$this->session->set_flashdata('message', $this->ion_auth->errors());
 				redirect('auth', 'refresh');
@@ -77,10 +76,10 @@ class Auth extends Site_Controller
 					redirect("/", 'refresh');
 				}
 			} else {
-				$this->load->model('rest_user');
+				$this->load->model('rest_user_group');
 
 				$user_id = $this->ion_auth->user()->row()->id;
-				$user_level = $this->rest_user->get_highest_level($user_id);
+				$user_level = $this->rest_user_group->get_highest_level($user_id);
 				if ($user_level == LEVEL_ADMIN) {
 					redirect("/admin/dashboard", 'refresh');
 				} elseif ($user_level == LEVEL_MEMBER) {
@@ -135,8 +134,6 @@ class Auth extends Site_Controller
 		} catch (Exception $ex) {
 			$message = $ex->getMessage();
 			log_message('debug', $message);
-
-
 		} finally {
 			// en caso de que queramos algún código de finalizar
 			if ($message) {
@@ -145,9 +142,7 @@ class Auth extends Site_Controller
 
 			redirect('/auth', 'refresh');
 		}
-
 	}
-
 }
 
 /* End of file auth.php */

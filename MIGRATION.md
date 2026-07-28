@@ -613,6 +613,13 @@ the `mgr-migrations` skill) with per-module `migrations/{conn}/` dirs; adopt
 the existing DB state with `manager/tools/version_set` instead of re-running
 history. Legacy migration files stay frozen where they are.
 
+**Rest_user group/level methods moved to Rest_user_group.** `validate_group()`
+/ `get_user_group_names()` / `get_highest_level()` now live on a new
+`Rest_user_group` model (`table_name = 'user_group'`); `Rest_user` is a plain
+`user`-table model again. The old methods stay on `Rest_user` as `@deprecated`
+one-line delegates, so nothing breaks — switch any direct caller to
+`$this->rest_user_group->...` going forward.
+
 **Tests skeleton.** Copy `sample/tests/` (framework-booting bootstrap,
 `support/` base classes, and the Ion Auth reference suite under `unit/auth/`)
 to the project root if the project has none, plus `phpunit.xml` and

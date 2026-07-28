@@ -23,6 +23,8 @@ Source of truth (only read if something here is insufficient):
   name, key table…)
 - `vendor/ixaya/manager/system/package/models/Rest_key_model.php` — API key
   issuance/lifecycle
+- `vendor/ixaya/manager/system/package/models/Rest_user_group.php` —
+  `validate_group()` / `get_highest_level()`'s real implementation
 - `vendor/ixaya/manager/system/core/MGR/Exceptions.php` — content-negotiated
   error rendering
 - `application/core/APP_Rest_Controller.php`,
@@ -113,14 +115,8 @@ ones, instead of shipping a public endpoint plus an authenticated twin.
 
 ### Rule 2 — permission gating via group_methods
 
-`_remap()` checks these before any action runs, responding 401 automatically —
-but only for a caller it could identify: the gate sits behind
-`isset($this->_apiuser)`. **Don't pair `group_methods` with `auth_override =
-'allow'`.** An anonymous request skips the gate and gets the public response,
-while an authenticated caller below the level gets 401 — authenticating makes
-the user worse off. On an `'allow'` endpoint, check inside the method with
-`validate_level()` / `validate_group()` and branch to the public response
-yourself.
+`_remap()` checks these before any action runs, responding 401 to **any**
+caller who doesn't satisfy them — identified or not.
 
 ```php
 public function __construct()
@@ -135,6 +131,12 @@ public function __construct()
 If both `level` and `group` are set, passing **either** grants access.
 Constants (`LEVEL_ADMIN` = 10, `GROUP_ADMIN` = 'admin', `GROUP_ADMIN_ID`,
 `GROUP_MEMBER_ID`, …) live in `application/config/constants.php`.
+
+A per-method key falls back to `'*'` independently — overriding `level` alone
+still inherits `'*'`'s `group`. `level = 0` and `group = 'none'` are the only
+values that opt a method out of `'*'` entirely (`null` still falls back, same
+as an absent key); pair with `auth_override` (Rule 1) to also drop the key
+requirement.
 
 Manual checks inside a method: `$this->validate_level($level)`,
 `$this->validate_group($group)`, `$this->validate_access($level, $group)`.
