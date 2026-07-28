@@ -7,7 +7,6 @@ if (!defined('BASEPATH')) {
 class MGR_Controller extends CI_Controller
 {
 	protected ?string $_theme = null;
-	protected ?string $_theme_kind = null;
 	protected ?string $_container = null;
 	protected ?string $_layout = null;
 	protected string $_layout_path = '';
@@ -130,7 +129,7 @@ class MGR_Controller extends CI_Controller
 	{
 		header('Content-Type: application/json');
 
-		echo(json_encode($data));
+		echo (json_encode($data));
 		die();
 	}
 

@@ -1,6 +1,6 @@
 ---
 name: mgr-cli-modules
-description: Use when writing CLI commands or cron jobs, running background tasks, creating a new HMVC module, or loading models/libraries across modules in this codebase. Teaches the CLI controller pattern, async_exec_lib background dispatch, and HMVC module conventions of the ixaya/manager framework.
+description: Use when writing CLI commands or cron jobs, running background tasks, creating a new HMVC module, or loading models/libraries across modules in this codebase. Teaches the CLI controller pattern, async_exec_lib background dispatch, and HMVC module conventions of the ixaya/manager framework — instead of hand-rolling exec()/shell_exec() background dispatch or a plain-CI3 module layout.
 ---
 
 # Manager CLI Tools & HMVC Modules

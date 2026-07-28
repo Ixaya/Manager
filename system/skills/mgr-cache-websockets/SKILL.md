@@ -1,6 +1,6 @@
 ---
 name: mgr-cache-websockets
-description: Use when caching data (Redis-backed cache driver, lists/sets/hashes, TTLs), publishing real-time messages, or wiring WebSocket notifications for async tasks in this codebase. Teaches the extended MGR cache API and the publish/generateLink WebSocket flow of the ixaya/manager framework.
+description: Use when caching data (Redis/Valkey-backed cache driver, lists/sets/hashes, TTLs), publishing real-time messages, or wiring WebSocket notifications for async tasks in this codebase. Teaches the extended MGR cache API and the publish/generateLink WebSocket flow of the ixaya/manager framework — instead of hand-rolling new Redis() calls or a raw WebSocket/pub-sub loop.
 ---
 
 # Manager Cache & WebSockets

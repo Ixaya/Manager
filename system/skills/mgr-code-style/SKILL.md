@@ -1,6 +1,6 @@
 ---
 name: mgr-code-style
-description: Invoke BEFORE your first Write or Edit of ANY code or configuration file in this codebase — PHP, shell, YAML, env templates, SQL — and whenever writing comments or PHPDoc. Covers naming, typing, PHPDoc, comments, formatting, error handling, and where documentation/decisions belong. The style baseline that complements the topic mgr- skills (models, REST, migrations…) — it does not replace them.
+description: Invoke BEFORE your first Write or Edit of ANY code or configuration file — PHP, shell, YAML, env templates, SQL — or whenever writing comments or PHPDoc, in this codebase. Covers naming, typing, PHPDoc, comments, formatting, error handling, and where documentation/decisions belong — instead of camelCase methods/properties, untyped `mixed` params, or long, narrative comments that restate the code.
 ---
 
 # Manager Code Style

@@ -1,6 +1,6 @@
 ---
 name: mgr-live-probes
-description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly. Teaches the gitignored probes-module pattern, the authenticated-not-bypassed rule, the Docker run recipe, and the three log channels that catch silent errors.
+description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly — in this codebase. Teaches the gitignored probes-module pattern, the authenticated-not-bypassed rule, the Docker run recipe, and the three log channels that catch silent errors — instead of trusting a diff/read-through to confirm a fix works.
 ---
 
 # Manager Live Probes (runtime verification via the probes module)

@@ -18,7 +18,6 @@ class Admin_Controller extends MY_Controller
 	{
 		$this->_container = 'admin';
 		$this->_use_domain = false;
-		$this->_theme_kind = 'admin';
 
 		$this->session_enabled = true;
 

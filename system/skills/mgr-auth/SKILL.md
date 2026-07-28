@@ -1,6 +1,6 @@
 ---
 name: mgr-auth
-description: Use when working on authentication — login/logout, sessions vs sessionless API auth, account lockout, password reset, remember-me, user groups, multi-tenant client_id, or bootstrapping the first admin credential/API key on a fresh install — in this codebase. Teaches the Ion Auth stack of the ixaya/manager framework (BE_ fork → package subclasses → config), its extension seams, and the security invariants that must never be regressed.
+description: Use when working on authentication — login/logout, sessions vs sessionless API auth, account lockout, password reset, remember-me, user groups, multi-tenant client_id, or bootstrapping the first admin credential/API key on a fresh install — in this codebase. Teaches the Ion Auth stack of the ixaya/manager framework (BE_ fork → package subclasses → config), its extension seams, and the security invariants that must never be regressed — instead of hand-rolling password_verify()/lockout/token logic against Ion Auth's tables directly.
 ---
 
 # Manager Auth (Ion Auth stack)
