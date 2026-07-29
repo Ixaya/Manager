@@ -3,6 +3,9 @@
 # `./docker_manage.sh -e <instance> -b <args>` — without -b, the stack is
 # byte-identical to core/prod.
 #
+# Every service gets the same bind, including one-off `cli` — `run --rm cli`
+# is how migrate/claim_admin are invoked, so it must see live code too, not
+# just the long-running services.
 # Fixed design — do not add services or bind public/, vendor/, or bin/ here:
 #   - public/ holds only index.php and media/; media/ is already bound by the
 #     base compose, and a read-only public/ bind breaks that nested mount.
@@ -26,6 +29,11 @@ services:
       - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro
 
   cron:
+    volumes:
+      - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/application:/var/www/html/application:ro
+      - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro
+
+  cli:
     volumes:
       - ${CODE_BIND_PATH:?CODE_BIND_PATH is required in the instance env-file for -b/--bind mode}/application:/var/www/html/application:ro
       - ./php/conf.d.dev/99-dev-opcache.ini:/usr/local/etc/php/conf.d/99-dev-opcache.ini:ro

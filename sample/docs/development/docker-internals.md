@@ -60,6 +60,19 @@ like it needs that pointer, the content belongs here instead.
     build/analysis sandbox, never a runtime service; the bind rules above
     protect the runtime services' `/var/www/html`, which `tools` never
     touches.
+- **`docker-compose.dev-bind.yml`/`docker-compose.manager-bind.yml` must
+  bind every service that uses `*app-image`, including one-off `cli`, not
+  just the long-running `php`/`ws`/`cron`.** `cli` was left out of both
+  files from the original commit that introduced them — a plain oversight,
+  never a deliberate exclusion (no design note anywhere scopes these files
+  to long-running services only). It went unnoticed because `cli` still
+  boots fine against the baked image; it just silently serves stale
+  `application/`/`vendor/ixaya/manager/system` instead of your `-b`/`-m`
+  checkout. This is exactly the path `docker.md`'s `migrate`/`claim_admin`
+  instructions run (`run --rm cli`), and it's also the only way to see a
+  `.dockerignore`d module like `probes/` at all — that module never enters
+  a build context, so a rebuild can't compensate for a missing bind either.
+  If you ever add another service on `*app-image`, bind it here too.
 - **Never patch `vendor/`.** It's composer-managed; a local patch is
   silently discarded on the next `composer install`/rebuild. Fixes belong in
   the app layer (`application/`, a version bump, or an upstream issue).

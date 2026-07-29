@@ -243,6 +243,24 @@ dies with the campaign directory at distillation; a shared runbook that
 outlives its campaigns only goes stale. Durable prompt lessons belong here, in
 this playbook.
 
+When a single campaign session subdivides into several execution sessions, the
+objective may get its own `NN-<objective>/prompts.md`. Two rules for it:
+
+- **Number the sessions as subdivisions of the campaign session they execute**
+  — `S6a`–`S6f` for the sessions carrying out campaign session S6. Never
+  restart at S1: it collides with the campaign runbook's own numbering, and is
+  most confusing precisely when the campaign's S6 *is* the session being
+  subdivided.
+- **Do not copy the closing-review or distillation prompts down.** The
+  campaign runbook owns those, and a second session re-diffing the same
+  baselines is waste. End the objective runbook instead with a short "fold
+  into campaign S<n>" list carrying only the checks the campaign review cannot
+  already cover — so check what that review already does first, since it
+  typically re-diffs every fixed item and re-runs the consolidated greps.
+
+An objective's workspace files cannot be distilled when it closes if later
+campaign sessions still read them. Say so in its handoff.
+
 Model/effort selection — capability tier and reasoning effort are separate
 dials: pick the tier from risk and session horizon, the effort from how deep
 each individual judgment runs. The expensive reasoning already happened during
@@ -449,7 +467,22 @@ The failures new operators hit first — each is the negative of a rule above:
    in the same pass: campaign rules that proved durable go to skills or this
    playbook, parked-but-alive items to `pending.md` (title + pointer), the
    rest dies with the workspace — `methodology.md` is the operator's and is
-   never swept. Then list what remains, get operator approval, and archive:
+   never swept.
+
+   **Then prune the agent memory the new documentation replaces.** A rule is
+   usually written to memory the moment it is agreed, and documented in the
+   repo weeks later; without this step the memory survives as a second copy
+   and slowly rots. So for every convention this distillation just wrote into
+   a skill, `AGENTS.md`, or a `docs/` file, delete or trim the memory that was
+   standing in for it, leaving only the residue the new home does not carry.
+   Memory keeps judgment, corrections, and live state — never a procedure the
+   repo now documents. The same pass fixes the two failure modes this has
+   already produced: a "current state" memory that accumulated closed work
+   into a changelog, and cross-links that dangled because two naming
+   conventions were in use. Verify every index entry resolves to a real file
+   before finishing, and re-sync the operator's manual backup afterwards.
+
+   Then list what remains, get operator approval, and archive:
    `tar cJf docs/workspace/archive/<n>-<name>.tar.xz -C docs/workspace
    <n>-<name>`, then delete the live folder. The archive keeps the campaign
    out of the active workspace while letting the operator uncompress it later

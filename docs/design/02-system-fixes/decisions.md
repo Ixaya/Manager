@@ -134,3 +134,18 @@ Item numbers (#1-#18) are the workspace numbering, kept for traceability.
   error). Reimplemented as a transactional delete-by-PK + `insert()`,
   matching MySQL's real full-row-replacement semantics (omitted columns
   revert to default) on every engine.
+- **2026-07-29: `cli` added to `docker-compose.dev-bind.yml`/
+  `docker-compose.manager-bind.yml`'s service lists, alongside `php`/`ws`/
+  `cron`.** Plain oversight, not a prior deliberate exclusion — checked git
+  history and the only recorded rationale for these files (the `public/`
+  drop, above) never mentions which services should get the bind. Found
+  because `-b -m run --rm cli ... manager/tools/plan` reported the
+  `probes` module's migrations as nonexistent: `cli` uses the same
+  `*app-image` as `php`/`ws`/`cron` but was never in either override file,
+  so it always ran against the code baked at the last `build`, and
+  `docker.md`'s own `migrate`/`claim_admin` instructions run through
+  exactly that `run --rm cli` path. Verified live: before the fix `cli`'s
+  `/var/www/html/application/modules/` had no `probes/` at all; after,
+  `manager/tools/plan` through `cli` reports it correctly. A rebuild alone
+  could never have fixed this either — `probes/` is permanently
+  `.dockerignore`d from every build context.
