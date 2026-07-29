@@ -247,35 +247,53 @@ class MGR_Model_Dyn extends MY_Model
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
-		if (!empty($join)) {
-			foreach ($join as $data) {
-				$data->apply($this->my_db);
+		// Grouping keeps the caller's OR/AND choices from defeating the
+		// implicit soft-delete/override filters above
+		$where_used = $where !== [];
+		try {
+			if (!empty($join)) {
+				foreach ($join as $data) {
+					$data->apply($this->my_db);
+				}
 			}
-		}
 
-		foreach ($this->normalized_where($where) as [$kind, $data]) {
-			switch ($kind) {
-				case MGR_Model_Dyn_clause::GROUP:
-					$this->my_db->group_start(); // Opens (
-					foreach ($data as $inner_kind => $inner_fields) {
-						$this->apply_where_condition($inner_kind, $inner_fields);
-					}
-					$this->my_db->group_end(); // Closes )
-					break;
-
-				case MGR_Model_Dyn_clause::OR_GROUP:
-					$this->my_db->or_group_start(); // Opens OR (
-					foreach ($data as $inner_kind => $inner_fields) {
-						$this->apply_where_condition($inner_kind, $inner_fields);
-					}
-					$this->my_db->group_end();
-					break;
-
-				default:
-					// Regular conditions without grouping
-					$this->apply_where_condition($kind, $data);
-					break;
+			if ($where_used) {
+				$this->my_db->group_start(); // groups the caller's where clauses
 			}
+
+			foreach ($this->normalized_where($where) as [$kind, $data]) {
+				switch ($kind) {
+					case MGR_Model_Dyn_clause::GROUP:
+						$this->my_db->group_start(); // Opens (
+						foreach ($data as $inner_kind => $inner_fields) {
+							$this->apply_where_condition($inner_kind, $inner_fields);
+						}
+						$this->my_db->group_end(); // Closes )
+						break;
+
+					case MGR_Model_Dyn_clause::OR_GROUP:
+						$this->my_db->or_group_start(); // Opens OR (
+						foreach ($data as $inner_kind => $inner_fields) {
+							$this->apply_where_condition($inner_kind, $inner_fields);
+						}
+						$this->my_db->group_end();
+						break;
+
+					default:
+						// Regular conditions without grouping
+						$this->apply_where_condition($kind, $data);
+						break;
+				}
+			}
+
+			if ($where_used) {
+				$this->my_db->group_end();
+			}
+		} catch (Throwable $e) {
+			// keeps a mid-build throw from leaving a stray condition queued
+			// on the connection for whatever query runs next.
+			$this->my_db->reset_query();
+			throw $e;
 		}
 
 		return $this->execute_list();

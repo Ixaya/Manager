@@ -124,9 +124,12 @@ class MGR_Model extends CI_Model
 		$this->set_override();
 	}
 
+	/**
+	 * Resolve/refresh $where_override from override_column + override_id.
+	 */
 	public function set_override(int|string|null $id = null): void
 	{
-		if (!$this->override_column || $this->where_override !== null) {
+		if (!$this->override_column) {
 			return;
 		}
 
@@ -141,11 +144,18 @@ class MGR_Model extends CI_Model
 		}
 	}
 
-	public function del_override(): void
+	/**
+	 * Clear the current override. Pass $reset_column = false to keep
+	 * override_column configured while resetting the id
+	 */
+	public function del_override(bool $reset_column = true): void
 	{
 		$this->where_override = null;
-		$this->override_column = null;
+
 		$this->override_id = null;
+		if ($reset_column) {
+			$this->override_column = null;
+		}
 	}
 
 	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
@@ -228,8 +238,12 @@ class MGR_Model extends CI_Model
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
+		// Grouped so or_like()'s OR can't glue onto apply_list_filters()'s
+		// implicit soft-delete/override_column conditions and defeat them.
 		if ($where !== []) {
+			$this->my_db->group_start();
 			$this->my_db->or_like($where);
+			$this->my_db->group_end();
 		}
 
 		return $this->execute_list();
@@ -473,12 +487,14 @@ class MGR_Model extends CI_Model
 	{
 		$this->check_connect();
 
-		$deleted_expr = match ($this->my_db_driver) {
-			MgrDriver::Postgres => 'NOT sync_enabled',
-			default             => '!sync_enabled',
-		};
-
-		$query = "UPDATE $this->table_name SET enabled = sync_enabled, deleted = $deleted_expr, last_update = ? WHERE enabled != sync_enabled AND (enabled = 0 OR enabled = 1)";
+		// CASE, not NOT/!sync_enabled: sync_enabled can hold values above 1
+		// and this must binarize any nonzero value to 0.
+		$query = "UPDATE {$this->table_name}
+			SET enabled = sync_enabled,
+				deleted = CASE WHEN sync_enabled = 0 THEN 1 ELSE 0 END,
+				last_update = ?
+			WHERE enabled != sync_enabled
+				AND (enabled = 0 OR enabled = 1)";
 
 		$now = date('Y-m-d H:i:s');
 		return $this->my_db->query($query, [$now]);
@@ -552,17 +568,27 @@ class MGR_Model extends CI_Model
 		return false;
 	}
 
+	/**
+	 * Cross-engine equivalent of REPLACE INTO: delete any row matching
+	 * $data's primary key, then insert $data fresh
+	 */
 	public function replace(array $data): int|string|bool
 	{
-		$this->apply_alter_filters();
-		$this->set_alter_keys($data);
+		$this->my_db->trans_start();
 
-		$success = $this->my_db->replace($this->table_name, $data);
-		if ($success) {
-			return $this->my_db->insert_id();
-		} else {
-			return false;
+		if (isset($data[$this->primary_key])) {
+			$id = $data[$this->primary_key];
+
+			$this->apply_alter_filters();
+			$this->my_db->where($this->primary_key, $id);
+			$this->my_db->delete($this->table_name);
 		}
+
+		$result = $this->insert($data);
+
+		$this->my_db->trans_complete();
+
+		return $this->my_db->trans_status() ? $result : false;
 	}
 
 	public function empty_row(?array $properties = null, bool $include_id = true): array
@@ -690,7 +716,7 @@ class MGR_Model extends CI_Model
 		}
 
 		if ($this->soft_delete) {
-			$this->my_db->where("{$this->table}.deleted", 0);
+			$this->my_db->where("{$this->table_name}.deleted", 0);
 		}
 	}
 

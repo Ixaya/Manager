@@ -42,3 +42,28 @@ gitignored, authenticated probes (`item16_post`, `putfile_blob_post`,
 `base64_missing_get`, and the #15 checks), re-runnable per item. (Module
 since renamed to `probes/`; this gitignored file no longer exists at this
 path.)
+
+## Fix verification (2026-07-29 addendum)
+
+Found and fixed while writing a PHPUnit contract test for dyn-mode models,
+then probing `MGR_Model_Dyn`/`MY_Model` live before trusting either in the
+field — not part of the original #1-18 sweep.
+
+- **`sync_commit_enabled()` / `replace()` / `get_all_or_like()` /
+  `set_override()` all live-probed on Postgres** (`Dyn_join_probe`,
+  `Base_model_probe`, both gitignored) — each bug reproduced, fixed, and
+  re-verified against the same probe; `get_all_dynamic()`'s OR-clause fix
+  additionally spot-checked on MySQL.
+- **Closing re-diff (2026-07-29):** every fix re-diffed against its
+  baseline in the same session — all fixed-verified, none regressed.
+  phpstan/cs-fixer clean; full PHPUnit suite (86 tests) and the new
+  `Models` testsuite (22 tests) green.
+
+## Probe assets (keep, reuse) — addendum
+
+`sample/application/modules/probes/controllers/api/Dyn_join_probe.php` and
+`Base_model_probe.php` (gitignored, real API key, keyless 403s), plus the
+`Dyn_probe` model/migration fixture they share — cover dyn/join edge cases
+and the base `MY_Model` surface. `sample/tests/unit/models/DynModelTest.php`
++ `BaseModelTest.php` promote the confirmed regressions to permanent
+PHPUnit coverage (shared fixture: `sample/tests/support/DynProbeFixture.php`).

@@ -1,7 +1,9 @@
 # System fixes — final state
 
 Initiative CLOSED 2026-07-14 for all actionable items (#1-#3, #6-#18).
-Everything verified per `review.md`.
+Everything verified per `review.md`. Reopened briefly 2026-07-29 for four
+more fixes found writing a PHPUnit contract test for dyn-mode models — see
+`decisions.md`.
 
 ## Open / deferred
 
@@ -16,6 +18,7 @@ Everything verified per `review.md`.
 - **README canonicality flag: RESOLVED** — `README-v2.md` was promoted to
   `README.md` (the tracked README now carries the "Agent skills" table;
   mgr-auth added 2026-07-14).
-- **SQL Server:** `sync_commit_enabled()`'s driver match has no `SQLServer`
-  branch (T-SQL rejects `NOT <col>` as a scalar) — handle if that driver
-  ever becomes a real target.
+- **SQL Server: RESOLVED** — `sync_commit_enabled()`'s driver-matched
+  `NOT`/`!sync_enabled` was replaced by a portable `CASE WHEN sync_enabled
+  = 0 THEN 1 ELSE 0 END`, valid on every engine including SQL Server; no
+  per-driver branch exists anymore.

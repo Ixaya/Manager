@@ -110,3 +110,27 @@ Item numbers (#1-#18) are the workspace numbering, kept for traceability.
   because Docker silently auto-creates an empty source directory for a
   wrong path. `--project-directory` was rejected: it would invert every
   existing relative path in every instance env file.
+- **2026-07-29 (supersedes #8): `NOT sync_enabled` replaced by portable
+  `CASE WHEN sync_enabled = 0 THEN 1 ELSE 0 END`.** Also fixes a real bug
+  the match masked — `NOT`/`!` collapse any nonzero `sync_enabled`
+  (multi-stage sync markers) the same as `1`; `CASE` keeps that and needs
+  no per-driver branch, closing the SQL Server gap for free.
+- **2026-07-29: implicit soft-delete/override_column filters were
+  AND-glued, but a caller's leading `OR_*` clause (or `get_all_or_like()`)
+  let CI3 glue it with OR instead, silently defeating the filter.** Found
+  live-probing `MGR_Model_Dyn` before trusting dyn mode in the field. Fixed
+  by grouping the caller's conditions in their own
+  `group_start()`/`group_end()` (`get_all_dynamic()`, `get_all_or_like()`),
+  plus `try`/`catch` + `reset_query()` since a mid-build throw skipped the
+  closing `group_end()` and corrupted the connection for the next query.
+- **2026-07-29: `set_override()`'s no-arg/session-fallback guard also
+  blocked an explicit `set_override($id)` from ever taking effect twice**
+  — a reused model instance couldn't switch tenants; verified a write
+  landing under the wrong `tenant_id`. Narrowed the guard to the no-arg
+  path only; `del_override(bool $reset_column = true)` added to reset the
+  id without losing `override_column`.
+- **2026-07-29: `replace()` was MySQL/SQLite-only** (`$this->my_db->
+  replace()` emits raw `REPLACE INTO`, a Postgres/SQL Server syntax
+  error). Reimplemented as a transactional delete-by-PK + `insert()`,
+  matching MySQL's real full-row-replacement semantics (omitted columns
+  revert to default) on every engine.

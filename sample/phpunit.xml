@@ -16,6 +16,9 @@
     <testsuite name="Env">
       <directory>tests/unit/env</directory>
     </testsuite>
+    <testsuite name="Models">
+      <directory>tests/unit/models</directory>
+    </testsuite>
   </testsuites>
   <logging>
     <junit outputFile="tests/reports/logs/junit.xml"/>

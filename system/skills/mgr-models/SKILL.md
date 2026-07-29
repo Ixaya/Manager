@@ -75,7 +75,7 @@ a method call so there's no runtime error, but it invites mistakes — name it
 | `$soft_delete` | `false` | `delete()` sets `deleted=1, enabled=0` instead of DELETE; all reads add `WHERE deleted=0` |
 | `$save_history` | `false` | Audit trail |
 | `$use_last_update` | `true` | Every write stamps `last_update = now` |
-| `$override_column` / `$override_id` | `null` | Tenant scoping: all reads/writes get `WHERE table.col = id`; inserts get the column added. `override_id` falls back to `$_SESSION[$override_column]` |
+| `$override_column` / `$override_id` | `null` | Tenant scoping: all reads/writes get `WHERE table.col = id`; inserts get the column added. `override_id` falls back to `$_SESSION[$override_column]`. `set_override($id)` always applies an explicit `$id`, even if already resolved — reuse the instance to switch tenants. `del_override(false)` clears the id but keeps `$override_column` |
 | `$lazy_connect` | `false` | Skip connect in constructor; methods call `check_connect()` |
 | `$legacy_mode` | `false` | Single-row reads return objects instead of arrays — never enable in new code |
 
@@ -130,7 +130,7 @@ upsert(array $data, int|string|null $id = null): int|string|bool
     // $id given => update (returns $id); null => insert (returns insert_id)
 upsert_where(array $data, array $where, array $insert_data = []): int|string|bool
     // row matching $where exists => update; else insert(data + where + insert_data)
-replace(array $data): int|string|bool          // SQL REPLACE
+replace(array $data): int|string|bool          // delete-then-insert by primary key, cross-engine — full row replacement, not a partial update
 delete(int|string $id): bool                   // soft or hard per $soft_delete
 delete_where(array $where): bool               // refuses empty $where
 ```
@@ -149,7 +149,7 @@ sync_update_insert(array $data, array $where, bool $insert = true, bool $add_syn
 sync_update(int|string $id, array $data, bool $timestamp = true, ?array $row = null, int $default_count = 0): bool
     // Diff-aware update; pass the current $row to skip no-op writes.
 sync_update_enabled(int|string|null $id, int $status): bool  // set sync_enabled flag ($id null = all rows)
-sync_commit_enabled(): bool  // enabled = sync_enabled, deleted = !sync_enabled — commit a sync pass
+sync_commit_enabled(): bool  // enabled = sync_enabled, deleted binarized from it (0 vs nonzero) — commit a sync pass; sync_enabled may exceed 1 for multi-stage progress
 ```
 
 ## Utilities
@@ -162,7 +162,7 @@ get_hash(int $length = 13): string
 get_unique_hash(int $length = 13, string $field = 'hash'): ?string    // retries until unused in $field
 clean_string(string $text): string             // accent-strip + snake-safe identifier
 debug_query(bool $return = false): ?string     // last executed SQL
-set_override(int|string|null $id = null): void / set_override_column(string $column_name) / del_override()
+set_override(int|string|null $id = null): void / set_override_column(string $column_name) / del_override(bool $reset_column = true)
 reconnect_database(string $connection_name, string $database_name, bool $generate_table_name = false): void
 set_database_time_zone(string $time_zone): void
 ```
@@ -192,7 +192,7 @@ get_all_dynamic($fields = null, array $where = [], array $join = [],
 | `LIKE` / `OR_LIKE` | `col LIKE %value%` |
 | `WHERE_IN` / `OR_WHERE_IN` | `col IN (...)` — **throws on empty list** |
 | `GROUP` / `OR_GROUP` | parenthesized group of inner clauses |
-| `EQUAL_COL` / `OR_EQUAL_COL` | column = column (identifiers validated; security-relevant in joins) |
+| `EQUAL_COL` / `OR_EQUAL_COL` | col = value (escaped), same as EQUAL — column=column only inside a join's `on:` |
 
 Two formats, mixable — assoc (one entry per kind) or list (repeats allowed):
 
@@ -236,6 +236,8 @@ regex-validated and throw on anything unsafe; unknown clause kinds throw
 instead of being silently dropped.
 
 Gotchas:
+- `EQUAL_COL` in `$where` is a literal comparison (same as `EQUAL`), not
+  column=column — that meaning applies only inside a join's `on:`.
 - Mixed AND/OR in a join ON clause is emitted flat (SQL precedence applies) —
   split into separate joins if you need grouping.
 - `FULL`/`CROSS` join types don't exist (CI3 silently degrades them).
