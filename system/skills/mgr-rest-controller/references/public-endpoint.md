@@ -28,14 +28,14 @@ class Login extends APP_Rest_Controller
         // every failure cause returns the same message — differentiated
         // responses are a username-enumeration surface
         if (empty($username) || empty($password)) {
-            $this->response(['status' => -1, 'message' => 'Username/password incorrect'], REST_Controller::HTTP_OK);
+            $this->response(['status' => 0, 'message' => 'Username/password incorrect'], REST_Controller::HTTP_UNAUTHORIZED);
         }
 
         $this->ion_auth->disable_session();
         $user = $this->ion_auth->login($username, $password);
 
         if ($user === false) {
-            $this->response(['status' => -1, 'message' => 'Username/password incorrect'], REST_Controller::HTTP_OK);
+            $this->response(['status' => 0, 'message' => 'Username/password incorrect'], REST_Controller::HTTP_UNAUTHORIZED);
         }
 
         $this->response($this->build_login_response($user, $this->post('device_uuid')), REST_Controller::HTTP_OK);

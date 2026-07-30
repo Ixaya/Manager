@@ -203,10 +203,10 @@ payload.
 **exits** — code after it never runs, which is why guard clauses need no
 `return`.
 
-Envelope convention — `status` is three-tier: `1` = success, `0` = domain
-failure (validation, not found, auth), `-1` = exception/framework-level error
-(you rarely emit this yourself — the framework does). `message` = human text;
-`response` = payload wrapper:
+Envelope convention — `status` is binary and answers one question only: did the
+request do what was asked? `1` = yes, `0` = no, as **integers** (not JSON
+booleans). The *kind* of failure is carried by the HTTP status code, never by a
+second tier in the body. `message` = human text; `response` = payload wrapper:
 
 ```php
 // success
@@ -224,17 +224,42 @@ Match the HTTP code to the failure with the `REST_Controller::HTTP_*`
 constants (`HTTP_OK`, `HTTP_BAD_REQUEST`, `HTTP_NOT_FOUND`,
 `HTTP_UNAUTHORIZED`, `HTTP_INTERNAL_SERVER_ERROR`, …), never bare ints.
 
+**`status` and the HTTP class must agree** — `1` with a 2xx, `0` with a 4xx or
+5xx. Everything below the envelope (proxies, APM, monitoring, retry libraries)
+reads the status line and is blind to the body, so a failure answered with
+HTTP 200 is invisible to all of them.
+
+A `-1` tier for framework/exception errors is **retired**; don't emit it or
+branch on it. You will still see it in older controllers, and in the
+framework's own disclosed error envelope below — legacy surface, not a pattern
+to copy.
+
 ### Uncaught errors already return JSON
 
-`MGR_Exceptions` content-negotiates all error output: when the client doesn't
-accept HTML (API calls), uncaught exceptions, PHP errors, and 404s
-automatically render as `{status: -1, error: <class>, message, file, line}`
-with CORS headers and parsed DB errors. So an endpoint without try/catch still
-fails with structured JSON — don't wrap everything defensively. Use `try/catch
-(Exception $e)` when you want a friendlier message, cleanup, or a specific
-HTTP code (respond `HTTP_INTERNAL_SERVER_ERROR`, log with
-`mgr_process_exception($e)`). CLI-visible logging inside API code:
-`$this->print_log($object)` (timestamped, class-tagged).
+`MGR_Exceptions` renders uncaught exceptions, PHP errors and 404s as JSON for
+API clients, with CORS headers. A **5xx** arrives in one of two shapes, chosen
+by `should_disclose_details()` — which is `is_cli() || display_errors`, **not**
+`ENVIRONMENT`:
+
+- **Disclosed** (CLI, or `display_errors` on — development):
+  `{status: -1, error: <class>, message, file, line}`. A query that fails while
+  `db_debug` is on renders the parsed DB envelope instead — `errno`, `message`,
+  `file`, `line`, and the failing `query`.
+- **Suppressed** (otherwise — production): `{status: 0, message: 'An unexpected
+  error occurred.'}` and nothing else, so one failure mode cannot be told from
+  another by comparing responses.
+
+**4xx is never suppressed** — it is deliberate and client-facing. **Detail is
+always logged**, under either shape, so a generic response costs the server
+nothing. Write clients against the suppressed shape: `error`, `file` and `line`
+do not exist in production.
+
+So an endpoint without try/catch still fails with structured JSON and still
+logs — don't wrap everything defensively. Use `try/catch (Exception $e)` when
+you want a friendlier message, cleanup, or a specific HTTP code (respond
+`HTTP_INTERNAL_SERVER_ERROR`, log with `mgr_process_exception($e)`).
+CLI-visible logging inside API code: `$this->print_log($object)` (timestamped,
+class-tagged).
 
 ### Response caching (expensive list endpoints)
 

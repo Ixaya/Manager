@@ -87,6 +87,10 @@ $db['default'] = [
 	'dbdriver' => mgr_env('DB_DRIVER', 'mysqli'),
 	'dbprefix' => '',
 	'pconnect' => false,
+	// Two failure modes for a query that does not execute — pick one per project:
+	//   true  — aborts the request: development renders the failing SQL, production a
+	//           generic 500; the detail is logged in both
+	//   false — returns null/false and execution continues, so every DB call must check
 	'db_debug' => (ENVIRONMENT !== 'production'),
 	'cache_on' => false,
 	'cachedir' => '',
