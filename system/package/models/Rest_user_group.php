@@ -69,7 +69,8 @@ class Rest_user_group extends MY_Model
 			join_method: 'left',
 		);
 
-		return array_column($rows, 'name');
+		// Fails closed: this feeds authorization, so a failed lookup means no groups.
+		return array_column($rows ?? [], 'name');
 	}
 
 	/**

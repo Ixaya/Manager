@@ -91,8 +91,11 @@ UPDATE.
 
 ## Read methods
 
-All return `?array` (single row) or `array` (lists, empty array on no
-results/failure). `$fields` is a comma-separated select list or array; `null`
+All return `?array`. For a single row, `null` means no such row. For a list,
+`null` means the **query failed to execute** (bad column, bad table,
+constraint) and `[]` means it ran and matched nothing — never conflate the
+two; `count_all()` is `?int` on the same contract, where `0` is a genuinely
+empty table. `$fields` is a comma-separated select list or array; `null`
 = `SELECT *`. `$limit` accepts `int`, `'10'`, or `[limit, offset]`.
 
 ```php
@@ -102,16 +105,16 @@ by_hash(string $hash, string $field = 'hash'): ?array
 get_min_max(string $field, array $where = [], ?string $field_alias = null): ?array
     // returns ['min_{field}' => ..., 'max_{field}' => ...]
 
-get_all($fields = null, array $where = [], $limit = null, ?string $order_by = null, ?string $group_by = null): array
+get_all($fields = null, array $where = [], $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 get_all_join($fields, $where, $limit, $order_by, $group_by,
-             ?string $join_table = null, ?string $join_where = null, string $join_method = 'left'): array
-get_all_like($fields, array $where, ...): array      // WHERE col LIKE %val%
-get_all_or_like($fields, array $where, ...): array   // OR LIKE
-get_all_in(string $field, array $values, $fields = null, $limit = null, ...): array
-get_all_updated(string $last_update, $fields = null, array $where = [], ...): array
+             ?string $join_table = null, ?string $join_where = null, string $join_method = 'left'): ?array
+get_all_like($fields, array $where, ...): ?array      // WHERE col LIKE %val%
+get_all_or_like($fields, array $where, ...): ?array   // OR LIKE
+get_all_in(string $field, array $values, $fields = null, $limit = null, ...): ?array
+get_all_updated(string $last_update, $fields = null, array $where = [], ...): ?array
     // rows where last_update > $last_update — for sync/polling
 
-count_all(?array $where = null): int
+count_all(?array $where = null): ?int
 ```
 
 `$where` uses CI3 query-builder syntax: `['status' => 1, 'amount >' => 100]`.
@@ -181,7 +184,7 @@ class Report extends APP_Model_Dyn { ... }
 
 ```php
 get_all_dynamic($fields = null, array $where = [], array $join = [],
-                $limit = null, ?string $order_by = null, ?string $group_by = null): array
+                $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 ```
 
 `$where` is keyed by `MGR_Model_Dyn_clause` constants:

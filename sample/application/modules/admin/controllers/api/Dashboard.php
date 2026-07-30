@@ -19,7 +19,8 @@ class Dashboard extends APP_Rest_Controller
 			$this->load->model('admin/user');
 
 			$response = [];
-			$response['users_count']   = intval($this->user->count_all());
+			// null = the count query failed; must stay distinguishable from a real 0.
+			$response['users_count']   = $this->user->count_all();
 
 			$this->response(['status' => 1, 'response' => $response], REST_Controller::HTTP_OK);
 		} catch (Exception $e) {

@@ -240,10 +240,10 @@ class MGR_Model_Dyn extends MY_Model
 	 * @param  string|array          $limit     Row limit as string, e.g. '25'.
 	 * @param  string                $order_by  ORDER BY expression. Never pass raw request input.
 	 * @param  string                $group_by  GROUP BY expression. Never pass raw request input.
-	 * @return array
+	 * @return ?array Array of result rows, empty array if no results found, null if the query failed
 	 * @throws InvalidArgumentException on unknown clause kinds or empty IN() lists.
 	 */
-	public function get_all_dynamic(string|array|null $fields = null, array $where = [], array $join = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): array
+	public function get_all_dynamic(string|array|null $fields = null, array $where = [], array $join = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 

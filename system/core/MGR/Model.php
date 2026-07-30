@@ -201,16 +201,16 @@ class MGR_Model extends CI_Model
 		return $this->execute_row();
 	}
 
-	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): array
+	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	public function get_all(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
 		return $this->execute_list();
 	}
 
-	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all_join(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null, ?string $join_table = null, ?string $join_where = null, string  $join_method = 'left'): array
+	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	public function get_all_join(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null, ?string $join_table = null, ?string $join_where = null, string  $join_method = 'left'): ?array
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
 
@@ -221,8 +221,8 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all_like(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): array
+	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	public function get_all_like(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
@@ -233,8 +233,8 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all_or_like(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): array
+	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	public function get_all_or_like(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
@@ -249,8 +249,8 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all_in(string $field, array $values, string|array|null $fields = null, int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): array
+	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	public function get_all_in(string $field, array $values, string|array|null $fields = null, int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
 
@@ -261,14 +261,15 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return array Array of result rows, empty array if query fails or no results found */
-	public function get_all_updated(string $last_update, string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): array
+	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	public function get_all_updated(string $last_update, string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$where['last_update >'] = $last_update;
 		return $this->get_all($fields, $where, $limit, $order_by, $group_by);
 	}
 
-	public function count_all(?array $where = null): int
+	/* @return ?int Row count, null if the query failed — 0 means the table genuinely has no matching rows */
+	public function count_all(?array $where = null): ?int
 	{
 		$this->apply_common_filters();
 
@@ -280,6 +281,9 @@ class MGR_Model extends CI_Model
 		}
 
 		$data = $this->execute_list();
+		if ($data === null) {
+			return null;
+		}
 
 		return (int)($data[0]['count'] ?? 0);
 	}
@@ -832,9 +836,9 @@ class MGR_Model extends CI_Model
 	 * with different WHERE conditions (LIKE, IN, BETWEEN, etc.)
 	 *
 	 * @param string $table The table name to query
-	 * @return array Array of result rows, empty array if query fails or no results found
+	 * @return ?array Array of result rows, empty array if no results found, null if the query failed
 	 */
-	protected function execute_list(?string $table = null): array
+	protected function execute_list(?string $table = null): ?array
 	{
 		if ($table !== null) {
 			$Q = $this->my_db->get($table);
@@ -842,7 +846,7 @@ class MGR_Model extends CI_Model
 			$Q = $this->my_db->get($this->table_name);
 		}
 		if ($Q === false) {
-			return [];
+			return null;
 		}
 
 		$data = $Q->result_array();
