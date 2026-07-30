@@ -34,7 +34,7 @@ class Login extends APP_Rest_Controller
 		$password   = $this->post('password');
 
 		if (empty($username) || empty($password)) {
-			$this->response(['status' => -1, 'message' => "Username/password incorrect"], REST_Controller::HTTP_OK);
+			$this->response(['status' => 0, 'message' => "Username/password incorrect"], REST_Controller::HTTP_UNAUTHORIZED);
 		}
 
 		$device_uuid = $this->post('device_uuid');
@@ -46,19 +46,22 @@ class Login extends APP_Rest_Controller
 
 
 		if ($result != false) {
-			$json = $this->___processJSONResponse($result, null, $device_uuid);
-			$this->response($json, REST_Controller::HTTP_OK);
-		} else {
-			$this->response(['status' => -1, 'message' => "Username/password incorrect"], REST_Controller::HTTP_OK);
+			$response = $this->_processResponse(objAcc: $result, device_uuid: $device_uuid);
+			$this->response($response, REST_Controller::HTTP_OK);
 		}
+
+		$this->response(['status' => 0, 'message' => "Username/password incorrect"], REST_Controller::HTTP_UNAUTHORIZED);
 	}
 
 	public function register_post()
 	{
+		// Self-registration is deliberate for this sample's member portal. Before
+		// real production use, add 2FA/email verification and stricter rate-limiting
+		// beyond the global IP limiter.
 		$username  = $this->post('username');
 		$password  = $this->post('password');
 
-		$extras	= $this->post('extras');
+		$extras	= $this->post('extras') ?? [];
 
 		$groups = [GROUP_MEMBER_ID];
 
@@ -71,12 +74,12 @@ class Login extends APP_Rest_Controller
 
 			$this->ion_auth->disable_session();
 			$result = $this->ion_auth->login($username, $password);
-			$json = $this->___processJSONResponse($result);
+			$response = $this->_processResponse(objAcc: $result);
 
-			$this->response($json, REST_Controller::HTTP_OK);
+			$this->response($response, REST_Controller::HTTP_OK);
 		}
 
-		$this->response(['status' => -1, 'message' => "Unable to register."], REST_Controller::HTTP_OK);
+		$this->response(['status' => 0, 'message' => "Unable to register."], REST_Controller::HTTP_BAD_REQUEST);
 	}
 
 	public function password_recovery_post()
@@ -93,15 +96,15 @@ class Login extends APP_Rest_Controller
 	}
 
 	/**
-	 * Cleans and formats the JSON response for the given account data.
+	 * Cleans and formats the response for the given account data.
 	 *
 	 * @param array|object $objAcc      Account data to process.
 	 * @param string|false $apiKey      API key associated with the request, or false if not used.
 	 * @param string|null  $device_uuid Optional device identifier.
 	 *
-	 * @return array The processed JSON response data.
+	 * @return array The processed response data.
 	 */
-	private function ___processJSONResponse($objAcc, $apiKey = null, $device_uuid = null)
+	private function _processResponse($objAcc, $apiKey = null, $device_uuid = null)
 	{
 		if (is_array($objAcc)) {
 			$objAcc = (object) $objAcc;
@@ -118,18 +121,13 @@ class Login extends APP_Rest_Controller
 		}
 
 
-		$json = [
-			'status'		=> 1,
-			'info'   => $objAcc,
-			'api_key'  => $apiKey,
-			'device_uuid' => $device_uuid
+		return [
+			'status' => 1,
+			'response' => [
+				'profile' => $objAcc,
+				'api_key' => $apiKey,
+				'device_uuid' => $device_uuid
+			]
 		];
-
-		return $json;
-	}
-
-	public function print_log($object)
-	{
-		log_message('debug', json_encode($object));
 	}
 }

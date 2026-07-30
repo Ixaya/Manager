@@ -15,16 +15,13 @@ class Dashboard extends APP_Rest_Controller
 
 	public function index_get()
 	{
-		try {
-			$this->load->model('admin/user');
+		$this->load->model('admin/user');
 
-			$response = [];
-			// null = the count query failed; must stay distinguishable from a real 0.
-			$response['users_count']   = $this->user->count_all();
+		$response = [];
+		// null = the count query failed; must stay distinguishable from a real 0.
+		// Left un-caught deliberately: each dashboard metric fails independently.
+		$response['users_count']   = $this->user->count_all();
 
-			$this->response(['status' => 1, 'response' => $response], REST_Controller::HTTP_OK);
-		} catch (Exception $e) {
-			$this->response(['status' => -1, 'message' => 'Failed to load dashboard data'], REST_Controller::HTTP_BAD_REQUEST);
-		}
+		$this->response(['status' => 1, 'response' => $response], REST_Controller::HTTP_OK);
 	}
 }

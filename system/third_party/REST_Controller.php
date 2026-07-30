@@ -372,9 +372,7 @@ abstract class REST_Controller extends MY_Controller
 	 * @access protected
 	 * @return void
 	 */
-	protected function early_checks()
-	{
-	}
+	protected function early_checks() {}
 
 	/**
 	 * Constructor for the REST API
@@ -2054,7 +2052,7 @@ abstract class REST_Controller extends MY_Controller
 
 		// If we want to allow any domain to access the API
 		if ($this->config->item('allow_any_cors_domain') === true) {
-			$this->_apply_cors_headers(origin:'*', method: $method);
+			$this->_apply_cors_headers(origin: '*', method: $method);
 		} else {
 			// We're going to allow only certain domains access
 			// Store the HTTP Origin header

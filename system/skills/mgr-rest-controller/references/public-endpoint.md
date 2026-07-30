@@ -46,7 +46,7 @@ class Login extends APP_Rest_Controller
      *
      * @param object      $user        Sessionless login() result.
      * @param string|null $device_uuid Optional device identifier.
-     * @return array{status: int, info: object, api_key: string, device_uuid: ?string}
+     * @return array{status: int, response: array{profile: object, api_key: string, device_uuid: ?string}}
      */
     private function build_login_response(object $user, ?string $device_uuid = null): array
     {
@@ -55,10 +55,12 @@ class Login extends APP_Rest_Controller
         $this->load->model('Rest_key_model', 'api_key');
 
         return [
-            'status'      => 1,
-            'info'        => $user,
-            'api_key'     => $this->api_key->get_user_key($user->id, $device_uuid),
-            'device_uuid' => $device_uuid,
+            'status' => 1,
+            'response' => [
+                'profile'     => $user,
+                'api_key'     => $this->api_key->get_user_key($user->id, $device_uuid),
+                'device_uuid' => $device_uuid,
+            ],
         ];
     }
 }

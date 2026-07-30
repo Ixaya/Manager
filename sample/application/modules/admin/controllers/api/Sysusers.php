@@ -25,37 +25,26 @@ class Sysusers extends APP_Rest_Controller
 			$this->response($response, REST_Controller::HTTP_OK);
 		}
 
-		try {
-			$this->load->model('user');
-			$users = $this->user->get_list($params);
+		$this->load->model('user');
+		$users = $this->user->get_list($params);
 
-			if (!is_array($users)) {
-				$users['data'] = [];
-				$users['total'] = 0;
-			}
-
-			$response = [
-				'status' => 1,
-				'result' => true,
-				'response' => [
-					'users' => $users['data'] ?? [],
-					'recordsTotal' => $users['total'] ?? 0,
-					'recordsFiltered' => 0
-
-				]
-			];
-
-			$this->cache->save($cache_key, $response);
-
-			$this->response($response, REST_Controller::HTTP_OK);
-		} catch (Exception $e) {
-			$response = [
-				'status' => 0,
-				'result' => false,
-				'message' => $e->getMessage()
-			];
-			$this->response($response, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+		if ($users['data'] === null) {
+			$this->response(['status' => 0, 'message' => 'Failed to load users.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
+
+		$response = [
+			'status' => 1,
+			'response' => [
+				'users' => $users['data'],
+				'recordsTotal' => $users['total'],
+				'recordsFiltered' => 0
+
+			]
+		];
+
+		$this->cache->save($cache_key, $response);
+
+		$this->response($response, REST_Controller::HTTP_OK);
 	}
 
 	public function create_post()
@@ -71,58 +60,51 @@ class Sysusers extends APP_Rest_Controller
 			], REST_Controller::HTTP_BAD_REQUEST);
 		}
 
-		try {
+		$password = $this->post('password');
+		$email    = $this->post('email');
+		$group_id = [$this->post('role')];
 
-			$password = $this->post('password');
-			$email    = $this->post('email');
-			$group_id = [$this->post('role')];
+		$additional_data = [
+			'first_name' => $this->post('first_name'),
+			'last_name'  => $this->post('last_name'),
+			'username'   => $this->post('username'),
+			'company'    => $this->post('company'),
+			'phone'      => $this->post('phone'),
+		];
 
-			$additional_data = [
-				'first_name' => $this->post('first_name'),
-				'last_name'  => $this->post('last_name'),
-				'username'   => $this->post('username'),
-				'company'    => $this->post('company'),
-				'phone'      => $this->post('phone'),
-			];
-
-			$user = $this->ion_auth->register($email, $password, $email, $additional_data, $group_id);
-			if (!$user) {
-				$this->response([
-					'status' => 0,
-					'message' => 'Something went wrong while creating the user. Please try again.'
-				], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-			} else {
-				if ($this->post('status') == 1) {
-					$this->ion_auth->activate($user);
-				}
-
-				if (!empty($_FILES['image']['name'])) {
-					$resolution = [250, 250];
-					$image_field = 'image';
-					$relative_path = "media/user_profile/$user/";
-
-					$image_data = $this->upload_image($relative_path, $image_field, false, $image_field, $resolution);
-					unset($data);
-					if ($image_data) {
-						$data['image_name'] = $image_data['thumb_name'];
-						$data['image_url'] = $image_data['thumb_url'];
-
-						$this->user->update($data, $user);
-					}
-				}
-
-				$this->response([
-					'status' => 1,
-					'message' => 'User created successfully.',
-					'response' => $user
-				], REST_Controller::HTTP_OK);
-			}
-		} catch (Exception $e) {
+		$this->load->library('ion_auth');
+		$user = $this->ion_auth->register($email, $password, $email, $additional_data, $group_id);
+		if (!$user) {
 			$this->response([
 				'status' => 0,
-				'message' => 'Error: ' . $e->getMessage()
+				'message' => 'Something went wrong while creating the user. Please try again.'
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
+
+		if ($this->post('status') == 1) {
+			$this->ion_auth->activate($user);
+		}
+
+		if (!empty($_FILES['image']['name'])) {
+			$resolution = [250, 250];
+			$image_field = 'image';
+			$relative_path = "media/user_profile/$user/";
+
+			$image_data = $this->upload_image($relative_path, $image_field, false, $image_field, $resolution);
+			unset($data);
+			if ($image_data) {
+				$data['image_name'] = $image_data['thumb_name'];
+				$data['image_url'] = $image_data['thumb_url'];
+
+				$this->user->update($data, $user);
+			}
+		}
+
+		$this->response([
+			'status' => 1,
+			'message' => 'User created successfully.',
+			'response' => ['id' => $user]
+		], REST_Controller::HTTP_OK);
 	}
 
 	public function update_post()
@@ -138,61 +120,60 @@ class Sysusers extends APP_Rest_Controller
 			], REST_Controller::HTTP_BAD_REQUEST);
 		}
 
-		try {
-			$id = $this->post('id');
-			$data = [
-				'first_name' => $this->post('first_name'),
-				'last_name'  => $this->post('last_name'),
-				'email'      => $this->post('email'),
-				'username'   => $this->post('username'),
-				'company'    => $this->post('company'),
-				'phone'      => $this->post('phone'),
-			];
+		$id = $this->post('id');
+		$data = [
+			'first_name' => $this->post('first_name'),
+			'last_name'  => $this->post('last_name'),
+			'email'      => $this->post('email'),
+			'username'   => $this->post('username'),
+			'company'    => $this->post('company'),
+			'phone'      => $this->post('phone'),
+		];
 
-			$newPassword = $this->post('password');
-			if (!empty($newPassword)) {
-				//if you use: ion_auth->update there is no need to encrypt it, else it will double crypt it.
-				$data['password'] = $newPassword;
-			}
+		$newPassword = $this->post('password');
+		if (!empty($newPassword)) {
+			//if you use: ion_auth->update there is no need to encrypt it, else it will double crypt it.
+			$data['password'] = $newPassword;
+		}
 
-			if ($this->post('status') == 1) {
-				$this->ion_auth->activate($id);
-			} else {
-				$this->ion_auth->deactivate($id);
-			}
+		$this->load->library('ion_auth');
+		if ($this->post('status') == 1) {
+			$this->ion_auth->activate($id);
+		} else {
+			$this->ion_auth->deactivate($id);
+		}
 
 
-			$this->ion_auth->remove_from_group('', $id);
-			$this->ion_auth->add_to_group($this->post('role'), $id);
+		$this->ion_auth->remove_from_group('', $id);
+		$this->ion_auth->add_to_group($this->post('role'), $id);
 
-			$this->ion_auth->update($id, $data);
-
-			if (!empty($_FILES['image']['name'])) {
-				$resolution = [250, 250];
-				$image_field = 'image';
-				$relative_path = "media/user_profile/$id/";
-
-				$image_data = $this->upload_image($relative_path, $image_field, false, $image_field, $resolution);
-				unset($data);
-				if ($image_data) {
-					$data['image_name'] = $image_data['thumb_name'];
-					$data['image_url'] = $image_data['thumb_url'];
-
-					$this->user->update($data, $id);
-				}
-			}
-
-			$this->response([
-				'status' => 1,
-				'message' => 'User updated successfully',
-				'response' => $id
-			], REST_Controller::HTTP_OK);
-		} catch (Exception $e) {
+		if (!$this->ion_auth->update($id, $data)) {
 			$this->response([
 				'status' => 0,
-				'message' => 'Error: ' . $e->getMessage()
+				'message' => 'Something went wrong while updating the user. Please try again.'
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
+
+		if (!empty($_FILES['image']['name'])) {
+			$resolution = [250, 250];
+			$image_field = 'image';
+			$relative_path = "media/user_profile/$id/";
+
+			$image_data = $this->upload_image($relative_path, $image_field, false, $image_field, $resolution);
+			unset($data);
+			if ($image_data) {
+				$data['image_name'] = $image_data['thumb_name'];
+				$data['image_url'] = $image_data['thumb_url'];
+
+				$this->user->update($data, $id);
+			}
+		}
+
+		$this->response([
+			'status' => 1,
+			'message' => 'User updated successfully',
+			'response' => ['id' => $id]
+		], REST_Controller::HTTP_OK);
 	}
 
 	public function details_get()
@@ -209,50 +190,43 @@ class Sysusers extends APP_Rest_Controller
 			], REST_Controller::HTTP_BAD_REQUEST);
 		}
 
-		try {
-			$api_key_obj = $this->user_key->get_where(['user_id' => $id]);
-			$api_key = "User doesn't have an API Key";
-			if (!empty($api_key_obj)) {
-				$api_key = $api_key_obj['key'];
-			}
+		$api_key_obj = $this->user_key->get_where(['user_id' => $id]);
+		$api_key = "User doesn't have an API Key";
+		if (!empty($api_key_obj)) {
+			$api_key = $api_key_obj['key'];
+		}
 
-			$data['user'] = $this->ion_auth_model->user($id)->row_array();
-			if (empty($data['user'])) {
-				$this->response([
-					'status' => 0,
-					'message' => 'The user ID not found.'
-				], REST_Controller::HTTP_NOT_FOUND);
-			}
-
-			$data['api_key'] = $api_key;
-			$data['user_groups'] = $this->ion_auth_model->get_users_groups($id)->result_array();
-			$data['login_attempts'] = $this->login_attempt->get_by_user($id);
-
-			$response['user'] = [
-				'id'          => $data['user']['id'],
-				'email'       => $data['user']['email'],
-				'username'    => $data['user']['username'],
-				'first_name'  => $data['user']['first_name'],
-				'last_name'   => $data['user']['last_name'],
-				'company'     => $data['user']['company'],
-				'phone'       => $data['user']['phone'],
-				'active'      => $data['user']['active'],
-				'image'       => $this->get_file_base64($data['user']['image_url']),
-				'user_groups' => array_map(
-					static fn (array $g): array => ['id' => $g['id'], 'name' => $g['name']],
-					$data['user_groups']
-				),
-				'api_key'     => $data['api_key'],
-				'ip_address'  => $data['user']['ip_address'],
-				'last_update' => $data['user']['last_update'],
-				'login_attempts' => $data['login_attempts'],
-			];
-		} catch (Exception $e) {
+		$data['user'] = $this->ion_auth_model->user($id)->row_array();
+		if (empty($data['user'])) {
 			$this->response([
 				'status' => 0,
-				'message' => 'Error: ' . $e->getMessage()
-			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+				'message' => 'The user ID not found.'
+			], REST_Controller::HTTP_NOT_FOUND);
 		}
+
+		$data['api_key'] = $api_key;
+		$data['user_groups'] = $this->ion_auth_model->get_users_groups($id)->result_array();
+		$data['login_attempts'] = $this->login_attempt->get_by_user($id);
+
+		$response['user'] = [
+			'id'          => $data['user']['id'],
+			'email'       => $data['user']['email'],
+			'username'    => $data['user']['username'],
+			'first_name'  => $data['user']['first_name'],
+			'last_name'   => $data['user']['last_name'],
+			'company'     => $data['user']['company'],
+			'phone'       => $data['user']['phone'],
+			'active'      => $data['user']['active'],
+			'image'       => $this->get_file_base64($data['user']['image_url']),
+			'user_groups' => array_map(
+				static fn (array $g): array => ['id' => $g['id'], 'name' => $g['name']],
+				$data['user_groups']
+			),
+			'api_key'     => $data['api_key'],
+			'ip_address'  => $data['user']['ip_address'],
+			'last_update' => $data['user']['last_update'],
+			'login_attempts' => $data['login_attempts'],
+		];
 
 		$this->response([
 			'status' => 1,
@@ -265,12 +239,13 @@ class Sysusers extends APP_Rest_Controller
 	{
 		$username =  $this->post('username');
 		if (!empty($username)) {
+			$this->load->library('ion_auth');
 			$response = $this->ion_auth->clear_login_attempts($username);
 			if (!empty($response)) {
 				$this->response(['status' => 1, 'message' => 'Cleared successfully'], REST_Controller::HTTP_OK);
-			} else {
-				$this->response(['status' => -1, 'error' => 'Not Found'], REST_Controller::HTTP_NOT_FOUND);
 			}
+
+			$this->response(['status' => 0, 'message' => 'Username not found.'], REST_Controller::HTTP_NOT_FOUND);
 		}
 
 		$this->response(['status' => 0, 'message' => 'The username is required.'], REST_Controller::HTTP_BAD_REQUEST);
@@ -280,19 +255,15 @@ class Sysusers extends APP_Rest_Controller
 	{
 		$this->load->model('admin/user');
 
-		try {
-			$id = $this->post('id');
+		$id = $this->post('id');
 
-			$result = $this->ion_auth->delete_user($id);
-			if ($result === true) {
-				$this->response([
-					'status' => (int)1,
-					'message' => 'User deleted successfully',
-					'response' => $result
-				], REST_Controller::HTTP_OK);
-			}
-		} catch (Exception $e) {
-			mgr_process_exception($e);
+		$this->load->library('ion_auth');
+		$result = $this->ion_auth->delete_user($id);
+		if ($result === true) {
+			$this->response([
+				'status' => 1,
+				'message' => 'User deleted successfully'
+			], REST_Controller::HTTP_OK);
 		}
 
 		$this->response([
@@ -303,25 +274,19 @@ class Sysusers extends APP_Rest_Controller
 
 	public function roles_get()
 	{
-		try {
-			$roles = $this->ion_auth->groups()->result();
-			if (empty($roles)) {
-				$this->response([
-					'status' => 0,
-					'message' => 'Error getting roles'
-				], REST_Controller::HTTP_NOT_FOUND);
-			}
-
-			$this->response([
-				'status' => 1,
-				'message' => 'Success',
-				'response' => $roles
-			], REST_Controller::HTTP_OK);
-		} catch (Exception $e) {
+		$this->load->library('ion_auth');
+		$roles = $this->ion_auth->groups()->result();
+		if (empty($roles)) {
 			$this->response([
 				'status' => 0,
 				'message' => 'Error getting roles'
-			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-		};
+			], REST_Controller::HTTP_NOT_FOUND);
+		}
+
+		$this->response([
+			'status' => 1,
+			'message' => 'Success',
+			'response' => $roles
+		], REST_Controller::HTTP_OK);
 	}
 }

@@ -60,9 +60,9 @@ class MGR_Exceptions extends CI_Exceptions
 			$data = $this->_parse_db_error($message);
 		} else {
 			$data = [
-				'status' => -1,
-				'error'  => $heading,
-				'details' => $message
+				'status'  => 0,
+				'message' => $message,
+				'error'   => ['heading' => $heading],
 			];
 		}
 
@@ -91,11 +91,13 @@ class MGR_Exceptions extends CI_Exceptions
 		}
 
 		$data = [
-			'status'  => -1,
-			'error'   => get_class($exception),
+			'status'  => 0,
 			'message' => $exception->getMessage(),
-			'file'    => $this->clean_file_path($exception->getFile()),
-			'line'    => $exception->getLine()
+			'error'   => [
+				'class' => get_class($exception),
+				'file'  => $this->clean_file_path($exception->getFile()),
+				'line'  => $exception->getLine(),
+			],
 		];
 
 		$this->show_error_data($data, 500);
@@ -126,11 +128,13 @@ class MGR_Exceptions extends CI_Exceptions
 		}
 
 		$data = [
-			'status'   => -1,
-			'severity' => $severity,
-			'message'  => $message,
-			'file'     => $this->clean_file_path($filepath),
-			'line'     => $line
+			'status'  => 0,
+			'message' => $message,
+			'error'   => [
+				'severity' => $severity,
+				'file'     => $this->clean_file_path($filepath),
+				'line'     => $line,
+			],
 		];
 
 		$this->show_error_data($data, 500);
@@ -317,38 +321,59 @@ class MGR_Exceptions extends CI_Exceptions
 	 * Turns CI's multi-line database error text into the error_db envelope.
 	 *
 	 * @param  string|array $message CI's 'Error Number:' / 'Filename:' / 'Line Number:' block.
-	 * @return array{status: int, error: string, message: ?string, errno: ?int, file: ?string, line: ?int}
-	 *         Plus 'query' when the block carried the failing SQL.
+	 * @return array{status: int, message: string, error: array{heading: string, errno: ?int, file: ?string, line: ?int, query?: string}}
 	 */
 	protected function _parse_db_error($message)
 	{
 		$parts = is_array($message) ? $message : explode("\n", $message);
 
 		$data = [
-			'status'  => -1,
-			'error'   => 'A Database Error Occurred',
-			'message' => null,
-			'errno'   => null,
-			'file'    => null,
-			'line'    => null,
+			'status'  => 0,
+			'message' => 'A Database Error Occurred',
+			'error'   => [
+				'heading' => 'A Database Error Occurred',
+				'errno'   => null,
+				'file'    => null,
+				'line'    => null,
+			],
 		];
 
 		foreach ($parts as $part) {
 			$part = trim($part);
 
 			if (preg_match('/^Error Number:\s*(\d+)$/i', $part, $m)) {
-				$data['errno'] = (int) $m[1];
+				$data['error']['errno'] = (int) $m[1];
 			} elseif (preg_match('/^Filename:\s*(.+)$/i', $part, $m)) {
-				$data['file'] = $this->clean_file_path(trim($m[1]));
+				$data['error']['file'] = $this->clean_file_path(trim($m[1]));
 			} elseif (preg_match('/^Line Number:\s*(\d+)$/i', $part, $m)) {
-				$data['line'] = (int) $m[1];
+				$data['error']['line'] = (int) $m[1];
 			} elseif (preg_match('/^(SELECT|INSERT|UPDATE|DELETE|SHOW|REPLACE)/i', $part)) {
-				$data['query'] = $part;
+				$data['error']['query'] = $part;
 			} elseif (!empty($part)) {
-				$data['message'] = $part;
+				$data['message'] = $this->clean_postgres_message($part);
 			}
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Strips libpq's "LINE N: ...` / `^` pointer echo (redundant with `error.query`)
+	 * and its double space after the severity label from a native Postgres message.
+	 * Other engines' driver messages never start with this prefix, so they pass through
+	 * unchanged.
+	 *
+	 * @param  string $message
+	 * @return string
+	 */
+	protected function clean_postgres_message(string $message): string
+	{
+		if (!preg_match('/^(ERROR|WARNING|NOTICE|FATAL|PANIC):\s+/', $message)) {
+			return $message;
+		}
+
+		$message = preg_replace('/\nLINE \d+:.*/s', '', $message);
+
+		return preg_replace('/^(ERROR|WARNING|NOTICE|FATAL|PANIC):\s+/', '$1: ', $message);
 	}
 }

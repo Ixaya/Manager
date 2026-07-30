@@ -2,8 +2,9 @@
 
 Condensed from the vendor sample `Sysusers`
 (`vendor/ixaya/manager/sample/application/modules/admin/controllers/api/Sysusers.php`).
-Demonstrates: level gating, point-of-use model loading, response caching, the
-three-tier envelope, and correct HTTP codes.
+Demonstrates: level gating, point-of-use library/model loading, response
+caching, the binary envelope, and correct HTTP codes — and the absence of
+try/catch, since nothing in this flow can throw.
 
 ```php
 <?php
@@ -27,22 +28,22 @@ class Sysusers extends APP_Rest_Controller
             $this->response($response, REST_Controller::HTTP_OK);
         }
 
-        try {
-            $this->load->model('user');           // model loaded in the method that uses it
-            $users = $this->user->get_list($params);  // ['data' => rows, 'total' => count]
+        $this->load->model('user');              // model loaded in the method that uses it
+        $users = $this->user->get_list($params);  // ['data' => rows, 'total' => count]
 
-            $response = [
-                'status' => 1,
-                'response' => [
-                    'users'        => $users['data'] ?? [],
-                    'recordsTotal' => $users['total'] ?? 0,
-                ],
-            ];
-            $this->cache->save($cache_key, $response);
-            $this->response($response, REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response(['status' => 0, 'error' => $e->getMessage()], REST_Controller::HTTP_BAD_REQUEST);
+        if ($users['data'] === null) {
+            $this->response(['status' => 0, 'message' => 'Failed to load users.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
+
+        $response = [
+            'status' => 1,
+            'response' => [
+                'users'        => $users['data'],
+                'recordsTotal' => $users['total'],
+            ],
+        ];
+        $this->cache->save($cache_key, $response);
+        $this->response($response, REST_Controller::HTTP_OK);
     }
 
     public function details_get()
@@ -52,33 +53,39 @@ class Sysusers extends APP_Rest_Controller
             $this->response(['status' => 0, 'message' => 'The user ID is required.'], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        try {
-            $this->load->model(['user', 'user_key']);
-            $user = $this->user->get($id);
-            if (empty($user)) {
-                $this->response(['status' => 0, 'message' => 'The user ID not found.'], REST_Controller::HTTP_NOT_FOUND);
-            }
-            $this->response(['status' => 1, 'response' => ['user' => $user]], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response(['status' => 0, 'message' => 'Error: ' . $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        $this->load->model(['user', 'user_key']);
+        $user = $this->user->get($id);
+        if (empty($user)) {
+            $this->response(['status' => 0, 'message' => 'The user ID not found.'], REST_Controller::HTTP_NOT_FOUND);
         }
+
+        $this->response(['status' => 1, 'response' => ['user' => $user]], REST_Controller::HTTP_OK);
     }
 
     public function delete_post()
     {
-        try {
-            $result = $this->ion_auth->delete_user($this->post('id'));
-            if ($result === true) {
-                $this->response(['status' => 1, 'message' => 'User deleted successfully', 'response' => $result], REST_Controller::HTTP_OK);
-            }
-        } catch (Exception $e) {
-            mgr_process_exception($e);
+        $this->load->library('ion_auth');       // library loaded in the method that uses it
+
+        $result = $this->ion_auth->delete_user($this->post('id'));
+        if ($result === true) {
+            $this->response(['status' => 1, 'message' => 'User deleted successfully'], REST_Controller::HTTP_OK);
         }
 
         $this->response(['status' => 0, 'message' => 'Error deleting user'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
 ```
+
+None of these three methods wrap anything in `try/catch`: `get_list()`'s
+`data` key, `get()` and `delete_user()` all signal failure through their
+return value (`null`/`empty`/`false`), never a throw — tracing the call chain
+first is what tells you that, not a blanket "wrap defensively" habit. Each
+still gets its own explicit check, though: `get_list()`'s `data === null` is a
+failed query and answers its own `status: 0`; `get()`'s empty result is a
+legitimate not-found and answers its own 404; `delete_user()`'s `false`
+answers its own 5xx. An endpoint like this still fails as structured, logged
+JSON if something further down the stack genuinely does throw; nothing here
+needs to catch it to get that behavior.
 
 The paired `get_list()` model pattern (dynamic search, whitelisted ordering,
 `['data','total']` return) is the mgr-models skill's
