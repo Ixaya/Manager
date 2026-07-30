@@ -100,35 +100,60 @@ class MGR_Rest_Controller extends REST_Controller
 	 */
 	public function _remap($object_called, $arguments = [])
 	{
-		$controller_method = $object_called . '_' . $this->request->method;
+		// Spans the whole body, not just the dispatch: the gate block reaches the DB
+		// through validate_group(), and an Error thrown anywhere here escapes the
+		// catch (Exception) inside parent::_remap() and would answer with no body.
+		try {
+			$controller_method = $object_called . '_' . $this->request->method;
 
-		$level = 0;
-		if (isset($this->group_methods[$controller_method]['level'])) {
-			$level = $this->group_methods[$controller_method]['level'];
-		} elseif (isset($this->group_methods['*']['level'])) {
-			$level = $this->group_methods['*']['level'];
-		}
-
-		$group = 'none';
-		if (isset($this->group_methods[$controller_method]['group'])) {
-			$group = $this->group_methods[$controller_method]['group'];
-		} elseif (isset($this->group_methods['*']['group'])) {
-			$group = $this->group_methods['*']['group'];
-		}
-
-		if ($level > 0 || $group !== 'none') {
-			if ($level > 0 && $group !== 'none') {
-				if (!$this->validate_level($level) && !$this->validate_group($group)) {
-					$this->response(['status' => 0, 'message' => 'User not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
-				}
-			} elseif ($level > 0 && !$this->validate_level($level)) {
-				$this->response(['status' => 0, 'message' => 'User level not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
-			} elseif ($group !== 'none' && !$this->validate_group($group)) {
-				$this->response(['status' => 0, 'message' => 'User group not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
+			$level = 0;
+			if (isset($this->group_methods[$controller_method]['level'])) {
+				$level = $this->group_methods[$controller_method]['level'];
+			} elseif (isset($this->group_methods['*']['level'])) {
+				$level = $this->group_methods['*']['level'];
 			}
-		}
 
-		parent::_remap($object_called, $arguments);
+			$group = 'none';
+			if (isset($this->group_methods[$controller_method]['group'])) {
+				$group = $this->group_methods[$controller_method]['group'];
+			} elseif (isset($this->group_methods['*']['group'])) {
+				$group = $this->group_methods['*']['group'];
+			}
+
+			if ($level > 0 || $group !== 'none') {
+				if ($level > 0 && $group !== 'none') {
+					if (!$this->validate_level($level) && !$this->validate_group($group)) {
+						$this->response(['status' => 0, 'message' => 'User not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
+					}
+				} elseif ($level > 0 && !$this->validate_level($level)) {
+					$this->response(['status' => 0, 'message' => 'User level not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
+				} elseif ($group !== 'none' && !$this->validate_group($group)) {
+					$this->response(['status' => 0, 'message' => 'User group not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
+				}
+			}
+
+			parent::_remap($object_called, $arguments);
+		} catch (\Throwable $ex) {
+			$this->_handle_dispatch_throwable($ex);
+		}
+	}
+
+	/**
+	 * Logs a dispatch failure, then renders it. Rendering exits.
+	 *
+	 * Logging happens here and not in MGR_Exceptions because the handler CI
+	 * registers already logs immediately before rendering — logging there too
+	 * would double every development entry. The format matches that handler's
+	 * so all failure paths stay one greppable shape.
+	 *
+	 * @param \Throwable $ex
+	 * @return void
+	 */
+	protected function _handle_dispatch_throwable(\Throwable $ex)
+	{
+		$_error = &load_class('Exceptions', 'core');
+		$_error->log_exception('error', 'Exception: ' . $ex->getMessage(), $ex->getFile(), $ex->getLine());
+		$_error->show_exception($ex);
 	}
 
 	/**

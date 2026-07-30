@@ -709,10 +709,26 @@ abstract class REST_Controller extends MY_Controller
 		try {
 			call_user_func_array([$this, $controller_method], $arguments);
 		} catch (Exception $ex) {
-			// If the method doesn't exist, then the error will be caught and an error response shown
-			$_error = &load_class('Exceptions', 'core');
-			$_error->show_exception($ex);
+			$this->_handle_dispatch_throwable($ex);
 		}
+	}
+
+	/**
+	 * Renders a failure raised while dispatching to the controller method.
+	 *
+	 * Overridable so a subclass can log, wrap or re-shape the response without
+	 * reimplementing _remap(). Typed \Throwable, not Exception: PHP forbids
+	 * narrowing a parameter type in an override, and subclasses need the wider one.
+	 *
+	 * @access protected
+	 * @param \Throwable $ex
+	 * @return void
+	 */
+	protected function _handle_dispatch_throwable(\Throwable $ex)
+	{
+		// If the method doesn't exist, then the error will be caught and an error response shown
+		$_error = &load_class('Exceptions', 'core');
+		$_error->show_exception($ex);
 	}
 
 	/**

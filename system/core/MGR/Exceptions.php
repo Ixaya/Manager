@@ -17,6 +17,14 @@ class MGR_Exceptions extends CI_Exceptions
 			return parent::show_error($heading, $message, $template, $status_code);
 		}
 
+		// 5xx is an internal failure the client can do nothing with; 4xx is deliberate and
+		// client-facing, and this method is also the 404 renderer via parent::show_404().
+		if ($status_code >= 500 && !$this->should_disclose_details()) {
+			$this->show_error_data($this->build_generic_error(), $status_code);
+
+			return '';
+		}
+
 		if ($template == 'error_db') {
 			$data = $this->_parse_db_error($message);
 		} else {
@@ -37,6 +45,12 @@ class MGR_Exceptions extends CI_Exceptions
 	{
 		if ($this->validate_html_accept()) {
 			return parent::show_exception($exception);
+		}
+
+		if (!$this->should_disclose_details()) {
+			$this->show_error_data($this->build_generic_error(), 500);
+
+			return;
 		}
 
 		$data = [
@@ -101,6 +115,35 @@ class MGR_Exceptions extends CI_Exceptions
 
 		// Stop normal execution; shutdown handlers may still run.
 		exit;
+	}
+
+	/**
+	 * The envelope a client gets for a suppressed 5xx: no error/file/line keys
+	 * at all, so failure modes cannot be told apart by response shape.
+	 *
+	 * @return array{status: int, message: string}
+	 */
+	protected function build_generic_error(): array
+	{
+		return [
+			'status'  => 0,
+			'message' => 'An unexpected error occurred.',
+		];
+	}
+
+	/**
+	 * Whether this client may be shown error internals (class, message, file, line, SQL).
+	 *
+	 * @return bool True under CLI or while display_errors is on.
+	 */
+	protected function should_disclose_details(): bool
+	{
+		// Truthiness test copied verbatim from CI's _exception_handler()/_error_handler():
+		// the framework must never disagree with itself about which environment it is in.
+		// is_cli() is part of the predicate because production CLI has display_errors=0
+		// and the tools controllers depend on their error output.
+		return is_cli()
+			|| (bool) str_ireplace(['off', 'none', 'no', 'false', 'null'], '', (string) ini_get('display_errors'));
 	}
 
 	protected function clean_file_path($filepath)
