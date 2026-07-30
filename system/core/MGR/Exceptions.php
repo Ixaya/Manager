@@ -1,16 +1,40 @@
 <?php
 
+/**
+ * Renders CodeIgniter's error output as JSON for API clients.
+ *
+ * Every path splits on should_disclose_details(): internals for a developer or
+ * the CLI, a fixed generic envelope for everyone else. Detail is always logged.
+ */
 class MGR_Exceptions extends CI_Exceptions
 {
 	protected $api_only = true;
 
-	// 404 logging is intentionally disabled (we rely on server logs).
-	// Uncomment if you want CodeIgniter to log 404 errors.
+	// Statement-execution calls whose native warning preempts CI's db_debug report.
+	// mysqli is absent on purpose: it reports through CI already (MYSQLI_REPORT_OFF).
+	protected array $statement_warning_prefixes = ['pg_query()', 'SQLite3::query()', 'SQLite3::exec()'];
+
+	/**
+	 * Renders a 404. Logging is forced off — 404s are left to the server logs.
+	 *
+	 * @param  string $page
+	 * @param  bool   $log_error Ignored.
+	 * @return void
+	 */
 	public function show_404($page = '', $log_error = false)
 	{
 		parent::show_404($page, false);
 	}
 
+	/**
+	 * Renders a framework error, including 404s and CI's parsed DB errors.
+	 *
+	 * @param  string       $heading
+	 * @param  string|array $message
+	 * @param  string       $template    'error_db' switches to the parsed DB envelope.
+	 * @param  int          $status_code
+	 * @return mixed '' once rendered; CI's value if handed to the HTML views.
+	 */
 	public function show_error($heading, $message, $template = 'error_general', $status_code = 500)
 	{
 		if ($this->validate_html_accept()) {
@@ -41,6 +65,12 @@ class MGR_Exceptions extends CI_Exceptions
 		return '';
 	}
 
+	/**
+	 * Renders an uncaught exception. Always HTTP 500.
+	 *
+	 * @param  Throwable $exception
+	 * @return mixed Nothing once rendered; CI's value if handed to the HTML views.
+	 */
 	public function show_exception($exception)
 	{
 		if ($this->validate_html_accept()) {
@@ -64,10 +94,27 @@ class MGR_Exceptions extends CI_Exceptions
 		$this->show_error_data($data, 500);
 	}
 
+	/**
+	 * Renders a PHP error, notice or warning that got past error_reporting().
+	 *
+	 * Only reached while display_errors is on, so it needs no disclosure gate
+	 * of its own.
+	 *
+	 * @param  int    $severity
+	 * @param  string $message
+	 * @param  string $filepath
+	 * @param  int    $line
+	 * @return void
+	 */
 	public function show_php_error($severity, $message, $filepath, $line)
 	{
 		if ($this->validate_html_accept()) {
 			parent::show_php_error($severity, $message, $filepath, $line);
+			return;
+		}
+
+		// Yields to CI's db_debug report, which names the failing SQL.
+		if ($this->is_non_fatal_statement_warning($severity, $message)) {
 			return;
 		}
 
@@ -82,6 +129,13 @@ class MGR_Exceptions extends CI_Exceptions
 		$this->show_error_data($data, 500);
 	}
 
+	/**
+	 * Sends $data as the response body and stops execution.
+	 *
+	 * @param  array $data
+	 * @param  int   $error_code HTTP status; ignored under CLI.
+	 * @return void
+	 */
 	protected function show_error_data($data, $error_code)
 	{
 		if (is_cli()) {
@@ -118,8 +172,8 @@ class MGR_Exceptions extends CI_Exceptions
 	}
 
 	/**
-	 * The envelope a client gets for a suppressed 5xx: no error/file/line keys
-	 * at all, so failure modes cannot be told apart by response shape.
+	 * The envelope a suppressed 5xx returns: no error/file/line keys, so failure
+	 * modes cannot be told apart by response shape.
 	 *
 	 * @return array{status: int, message: string}
 	 */
@@ -138,14 +192,46 @@ class MGR_Exceptions extends CI_Exceptions
 	 */
 	protected function should_disclose_details(): bool
 	{
-		// Truthiness test copied verbatim from CI's _exception_handler()/_error_handler():
-		// the framework must never disagree with itself about which environment it is in.
-		// is_cli() is part of the predicate because production CLI has display_errors=0
-		// and the tools controllers depend on their error output.
+		// CI's own display_errors test, copied so the two cannot disagree.
+		// is_cli() is separate: CLI runs with display_errors off, but tools need the output.
 		return is_cli()
 			|| (bool) str_ireplace(['off', 'none', 'no', 'false', 'null'], '', (string) ini_get('display_errors'));
 	}
 
+	/**
+	 * Whether a PHP error is a driver's warning about a statement that failed.
+	 *
+	 * Non-fatal only: _error_handler() exits on a fatal whatever this returns,
+	 * which would leave the response body empty.
+	 *
+	 * @param  int    $severity
+	 * @param  string $message
+	 * @return bool
+	 */
+	protected function is_non_fatal_statement_warning($severity, $message): bool
+	{
+		if ($severity !== E_WARNING && $severity !== E_NOTICE) {
+			return false;
+		}
+
+		foreach ($this->statement_warning_prefixes as $prefix) {
+			if (strpos($message, $prefix) === 0) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Makes a filesystem path project-relative so responses disclose no server layout.
+	 *
+	 * CI strips APPPATH/BASEPATH only; the framework matches neither, so a path
+	 * that has not been through here is absolute.
+	 *
+	 * @param  string $filepath
+	 * @return string The path unchanged if it falls outside the project root.
+	 */
 	protected function clean_file_path($filepath)
 	{
 		$root = dirname(FCPATH);
@@ -153,9 +239,14 @@ class MGR_Exceptions extends CI_Exceptions
 			return substr($filepath, strlen($root) + 1);
 		}
 
-		return $filepath; // file outside project
+		return $filepath;
 	}
 
+	/**
+	 * Whether to hand this request to CI's HTML error views instead of rendering JSON.
+	 *
+	 * @return bool Always false while $api_only is true.
+	 */
 	protected function validate_html_accept()
 	{
 		if ($this->api_only === true) {
@@ -164,14 +255,13 @@ class MGR_Exceptions extends CI_Exceptions
 
 		$acceptHeader = isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '';
 
-		// If the browser prefers HTML, call the parent method
 		return (strpos($acceptHeader, 'text/html') !== false);
 	}
 
 	/**
-	 * Adds permissive CORS headers for HTTP access control (CORS)
+	 * Adds CORS headers to an error response, when the caller sent an Origin.
 	 *
-	 * @access protected
+	 * @param  bool $is_options Preflight requests also get the headers/methods/max-age set.
 	 * @return void
 	 */
 	protected function _add_cors(bool $is_options): void
@@ -214,6 +304,13 @@ class MGR_Exceptions extends CI_Exceptions
 		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
 	}
 
+	/**
+	 * Turns CI's multi-line database error text into the error_db envelope.
+	 *
+	 * @param  string|array $message CI's 'Error Number:' / 'Filename:' / 'Line Number:' block.
+	 * @return array{status: int, error: string, message: ?string, errno: ?int, file: ?string, line: ?int}
+	 *         Plus 'query' when the block carried the failing SQL.
+	 */
 	protected function _parse_db_error($message)
 	{
 		$parts = is_array($message) ? $message : explode("\n", $message);
@@ -233,7 +330,7 @@ class MGR_Exceptions extends CI_Exceptions
 			if (preg_match('/^Error Number:\s*(\d+)$/i', $part, $m)) {
 				$data['errno'] = (int) $m[1];
 			} elseif (preg_match('/^Filename:\s*(.+)$/i', $part, $m)) {
-				$data['file'] = trim($m[1]);
+				$data['file'] = $this->clean_file_path(trim($m[1]));
 			} elseif (preg_match('/^Line Number:\s*(\d+)$/i', $part, $m)) {
 				$data['line'] = (int) $m[1];
 			} elseif (preg_match('/^(SELECT|INSERT|UPDATE|DELETE|SHOW|REPLACE)/i', $part)) {
