@@ -254,6 +254,13 @@ always logged**, under either shape, so a generic response costs the server
 nothing. Write clients against the suppressed shape: `error`, `file` and `line`
 do not exist in production.
 
+**Two 5xx paths answer with no body at all**: an exception thrown in a
+controller *constructor*, and a true fatal (memory exhaustion). CI's global
+handlers own those and render only while `display_errors` is on, so production
+returns a body-less 500 — accepted, because taking those over means the
+framework owning the terminal error path. Both are still logged. A client must
+treat an empty 500 body as a failure to report, not a protocol error.
+
 So an endpoint without try/catch still fails with structured JSON and still
 logs — don't wrap everything defensively. Use `try/catch (Exception $e)` when
 you want a friendlier message, cleanup, or a specific HTTP code (respond

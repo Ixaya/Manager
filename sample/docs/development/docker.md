@@ -466,9 +466,25 @@ The visibility ladder for a failing request, in order:
 2. `/var/log/manager/{app,cli,cron}` in-container — the app's own log.
 3. `application/logs/` — CI3's default location (normally unused here).
 
-**All three empty does NOT mean no error** — it means the failure happens
-*before* the app's logging subsystem initializes, so nothing can record it.
-Don't keep re-checking the same channels; escalate instead:
+**All three empty does NOT mean no error.** Two different causes, and they
+need opposite responses — separate them first:
+
+```bash
+./docker_manage.sh -e <instance> exec -u www-data php bash /var/www/html/bin/cli_run.sh manager/tools/log_check
+```
+
+If it reports the log cannot be appended to, logging itself is broken and
+every channel above is meaningless: CI opens the file with a silenced
+`fopen()` and `log_message()` discards the result, so nothing reports it. The
+usual cause is a CLI command run as root creating a root-owned
+`log-<date>.log` that php-fpm (`www-data`) then cannot write — fix with
+`chown -R www-data:www-data /var/log/manager`. Run it as the web-server user
+(`-u www-data` above), never root: root appends to anything and will report
+success on the exact state that is failing.
+
+If it reports the writes land, the failure happens *before* the app's logging
+subsystem initializes, so nothing can record it. Don't keep re-checking the
+same channels; escalate instead:
 
 1. Flip `display_errors`/`display_startup_errors` on (dev instance only).
    If the body is STILL empty, the error handler itself is failing too — go
@@ -489,7 +505,48 @@ builder. Check what the app resolves for the DB credentials
 `DB_*`), then `db_debug`. A docker smoke test burned a full debug session
 tracing this exact signature to a `DB_PASS` that silently resolved to null.
 
-### My edit isn't taking effect
+**The line to grep for a dead DB is `Unable to connect to the database`** —
+written by the driver on every failed connect, in both environments and
+regardless of `db_debug`. It repeats once per connection the request opens,
+then the request dies on the *derived* error, which is what the last line
+shows. An unresolvable `DB_HOST` on a plain login, production, verbatim:
+
+```
+ERROR - <ts> --> Severity: Warning --> mysqli::real_connect(): php_network_getaddresses: getaddrinfo for <host> failed: Name has no usable address …/mysqli_driver.php 211
+ERROR - <ts> --> Unable to connect to the database
+ERROR - <ts> --> Severity: error --> Exception: Call to a member function real_escape_string() on false …/mysqli_driver.php 401
+```
+
+Postgres writes the same three, with `pg_connect(): … could not translate host
+name` and `Exception: pg_escape_literal(): Argument #1 ($connection) must be of
+type PgSql\Connection, false given …/postgre_driver.php 318`. Search the
+*second* line, not the third: the third is engine- and call-site-specific,
+while the second is the actual cause and is identical everywhere.
+
+The client gets `500` with `{"status":0,"message":"An unexpected error
+occurred."}` in production, and the driver's own `pg_connect()` /
+`real_connect()` message in development.
+
+**Known signature: `Cannot modify header information — headers already
+sent`.** Not a header problem. It means output was already written, which in
+practice means the request ran away: an infinite loop, a runaway query, or
+building something large (an Excel export) past the memory limit. The line
+names the symptom and never the cause — look for what produced output before
+it, at the file and line the *first* output came from, which the message
+reports in parentheses.
+
+**A production 500 with an empty body.** Two paths answer with no body at all,
+by accepted trade-off: an exception thrown in a **controller constructor**, and
+a true **fatal** (memory exhaustion). CI's own handlers own both and render
+only when `display_errors` is on, so production gets a body-less 500 rather
+than the usual `{"status":0,"message":"An unexpected error occurred."}`.
+**Both are logged** — go to the app log for the cause; nothing else needs
+diagnosing.
+
+The same fatal in development is the more confusing one: it answers HTTP
+**200** with an HTML `Fatal error` dump, and the app log holds only the
+`Cannot modify header information` line above. The actual cause is on container
+stderr only (`docker logs <instance>-php-1`).
 
 `opcache.validate_timestamps=0` is baked into every image. If you edit a PHP
 file and re-test WITHOUT `-b`/`-m` mode active, PHP still serves the old

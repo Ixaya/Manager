@@ -34,6 +34,7 @@ class Tools extends CI_Controller
 			['generate_enc_key [length]', 'Generate a random encryption key (hex, default 16 bytes).'],
 			['claim_admin', 'One-shot: rotate the seeded admin\'s factory password and print the new one.'],
 			['env_check [key]', 'Per-key env source report (values never printed). No key = framework must-haves.'],
+			['log_check', 'Log destination report: path, ownership and whether appends actually succeed.'],
 			['cli_exec <module> <library> <function> [identifier]', 'Run a library call in-process (async_exec_lib dispatch target).'],
 			['message [name]', 'Smoke-test echo.'],
 			['help', 'This list.'],
@@ -391,5 +392,113 @@ class $name extends MY_Model {
 		if ($key === null && $missing > 0) {
 			echo PHP_EOL . "[WARN] {$missing} framework key(s) missing — the app will misbehave without them." . PHP_EOL;
 		}
+	}
+
+	/**
+	 * Reports whether log writes can actually land: destination, ownership and
+	 * append permission for the file the logger will use today.
+	 *
+	 * There is no runtime symptom to notice otherwise — CI opens the log with
+	 * a silenced fopen() and log_message() discards the result, so a
+	 * destination the web-server user cannot append to loses every entry with
+	 * no error anywhere.
+	 */
+	public function log_check()
+	{
+		$log_path = (string) config_item('log_path');
+		if ($log_path === '') {
+			$log_path = APPPATH . 'logs/';
+		}
+
+		$log_path  = rtrim($log_path, '/\\') . DIRECTORY_SEPARATOR;
+		$extension = (string) config_item('log_file_extension');
+		$log_file  = $log_path . 'log-' . date('Y-m-d') . '.' . ($extension === '' ? 'php' : $extension);
+
+		echo 'running as       ' . $this->describe_user() . PHP_EOL;
+		echo 'directory        ' . $log_path . PHP_EOL;
+		echo 'threshold        ' . var_export(config_item('log_threshold'), true) . PHP_EOL;
+
+		$problems = [];
+
+		if (!is_dir($log_path)) {
+			echo 'directory state  MISSING' . PHP_EOL;
+			$problems[] = 'the log directory does not exist';
+		} else {
+			echo 'directory state  ' . $this->describe_path($log_path) . PHP_EOL;
+			if (!is_writable($log_path)) {
+				$problems[] = 'the log directory is not writable by this user';
+			}
+		}
+
+		echo 'today\'s file     ' . $log_file . PHP_EOL;
+
+		if (!file_exists($log_file)) {
+			// Deliberately not created here: a file this command makes belongs to
+			// whoever ran it, which is the very mismatch it exists to detect.
+			echo 'file state       not created yet' . PHP_EOL;
+		} else {
+			echo 'file state       ' . $this->describe_path($log_file) . PHP_EOL;
+
+			$handle = @fopen($log_file, 'ab');
+			if ($handle === false) {
+				echo 'append test      FAILED' . PHP_EOL;
+				$problems[] = 'the current log file cannot be appended to — every entry is being dropped';
+			} else {
+				fclose($handle);
+				echo 'append test      ok' . PHP_EOL;
+			}
+		}
+
+		echo PHP_EOL;
+
+		// Root passes every permission test and creates root-owned files the
+		// web-server user then cannot append to — the failure this command exists
+		// to catch is the one a root run is blind to.
+		if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+			echo '[WARN] running as root: appends succeed regardless of ownership, so this'
+				. ' says nothing about the web-server user. Re-run as that user.' . PHP_EOL;
+		}
+
+		if ($problems === []) {
+			echo '[ ok ] log writes land for this user.' . PHP_EOL;
+
+			return;
+		}
+
+		foreach ($problems as $problem) {
+			echo '[WARN] ' . $problem . '.' . PHP_EOL;
+		}
+		echo 'Logging fails silently, so nothing else will report this.' . PHP_EOL;
+	}
+
+	/**
+	 * Owner, group and mode of a path, for comparing against the web-server user.
+	 */
+	protected function describe_path(string $path): string
+	{
+		$owner = function_exists('posix_getpwuid') ? posix_getpwuid((int) fileowner($path)) : null;
+		$group = function_exists('posix_getgrgid') ? posix_getgrgid((int) filegroup($path)) : null;
+
+		return sprintf(
+			'owner=%s group=%s mode=%s writable=%s',
+			$owner['name'] ?? (string) fileowner($path),
+			$group['name'] ?? (string) filegroup($path),
+			substr(sprintf('%o', fileperms($path)), -4),
+			is_writable($path) ? 'yes' : 'NO'
+		);
+	}
+
+	/**
+	 * The effective user of this process.
+	 */
+	protected function describe_user(): string
+	{
+		if (!function_exists('posix_geteuid')) {
+			return get_current_user();
+		}
+
+		$user = posix_getpwuid(posix_geteuid());
+
+		return ($user['name'] ?? get_current_user()) . ' (uid ' . posix_geteuid() . ')';
 	}
 }

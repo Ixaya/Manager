@@ -13,14 +13,16 @@ front controller or editing nginx routing. A docker smoke-test debug session
 did it that way (`public/debug.php` + a rewrite retarget) and paid for it
 with a revert checklist and a routing dead-end (`try_files` + directory
 index resolution meant bare `/` never hit the debug file at all). The CLI
-form needs no nginx change and cleans up by deleting one file.
+form needs no nginx change and leaves nothing behind.
 
 ```php
 <?php
 // silent_fatal_probe.php — throwaway, run via:
-//   docker cp silent_fatal_probe.php <instance>-php-1:/tmp/
+//   docker exec -i <instance>-php-1 sh -c 'cat > /tmp/silent_fatal_probe.php' < silent_fatal_probe.php
 //   docker exec <instance>-php-1 php /tmp/silent_fatal_probe.php
-// Delete from the container when done.
+// Piped in, not `docker cp`: the daemon writes cp'd files into the container's
+// own layer, which is read-only here. /tmp is writable from inside, and is
+// scratch — the file goes away with the container.
 
 // Catches true fatals that never reach a catch block.
 register_shutdown_function(function (): void {

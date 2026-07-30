@@ -153,7 +153,17 @@ warning/notice/deprecation. Three channels, they don't overlap:
 - **Container stderr** — `docker logs <instance>-php-1` (PHP `error_log`).
   Echo a boundary marker to stderr first to scope it.
 - **CI app log** — `/var/log/manager/app/` in-container. Empty = no
-  error-level entries.
+  error-level entries, but only once `manager/tools/log_check` says writes
+  land: CI opens the log with a silenced `fopen()` and `log_message()`
+  discards the result, so a file the web-server user cannot append to drops
+  every entry with no symptom. A CLI command run as root creates exactly that
+  state. Check it as that user, never as root — root appends to anything and
+  reports success on the failing state — and repair with `chown -R
+  www-data:www-data /var/log/manager`.
+
+  ```bash
+  ./docker_manage.sh -e <instance> exec -u www-data php bash /var/www/html/bin/cli_run.sh manager/tools/log_check
+  ```
 
 **All channels empty but the request still 500s?** The failure precedes logger
 init — no amount of re-checking these channels will show it. Use the

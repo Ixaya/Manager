@@ -28,6 +28,7 @@ class MGR_Exceptions extends CI_Exceptions
 
 	/**
 	 * Renders a framework error, including 404s and CI's parsed DB errors.
+	 * Logs 5xx that no caller logged first.
 	 *
 	 * @param  string       $heading
 	 * @param  string|array $message
@@ -37,6 +38,12 @@ class MGR_Exceptions extends CI_Exceptions
 	 */
 	public function show_error($heading, $message, $template = 'error_general', $status_code = 500)
 	{
+		// Nothing else logs this path — CI's show_error() has no logging of its own.
+		// error_db is excluded: DB_driver already logged before rendering.
+		if ($status_code >= 500 && $template !== 'error_db') {
+			log_message('error', $heading . ': ' . (is_array($message) ? implode(' ', $message) : $message));
+		}
+
 		if ($this->validate_html_accept()) {
 			return parent::show_error($heading, $message, $template, $status_code);
 		}
@@ -159,8 +166,10 @@ class MGR_Exceptions extends CI_Exceptions
 			$is_options = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS');
 			$this->_add_cors($is_options);
 
+			// Never $error_code: a non-2xx preflight is not cached, so the browser would
+			// re-send it before every request. 204 is what a routed URL answers.
 			if ($is_options) {
-				http_response_code(200);
+				http_response_code(204);
 			} else {
 				header('Content-Type: application/json', true, $error_code);
 				echo json_encode($data);
