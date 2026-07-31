@@ -1,8 +1,6 @@
 <?php
 
-if (! defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
+defined('BASEPATH') or exit('No direct script access allowed');
 
 $lang['admin_dashboard'] = 'Tablero';
 $lang['admin_retailers_header'] = 'Comercios';

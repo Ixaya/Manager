@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * Renders CodeIgniter's error output as JSON for API clients.
  *

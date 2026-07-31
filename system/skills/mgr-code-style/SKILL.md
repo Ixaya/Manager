@@ -50,8 +50,12 @@ style from those files.
   `setIndent("\t")`), LF endings, short array syntax.
 - Before finishing any change: `php-cs-fixer fix` and `phpstan analyse`
   (level 5) — both must pass.
-- Every PHP file starts with `defined('BASEPATH') or exit('No direct script
-  access allowed');`.
+- `BASEPATH` guard — `defined('BASEPATH') or exit('No direct script access
+  allowed');` (convert the older `if (! defined('BASEPATH')) { exit(...); }`
+  form on touch, no dedicated pass) — required in controllers, models,
+  libraries, helpers, config, migrations, and language files. Exempt: seeds
+  and views. Always directly below `<?php`, within the first 3 lines — never
+  below a header comment.
 - snake_case for methods, properties, and variables (CI3 heritage); enums and
   value-object classes in PascalCase (`MgrFieldType`, `MgrDriver`).
 

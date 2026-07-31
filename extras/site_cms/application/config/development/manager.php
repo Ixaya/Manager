@@ -1,9 +1,6 @@
 <?php
 
-if (!defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
-
+defined('BASEPATH') or exit('No direct script access allowed');
 
 //'dev' for development or 'prod' for production
 $config['edition']        = mgr_env('MGR_EDITION', 'dev');

@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 class Tools extends CI_Controller
 {
 	public function __construct()
@@ -280,7 +282,9 @@ class $name extends Seeder {
 
 		$my_model = fopen($path, "w") or die("Unable to create model file!");
 
-		$model_template = "<?php defined('BASEPATH') or exit('No direct script access allowed');
+		$model_template = "<?php
+
+defined('BASEPATH') or exit('No direct script access allowed');
 
 class $name extends MY_Model {
 
@@ -367,9 +371,15 @@ class $name extends MY_Model {
 	{
 		$keys = $key !== null ? [$key] : [
 			'APP_ENV',
-			'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS',
-			'CF_ENCRYPTION_KEY', 'CF_SESS_SAVE_PATH',
-			'LIB_REDIS_HOST', 'LIB_REDIS_PASSWORD',
+			'DB_HOST',
+			'DB_PORT',
+			'DB_NAME',
+			'DB_USER',
+			'DB_PASS',
+			'CF_ENCRYPTION_KEY',
+			'CF_SESS_SAVE_PATH',
+			'LIB_REDIS_HOST',
+			'LIB_REDIS_PASSWORD',
 		];
 
 		$missing = 0;

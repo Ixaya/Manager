@@ -1,10 +1,9 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 // Path: application/libraries/Attachment_lib.php
 // Library to manage attachments
-
-
-defined('BASEPATH') or exit('No direct script access allowed');
 
 class MGR_Attachment_lib
 {

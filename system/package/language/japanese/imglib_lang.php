@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * System messages translation for CodeIgniter(tm)
  *
@@ -8,7 +10,6 @@
  * @license	http://opensource.org/licenses/MIT	MIT License
  * @link	https://codeigniter.com
  */
-defined('BASEPATH') or exit('No direct script access allowed');
 
 $lang['imglib_source_image_required'] = '設定で元画像を指定する必要があります。';
 $lang['imglib_gd_required'] = 'この機能には、GD ライブラリが必要です。';

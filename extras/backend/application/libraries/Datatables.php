@@ -1,8 +1,7 @@
 <?php
 
-if (!defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * Ignited Datatables
  *
@@ -17,6 +16,7 @@ if (!defined('BASEPATH')) {
  *			 Yusuf Ozdemir <yusuf@ozdemir.be>
  * @link	   http://ellislab.com/forums/viewthread/160896/
  */
+
 class Datatables
 {
 	/**

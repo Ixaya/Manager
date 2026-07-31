@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 //
 //  Slack.php
 //  Ixaya
@@ -7,7 +9,7 @@
 // Created by Gustavo Moya on 02/17/18.
 //  Copyright © 2018 Ixaya. All rights reserved.
 //
-defined('BASEPATH') or exit('No direct script access allowed');
+
 
 class Slack extends APP_Api_Model
 {

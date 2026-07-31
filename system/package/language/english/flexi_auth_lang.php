@@ -1,23 +1,22 @@
 <?php
 
-if (! defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
-* Name: flexi auth lang - English
-*
-* Author:
-* Rob Hussey
-* flexiauth@haseydesign.com
-* haseydesign.com/flexi-auth
-*
-* Released: 13/09/2012
-*
-* Description:
-* English language file for flexi auth
-*
-* Requirements: PHP5 or above and Codeigniter 2.0+
-*/
+ * Name: flexi auth lang - English
+ *
+ * Author:
+ * Rob Hussey
+ * flexiauth@haseydesign.com
+ * haseydesign.com/flexi-auth
+ *
+ * Released: 13/09/2012
+ *
+ * Description:
+ * English language file for flexi auth
+ *
+ * Requirements: PHP5 or above and Codeigniter 2.0+
+ */
 
 // Account Creation
 $lang['account_creation_successful']				= 'Your account has successfully been created.';

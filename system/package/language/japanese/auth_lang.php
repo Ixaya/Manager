@@ -1,25 +1,24 @@
 <?php
 
-if (! defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
-* Name:  Auth Lang - Japanese
-*
-* Author: Ben Edmunds
-* 		  ben.edmunds@gmail.com
-*		 @benedmunds
-*
-* Author/Translation: Daniel Davis
-*		 @ourmaninjapan
-*
-* Location: http://github.com/benedmunds/ion_auth/
-*
-* Created:  03.19.2013
-*
-* Description:  Japanese language file for Ion Auth example views
-*
-*/
+ * Name:  Auth Lang - Japanese
+ *
+ * Author: Ben Edmunds
+ * 		  ben.edmunds@gmail.com
+ *		 @benedmunds
+ *
+ * Author/Translation: Daniel Davis
+ *		 @ourmaninjapan
+ *
+ * Location: http://github.com/benedmunds/ion_auth/
+ *
+ * Created:  03.19.2013
+ *
+ * Description:  Japanese language file for Ion Auth example views
+ *
+ */
 
 // Errors
 $lang['error_csrf'] = 'セキュリティに問題が生じ送信できませんでした。';

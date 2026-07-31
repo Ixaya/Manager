@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 $active_config = mgr_env('LIB_JWT_ACTIVE_CONFIG', 'default');
 
 // Config

@@ -1,8 +1,6 @@
 <?php
 
-if (! defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * Name:    Ion Auth Model

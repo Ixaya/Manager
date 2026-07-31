@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * System messages translation for CodeIgniter(tm)
  *
@@ -9,7 +11,6 @@
  * @license	http://opensource.org/licenses/MIT	MIT License
  * @link	https://codeigniter.com
  */
-defined('BASEPATH') or exit('No direct script access allowed');
 
 $lang['db_invalid_connection_str'] = 'No ha sido posible determinar la configuración de la base de datos basada en la cadena de conexión introducida.';
 $lang['db_unable_to_connect'] = 'No ha sido posible conectar al servidor de la base de datos haciendo uso de la configuración proporcionada.';

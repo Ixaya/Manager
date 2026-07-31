@@ -33,6 +33,7 @@ if `table_name` not set).
 
 ```php
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Invoice extends MY_Model

@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * System messages translation for CodeIgniter(tm)
  *
@@ -8,7 +10,6 @@
  * @license	http://opensource.org/licenses/MIT	MIT License
  * @link	https://codeigniter.com
  */
-defined('BASEPATH') or exit('No direct script access allowed');
 
 $lang['upload_userfile_not_set'] = "ユーザファイルがセットされていません。";
 $lang['upload_file_exceeds_limit'] = "アップロードされたファイルはPHP設定ファイルで許可されている最大サイズを超過しています。";

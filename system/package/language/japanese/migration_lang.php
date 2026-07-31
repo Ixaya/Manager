@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * System messages translation for CodeIgniter(tm)
  *
@@ -8,7 +10,6 @@
  * @license	http://opensource.org/licenses/MIT	MIT License
  * @link	https://codeigniter.com
  */
-defined('BASEPATH') or exit('No direct script access allowed');
 
 $lang['migration_none_found'] = 'マイグレーション対象は見つかりませんでした';
 $lang['migration_not_found'] = '%sのバージョンではマイグレーション対象は見つかりませんでした';

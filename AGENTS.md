@@ -136,8 +136,11 @@ package alias → `MY_`/`APP_`) is in `docs/architecture/`.
   matches or tightens the default is fine). State the assumption you made. Ask
   only when interactive and no safe default exists; an autonomous run picks the
   conservative option and says so.
-- Every PHP file starts with the `BASEPATH` guard; formatting is PSR-12 with
-  tabs (run the fixer before finishing).
+- **`BASEPATH` guard required** in controllers, models, libraries, helpers,
+  config, migrations, and language files. Exempt: seeds and views. Always
+  directly below `<?php`, within the first 3 lines — never below a header
+  comment.
+- Formatting is PSR-12 with tabs (run the fixer before finishing).
 - **Git operations are off-limits.** Agents must never perform git operations
   (commit, push, branch creation/deletion, rebase, merge, etc.) with the sole
   exception of adding `.gitignore`, `.gitattributes`, or `.gitkeep` files. All

@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 //  Created by Kevin Martinez on 29/08/24.
 //  Copyright © 2024 Ixaya. All rights reserved.
 //

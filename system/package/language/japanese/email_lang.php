@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * System messages translation for CodeIgniter(tm)
  *
@@ -8,7 +10,6 @@
  * @license	http://opensource.org/licenses/MIT	MIT License
  * @link	https://codeigniter.com
  */
-defined('BASEPATH') or exit('No direct script access allowed');
 
 $lang['email_must_be_array'] = "メールアドレスのバリデーションは、配列でデータを渡す必要があります。";
 $lang['email_invalid_address'] = 'メールアドレスの形式が違います: %s';

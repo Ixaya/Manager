@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 /**
  * @name		CodeIgniter Advanced Images
  * @author		Jens Segers
@@ -24,10 +26,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
-if (!defined('BASEPATH')) {
-	exit('No direct script access allowed');
-}
 
 class MY_Image_lib extends CI_Image_lib
 {

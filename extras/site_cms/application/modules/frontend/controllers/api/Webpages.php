@@ -1,5 +1,7 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
+
 //
 //  Webpages.php
 //  Ixaya
@@ -7,8 +9,6 @@
 // Created by Gustavo Moya on 02/23/21.
 //  Copyright © 2021 Ixaya. All rights reserved.
 //
-
-defined('BASEPATH') or exit('No direct script access allowed');
 
 class Webpages extends APP_Rest_Controller
 {

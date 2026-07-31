@@ -1,8 +1,8 @@
 <?php
 
-// application/controllers/Websockets.php
-
 defined('BASEPATH') or exit('No direct script access allowed');
+
+// application/controllers/Websockets.php
 
 class Websockets extends CI_Controller
 {

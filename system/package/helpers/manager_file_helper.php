@@ -1,5 +1,6 @@
 <?php
 
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * Generate the full file path based on the URI, handling private and public files.
