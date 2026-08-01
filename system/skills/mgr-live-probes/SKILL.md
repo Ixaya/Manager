@@ -137,6 +137,12 @@ container (`docker exec <instance>-php-1 grep -n "<symbol>"
 image. Bring up the real profile the change touches (e.g. `--profile postgres`
 for a Postgres-specific fix).
 
+Confirming the bind is one case of a general rule: **an absence is not
+evidence until the channel has produced a positive.** A clean grep, a silent
+log and an unchanged response look identical whether the change passed or
+never ran. Before concluding from nothing, make the channel say something you
+know it should.
+
 **Timing:** live-test once per group of changes, after they're all written —
 not after each one; the stack has real bring-up overhead. Keep the stack up
 while you work through them; tear down (`down -v`, every profile flag) at the

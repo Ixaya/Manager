@@ -99,6 +99,12 @@ two; `count_all()` is `?int` on the same contract, where `0` is a genuinely
 empty table. `$fields` is a comma-separated select list or array; `null`
 = `SELECT *`. `$limit` accepts `int`, `'10'`, or `[limit, offset]`.
 
+Whether a failed query reaches your code at all is a project setting.
+`db_debug` on (`application/config/database.php`) makes CI render the DB
+error and stop the request; off, the call returns `null` and this check is
+the only thing between a failed query and a success response. Write the
+check either way — the shipped config turns the flag off in production.
+
 ```php
 get(int|string $id, $fields = null): ?array
 get_where(array $where, $fields = null): ?array

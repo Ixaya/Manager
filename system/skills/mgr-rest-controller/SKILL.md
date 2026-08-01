@@ -262,8 +262,9 @@ by `should_disclose_details()` — which is `is_cli() || display_errors`, **not*
   `message` at the root, plus an `error` object carrying internals —
   `{status: 0, message, error: {class, file, line}}` for an uncaught
   exception. A query that fails while `db_debug` is on renders the parsed DB
-  envelope instead — `error: {errno, file, line, query?}`. A PHP
-  warning/notice renders `error: {severity, file, line}`.
+  envelope instead — `error: {heading, errno, file, line, query?}`, with the
+  driver's own text in `message`. A PHP warning/notice renders
+  `error: {severity, file, line}`.
 - **Suppressed** (otherwise — production): `{status: 0, message: 'An unexpected
   error occurred.'}` and nothing else, so one failure mode cannot be told from
   another by comparing responses.

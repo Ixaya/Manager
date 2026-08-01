@@ -43,6 +43,10 @@ style from those files.
    remnants — don't imitate).
 9. **One purpose per function.** When a method grows a second responsibility,
    extract it.
+10. **No suppression without a log.** Code that hides failure detail from a
+    caller — a generic error response, a swallowed exception, a discarded
+    return — writes a log entry in the same change. An error path that leaves
+    no trace is a worse defect than the disclosure it prevents.
 
 ## Formatting & tooling
 

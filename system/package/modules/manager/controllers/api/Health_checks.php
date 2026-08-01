@@ -27,6 +27,6 @@ class Health_checks extends APP_Rest_Controller
 	}
 	public function not_found_get()
 	{
-		$this->response(['status' => -1, 'message' => "404 Not Found"], REST_Controller::HTTP_NOT_FOUND);
+		$this->response(['status' => 0, 'message' => "404 Not Found"], REST_Controller::HTTP_NOT_FOUND);
 	}
 }
