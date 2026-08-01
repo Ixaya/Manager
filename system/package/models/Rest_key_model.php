@@ -15,14 +15,17 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @link			https://github.com/chriskacerguis/codeigniter-restserver
 
  */
-class Rest_key_model extends CI_Model
+class Rest_key_model extends MY_Model
 {
+	protected bool $lazy_connect = true;
+
 	public function __construct()
 	{
 		// Construct the parent class
 		parent::__construct();
 
 		$this->load->config('rest');
+		$this->connection_name = config_item('rest_database_group') ?? 'default';
 	}
 
 	/**
@@ -146,7 +149,7 @@ class Rest_key_model extends CI_Model
 		$new_key = $this->_generate_key();
 
 		// Insert the new key
-		if ($this->_insert_key($new_key, ['level' => $key_details->level, 'ignore_limits' => $key_details->ignore_limits])) {
+		if ($this->_insert_key($new_key, ['level' => $key_details['level'], 'ignore_limits' => $key_details['ignore_limits']])) {
 			// Suspend old key
 			$this->_update_key($old_key, ['level' => 0]);
 
@@ -159,19 +162,23 @@ class Rest_key_model extends CI_Model
 	public function get_user_key($user_id, $device_uuid = null)
 	{
 		$where = ['user_id' => $user_id];
-		$keyRow = $this->db
+
+		$this->check_connect();
+		$keyRow = $this->my_db
 			->where($where)
 			->get(config_item('rest_keys_table'))
-			->row();
+			->row_array();
 		if ($keyRow) {
-			return $keyRow->key;
+			return $keyRow['key'];
 		} else {
 			return $this->add_key($where, 1, true, $device_uuid);
 		}
 	}
 	public function delete_user_key($user_id)
 	{
-		return $this->db
+		$this->check_connect();
+
+		return $this->my_db
 			->where('user_id', $user_id)
 			->delete(config_item('rest_keys_table'));
 	}
@@ -198,39 +205,49 @@ class Rest_key_model extends CI_Model
 
 	protected function _get_key($key)
 	{
-		return $this->db
+		$this->check_connect();
+
+		return $this->my_db
 			->where(config_item('rest_key_column'), $key)
 			->get(config_item('rest_keys_table'))
-			->row();
+			->row_array();
 	}
 
 	protected function _key_exists($key)
 	{
-		return $this->db
+		$this->check_connect();
+
+		return $this->my_db
 			->where(config_item('rest_key_column'), $key)
 			->count_all_results(config_item('rest_keys_table')) > 0;
 	}
 
 	protected function _insert_key($key, $data)
 	{
+		$this->check_connect();
+
 		$data[config_item('rest_key_column')] = $key;
 		$data['date_created'] = function_exists('now') ? now() : time();
 
-		return $this->db
+		return $this->my_db
 			->set($data)
 			->insert(config_item('rest_keys_table'));
 	}
 
 	protected function _update_key($key, $data)
 	{
-		return $this->db
+		$this->check_connect();
+
+		return $this->my_db
 			->where(config_item('rest_key_column'), $key)
 			->update(config_item('rest_keys_table'), $data);
 	}
 
 	protected function _delete_key($key)
 	{
-		return $this->db
+		$this->check_connect();
+
+		return $this->my_db
 			->where(config_item('rest_key_column'), $key)
 			->delete(config_item('rest_keys_table'));
 	}
