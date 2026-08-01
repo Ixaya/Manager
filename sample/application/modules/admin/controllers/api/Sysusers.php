@@ -30,18 +30,13 @@ class Sysusers extends APP_Rest_Controller
 		$this->load->model('user');
 		$users = $this->user->get_list($params);
 
-		if ($users['data'] === null) {
+		if ($users === null) {
 			$this->response(['status' => 0, 'message' => 'Failed to load users.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
 
 		$response = [
 			'status' => 1,
-			'response' => [
-				'users' => $users['data'],
-				'recordsTotal' => $users['total'],
-				'recordsFiltered' => 0
-
-			]
+			'response' => $users
 		];
 
 		$this->cache->save($cache_key, $response);
@@ -180,10 +175,7 @@ class Sysusers extends APP_Rest_Controller
 
 	public function details_get()
 	{
-		$this->load->model(['user', 'user_key', 'login_attempt', 'ion_auth_model']);
-
 		$id = $this->get('id');
-		$response = [];
 
 		if (empty($id)) {
 			$this->response([
@@ -192,48 +184,50 @@ class Sysusers extends APP_Rest_Controller
 			], REST_Controller::HTTP_BAD_REQUEST);
 		}
 
-		$api_key_obj = $this->user_key->get_where(['user_id' => $id]);
-		$api_key = "User doesn't have an API Key";
-		if (!empty($api_key_obj)) {
-			$api_key = $api_key_obj['key'];
-		}
+		$this->load->model('ion_auth_model');
 
-		$data['user'] = $this->ion_auth_model->user($id)->row_array();
-		if (empty($data['user'])) {
+		$user = $this->ion_auth_model->user($id)->row_array();
+		if (empty($user)) {
 			$this->response([
 				'status' => 0,
 				'message' => 'The user ID not found.'
 			], REST_Controller::HTTP_NOT_FOUND);
 		}
 
-		$data['api_key'] = $api_key;
-		$data['user_groups'] = $this->ion_auth_model->get_users_groups($id)->result_array();
-		$data['login_attempts'] = $this->login_attempt->get_by_user($id);
+		$this->load->model(['user', 'user_key', 'login_attempt', 'ion_auth_model']);
 
-		$response['user'] = [
-			'id'          => $data['user']['id'],
-			'email'       => $data['user']['email'],
-			'username'    => $data['user']['username'],
-			'first_name'  => $data['user']['first_name'],
-			'last_name'   => $data['user']['last_name'],
-			'company'     => $data['user']['company'],
-			'phone'       => $data['user']['phone'],
-			'active'      => $data['user']['active'],
-			'image'       => $this->get_file_base64($data['user']['image_url']),
+		$api_key = $this->user_key->get_by_user($id);
+		if ($api_key === null) {
+			$api_key = "User doesn't have an API Key";
+		}
+
+		$user_groups = $this->ion_auth_model->get_users_groups($id)->result_array();
+		$login_attempts = $this->login_attempt->get_by_user($id);
+
+		$response = [
+			'id'          => $user['id'],
+			'email'       => $user['email'],
+			'username'    => $user['username'],
+			'first_name'  => $user['first_name'],
+			'last_name'   => $user['last_name'],
+			'company'     => $user['company'],
+			'phone'       => $user['phone'],
+			'active'      => $user['active'],
+			'image'       => $this->get_file_base64($user['image_url']),
 			'user_groups' => array_map(
 				static fn (array $g): array => ['id' => $g['id'], 'name' => $g['name']],
-				$data['user_groups']
+				$user_groups
 			),
-			'api_key'     => $data['api_key'],
-			'ip_address'  => $data['user']['ip_address'],
-			'last_update' => $data['user']['last_update'],
-			'login_attempts' => $data['login_attempts'],
+			'api_key'     => $api_key,
+			'ip_address'  => $user['ip_address'],
+			'last_update' => $user['last_update'],
+			'login_attempts' => $login_attempts,
 		];
 
 		$this->response([
 			'status' => 1,
 			'message' => 'User',
-			'response' => $response
+			'response' => ['user' => $response]
 		], REST_Controller::HTTP_OK);
 	}
 

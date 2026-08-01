@@ -97,12 +97,12 @@ class Login extends APP_Rest_Controller
 	 * Cleans and formats the response for the given account data.
 	 *
 	 * @param array|object $objAcc      Account data to process.
-	 * @param string|false $apiKey      API key associated with the request, or false if not used.
+	 * @param string|null $apiKey      API key associated with the request.
 	 * @param string|null  $device_uuid Optional device identifier.
 	 *
 	 * @return array The processed response data.
 	 */
-	private function _processResponse($objAcc, $apiKey = null, $device_uuid = null)
+	private function _processResponse(array|object $objAcc, ?string $apiKey = null, ?string $device_uuid = null): array
 	{
 		if (is_array($objAcc)) {
 			$objAcc = (object) $objAcc;
@@ -113,7 +113,7 @@ class Login extends APP_Rest_Controller
 		unset($objAcc->active);
 		unset($objAcc->last_login);
 
-		if ($apiKey == null) {
+		if ($apiKey === null) {
 			$this->load->model('Rest_key_model', 'api_key');
 			$apiKey = $this->api_key->get_user_key($objAcc->id, $device_uuid);
 		}

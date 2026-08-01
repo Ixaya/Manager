@@ -4,7 +4,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class User extends APP_Model_Dyn
 {
-	public function get_list(array $params)
+	public function get_list(array $params): ?array
 	{
 		$fields = [
 			'id',
@@ -50,10 +50,12 @@ class User extends APP_Model_Dyn
 		$order_by = mgr_build_order_by($params['order_by'], $params['order'], $allowed_order);
 
 		$rows = $this->get_all_dynamic(fields: $fields, where: $where, limit: $limit_page, order_by: $order_by);
+		if ($rows === null) {
+			return null;
+		}
 
 		$count_rows = $this->get_all_dynamic(fields: 'count(*) AS count', where: $where);
-
-		$total = isset($count_rows[0]['count']) ? $count_rows[0]['count'] : 0;
+		$total = (int)($count_rows[0]['count'] ?? 0);
 
 		return ['data' => $rows, 'total' => $total];
 	}

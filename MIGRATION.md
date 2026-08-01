@@ -368,6 +368,17 @@ grep -rL "group_methods\|auth_override" application/modules/*/controllers/api/*.
 # every file listed is ungated — decide level/group or an explicit auth_override
 ```
 
+If a controller sets `'group' => ''` to leave the group axis open, that relied
+on 1.x's `$group != null` check, where PHP's loose comparison treats `''` and
+`null` as equal — 2.0's `_remap()` compares against the literal sentinel
+string `'none'` with `!==`, so `''` no longer opts out and the group axis will
+start being enforced (and likely 401 real callers). Update it:
+
+```bash
+grep -rn "'group'\s*=>\s*''" application/modules/*/controllers/api/*.php
+# each hit: replace '' with the explicit 'none' sentinel
+```
+
 While in there, delete stale legacy properties: unused cache-enabled flags and
 hand-rolled api-key properties on controllers — auth state comes from the base
 class (`$this->user_id`, `$this->logged_in_level`), never from a controller's
