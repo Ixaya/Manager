@@ -49,6 +49,7 @@ system/
 ├── skills/             # Agent skills (SKILL.md format) — conventions source of truth
 └── third_party/        # MX (HMVC), BE (Ion Auth fork), REST_Controller
 sample/                 # project scaffold — copied ONCE into new projects
+extras/                 # legacy CI3 example projects — `export-ignore`d, never ships
 patches/                # composer patches for dependencies
 ```
 
@@ -128,6 +129,14 @@ package alias → `MY_`/`APP_`) is in `docs/architecture/`.
   only, and prefer fixing in the MGR_ subclass layer instead. The BE Ion Auth
   fork carries a documented set of deliberate edits and purposeful deviations
   — see `docs/development/auth-upstream.md` before/after any upstream merge.
+- **`extras/` is legacy example code, not a pattern source.** It is kept so
+  legacy CI3 projects can see the shapes they are upgrading from, and it is
+  `export-ignore`d, so it never reaches a consuming project. Do not homologate
+  it, do not fix its drift, and never cite it as an example of how this
+  framework is written; a sweep that finds something there notes it and moves
+  on. Counting it in a corpus survey is fine and occasionally useful — it is
+  the largest body of real historical code — but a corpus *fix* stops at
+  `system/` and `sample/`.
 - **Comments are short and rare, not documentation.** Inline: 1–2 lines, 4
   max, only for a non-obvious constraint/gotcha the code can't express —
   never restate what the code does. PHPDoc: short, caller-facing only. Full

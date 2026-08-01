@@ -13,6 +13,11 @@ own commit). Moving to `.env`-based single configs is NOT required — it's in
 "Big picture" at the end, because it's more nuanced and can be done later,
 config file by config file.
 
+**Already on 2.x?** None of the phases apply to you. The last section,
+"Upgrading within 2.x", is the only one you need. A project coming from 1.x
+lands on the current release, so it needs that section as well, after
+finishing the phases.
+
 ---
 
 ## Phase 0 — Inventory & safety
@@ -656,3 +661,97 @@ references a skill name, so no code changes.
 **Not part of migrating:** resist bundling unrelated feature work (new
 endpoints, new models) into the migration commit — it makes the diff
 unreviewable and the rollback story worse.
+
+---
+
+## Upgrading within 2.x
+
+Changes between 2.x releases that alter behavior a project already depends on.
+Everything else in a minor release is additive.
+
+### The `-1` response tier is retired
+
+`status` is now binary — `1` success, `0` failure, as integers — and the HTTP
+status code carries the *kind* of failure. The framework no longer emits `-1`
+anywhere.
+
+Three things follow, in descending order of how likely they are to bite:
+
+1. **A client branching on `status === -1` stops matching.** It is affected
+   only on a request that already failed, and `status === 1` / `status === 0`
+   checks are untouched or catch strictly more, so the happy path cannot
+   break. Still, find them before upgrading — including in mobile clients,
+   which are the ones that cannot be redeployed with the API.
+2. **The disclosed error envelope is reshaped.** Diagnostics now nest under an
+   `error` object instead of sitting flat beside `message`: `{status, message,
+   error: {class, file, line}}` for an exception, `{errno, file, line, query}`
+   for a database error, `{severity, file, line}` for a PHP warning,
+   `{heading}` otherwise. `show_error()`'s odd `details` key is now `message`,
+   matching every other path. Anything parsing the old flat keys needs
+   updating — but note this shape only ever renders where details are
+   disclosed (CLI, or `display_errors` on), so a production client sees only
+   the generic `{status: 0, message}`.
+3. **Your own controllers are not changed for you.** The sample controllers
+   are copied into a project once, so a project's copies keep emitting
+   whatever they emitted. Only the framework's own error responses moved. Fix
+   yours on your own schedule; the rule to apply is that the tier and the HTTP
+   class must agree — `0` with a 4xx or 5xx, `1` with a 2xx.
+
+```bash
+# your own emissions
+grep -rn "'status' *=> *-1" application/
+# HTTP 200 paired with a failure tier — the shape the retirement targets
+grep -rn -B2 -A2 "'status' *=> *0" application/ | grep -n "HTTP_OK"
+```
+
+### Read methods return `null` on a failed query
+
+**This is the one that changes behavior silently in code that still runs.**
+
+`MGR_Model::execute_list()` used to coerce a failed query to an empty array,
+documented as such. It now returns `?array`: `null` when the query failed to
+execute, `[]` when it ran and matched nothing. The eight `get_all*` methods
+follow, and `count_all()` is `?int` on the same contract, where `0` now means
+a genuinely empty table.
+
+Before, a failed query and an empty table were indistinguishable, so "check
+every database call" was impossible for the read shape most callers use. That
+is what this fixes. The cost is that a failure which used to pass silently now
+surfaces:
+
+- Code that hands the result straight to `count()`, `array_column()` or
+  `array_map()` raises a `TypeError` **on a failed query only** — where it
+  previously ran on `[]` and reported "no records". A `foreach` warns rather
+  than fatals.
+- A project method typed `: array` that returns the parent's result hits the
+  same thing at its own return statement. Overriding with a narrower `: array`
+  return type is still legal, so nothing breaks at class-declaration time —
+  only at runtime, only on failure.
+
+Neither is a regression: both replace a wrong answer with a loud one. But an
+upgrade can surface them all at once in code that has been quietly swallowing
+failures, so audit before you deploy rather than after.
+
+```bash
+# results passed straight into array functions
+grep -rnE '(count|array_column|array_map|array_filter)\(\s*\$this->[a-z_]+->(get_all|count_all)' application/
+# and the anti-pattern that silently undoes the fix
+grep -rn "intval(.*count_all\|(int)\s*\$.*count_all" application/
+```
+
+The right handling is an explicit `=== null` check answering a failure
+response. The one documented exception is a value that is *one of several*
+independent items in the same payload — a dashboard metric among others, where
+failing the whole request over one tile is worse than reporting that tile as
+`null`. Do that deliberately, with a comment at the call site, never as a way
+to skip the check.
+
+**Whether `null` ever reaches your code is your `db_debug` setting**
+(`application/config/database.php`), and the two modes are a deliberate
+choice. On: CI renders the database error and stops the request, so the `null`
+never arrives. Off: the call returns and every database call must check. The
+shipped config turns it off in production, so production is the mode that
+needs the checks.
+
+**Verify:** both greps reviewed; each hit either checks `null` or carries a
+comment saying why it deliberately does not.

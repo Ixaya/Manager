@@ -23,8 +23,8 @@ evidence: `docs/development/docker-decisions.md`.
 
 ## Where a change goes
 
-`AGENTS.md`'s repo map locates the trees. Two placement rules are easy to get
-wrong, and both are invisible until a consuming project breaks.
+`AGENTS.md`'s repo map locates the trees. Three placement rules are easy to
+get wrong, and all three are invisible until a consuming project breaks.
 
 **A framework library is three files, not one.** The project-side pattern —
 one `application/libraries/X_lib.php` plus `application/config/lib_x.php` —
@@ -48,6 +48,20 @@ REST_Controller stay close to their upstreams so updates merge cleanly — fix
 in the `MGR_` subclass layer instead. When there is no subclass seam, the
 deliberate-exception procedure and the worked example are in
 `docs/development/auth-upstream.md`.
+
+**Write the `sample/` prefix explicitly, always.** A bare `application/…` or
+`docker/…` path is ambiguous between a consuming project's tree and the
+scaffold, and the two are edited by different sessions for different reasons.
+Any note marking a file "project-owned, the framework can't push this" needs
+its companion — *…but `sample/` carries the canonical copy, so edit `sample/…`
+in the same change.* The trigger is not a convention change (that rule is in
+`AGENTS.md`): it is any file that exists in both trees, config wiring
+included. Two half-landed edits to a twinned file break consuming projects in
+ways neither edit would alone — a log-path change once landed in a project's
+`application/config/config.php` while the scaffold's copy kept the superseded
+key, and since the Docker half of the same work *did* reach `sample/`, new
+projects got a `log_path` resolving to empty and a read-only-filesystem error
+on first boot.
 
 ## Quality gates
 
@@ -101,6 +115,12 @@ confirmed by a grep. Two mechanisms, and the split is deliberate:
 `sample/vendor/ixaya/manager/` is an installed release of the package. It
 does not track the tree you are editing and is never updated by hand, so a
 stack started plainly exercises released framework code, not your change.
+
+Two consequences before any of the mechanics below. **Never edit anything
+under it** — a fix applied there is applied to a copy that the next
+`composer update` overwrites, and it will look like it worked. And **exclude
+it from every corpus grep**, or each hit in `system/` returns twice and any
+count taken from the result is wrong.
 
 Two flags fix that for the runtime services: `-b` binds the application tree
 and `-m` binds this repository's `system/` over the mirror, each reading its

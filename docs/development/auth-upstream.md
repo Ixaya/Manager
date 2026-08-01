@@ -41,6 +41,11 @@ merging a newer upstream, diff against this list and re-run the probe suite in
 - **`register()`:** stray `->where([...], 1)` second arg deleted;
   `clear_login_attempts()` param renamed `$oldAttemptsExpirePeriod` (typo);
   `recheck_session()` local renamed `$lastCheck`.
+- **`BASEPATH` guard style:** both files carry the corpus-canonical one-liner
+  `defined('BASEPATH') or exit('No direct script access allowed');`; upstream's
+  `if (! defined('BASEPATH')) { … }` block form was converted. Cosmetic only:
+  re-apply it so the guard stays uniform, or keep upstream's form and accept
+  the divergence — nothing depends on which one is used.
 
 ### Behavioral fixes
 

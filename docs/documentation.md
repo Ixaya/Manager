@@ -26,6 +26,15 @@
   verified against the current scaffold before committing.
 - **`docs/workspace/` is already ignored** here via `docs/.gitignore` — no
   setup needed.
+- **`docs/workspace/` carries two directories the base standard's
+  numbered-task-dir layout does not name**, and both persist across
+  campaigns: `00-shared/` (standing procedure, the current campaign's rules,
+  parked items) and `00-proposals/` (self-contained write-ups for work found
+  outside a campaign's scope and parked). The layout consequence is that this
+  tree is not uniformly disposable — "a working area, not a historical
+  record" holds per campaign directory, not per tree, since a campaign
+  directory is archived and deleted at distillation while these are not. The
+  mechanics belong to `docs/development/spec-campaigns.md`.
 
 ## Framework-only drift rules
 

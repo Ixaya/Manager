@@ -35,6 +35,8 @@ docs/workspace/
 │   ├── conventions.md   THIS campaign's scratchpad: campaign-wide rules and
 │   │                    knots (read second; swept at distillation)
 │   └── pending.md       indefinitely parked items — title + pointer only
+├── 00-proposals/        one directory per parked item needing more than a title
+│   └── <item>/spec.md   the self-contained write-up pending.md points at
 └── NN-section/          one numbered directory per domain
     ├── spec.md          task log: the findings; fixed = entry DELETED
     ├── handoff.md       validated baselines + running applied-change record
@@ -63,6 +65,12 @@ running one that way:
   objective**, not an oversized fix session. The signal is judgment per site
   rather than a pattern applied across sites — writing real content for ten
   files is a new objective; converting a phrasing at ten sites is a sweep.
+- **A campaign that nested usually distils into more than one initiative.**
+  Objectives grouped by domain rarely share one audience, and forcing them
+  into a single `docs/design/` record produces a decisions log nobody can read
+  end to end. Split on audience — the objectives whose decisions a consuming
+  project acts on, versus those that only bind work inside the framework —
+  and let each half point at the other.
 
 `spec.md` is a task log, not documentation: fix an item, then delete its
 entry. Durable conventions go to skills/AGENTS.md at distillation time, so
@@ -110,6 +118,25 @@ section specs point at this entry instead of re-deciding.
 `pending.md` needs no seed: it is created the first time an item is parked,
 and stays titles + pointers only.
 
+`00-proposals/` needs no seed either. It exists because a campaign that finds
+real work outside its own scope otherwise has two bad options — grow to absorb
+it, or lose it in a workspace about to be archived. This is the third: write
+the item up once, while the evidence is still in context, and let the campaign
+close on time. Each proposal carries what was found, the ruling that parked
+it, the options as they stood, and the constraints any implementation
+inherits; `pending.md` holds only its title and pointer. It is deliberately
+cheap — nothing here is scheduled, and a proposal that stops mattering is
+deleted rather than triaged. Two rules keep them worth having:
+
+- **Self-contained.** A proposal must not point into the campaign that raised
+  it; that directory gets archived. Lift the evidence in.
+- **Verified, not restated.** An item written from memory at closing time is
+  worth less than the records it was drawn from. Re-confirm the mechanics —
+  more than one proposal has sharpened into a different item under that check.
+
+Refer to a proposal by title, not by path, from anywhere permanent: a promoted
+proposal moves, and a path would need editing back.
+
 ## Writing discipline
 
 The same failure mode that inflates code comments inflates workspace prose:
@@ -143,6 +170,20 @@ A findings doc authored by LLM review passes carries two risks until checked:
 hallucinated references, and no baseline for later comparison. "Validate" does
 NOT mean "check whether it's already fixed" — it means: does the cited code
 exist, does it behave as claimed, and what does it look like right now.
+
+**Where an item claims what a client RECEIVES or what an engine ACCEPTS, the
+claim is unverified until observed.** Mark it `CANNOT-VERIFY`, never
+`VERIFIED`, and say in the handoff which it is — a verdict table that cannot
+distinguish observed from deduced is worth less than no table.
+
+That is the third risk, and the per-finding checks below do not catch it: a
+finding's PREMISE can be wrong, not just its references. One campaign opened
+on "an uncaught exception returns a body-less 500 in production". Reading the
+call chain inverted it — the catch the finding missed sat one frame further
+in, so the defect was over-disclosure, the opposite shape. Running it inverted
+the picture again and surfaced a third behavior nobody had predicted: a failed
+query answering HTTP 200 with a success envelope. Every reference in that
+finding was real.
 
 When commissioning the review pass that authors a findings doc, ask for full
 coverage and a flat, actionable list — one entry per finding with location,
@@ -203,6 +244,16 @@ find nothing. Where a desired convention is absent, the choice is to add it
 to the standard first — a product change, held to that artifact's own bar —
 or to drop it. Both are legitimate; enforcing it silently is not.
 
+**And the inverse: a rule that is too broad gets scoped before it is
+enforced.** Where the written standard demands more than it should, correcting
+the standard comes first and applying the corrected rule second — never
+mass-applying a rule nobody has justified. Scope it on measured adoption per
+category rather than on the rule's own wording, and let a mechanism argument
+override the count where the two disagree (a category can be kept against a
+low rate because the low rate is legacy debt, or exempted despite a high one
+because every compliant file turns out to be vendor boilerplate). "The rule is
+the suspect part" is a legitimate way to open an objective.
+
 ## Fix-pass process
 
 - **One item at a time, in the section's priority order.** Every item is a
@@ -214,6 +265,13 @@ or to drop it. Both are legitimate; enforcing it silently is not.
   together.
 - **Approve-before-edit** on anything behavior-changing or carrying an open
   DECISION. Present the plan (files, signatures, back-compat), wait.
+- **A one-line fix can look elegant because it is aimed at the wrong layer.**
+  Two diagnostics, cheap on any proposed remedy: when a remedy needs a
+  **second** fix to not be a regression, suspect the layer; and ask which
+  configuration it covers **by default**, not which one it covers at best. The
+  tell is subtle — one campaign's config override survived a full options
+  write-up before anyone noticed the framework wasn't suppressing the failure,
+  our own layer was discarding it.
 - **Baseline discipline:** before editing, confirm the code still matches the
   handoff quote — if it doesn't, STOP and report, don't improvise. After
   editing, diff against the quote and state in one line what changed.
@@ -244,6 +302,18 @@ re-derive. Campaign-proven additions:
 
 - One probe method per finding, so an item can be re-tested in isolation;
   probes stay afterwards (gitignored) for the next re-validation.
+- **Capture the baseline in every environment the change can reach, not only
+  the one the defect lives in.** A production-side fix is judged against the
+  development column: that column is what proves the fix did not quietly
+  remove a signal developers depend on, and without a pre-fix capture of it
+  there is nothing to make the comparison against. The same holds for engines
+  — the one that already behaves correctly is the control that shows a fix
+  homologated an existing behavior rather than inventing one.
+- **Probe the sibling paths in the same run, not just the one under test.**
+  What exposed the wrong-layer fix above was a probe comparing the read
+  method's empty array against the write methods' `false` in one run; reading
+  either alone would have confirmed the wrong story. Where a contract is
+  supposed to be uniform across a family of calls, exercise the family.
 - Run the engine matrix (postgres, mysql, mariadb) before release when DB
   behavior changed — driver quirks proved decisive (a fix correct on one
   engine was wrong on another).
@@ -485,8 +555,9 @@ The failures new operators hit first — each is the negative of a rule above:
    exists to catch: a verdict that says DEFER while a later objective silently
    decided the question, and a parked item whose pointer aims into the
    workspace about to be archived — every surviving pointer must be repointed
-   at something durable (a `docs/design/` record) or at a live campaign
-   directory before the archive step runs.
+   before the archive step runs, at a `docs/design/` record, a proposal, or a
+   live campaign directory. Check the proposals too, not only `pending.md`: a
+   proposal written mid-campaign tends to cite the campaign that raised it.
 3. **Distillation** (this campaign's worked example is
    `docs/design/01-auth-hardening/` + `02-system-fixes/`): durable conventions
    to skills; decisions + final state + validation record to
