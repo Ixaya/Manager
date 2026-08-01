@@ -59,8 +59,8 @@ class Crons_reports extends CI_Controller
     {
         parent::__construct();
 
-        if (!$this->input->is_cli_request()) {
-            exit('Direct access is not allowed. This is a command line tool');
+        if (!is_cli()) {
+            show_error('Direct access is not allowed. This is a command line tool, use the terminal');
         }
 
         $this->load->library('reports/report_lib');  // cross-module load: {module}/{lib}
@@ -74,7 +74,9 @@ class Crons_reports extends CI_Controller
 ```
 
 Conventions:
-- Guard in the constructor with `is_cli_request()`; exit with a plain message.
+- Guard in the constructor with `is_cli()`; refuse with `show_error(...)` —
+  it routes through `MGR_Exceptions` and answers with a proper HTTP status,
+  unlike a bare `exit()` string on a 200.
 - Output via `echo ... . PHP_EOL` (see `Tools.php`); no views, no
   `$this->response()`.
 - Add `@property` docblocks for everything loaded via `$this->load` — that's
@@ -173,5 +175,5 @@ class Crons_reports extends CI_Controller
 $this->load->library('async_exec_lib');
 $this->async_exec_lib->cli_run_uri('reports/sync/full');
 // in the constructor:
-if (!$this->input->is_cli_request()) exit('Direct access is not allowed. This is a command line tool');
+if (!is_cli()) show_error('Direct access is not allowed. This is a command line tool, use the terminal');
 ```

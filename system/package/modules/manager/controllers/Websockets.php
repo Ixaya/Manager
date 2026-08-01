@@ -11,7 +11,7 @@ class Websockets extends CI_Controller
 		parent::__construct();
 
 		if (!is_cli()) {
-			show_error('This controller can only be accessed via CLI');
+			show_error('Direct access is not allowed. This is a command line tool, use the terminal');
 		}
 	}
 
