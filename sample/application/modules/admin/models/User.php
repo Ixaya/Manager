@@ -4,6 +4,11 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class User extends APP_Model_Dyn
 {
+	/**
+	 * Paginated user list.
+	 *
+	 * @return ?array{data: array, total: int} null on a failed query.
+	 */
 	public function get_list(array $params): ?array
 	{
 		$fields = [

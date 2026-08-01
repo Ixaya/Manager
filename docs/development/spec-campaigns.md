@@ -110,6 +110,33 @@ section specs point at this entry instead of re-deciding.
 `pending.md` needs no seed: it is created the first time an item is parked,
 and stays titles + pointers only.
 
+## Writing discipline
+
+The same failure mode that inflates code comments inflates workspace prose:
+entries and write-ups grow across a session as the investigation that
+produced a conclusion folds into the record instead of just the conclusion.
+Terse holds for `spec.md`/`handoff.md` entries, prompts, and session
+summaries the same way it holds for comments: state the fact and, when
+needed, the one line of rationale that survives review — not the
+discussion that produced it.
+
+- **One line per finding entry**, unless the item genuinely carries more
+  than one fact (a baseline quote plus a decision, say) — then one line per
+  fact, not one paragraph.
+- **A growing entry is a signal to cut, not extend.** If a `handoff.md` row
+  is longer after a later session than after the one that wrote it,
+  something that belongs in a decision log or a `docs/design/` record got
+  left in the workspace instead.
+- **Restate, don't narrate.** The per-item restatement (Prompt skeleton,
+  below) is one sentence — what breaks, for whom — not a recap of the
+  finding's history or how it was found.
+- **Exit reports point at evidence, not adjectives.** "Fixed and verified —
+  see grep output above" beats a paragraph of what a good job it was.
+
+This is the same discipline as `mgr-code-style`'s comment cap, scaled to
+prose: an agent that doesn't already suspect its write-up is too long won't
+stop on its own, so the cap has to be stated, not implied.
+
 ## Validation before fixing
 
 A findings doc authored by LLM review passes carries two risks until checked:
@@ -424,6 +451,9 @@ The failures new operators hit first — each is the negative of a rule above:
 - **The evidence-free exit report.** "Fixed" and "skipped" claims must point
   at this session's diff-vs-baseline or grep output — long runs are documented
   to fabricate status otherwise.
+- **The narrating write-up.** A `handoff.md` entry or exit report that
+  re-tells the investigation instead of stating its conclusion — see Writing
+  discipline above.
 - **Delegating inside a session.** Current Advanced-tier models reach for
   subagents readily; a narrow session gains nothing from them — context
   re-established per agent, cost multiplied, baseline discipline split across

@@ -60,9 +60,11 @@ Where a skill or a framework doc names a bare `system/…` path, it means
 
 Before writing or editing ANY code, script, or config file (not just PHP),
 invoke the `mgr-code-style` skill first — the topic skills below do not
-replace it. **Comments are never documentation** — the comments policy lives
-in that skill. Then consult the matching topic skill BEFORE writing code of
-that kind:
+replace it. **Comments are short and rare, not documentation** — inline:
+1–2 lines, 4 max, only for a non-obvious constraint/gotcha, never restating
+what the code does; PHPDoc short and caller-facing only; this cap holds
+even if you skip the skill. Full policy lives there. Then consult the
+matching topic skill BEFORE writing code of that kind:
 
 | Skill | Covers |
 |---|---|

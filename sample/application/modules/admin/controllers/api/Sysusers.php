@@ -16,7 +16,10 @@ class Sysusers extends APP_Rest_Controller
 		parent::__construct();
 	}
 
-	public function index_get()
+	/**
+	 * Paginated, cached user list.
+	 */
+	public function index_get(): void
 	{
 		$params = $this->build_list_params();
 
@@ -44,7 +47,10 @@ class Sysusers extends APP_Rest_Controller
 		$this->response($response, REST_Controller::HTTP_OK);
 	}
 
-	public function create_post()
+	/**
+	 * Registers a user, assigns a group, and uploads an optional profile image.
+	 */
+	public function create_post(): void
 	{
 		$this->load->model('admin/user');
 
@@ -104,7 +110,10 @@ class Sysusers extends APP_Rest_Controller
 		], REST_Controller::HTTP_OK);
 	}
 
-	public function update_post()
+	/**
+	 * Updates a user's profile, group, and optional profile image.
+	 */
+	public function update_post(): void
 	{
 		$this->load->model('admin/user');
 
@@ -173,7 +182,10 @@ class Sysusers extends APP_Rest_Controller
 		], REST_Controller::HTTP_OK);
 	}
 
-	public function details_get()
+	/**
+	 * Full user record: profile, API key, groups, login attempts.
+	 */
+	public function details_get(): void
 	{
 		$id = $this->get('id');
 
@@ -231,7 +243,10 @@ class Sysusers extends APP_Rest_Controller
 		], REST_Controller::HTTP_OK);
 	}
 
-	public function clear_login_attempts_post()
+	/**
+	 * Clears login attempts for one username.
+	 */
+	public function clear_login_attempts_post(): void
 	{
 		$username =  $this->post('username');
 		if (!empty($username)) {
@@ -247,7 +262,10 @@ class Sysusers extends APP_Rest_Controller
 		$this->response(['status' => 0, 'message' => 'The username is required.'], REST_Controller::HTTP_BAD_REQUEST);
 	}
 
-	public function delete_post()
+	/**
+	 * Deletes a user.
+	 */
+	public function delete_post(): void
 	{
 		$this->load->model('admin/user');
 
@@ -268,7 +286,10 @@ class Sysusers extends APP_Rest_Controller
 		], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 	}
 
-	public function roles_get()
+	/**
+	 * Lists all Ion Auth groups.
+	 */
+	public function roles_get(): void
 	{
 		$this->load->library('ion_auth');
 		$roles = $this->ion_auth->groups()->result();

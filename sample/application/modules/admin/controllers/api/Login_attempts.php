@@ -11,7 +11,10 @@ class Login_attempts extends APP_Rest_Controller
 		parent::__construct();
 	}
 
-	public function index_get()
+	/**
+	 * Paginated login-attempt list, grouped by login and user.
+	 */
+	public function index_get(): void
 	{
 		$params = $this->build_list_params(default_order_by: 'user.id');
 
@@ -34,7 +37,10 @@ class Login_attempts extends APP_Rest_Controller
 		$this->response($response, REST_Controller::HTTP_OK);
 	}
 
-	public function details_get()
+	/**
+	 * Login attempts for one user, joined with user info.
+	 */
+	public function details_get(): void
 	{
 		$id = $this->get('id');
 
@@ -52,7 +58,10 @@ class Login_attempts extends APP_Rest_Controller
 		$this->response(['status' => 1, 'response' => ['login_attempts' => $login_attempts]], REST_Controller::HTTP_OK);
 	}
 
-	public function clear_login_post()
+	/**
+	 * Deletes every login-attempt row for one login.
+	 */
+	public function clear_login_post(): void
 	{
 		$login = $this->post('login');
 

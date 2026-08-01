@@ -4,6 +4,11 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Login_attempt extends APP_Model_Dyn
 {
+	/**
+	 * Paginated login-attempt counts per login, joined with the user table.
+	 *
+	 * @return ?array{data: array, total: int} null on a failed query.
+	 */
 	public function get_list(array $params): ?array
 	{
 		$max_attempts = mgr_env_int('AUTH_MAX_LOGIN_ATTEMPTS', 3);
@@ -78,6 +83,9 @@ class Login_attempt extends APP_Model_Dyn
 		return ['data' => $rows, 'total' => $total];
 	}
 
+	/**
+	 * All login attempts for one user, newest first, or null on a failed query.
+	 */
 	public function get_by_user(string|int $id): ?array
 	{
 		$fields = [
@@ -111,6 +119,9 @@ class Login_attempt extends APP_Model_Dyn
 		return $this->get_all_dynamic(fields: $fields, join: $join, where: $where, order_by: $order_by);
 	}
 
+	/**
+	 * Deletes every login-attempt row for one login.
+	 */
 	public function delete_by_login(string $login): bool
 	{
 		if ($login === '') {

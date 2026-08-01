@@ -128,8 +128,11 @@ package alias → `MY_`/`APP_`) is in `docs/architecture/`.
   only, and prefer fixing in the MGR_ subclass layer instead. The BE Ion Auth
   fork carries a documented set of deliberate edits and purposeful deviations
   — see `docs/development/auth-upstream.md` before/after any upstream merge.
-- **Comments are never documentation.** The comments policy (and all style
-  rules) live in the `mgr-code-style` skill — invoke it before writing code.
+- **Comments are short and rare, not documentation.** Inline: 1–2 lines, 4
+  max, only for a non-obvious constraint/gotcha the code can't express —
+  never restate what the code does. PHPDoc: short, caller-facing only. Full
+  policy (and all style rules) lives in the `mgr-code-style` skill — invoke
+  it before writing code, but this cap holds even if you don't.
 - **When the prompt is silent on a security- or safety-relevant choice**
   (auth mode, deletion, data exposure, permissions), take the documented safe
   default; a nearby file never justifies dropping below it (a sibling that
