@@ -128,6 +128,31 @@ written first, at the sample bar, and then enforced.
   `MIGRATION.md`'s bare host commands are correct as written. Rescoping the
   rule was preferred over naming a per-file exception.
 
+## The frontmatter description follow-on: enforce literally, blanket
+
+Closed by campaign `16-documentation-improvements` (see `handoff.md`'s Left
+open section). Two decisions came out of it, both now folded into
+`docs/development/skill-authoring.md`:
+
+- **Enforce the "ending in `this codebase`" rule literally, across all ten
+  skills, with no case-by-case exception.** Sentence-final position likely
+  doesn't independently change firing probability on its own — trigger
+  *vocabulary* is what matters, per the rule already stated above — but
+  nothing else validates this field, so a mechanically greppable rule is the
+  only drift resistance the format has. A violation is a corpus-consistency
+  defect, not evidence the skill won't fire.
+- **Phrase the replaces-clause as a literal `— instead of …`.** Three skills
+  (`mgr-helpers-libraries`, `mgr-migrations`, `mgr-models`) stated what they
+  replace in three different constructions ("so you don't reimplement it
+  with…", "…is deprecated", "so you never write…") — all satisfied the
+  written rule, but only the literal phrasing keeps a future audit
+  greppable rather than a per-skill judgment call each time. Reworded to
+  match the other seven; no anchor or fact was lost in any of the three —
+  the migrations case looked hardest to homologate (a deprecation notice,
+  not a hand-rolling anti-pattern) but the skill body already states the
+  same fact as "Do NOT extend `CI_Migration` with hand-written dbforge
+  arrays," so the reword was pure phrasing, not a new claim.
+
 ## One coverage gap was closed by cancelling the artifact
 
 A `mgr-testing` skill had been parked as owed. It was cancelled outright

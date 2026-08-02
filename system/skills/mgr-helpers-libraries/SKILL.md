@@ -1,6 +1,6 @@
 ---
 name: mgr-helpers-libraries
-description: Use when needing utility functions (hashing, env vars, dates/timezones, file paths, mime types, pagination, cross-DB SQL functions) or framework libraries (file upload, S3, JWT, email, background exec, WebSocket, Excel), or when CREATING a new library in this codebase. Maps what the ixaya/manager package already provides so you don't reimplement it with PHP primitives, and teaches the library authoring conventions (naming, CI access, config modes).
+description: Use when needing utility functions (hashing, env vars, dates/timezones, file paths, mime types, pagination, cross-DB SQL functions) or framework libraries (file upload, S3, JWT, email, background exec, WebSocket, Excel), or when CREATING a new library in this codebase. Maps what the ixaya/manager package already provides — instead of hand-rolling it with PHP primitives — and teaches the library authoring conventions (naming, CI access, config modes).
 ---
 
 # Manager Helpers & Libraries

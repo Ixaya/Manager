@@ -4,9 +4,7 @@ HMVC CodeIgniter 3 based Framework for creating backends
 
 ## About this package
 
-**Ixaya Manager** extends CodeIgniter 3 with HMVC module loading, a typed
-base model, a REST framework with API-key auth, and a cross-engine migration
-builder.
+**Ixaya Manager** extends CodeIgniter 3 with HMVC module loading, a typed base model, a REST framework with API-key auth, and a cross-engine migration builder.
 
 The framework is **always consumed as a Composer dependency**: your project bootstraps once from the included scaffold, and from then on the framework lives in `vendor/ixaya/manager` and upgrades with `composer update`. Framework code is never copied into or edited inside a project — see `docs/development/upgrading.md` in your project to learn how to update your project's files after an upgrade.
 
@@ -91,13 +89,7 @@ composer require adhocore/jwt            # WebSocket authentication
 
 ## Agent skills
 
-The package ships its coding conventions as agent skills (open `SKILL.md`
-format, usable by any coding agent) in `system/skills/`. They cover the whole
-development surface — code style, database models, REST endpoints and auth,
-web controllers and theming, migrations, CLI and background jobs, helpers and
-libraries, caching and WebSockets, and live runtime testing — and each skill
-describes when to use it. The scaffold's `AGENTS.md` carries the per-skill
-routing table for agents working in your project.
+The package ships its coding conventions as agent skills (open `SKILL.md` format, usable by any coding agent) in `system/skills/`. They cover the whole development surface — code style, database models, REST endpoints and auth, web controllers and theming, migrations, CLI and background jobs, helpers and libraries, caching and WebSockets, and live runtime testing — and each skill describes when to use it. The scaffold's `AGENTS.md` carries the per-skill routing table for agents working in your project.
 
 Link them into your project (run from the project root; re-run after major framework updates):
 
@@ -161,8 +153,7 @@ composer require --dev phpunit/phpunit
 ./vendor/bin/phpunit --testsuite Auth
 ```
 
-**Run a specific test file** (absolute path — the framework's CLI boot
-changes the working directory, so relative file arguments don't resolve):
+**Run a specific test file** (absolute path — the framework's CLI boot changes the working directory, so relative file arguments don't resolve):
 
 ```bash
 ./vendor/bin/phpunit "$PWD/tests/unit/auth/LoginTest.php"
@@ -278,10 +269,7 @@ composer install
 
 ### Project Setup
 
-Create a root folder named `app` and upload the project inside it — on a
-server that is where the project lives, in place of `public_html` or similar. The
-framework follows an HMVC (Hierarchical Model-View-Controller) architecture
-based on CodeIgniter.
+Create a root folder named `app` and upload the project inside it — on a server that is where the project lives, in place of `public_html` or similar. The framework follows an HMVC (Hierarchical Model-View-Controller) architecture based on CodeIgniter.
 
 ### Root Directory
 

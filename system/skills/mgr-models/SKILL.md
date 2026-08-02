@@ -1,6 +1,6 @@
 ---
 name: mgr-models
-description: Use when creating or editing a model, or writing any database query (select, insert, update, delete, joins, dynamic filters) in this codebase. Teaches the MY_Model / APP_Model_Dyn API of the ixaya/manager framework so you never write raw $this->db queries or vanilla CI3 model code.
+description: Use when creating or editing a model, or writing any database query (select, insert, update, delete, joins, dynamic filters) in this codebase. Teaches the MY_Model / APP_Model_Dyn API of the ixaya/manager framework — instead of raw $this->db queries or vanilla CI3 model code.
 ---
 
 # Manager Models (MY_Model / APP_Model_Dyn)

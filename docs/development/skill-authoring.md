@@ -123,7 +123,10 @@ indentation stays spaces regardless.
 words an agent would be thinking at that moment and ending "in this
 codebase"; then what it teaches, and what it replaces. Trigger vocabulary
 matters more than accuracy of scope — a skill that describes itself in
-framework terms does not fire for an agent thinking in task terms.
+framework terms does not fire for an agent thinking in task terms. Phrase the
+replaces-clause as a literal `— instead of …` — nothing else validates this
+field, so a fixed construction is what makes a future audit greppable instead
+of a per-skill judgment call.
 
 ## references/
 

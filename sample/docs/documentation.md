@@ -255,7 +255,11 @@ suggestions — check them whenever editing or reorganizing docs:
 - Hard-wrap prose at roughly 76-80 columns. A reviewer diffing an unwrapped
   paragraph sees one changed line and has to read the whole thing to find the
   edit. Tables, fenced code, and long URLs are exempt — never break those to
-  satisfy the width.
+  satisfy the width. `README.md` is exempt too, for the opposite reason:
+  its primary readers are GitHub's and Packagist's rendered project pages,
+  which collapse soft line breaks and reflow to the viewport regardless of
+  source wrapping, so a hard-wrap column has no rendered effect there and
+  only produces mid-sentence breaks for someone reading the raw source.
 - Indent code inside fenced blocks with spaces, never tabs. A tab renders at
   whatever width the reader's viewer chooses, and outside a fence Markdown
   expands leading tabs to four-column stops, where they turn into structure.

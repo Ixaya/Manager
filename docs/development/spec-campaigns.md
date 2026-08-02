@@ -34,9 +34,13 @@ docs/workspace/
 │   │                    persists across campaigns (every session reads it FIRST)
 │   ├── conventions.md   THIS campaign's scratchpad: campaign-wide rules and
 │   │                    knots (read second; swept at distillation)
-│   └── pending.md       indefinitely parked items — title + pointer only
+│   ├── pending.md       indefinitely parked items buried inside a permanent
+│   │                    doc (docs/design handoff/decisions) — title+pointer
+│   └── proposals.md     index of 00-proposals/, a triage table (kind +
+│                        urgency), `Proposed` column is a real date, not
+│                        an index to renumber
 ├── 00-proposals/        one directory per parked item needing more than a title
-│   └── <item>/spec.md   the self-contained write-up pending.md points at
+│   └── <item>/spec.md   the self-contained write-up proposals.md points at
 └── NN-section/          one numbered directory per domain
     ├── spec.md          task log: the findings; fixed = entry DELETED
     ├── handoff.md       validated baselines + running applied-change record
@@ -116,7 +120,11 @@ section specs point at this entry instead of re-deciding.
 ```
 
 `pending.md` needs no seed: it is created the first time an item is parked,
-and stays titles + pointers only.
+and stays titles + pointers only. It is scoped narrowly — only items buried
+inside a permanent doc that isn't otherwise re-read (a `docs/design/*`
+handoff or decisions record), so they don't get forgotten once that record
+stops being read top-to-bottom. A self-contained item that doesn't need a
+host document goes to `00-proposals/` instead, indexed by `proposals.md`.
 
 `00-proposals/` needs no seed either. It exists because a campaign that finds
 real work outside its own scope otherwise has two bad options — grow to absorb
@@ -124,9 +132,18 @@ it, or lose it in a workspace about to be archived. This is the third: write
 the item up once, while the evidence is still in context, and let the campaign
 close on time. Each proposal carries what was found, the ruling that parked
 it, the options as they stood, and the constraints any implementation
-inherits; `pending.md` holds only its title and pointer. It is deliberately
-cheap — nothing here is scheduled, and a proposal that stops mattering is
-deleted rather than triaged. Two rules keep them worth having:
+inherits; `proposals.md` indexes it as one row in a triage table — title,
+`Kind` (Fix/Improvement/Feature/Architecture/Documentation/Investigation),
+`Urgency` (High/Medium/Low), and `Proposed`, the real calendar date the
+write-up was created (folder creation date for now; the actual authored date
+going forward) — a date needs no renumbering as rows are added, deleted, or
+reordered by urgency, where an ordinal index would. Unlike `pending.md`, this
+file is expected to be revised — an urgency reassessed ahead of a release, a
+kind corrected once a question turns out to gate a live defect — it is a
+working triage tool, not a frozen log. It is deliberately
+cheap — nothing here is scheduled by default, and a proposal that stops
+mattering is deleted (directory and table row together) rather than
+triaged forever. Two rules keep them worth having:
 
 - **Self-contained.** A proposal must not point into the campaign that raised
   it; that directory gets archived. Lift the evidence in.
@@ -556,8 +573,9 @@ The failures new operators hit first — each is the negative of a rule above:
    decided the question, and a parked item whose pointer aims into the
    workspace about to be archived — every surviving pointer must be repointed
    before the archive step runs, at a `docs/design/` record, a proposal, or a
-   live campaign directory. Check the proposals too, not only `pending.md`: a
-   proposal written mid-campaign tends to cite the campaign that raised it.
+   live campaign directory. Check `proposals.md`'s targets too, not only
+   `pending.md`: a proposal written mid-campaign tends to cite the campaign
+   that raised it.
 3. **Distillation** (this campaign's worked example is
    `docs/design/01-auth-hardening/` + `02-system-fixes/`): durable conventions
    to skills; decisions + final state + validation record to

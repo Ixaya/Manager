@@ -1,6 +1,6 @@
 ---
 name: mgr-migrations
-description: Use when creating or editing a database migration, adding/modifying tables or columns, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns) of the ixaya/manager framework — the legacy CI_Migration/dbforge-array style is deprecated.
+description: Use when creating or editing a database migration, adding/modifying tables or columns, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns) of the ixaya/manager framework — instead of the legacy CI_Migration/dbforge-array style.
 ---
 
 # Manager Migrations (MGR_Migration_builder)

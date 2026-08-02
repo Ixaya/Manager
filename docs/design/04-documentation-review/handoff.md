@@ -92,19 +92,24 @@ reason:
 
 ## Left open
 
-Two follow-ons, both documentation, neither blocking:
+Nothing remains open from this initiative. The one follow-on it left —
+`README.md` prose not matching the wrap rule, tracked as the proposal
+`readme-prose-wrap` — is resolved: re-examination found the file was never
+uniformly hard-wrapped in the first place (a corpus-wide reflow assumption
+the proposal never verified), just 4 leftover wrapped paragraphs among 41,
+now joined into single lines. `README.md` is now a documented exemption
+from the wrap rule in `sample/docs/documentation.md` — its readers are
+GitHub's and Packagist's rendered pages, which reflow to viewport regardless
+of source wrapping, so the column has no rendered effect there. The proposal
+file is removed rather than archived; there was never a full campaign for it
+to distill out of.
 
-- **The ten skill frontmatter `description` fields have never been audited.**
-  The initiative rewrote skill bodies, shape, and names, and never looked at
-  the one field that decides whether a skill is loaded at all. The rule
-  prescribing their form exists in `docs/development/skill-authoring.md`, but
-  it was written from reasoning rather than from a pass over the files. Selection runs off
-  `description` and nothing validates a skill, so a description that never
-  fires produces no error — only an agent that hand-writes what the skill
-  would have taught.
-- **`README.md` prose is not wrapped to the wrap rule.** Held out of scope
-  twice, deliberately. The README is governed by a narrower rule —
-  installation, major capability, and error fixes only, with minimal diffs —
-  and a whole-file reflow is none of those. What has to be settled before any
-  line moves is whether a pure-whitespace reflow is a change that rule is
-  meant to restrict.
+The other follow-on this initiative left — the ten skill frontmatter
+`description` fields had never been audited against the rule in
+`docs/development/skill-authoring.md` — was closed by campaign
+`16-documentation-improvements` (archived
+`docs/workspace/archive/16-documentation-improvements.tar.xz`): all ten
+verified, five needed a missing "what it replaces" clause or a repositioned
+"in this codebase" ending, all five fixed and re-verified against quoted
+baselines at closing review. See the decision below on the resulting
+replaces-clause convention.
