@@ -23,6 +23,13 @@ class Sysusers extends APP_Rest_Controller
 	{
 		$params = $this->build_list_params();
 
+		$this->load->model('user');
+
+		$validation_error = $this->user->get_list_validate($params);
+		if ($validation_error !== null) {
+			$this->response(['status' => 0, 'message' => $validation_error], REST_Controller::HTTP_BAD_REQUEST);
+		}
+
 		$this->load->driver('cache');
 		$cache_key = mgr_cache_key("sysusersidx", $params);
 		$response = $this->cache->get($cache_key);
@@ -30,7 +37,6 @@ class Sysusers extends APP_Rest_Controller
 			$this->response($response, REST_Controller::HTTP_OK);
 		}
 
-		$this->load->model('user');
 		$users = $this->user->get_list($params);
 
 		if ($users === null) {

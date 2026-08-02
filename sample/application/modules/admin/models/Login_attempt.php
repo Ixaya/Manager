@@ -4,6 +4,29 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Login_attempt extends APP_Model_Dyn
 {
+	// Associative array: external order_by key => internal qualified column
+	private const ALLOWED_ORDER = [
+		'login'              => 'login_attempt.login',
+		'id'                 => 'user.id',
+		'attempts'           => 'attempts',
+		'remaining_attempts' => 'remaining_attempts',
+	];
+
+	/**
+	 * Validates list params before get_list(); currently only order_by.
+	 *
+	 * @return ?string Error message if invalid, null if valid.
+	 */
+	public function get_list_validate(array $params): ?string
+	{
+		$order_by = $params['order_by'] ?? 'id';
+		if (mgr_validate_order_by($order_by, self::ALLOWED_ORDER) === null) {
+			return "Invalid order_by column: {$order_by}.";
+		}
+
+		return null;
+	}
+
 	/**
 	 * Paginated login-attempt counts per login, joined with the user table.
 	 *
@@ -38,13 +61,6 @@ class Login_attempt extends APP_Model_Dyn
 			$where[MGR_Model_Dyn_clause::OR_GROUP] = $search;
 		}
 
-		$allowed_order = [
-			'login_attempt.login',
-			'user.id',
-			'attempts',
-			'remaining_attempts',
-		];
-
 		$join = [
 			new MGR_Model_Dyn_join(
 				table: 'user',
@@ -56,7 +72,10 @@ class Login_attempt extends APP_Model_Dyn
 		];
 
 		$limit_page = mgr_build_limit_page($params['limit'] ?? 0, $params['page'] ?? 1);
-		$order_by   = mgr_build_order_by($params['order_by'] ?? "user.id", $params['order'] ?? "DESC", $allowed_order);
+		$order_by   = mgr_build_order_by($params['order_by'] ?? "id", $params['order'] ?? "DESC", self::ALLOWED_ORDER);
+		if ($order_by === null) {
+			return null;
+		}
 
 		$rows = $this->get_all_dynamic(
 			fields: $fields,

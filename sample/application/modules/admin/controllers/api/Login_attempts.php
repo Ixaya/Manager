@@ -16,9 +16,15 @@ class Login_attempts extends APP_Rest_Controller
 	 */
 	public function index_get(): void
 	{
-		$params = $this->build_list_params(default_order_by: 'user.id');
+		$params = $this->build_list_params(default_order_by: 'id');
 
 		$this->load->model('login_attempt');
+
+		$validation_error = $this->login_attempt->get_list_validate($params);
+		if ($validation_error !== null) {
+			$this->response(['status' => 0, 'message' => $validation_error], REST_Controller::HTTP_BAD_REQUEST);
+		}
+
 		$login_attempts = $this->login_attempt->get_list($params);
 
 		if ($login_attempts === null) {

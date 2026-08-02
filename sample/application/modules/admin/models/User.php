@@ -4,6 +4,31 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class User extends APP_Model_Dyn
 {
+	private const ALLOWED_ORDER = [
+		'id',
+		'ip_address',
+		'email',
+		'first_name',
+		'last_name',
+		'last_activity_date',
+		'created_on'
+	];
+
+	/**
+	 * Validates list params before get_list(); currently only order_by.
+	 *
+	 * @return ?string Error message if invalid, null if valid.
+	 */
+	public function get_list_validate(array $params): ?string
+	{
+		$order_by = $params['order_by'] ?? 'id';
+		if (mgr_validate_order_by($order_by, self::ALLOWED_ORDER) === null) {
+			return "Invalid order_by column: {$order_by}.";
+		}
+
+		return null;
+	}
+
 	/**
 	 * Paginated user list.
 	 *
@@ -43,16 +68,11 @@ class User extends APP_Model_Dyn
 			$where[MGR_Model_Dyn_clause::EQUAL] = ['active' => $params['active']];
 		}
 
-		$allowed_order = [
-			'ip_address',
-			'email',
-			'first_name',
-			'last_name',
-			'last_activity_date',
-			'created_on'
-		];
 		$limit_page = mgr_build_limit_page($params['limit'], $params['page']);
-		$order_by = mgr_build_order_by($params['order_by'], $params['order'], $allowed_order);
+		$order_by = mgr_build_order_by($params['order_by'], $params['order'], self::ALLOWED_ORDER);
+		if ($order_by === null) {
+			return null;
+		}
 
 		$rows = $this->get_all_dynamic(fields: $fields, where: $where, limit: $limit_page, order_by: $order_by);
 		if ($rows === null) {

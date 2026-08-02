@@ -264,7 +264,9 @@ class MGR_Rest_Controller extends REST_Controller
 
 	/**
 	 * Reads pagination/search/order query params, applying the given
-	 * defaults for anything missing or invalid.
+	 * defaults for anything missing or malformed. `order_by` is only
+	 * defaulted when empty — validating it against a column allow-list is
+	 * the caller's job, via `mgr_validate_order_by()`/`mgr_build_order_by()`.
 	 *
 	 * @return array{page: int, limit: int, search: string, order: string, order_by: string}
 	 */

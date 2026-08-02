@@ -21,6 +21,13 @@ class Sysusers extends APP_Rest_Controller
     {
         $params = $this->build_list_params();
 
+        $this->load->model('user');              // model loaded in the method that uses it
+
+        $validation_error = $this->user->get_list_validate($params);
+        if ($validation_error !== null) {
+            $this->response(['status' => 0, 'message' => $validation_error], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
         $this->load->driver('cache');
         $cache_key = mgr_cache_key('sysusersidx', $params);
         $response = $this->cache->get($cache_key);
@@ -28,10 +35,9 @@ class Sysusers extends APP_Rest_Controller
             $this->response($response, REST_Controller::HTTP_OK);
         }
 
-        $this->load->model('user');              // model loaded in the method that uses it
-        $users = $this->user->get_list($params);  // ['data' => rows, 'total' => count]
+        $users = $this->user->get_list($params);  // ['data' => rows, 'total' => count] or null
 
-        if ($users['data'] === null) {
+        if ($users === null) {
             $this->response(['status' => 0, 'message' => 'Failed to load users.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
 
@@ -76,17 +82,18 @@ class Sysusers extends APP_Rest_Controller
 }
 ```
 
-None of these three methods wrap anything in `try/catch`: `get_list()`'s
-`data` key, `get()` and `delete_user()` all signal failure through their
-return value (`null`/`empty`/`false`), never a throw — tracing the call chain
-first is what tells you that, not a blanket "wrap defensively" habit. Each
-still gets its own explicit check, though: `get_list()`'s `data === null` is a
-failed query and answers its own `status: 0`; `get()`'s empty result is a
+None of these three methods wrap anything in `try/catch`: `get_list()`,
+`get()` and `delete_user()` all signal failure through their return value
+(`null`/`empty`/`false`), never a throw — tracing the call chain first is
+what tells you that, not a blanket "wrap defensively" habit. Each still gets
+its own explicit check, though: `get_list_validate()`'s non-null message is
+an invalid request and answers its own `400`; `get_list() === null` is a
+failed query and answers its own `500`; `get()`'s empty result is a
 legitimate not-found and answers its own 404; `delete_user()`'s `false`
 answers its own 5xx. An endpoint like this still fails as structured, logged
 JSON if something further down the stack genuinely does throw; nothing here
 needs to catch it to get that behavior.
 
-The paired `get_list()` model pattern (dynamic search, whitelisted ordering,
-`['data','total']` return) is the mgr-models skill's
-`references/list-endpoint.md`.
+The paired `get_list()`/`get_list_validate()` model pattern (dynamic search,
+allowed-columns ordering, `['data','total']` return) is the mgr-models
+skill's `references/list-endpoint.md`.

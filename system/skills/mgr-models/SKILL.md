@@ -127,7 +127,9 @@ count_all(?array $where = null): ?int
 `$where` uses CI3 query-builder syntax: `['status' => 1, 'amount >' => 100]`.
 Never pass user input into `$order_by` / `$group_by` / `$fields` — they are
 raw SQL fragments (use `mgr_build_order_by()` from `manager_helper` to
-whitelist sortable columns).
+validate against an allowed-columns list; it returns `null` — not a
+substituted default — for a column outside that list, so the caller must
+check for `null` before using the result).
 
 ## Write methods
 
@@ -259,10 +261,16 @@ Gotchas:
 
 Paginated/searchable lists follow one shape: the controller passes
 `build_list_params()` output straight in, the model returns
-`['data' => rows, 'total' => count]`, and `$order_by` is whitelisted with
-`mgr_build_order_by()` before it reaches the query. The full model, ready to
-adapt, is in `references/list-endpoint.md` beside this file; its controller
-half is the mgr-rest-controller skill's `references/full-example.md`.
+`['data' => rows, 'total' => count]`, and `$order_by` is validated against an
+allowed-columns list with `mgr_build_order_by()` before it reaches the query
+— an invalid value returns `null`, which `get_list()` must check and return
+`null` for rather than running a query with a broken `order_by`. A model that
+wants the controller to answer `400` (rather than the generic `500` a bare
+`null` return produces) exposes a `get_list_validate(array $params): ?string`
+the controller calls first, reusing the same allowed-columns list via
+`mgr_validate_order_by()`. The full model, ready to adapt, is in
+`references/list-endpoint.md` beside this file; its controller half is the
+mgr-rest-controller skill's `references/full-example.md`.
 
 ## Anti-patterns
 

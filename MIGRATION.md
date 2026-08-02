@@ -755,3 +755,31 @@ needs the checks.
 
 **Verify:** both greps reviewed; each hit either checks `null` or carries a
 comment saying why it deliberately does not.
+
+### `mgr_build_order_by()` rejects an out-of-list `order_by` instead of substituting `id`
+
+Passing a column not in the caller's allow-list used to silently fall back to
+sorting by `id`. It now returns `null` instead, and both direct consumers
+(`get_all_dynamic()`-based `get_list()` methods) treat that as a failed
+request: the query is not run, and the REST endpoint answers `400` after a
+model-level `get_list_validate()` check runs before the query. This closes a
+case where a client-supplied `order_by` could be silently ignored — including
+one instance where the substituted `id` was ambiguous across a joined query
+and produced a raw `500` instead.
+
+A project's own `mgr_build_order_by()` calls, and any list endpoint using an
+associative allow-list (`['external_key' => 'internal.qualified_column']`),
+should confirm the external contract still matches: `admin/login_attempts`'s
+`order_by` changed from the internal qualified name (`user.id`) to a plain
+`id`, since the associative shape exists to hide qualification behind a
+simple external key rather than exposing it.
+
+```bash
+# direct callers that need the new-null guard before using the result
+grep -rn "mgr_build_order_by(" application/
+```
+
+**Verify:** every call site checks the result for `null` before using it as
+an `order_by` argument, and any external API docs/clients using an
+`order_by` value that used to fall through silently are updated to send a
+value from the allow-list.

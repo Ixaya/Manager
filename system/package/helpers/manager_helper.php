@@ -152,28 +152,41 @@ function mgr_build_limit_page($limit, $page): array
 /**
  * Build ORDER BY clause with validation
  *
- * @param string|null $order_column Column name to order by
+ * @param string $order_column Column name to order by
  * @param string|null $order_direction Sort direction (ASC/DESC)
  * @param array|null $order_columns Allowed columns (associative for aliases, indexed for direct)
- * @return string Formatted ORDER BY clause (e.g., 'id ASC' or 'created_at DESC')
+ * @return ?string Formatted ORDER BY clause (e.g., 'id ASC' or 'created_at DESC')
  */
-function mgr_build_order_by(?string $order_column, ?string $order_direction, ?array $order_columns = null): string
+function mgr_build_order_by(string $order_column, ?string $order_direction, ?array $order_columns = null): ?string
 {
-	$column = $order_column ?? 'id';
-
 	if (!empty($order_columns)) {
-		if (array_is_list($order_columns)) {
-			// Indexed array: ['name', 'email']
-			$column = in_array($order_column, $order_columns, true) ? $order_column : 'id';
-		} else {
-			// Associative array: ['created_at' => 'u.created_at']
-			$column = $order_columns[$order_column] ?? 'id';
+		$order_column = mgr_validate_order_by($order_column, $order_columns);
+		if ($order_column === null) {
+			return null;
 		}
 	}
 
-	$direction = (strtoupper($order_direction ?? '') === 'DESC') ? 'DESC' : 'ASC';
+	$order_direction = (strtoupper($order_direction ?? '') === 'DESC') ? 'DESC' : 'ASC';
 
-	return $column . ' ' . $direction;
+	return $order_column . ' ' . $order_direction;
+}
+
+/**
+ * Validate ORDER BY clause with validation
+ *
+ * @param string $order_column Column name to order by
+ * @param array $order_columns Allowed columns (associative for aliases, indexed for direct)
+ * @return string|null Valid column name or null if invalid
+ */
+function mgr_validate_order_by(string $order_column, array $order_columns): ?string
+{
+	if (array_is_list($order_columns)) {
+		// Indexed array: ['name', 'email']
+		return in_array($order_column, $order_columns, true) ? $order_column : null;
+	}
+
+	// Associative array: ['created_at' => 'u.created_at']
+	return $order_columns[$order_column] ?? null;
 }
 
 if (!function_exists('mgr_provided')) {
