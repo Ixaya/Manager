@@ -142,8 +142,9 @@ PHPUnit suite above all — has to mount the live tree itself:
 ```
 
 The mount source must be an absolute host path. Confirm the bind took before
-trusting a green result — grep an edited symbol inside the container — or a
-pass may be the released package's behavior rather than yours.
+trusting a green result (see `mgr-docker-ops`) — grep an edited symbol inside
+the container — or a pass may be the released package's behavior rather than
+yours.
 
 ### Optional (suggest-only) framework dependencies
 

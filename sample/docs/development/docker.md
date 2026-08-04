@@ -4,7 +4,11 @@
 > troubleshooting. For editing the files under `docker/` themselves, see
 > `docker-internals.md`.
 
-All operations go through the wrapper — never `docker compose` directly:
+All operations that start, stop, build, or exec into a service go through
+the wrapper — never `docker compose` directly. Read-only inspection of an
+already-running container by name (`docker ps`, `docker logs <container>`,
+`docker inspect`) doesn't need it — it only needs the container name, not
+the wrapper's env wiring:
 
 ```bash
 ./docker_manage.sh -e <instance> [-b|--bind] [-m|--manager-bind] <docker compose args...>
@@ -470,7 +474,7 @@ The visibility ladder for a failing request, in order:
 need opposite responses — separate them first:
 
 ```bash
-./docker_manage.sh -e <instance> exec -u www-data php bash /var/www/html/bin/cli_run.sh manager/tools/log_check
+./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/log_check
 ```
 
 If it reports the log cannot be appended to, logging itself is broken and
@@ -478,8 +482,10 @@ every channel above is meaningless: CI opens the file with a silenced
 `fopen()` and `log_message()` discards the result, so nothing reports it. The
 usual cause is a CLI command run as root creating a root-owned
 `log-<date>.log` that php-fpm (`www-data`) then cannot write — fix with
-`chown -R www-data:www-data /var/log/manager`. Run it as the web-server user
-(`-u www-data` above), never root: root appends to anything and will report
+`chown -R www-data:www-data /var/log/manager`. Run `log_check` itself as the
+web-server user — `exec` into `php`/`ws`/`cron`/`cli` defaults to `www-data`
+automatically, so this only bites if you overrode that with an explicit
+`-u root` (see `mgr-docker-ops`): root appends to anything and will report
 success on the exact state that is failing.
 
 If it reports the writes land, the failure happens *before* the app's logging

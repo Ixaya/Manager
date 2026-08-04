@@ -1,14 +1,15 @@
 ---
 name: mgr-live-probes
-description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly — in this codebase. Teaches the gitignored probes-module pattern, the authenticated-not-bypassed rule, the Docker run recipe, and the three log channels that catch silent errors — instead of trusting a diff/read-through to confirm a fix works.
+description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly — in this codebase. Teaches the gitignored probes-module pattern, the authenticated-not-bypassed rule, and the probe base class's error capture — instead of trusting a diff/read-through to confirm a fix works. Pair with the mgr-docker-ops skill for running or debugging the stack itself.
 ---
 
 # Manager Live Probes (runtime verification via the probes module)
 
 > **Prerequisite:** this skill assumes `mgr-code-style` is loaded — invoke it
 > before writing any code (probe controllers are code too). It owns naming,
-> typing, PHPDoc, and the comments policy; this skill only covers runtime
-> probing.
+> typing, PHPDoc, and the comments policy. The mgr-docker-ops skill owns
+> running and debugging the stack itself (bind flags, exec's default user,
+> log channels); this skill only covers what's specific to probes.
 
 Reading a diff confirms it looks right; it doesn't confirm it executes right
 against a real DB, a real authenticated request, or the live session driver.
@@ -111,16 +112,12 @@ time you probe in a repo, or when the base is missing.
 
 ## Running the stack
 
-Reuse an existing instance if present (`ls docker/env/*.env` inside `sample/`
-or the project root; instance env files are gitignored — on a fresh clone
-create one from the `sample.*` templates first). Read values from the instance
-env files — don't hardcode ports/hosts. Don't rebuild unless
-`composer.json`/`.lock` changed; bind mounts cover live PHP source.
+Bringing the stack up/down, `-b`/`-m` bind flags, confirming a bind actually
+took, `exec`'s default user, and the three log channels/`log_check` recovery
+recipe are all the mgr-docker-ops skill — load it before running anything.
+What's specific to probes:
 
 ```bash
-# project mode: ./docker_manage.sh -e <instance> -b --profile <db> up -d
-# framework mode (manager repo only — adds the system/ bind):
-./docker_manage.sh -e <instance> -b -m --profile <db> up -d
 ./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/migrate
 source docker/env/<instance>.agent.env      # AGENT_BASE_URL / _USERNAME / _PASSWORD
 KEY=$(curl -s -X POST "$AGENT_BASE_URL/auth/api/login" \
@@ -131,48 +128,19 @@ curl -s -o /dev/null -w "%{http_code}\n" "$AGENT_BASE_URL/probes/api/<controller
 ./docker_manage.sh -e <instance> -b [-m] --profile <db> down -v   # include EVERY --profile used
 ```
 
-Confirm the bind took before trusting any result: grep an edited symbol in the
-container (`docker exec <instance>-php-1 grep -n "<symbol>"
-/var/www/html/...`) so you know the running code is your tree, not a baked
-image. Bring up the real profile the change touches (e.g. `--profile postgres`
-for a Postgres-specific fix).
-
-Confirming the bind is one case of a general rule: **an absence is not
-evidence until the channel has produced a positive.** A clean grep, a silent
-log and an unchanged response look identical whether the change passed or
-never ran. Before concluding from nothing, make the channel say something you
-know it should.
-
 **Timing:** live-test once per group of changes, after they're all written —
 not after each one; the stack has real bring-up overhead. Keep the stack up
 while you work through them; tear down (`down -v`, every profile flag) at the
 end.
 
-## Check the logs, not just the response
+The probe base's `capture_errors()` (`references/probe-base-class.md`) is
+the one log channel the mgr-docker-ops skill can't cover — the only one
+that sees what the app's `error_reporting` masks, notably `E_DEPRECATED`.
+The other two channels (container stderr, the CI app log) are covered
+there.
 
-A probe returning the right value can still emit a silent
-warning/notice/deprecation. Three channels, they don't overlap:
-
-- **In-process** (the probe base's `capture_errors()`, from
-  `references/probe-base-class.md`) — the only one that sees what the app's
-  `error_reporting` masks, notably `E_DEPRECATED`.
-- **Container stderr** — `docker logs <instance>-php-1` (PHP `error_log`).
-  Echo a boundary marker to stderr first to scope it.
-- **CI app log** — `/var/log/manager/app/` in-container. Empty = no
-  error-level entries, but only once `manager/tools/log_check` says writes
-  land: CI opens the log with a silenced `fopen()` and `log_message()`
-  discards the result, so a file the web-server user cannot append to drops
-  every entry with no symptom. A CLI command run as root creates exactly that
-  state. Check it as that user, never as root — root appends to anything and
-  reports success on the failing state — and repair with `chown -R
-  www-data:www-data /var/log/manager`.
-
-  ```bash
-  ./docker_manage.sh -e <instance> exec -u www-data php bash /var/www/html/bin/cli_run.sh manager/tools/log_check
-  ```
-
-**All channels empty but the request still 500s?** The failure precedes logger
-init — no amount of re-checking these channels will show it. Use the
+**All channels empty but the request still 500s?** The failure precedes
+logger init — re-checking those channels won't show it. Use the
 silent-fatal wrapper in `references/silent-fatal-probe.md`; if the trace has
 the `... on false` DB signature, run `manager/tools/env_check` first.
 

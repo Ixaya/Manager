@@ -82,6 +82,10 @@ whenever end-to-end API testing is in scope, not only when writing auth code —
 obtaining a first credential (`claim_admin`), logging in, and calling with a
 real `X-API-KEY` live there. A request rejected with *"Invalid API key"* is the
 framework refusing an unauthenticated call, not evidence that auth works.
+Read `mgr-docker-ops` before running any `docker`/`docker compose` command
+against this stack, not only when writing live probes — bringing the stack
+up/down, `exec`-ing into a container, or running a `manager/tools` command
+all belong there.
 
 Working on a skill itself — writing a new one, editing one, or validating a
 set produced by another agent — is `docs/development/skill-authoring.md`.

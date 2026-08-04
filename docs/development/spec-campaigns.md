@@ -313,9 +313,10 @@ cross-engine SQL); a grep fully confirms a string/doc fix. Timing: at the END
 of a batch, operator-gated ("which items do you want live-tested?") — never
 per-item mid-batch; the stack has real overhead.
 
-Mechanics (probe controllers, authenticated-not-bypassed rule, Docker recipe,
-the three log channels) live in the `mgr-live-probes` skill — follow it, don't
-re-derive. Campaign-proven additions:
+Mechanics: probe controllers and the authenticated-not-bypassed rule live in
+the `mgr-live-probes` skill; running/debugging the stack itself (the Docker
+recipe, the three log channels) lives in `mgr-docker-ops` — follow them,
+don't re-derive. Campaign-proven additions:
 
 - One probe method per finding, so an item can be re-tested in isolation;
   probes stay afterwards (gitignored) for the next re-validation.

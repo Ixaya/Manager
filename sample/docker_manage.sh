@@ -46,6 +46,12 @@
 # MANAGER_BIND_PATH=<path> set in the instance's DOCKER env-file; without it,
 # this aborts rather than silently falling back to baked vendor code.
 #
+# `exec` into php/ws/cron/cli defaults to -u www-data (below) unless the
+# caller already passed -u/--user — a command run as root there creates
+# root-owned files the app's own www-data process can't read/write
+# afterward, silently. Override with an explicit -u/--user when root is
+# actually needed.
+#
 # Fail loud: a missing instance name or required file aborts immediately.
 set -euo pipefail
 
@@ -123,6 +129,26 @@ export DB_ROOT_PASSWORD_FILE="secrets/${INSTANCE}.db_root_password"
 require_file() { [[ -f "${DOCKER_DIR}/$1" ]] || die "required file missing: docker/$1  (copy from docker/env/sample.priv.env)"; }
 require_file "$APP_SECRETS_MOUNT"
 require_file "$VALKEY_SECRET_FILE"
+
+# ── Default `exec` into an app-image service to www-data ─────────────────────
+if [[ "${1:-}" == "exec" ]]; then
+    has_user=false
+    service=""
+    i=2
+    while (( i <= $# )); do
+        arg="${!i}"
+        case "$arg" in
+            -u|--user)   has_user=true; ((i++)) ;;
+            --user=*)    has_user=true ;;
+            -*)          : ;;
+            *)           service="$arg"; break ;;
+        esac
+        ((i++))
+    done
+    if [[ "$has_user" == false && "$service" =~ ^(php|ws|cron|cli)$ ]]; then
+        set -- exec -u www-data "${@:2}"
+    fi
+fi
 
 exec docker compose \
     "${COMPOSE_FILE_ARGS[@]}" \

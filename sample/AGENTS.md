@@ -77,7 +77,8 @@ matching topic skill BEFORE writing code of that kind:
 | `mgr-cli-modules` | CLI commands, crons, background exec, HMVC modules |
 | `mgr-helpers-libraries` | Utility functions, packaged libraries, creating new libraries |
 | `mgr-cache-websockets` | Caching, Redis, pub/sub, WebSocket notifications |
-| `mgr-live-probes` | Live-testing changes against the running Docker stack: probe controllers, real auth, log channels |
+| `mgr-live-probes` | Live-testing changes against the running Docker stack: probe controllers, real auth |
+| `mgr-docker-ops` | Running/debugging the stack itself: `docker_manage.sh` usage, bind flags, exec's default user, log channels |
 | *(no skill — `docs/development/`)* | Tests: the suite is an **integration** suite, not mocks |
 
 Read `mgr-auth` whenever end-to-end API testing is in scope, not only when
@@ -150,7 +151,10 @@ hand. How values reach the process, and the full resolution order: see
 
 ## Docker stack
 
-Setup, deploy, rotation, tuning, and troubleshooting:
+Read `mgr-docker-ops` before running any `docker`/`docker compose` command
+against this stack, not only when writing live probes — bringing the stack
+up/down, `exec`-ing into a container, or running a `manager/tools` command
+all belong there. Setup, deploy, rotation, tuning, and troubleshooting:
 `docs/development/docker.md`. Editing the files under `docker/` themselves
 (hard rules, env-var placement, build gotchas):
 `docs/development/docker-internals.md`. Day-to-day commands are in
