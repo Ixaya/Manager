@@ -8,15 +8,15 @@ class Migration_Sepomex extends MGR_Migration_builder
 	{
 		$this->dbforge->add_field([
 			...$this->field_id('id'),
-			...$this->field(name: 'idEstado', type: MgrFieldType::Int),
-			...$this->field(name: 'estado', type: MgrFieldType::VarChar, length: 35),
-			...$this->field(name: 'idMunicipio', type: MgrFieldType::Int),
-			...$this->field(name: 'municipio', type: MgrFieldType::VarChar, length: 60),
-			...$this->field(name: 'ciudad', type: MgrFieldType::VarChar, length: 60),
-			...$this->field(name: 'zona', type: MgrFieldType::VarChar, length: 15),
-			...$this->field(name: 'cp', type: MgrFieldType::VarChar, length: 5),
-			...$this->field(name: 'asentamiento', type: MgrFieldType::VarChar, length: 15),
-			...$this->field(name: 'tipo', type: MgrFieldType::VarChar, length: 15),
+			...$this->field(name: 'id_estado', type: MgrFieldType::Int),
+			...$this->field(name: 'estado', type: MgrFieldType::VarChar, constraint: 35),
+			...$this->field(name: 'id_municipio', type: MgrFieldType::Int),
+			...$this->field(name: 'municipio', type: MgrFieldType::VarChar, constraint: 60),
+			...$this->field(name: 'ciudad', type: MgrFieldType::VarChar, constraint: 60),
+			...$this->field(name: 'zona', type: MgrFieldType::VarChar, constraint: 15),
+			...$this->field(name: 'cp', type: MgrFieldType::VarChar, constraint: 5),
+			...$this->field(name: 'asentamiento', type: MgrFieldType::VarChar, constraint: 70),
+			...$this->field(name: 'tipo', type: MgrFieldType::VarChar, constraint: 30),
 		]);
 
 		$this->dbforge->add_key('id', true);

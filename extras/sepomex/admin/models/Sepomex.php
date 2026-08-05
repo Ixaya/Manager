@@ -1,65 +1,72 @@
 <?php
 
-(defined('BASEPATH')) or exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 class Sepomex extends MY_Model
 {
-	public function __construct()
+	/**
+	 * Every distinct state.
+	 * @return array<int,array{id_estado:int,estado:string}>|false
+	 */
+	public function get_all_states(): array|false
 	{
-		//overrides
-		//$this->connection_name = 'catalog';
-		//$this->campus_id = 1;
-
-		//initialize after overriding
-		parent::__construct();
+		return $this->query('SELECT DISTINCT id_estado, estado FROM sepomex', null);
 	}
 
-	//BASED ON
-	//http://www.sepomex.gob.mx/ServiciosLinea/Paginas/DescargaCP.aspx
+	/**
+	 * Every distinct municipio in a state, by state id.
+	 * @return array<int,array{id_municipio:int,municipio:string}>|false
+	 */
+	public function get_municipios_by_state_id(int $id_estado): array|false
+	{
+		$query = 'SELECT DISTINCT id_municipio, municipio FROM sepomex WHERE id_estado=? ORDER BY id_municipio';
 
-	public function get_all_states()
-	{
-		$query = "select distinct idEstado, estado from sepomex";
-		return $this->query($query, null);
+		return $this->query($query, [$id_estado]);
 	}
-	public function get_cities_by_state_id($state_id)
+
+	/**
+	 * Every distinct municipio in a state, by state name.
+	 * @return array<int,array{id_municipio:int,municipio:string}>|false
+	 */
+	public function get_municipios_by_state(string $estado): array|false
 	{
-		$query = "select distinct idMunicipio, municipio from sepomex where idEstado=? order by idMunicipio";
-		return $this->query($query, [$state_id]);
+		$query = 'SELECT DISTINCT id_municipio, municipio FROM sepomex WHERE estado=? ORDER BY id_municipio';
+
+		return $this->query($query, [$estado]);
 	}
-	public function get_cities_by_state($state)
+
+	/**
+	 * Every state/municipio/asentamiento combination for a postal code.
+	 * @return array<int,array{estado:string,municipio:string,asentamiento:string}>|false
+	 */
+	public function get_neighborhoods_by_cp(string $cp): array|false
 	{
-		$query = "select distinct idMunicipio, municipio from sepomex where estado=? order by idMunicipio";
-		error_log("Query: ".$query);
-		return $this->query($query, [$state]);
-	}
-	public function get_neighborhoods_by_cp($cp)
-	{
-		$query = "select distinct estado, municipio, asentamiento from sepomex where cp=?";
+		$query = 'SELECT DISTINCT estado, municipio, asentamiento FROM sepomex WHERE cp=?';
+
 		return $this->query($query, [$cp]);
 	}
-	public function get_neighborhoods_by_city($city)
+
+	/**
+	 * Every distinct asentamiento in a municipio.
+	 * @return array<int,array{asentamiento:string}>|false
+	 */
+	public function get_neighborhoods_by_municipio(string $municipio): array|false
 	{
-		$query = "select distinct asentamiento from sepomex where municipio=? order by asentamiento asc";
-		return $this->query($query, [$city]);
+		$query = 'SELECT DISTINCT asentamiento FROM sepomex WHERE municipio=? ORDER BY asentamiento ASC';
+
+		return $this->query($query, [$municipio]);
 	}
-	public function get_cp_by_city_and_neighborhood($city, $neighborhood)
+
+	/** First postal code matching a municipio/asentamiento pair, if any. */
+	public function get_cp_by_municipio_and_asentamiento(string $municipio, string $asentamiento): ?string
 	{
-		error_log("get_cp_by_city_and_neighborhood(.".$city.", ".$neighborhood.")");
-		error_log($city);
-		error_log($neighborhood);
+		$query = 'SELECT DISTINCT cp FROM sepomex WHERE municipio=? AND asentamiento=? ORDER BY cp ASC';
+		$result = $this->query($query, [$municipio, $asentamiento]);
 
-
-
-		$query = "select distinct cp from sepomex where municipio=? and asentamiento=? order by cp asc";
-		$result = $this->query($query, [$city, $neighborhood]);
-		if (sizeof($result) > 0) {
-			return $result[0]['cp'];
+		if ($result === false || count($result) === 0) {
+			return null;
 		}
-		return null;
+
+		return $result[0]['cp'];
 	}
-
-
-
-
 }
