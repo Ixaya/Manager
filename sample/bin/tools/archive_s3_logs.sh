@@ -1,12 +1,22 @@
 #!/bin/bash
 # Log file S3 archival script with year/month organization
-# Uploads log files older than 7 days to S3 and deletes local copies
-# Uses AWS CLI with instance role (no credentials needed)
+# Uploads log files older than 7 days to S3 and deletes local copies once
+# the upload succeeds. For servers with no EFS to move logs to — same role
+# as logs_archive.sh, S3 instead of a local/EFS destination.
+#
+# Shared base — do not edit per-server/per-user. Deploy as-is to a shared,
+# world-readable path and `source` it from a small per-user caller script
+# that sets S3_BUCKET/HOME_PATH/APP_LOG and calls archive_logs_s3() for each
+# site that user serves. See samples/logs_archive_s3.sh.
+#
+# Bucket comes from the S3_BUCKET env var — set it in the caller, never
+# hardcode it here. Credentials come from the environment or the instance's
+# EC2 role; the AWS CLI picks those up on its own, nothing to configure here.
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-S3_BUCKET="log-archive-bucket"  # Change this to your bucket name
+
 DAYS_OLD=7
 DRY_RUN=false
 
@@ -23,12 +33,18 @@ if ! command -v aws &> /dev/null; then
     exit 1
 fi
 
+# Bucket must come from the environment (set by the per-user caller)
+if [[ -z "$S3_BUCKET" ]]; then
+    echo "Error: S3_BUCKET is not set"
+    exit 1
+fi
+
 # ============================================================================
 # FUNCTION DEFINITION
 # ============================================================================
 
 # Function to archive logs from one source to S3
-archive_logs_to_s3() {
+archive_logs_s3() {
     local SOURCE_DIR="$1"
     local S3_PATH_PREFIX="$2"  # e.g., "app" or "domains/site1"
     local SITE_NAME="$3"        # Optional: for display purposes
@@ -77,7 +93,6 @@ archive_logs_to_s3() {
             echo "[DRY RUN]           to: $S3_DEST"
             echo "[DRY RUN] Would delete: $file"
         else
-            # Upload to S3
             echo "Uploading: $filename -> $FILE_DATE/"
             aws s3 cp "$file" "$S3_DEST" --no-progress
 
@@ -111,37 +126,3 @@ archive_logs_to_s3() {
     fi
     echo
 }
-
-# ============================================================================
-# CALL THE FUNCTION FOR EACH SITE
-# ============================================================================
-
-# App site
-HOME_PATH=""
-APP_LOG="app/application/logs"
-DEST_LOG="logs"
-
-archive_logs_to_s3 \
-    "$HOME_PATH/$APP_LOG" \
-    "$DEST_LOG" \
-    "App Logs"
-
-# archive_logs_to_s3 \
-#     "$HOME_PATH/$APP_LOG" \
-#     "$DEST_LOG/site1" \
-#     "App Site 1"
-
-# archive_logs_to_s3 \
-#     "$HOME_PATH/domains/site/$APP_LOG" \
-#     "$DEST_LOG/site2" \
-#     "App Site 2"
-
-# ============================================================================
-# FINAL SUMMARY
-# ============================================================================
-
-if [[ "$DRY_RUN" == true ]]; then
-    echo "=== DRY RUN COMPLETE ==="
-else
-    echo "=== OPERATION COMPLETE ==="
-fi
