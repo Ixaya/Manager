@@ -74,11 +74,13 @@ class MGR_Rest_Controller extends REST_Controller
 	protected function set_rest_timezone(string $offset)
 	{
 		$offset = $this->rest->db->escape_str($offset);
-		$driver = MgrDriver::fromCI($this->rest->db->dbdriver ?? '');
+		$driver = MgrDriver::fromCI($this->rest->db->dbdriver ?? '', subdriver: $this->rest->db->subdriver ?? null);
 		$sql = match ($driver) {
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB  => "SET SESSION time_zone = '{$offset}'",
-			MgrDriver::Postgres => "SET TIME ZONE '{$offset}'",
+			// Without INTERVAL, Postgres parses a bare offset string as a
+			// POSIX-style spec, which inverts the sign vs. our ISO offset.
+			MgrDriver::Postgres => "SET TIME ZONE INTERVAL '{$offset}' HOUR TO MINUTE",
 			default             => null,
 		};
 

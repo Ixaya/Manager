@@ -161,9 +161,9 @@ class DynModelTest extends CITestCase
 			MGR_Model_Dyn_clause::OR_WHERE_IN => ['status' => [2]],
 		]);
 
-		$ids = array_column($rows, 'id');
-		$this->assertContains((string) $live_id, $ids);
-		$this->assertNotContains((string) $deleted_id, $ids);
+		$ids = array_map('intval', array_column($rows, 'id'));
+		$this->assertContains((int) $live_id, $ids);
+		$this->assertNotContains((int) $deleted_id, $ids);
 	}
 
 	/**

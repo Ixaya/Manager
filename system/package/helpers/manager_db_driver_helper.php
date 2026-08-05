@@ -27,14 +27,21 @@ enum MgrDriver: string
 	/**
 	 * Resolve from CI's raw dbdriver string into a normalized MgrDriver.
 	 *
-	 * @param  string $raw         CI's $this->db->dbdriver value.
-	 * @param  bool   $unifyMysql  When true (default), MariaDB is folded into MySQL
-	 *                             since they share virtually identical SQL syntax.
-	 *                             Pass false only when you need to distinguish them.
+	 * @param  string      $raw         CI's $this->db->dbdriver value.
+	 * @param  bool        $unifyMysql  When true (default), MariaDB is folded into MySQL
+	 *                                  since they share virtually identical SQL syntax.
+	 *                                  Pass false only when you need to distinguish them.
+	 * @param  string|null $subdriver   CI's $this->db->subdriver value — CI's pdo driver
+	 *                                  always reports 'pdo' as $raw, so pass this to resolve
+	 *                                  the real engine instead of falling through to MySQL.
 	 * @return self
 	 */
-	public static function fromCI(string $raw, bool $unifyMysql = true): self
+	public static function fromCI(string $raw, bool $unifyMysql = true, ?string $subdriver = null): self
 	{
+		if (strtolower(trim($raw)) === 'pdo' && $subdriver !== null) {
+			$raw = $subdriver;
+		}
+
 		if ($unifyMysql) {
 			return match (strtolower(trim($raw))) {
 				'mysqli', 'mysql', 'mariadb' => self::MySQL,

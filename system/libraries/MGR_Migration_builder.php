@@ -431,7 +431,7 @@ class MGR_Migration_builder
 	public function __construct()
 	{
 		$CI = &get_instance();
-		$this->db_driver = MgrDriver::fromCI($CI->db->dbdriver ?? '');
+		$this->db_driver = MgrDriver::fromCI($CI->db->dbdriver ?? '', subdriver: $CI->db->subdriver ?? null);
 	}
 
 	// ── Field factory ────────────────────────────────────────────────────────
@@ -578,8 +578,10 @@ class MGR_Migration_builder
                 END;
                 $$ LANGUAGE plpgsql;");
 
-				$this->db->query("DROP TRIGGER IF EXISTS trg_{$table}_{$column} ON {$table_ident};
-                CREATE TRIGGER trg_{$table}_{$column}
+				// One statement per query(): a PDO connection in extended mode rejects multi-command SQL.
+				$this->db->query("DROP TRIGGER IF EXISTS trg_{$table}_{$column} ON {$table_ident};");
+
+				$this->db->query("CREATE TRIGGER trg_{$table}_{$column}
                 BEFORE UPDATE ON {$table_ident}
                 FOR EACH ROW
                 EXECUTE FUNCTION set_{$table}_{$column}();");

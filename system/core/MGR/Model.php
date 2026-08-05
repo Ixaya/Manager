@@ -48,10 +48,10 @@ class MGR_Model extends CI_Model
 
 		if (mgr_provided($this->connection_name)) {
 			$this->my_db = $this->load->database_cache($this->connection_name);
-			$this->my_db_driver = MgrDriver::fromCI($this->my_db->dbdriver ?? '');
+			$this->my_db_driver = MgrDriver::fromCI($this->my_db->dbdriver ?? '', subdriver: $this->my_db->subdriver ?? null);
 		} else {
 			$this->my_db = $this->load->database_cache();
-			$this->my_db_driver = MgrDriver::fromCI($this->my_db->dbdriver ?? '');
+			$this->my_db_driver = MgrDriver::fromCI($this->my_db->dbdriver ?? '', subdriver: $this->my_db->subdriver ?? null);
 		}
 
 		if (strlen($this->database_name)) {
@@ -73,6 +73,7 @@ class MGR_Model extends CI_Model
 	public function set_connection(object $db_connection): void
 	{
 		$this->my_db = $db_connection;
+		$this->my_db_driver = MgrDriver::fromCI($db_connection->dbdriver ?? '', subdriver: $db_connection->subdriver ?? null);
 
 		if (!$this->table_name) {
 			$this->generate_table_name();
@@ -687,7 +688,9 @@ class MGR_Model extends CI_Model
 		$sql = match ($this->my_db_driver) {
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB  => "SET SESSION time_zone = '{$offset}'",
-			MgrDriver::Postgres => "SET TIME ZONE '{$offset}'",
+			// Without INTERVAL, Postgres parses a bare offset string as a
+			// POSIX-style spec, which inverts the sign vs. our ISO offset.
+			MgrDriver::Postgres => "SET TIME ZONE INTERVAL '{$offset}' HOUR TO MINUTE",
 			default             => null,   // SQLite, SQL Server — no session TZ concept
 		};
 

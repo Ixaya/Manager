@@ -120,10 +120,10 @@ class BaseModelTest extends CITestCase
 		self::$model->delete($deleted_id);
 
 		$rows = self::$model->get_all_or_like(where: ['name' => 'Widget']);
-		$ids = array_column($rows, 'id');
+		$ids = array_map('intval', array_column($rows, 'id'));
 
-		$this->assertContains((string) $live_id, $ids);
-		$this->assertNotContains((string) $deleted_id, $ids);
+		$this->assertContains((int) $live_id, $ids);
+		$this->assertNotContains((int) $deleted_id, $ids);
 	}
 
 	public function test_insert_bulk_and_update_where(): void
