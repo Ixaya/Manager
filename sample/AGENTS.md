@@ -170,10 +170,12 @@ before creating or reorganizing any doc.
 
 - **PHP 8.2 floor, 8.4-era style.** No 8.3/8.4-only features (typed class
   constants, `#[\Override]`, property hooks, asymmetric visibility).
-- **Never edit anything under `vendor/`.** Framework fixes go in this
-  project's extension seams (`application/core/` subclasses, config
-  overrides); framework changes belong upstream in the `ixaya/manager`
-  package.
+- **Never edit anything under `vendor/`.** Composer manages every package
+  there — `ixaya/manager`, its `nielbuys/framework` base, everything else —
+  and wipes edits on the next `composer install`/`update`. Fix
+  `ixaya/manager` in this project's extension seams (`application/core/`
+  subclasses, config overrides) or upstream; fix anything else with a
+  Composer patch (`cweagans/composer-patches`).
 - **When the prompt is silent on a security- or safety-relevant choice**
   (auth mode, deletion, data exposure, permissions), take the documented
   safe default; a nearby file never justifies dropping below it (a sibling

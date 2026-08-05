@@ -88,6 +88,43 @@ can be any non-empty value):
 | MySQL 8 | `mysql` | `mysql` | `3306` | `mysqli` | `utf8mb4` / `utf8mb4_0900_ai_ci` |
 | MariaDB | `mariadb` | `mariadb` | `3306` | `mysqli` | `utf8mb4` / `utf8mb4_uca1400_ai_ci` |
 
+### Running over PDO instead of the native driver
+
+Which driver a project runs is a project choice, not just a fallback for a
+host missing an extension. `DB_DRIVER` also accepts `pdo/mysql` and
+`pdo/pgsql`, both measured at performance parity with their native
+counterpart through this framework's own Model-layer benchmark (1.03-1.08x,
+well within run-to-run noise).
+
+The two paths differ in kind, not in speed:
+
+- **Fetch types.** Native drivers stringify every column. Under PDO — both
+  `pdo/mysql` and `pdo/pgsql` — integer, float, and (Postgres only) boolean
+  columns come back as native PHP types instead of strings; `Decimal` stays
+  a string on every driver (avoids precision loss). Switching an existing
+  project changes the JSON type your API emits for those columns
+  (`"id":11` vs `"id":"11"`) — decide whether that's a fix or a breaking
+  change for your clients before switching a project already in production.
+- **`Bool` has four representations across engine × driver** — native
+  Postgres returns the string `'t'`/`'f'` (and `'f'` is truthy in PHP — a
+  real trap on the default driver), native MySQL/MariaDB return `'1'`/`'0'`
+  strings, `pdo/pgsql` returns real `bool`, `pdo/mysql` returns `int`. This
+  is why the migrations skill directs `SmallInt` over `Bool` for `0`/`1`
+  flags regardless of driver.
+- **`DB_CHAR_SET` is silently ignored under `pdo/pgsql`** today — set the
+  database's own encoding to match, or pass it through
+  `mgr_apply_pdo_dsn()`'s `options` directly.
+- **`reconnect()`/`data_seek()` aren't implemented on the PDO path yet** —
+  inert today (nothing in the framework calls either), worth knowing only
+  if you're driving a long-running CLI worker or the websocket loop
+  directly against the connection.
+
+This image ships neither PDO extension by default. Add the one you need to
+`docker/Dockerfile`'s `docker-php-ext-install` list (e.g. `pdo_pgsql \`),
+`./docker_manage.sh -e <instance> --profile <db> build`, then set
+`DB_DRIVER` — `mgr_apply_pdo_dsn()` in `application/config/database.php`
+builds the `dsn` from the same `DB_HOST`/`DB_PORT`/`DB_NAME`.
+
 ### Profile matrix
 
 | Profile | Service | Purpose | Prod? |

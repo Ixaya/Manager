@@ -334,7 +334,10 @@ don't re-derive. Campaign-proven additions:
   supposed to be uniform across a family of calls, exercise the family.
 - Run the engine matrix (postgres, mysql, mariadb) before release when DB
   behavior changed — driver quirks proved decisive (a fix correct on one
-  engine was wrong on another).
+  engine was wrong on another). Native drivers only: the `pdo/*` variants are
+  supported configurations, not matrix rows, and adding them would double
+  every DB fix's verification surface. Exercise one when the change touches
+  the PDO path or when the prompt names it.
 - Consider a durable CLI regression suite for what the throwaway probes
   proved, minus anything flaky by nature (timing asserts) or too white-box
   (builder-state reflection).

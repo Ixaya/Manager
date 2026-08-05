@@ -166,16 +166,28 @@ delta, in order:
    and its rotation procedure (the password now travels to other
    hosts).
 
-**Database extensions: `mysqli`/`pgsql`, not `pdo_mysql`/`pdo_pgsql`.**
-Decision: the Dockerfile installs `mysqli` and `pgsql`, not either PDO
-driver.
-Why: CI3's native `mysqli` database driver calls `mysqli_*` functions
-directly, and its `postgre` driver calls `pg_connect()` — neither one ever
-touches PDO. Installing PDO drivers would be dead weight (no code path uses
-them). The same `mysqli` extension also covers the `mariadb` dev profile —
-MariaDB speaks the MySQL wire protocol, so no separate driver is needed.
-Revisit when: the app's database layer is migrated to a PDO-based CI3
-driver (`pdo/mysql`, `pdo/pgsql`) — not currently planned.
+**Database extensions: `mysqli`/`pgsql` ship by default; `pdo_*` is opt-in.**
+Decision: the Dockerfile installs `mysqli` (also covers the `mariadb`
+profile — same wire protocol) and `pgsql`; `pdo_*` extensions aren't in the
+default image.
+Why: which driver a project runs is a per-project choice, not a verdict on
+PDO — `DB_DRIVER=pdo/<engine>` is a fully supported CI3 driver, measured at
+performance parity with its native counterpart through this framework's
+Model layer (1.03-1.08x, within run-to-run noise).
+`sample/docs/development/docker.md`'s PDO section has the fetch-type and
+config differences that actually distinguish the two paths. Native ships
+by default because it matches CI3's long-standing stringify-everything
+contract, which is what every existing project's API clients expect; a
+project that wants PDO's typed fetches, or is starting fresh with no
+contract to preserve, adds the one subdriver it needs and rebuilds.
+Cost: adding a PDO subdriver is one line in `docker-php-ext-install` plus a
+rebuild. `pdo/*` is deliberately not an engine-matrix row
+(`framework-workflow.md`'s "Cross-engine verification"), so day-to-day
+verification stays on the native drivers either way. `mgr_apply_pdo_dsn()`
+and `fromCI()`'s `subdriver` param work the same regardless of which driver
+a project runs.
+Revisit when: nothing here is a one-way door — a project's needs, or the
+framework's own default, can move either way.
 
 **WebSocket deps promoted from the framework's `require-dev` to this app's
 `require`.**

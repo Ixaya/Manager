@@ -102,6 +102,20 @@ This is also the only way to observe request-scoped state that exists only
 after real auth (`$logged_in_level`, timezone side effects of
 `process_api_user()`).
 
+## Benchmark/comparison probes — provenance is part of the result
+
+A probe comparing implementations, drivers, or configurations (a benchmark, a
+type/behavior matrix) must drive the framework's own API — the Model layer, a
+REST endpoint, a CLI command — never a raw client call (`new PDO`,
+`pg_connect`, `mysqli_connect` and friends), if the number will be cited as a
+claim about the framework's behavior. A raw client call measures the client
+library, not this codebase; it's a legitimate tool for isolating *why* a
+framework-level number looks the way it does, but that's a different kind of
+evidence, and it belongs in its own clearly-labeled section — never the same
+table as the framework-level figures. State which layer produced every
+number; a reader must never have to guess whether a cited figure came from
+the app's actual usage or a bare client script.
+
 ## Probe base class
 
 Every probe controller extends a shared base pasted once per repo as

@@ -193,6 +193,9 @@ package.
   clauses — that's what `MgrFieldType` and the index helpers are for. Raw
   `$this->db->query()` DDL is a last resort and must handle each `MgrDriver`
   case (see `modify_field_timestamp()` in the builder for the pattern).
+- One statement per `$this->db->query()` call — CI's pdo driver prepares every
+  statement and the prepared protocol rejects multiple commands, so SQL that
+  works under a native driver fails under `pdo/*`.
 
 ## Anti-patterns
 

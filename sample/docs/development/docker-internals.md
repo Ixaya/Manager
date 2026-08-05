@@ -180,7 +180,9 @@ when docker's value must differ from that base.
 - `MGR_LOG_PATH` — unified root for all Manager log streams; the app
   derives `app/` and `cli/` subdirs from it; the entrypoint creates both on
   boot. Trailing slash required.
-- `DB_DRIVER` — `mysqli` (also for MariaDB) or `postgre`; never pdo.
+- `DB_DRIVER` — `mysqli` (also for MariaDB) or `postgre`. A `pdo/<engine>`
+  value needs its extension added to the image first — see docker.md's
+  "Running over PDO instead of the native driver".
 - `DB_COLLATION` — `utf8mb4_0900_ai_ci` is MySQL-8-only; MariaDB needs a
   MariaDB collation; see the matrix comment in the root `.env.sample`.
 - `CACHE_ADAPTER` — MUST stay `redis` so cache/queues/pub-sub all use the

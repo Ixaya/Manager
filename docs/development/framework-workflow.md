@@ -169,8 +169,17 @@ Anything touching the database must hold on MySQL/MariaDB, PostgreSQL, SQL
 Server, and SQLite. Bring up the profile the change actually touches, and run
 the matrix (`--profile postgres`, `--profile mysql`, `--profile mariadb`)
 before a release when DB behavior changed: driver quirks have made a fix that
-was correct on one engine wrong on another. Tear down with every profile flag
-the session used, or the leftover containers outlive it:
+was correct on one engine wrong on another.
+
+**The matrix is the native drivers only.** `pdo/mysql` and `pdo/pgsql` are
+supported opt-in configurations, not matrix rows: adding them would double
+the engines every DB fix has to be re-verified on, and in practice even
+MariaDB does not get run every time. Test a PDO variant when a change
+touches the PDO path specifically, or when asked for it by name — not as
+part of a routine parity or regression pass.
+
+Tear down with every profile flag the session used, or the leftover
+containers outlive it:
 
 ```bash
 ./docker_manage.sh -e <instance> -b -m --profile <db> down -v

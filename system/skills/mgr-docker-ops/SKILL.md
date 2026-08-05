@@ -108,6 +108,16 @@ An absence is not evidence until the channel has produced a positive — a
 clean grep looks identical whether the bind took or the file was never
 touched.
 
+## Confirm which DB config a test run actually used
+
+Switching `DB_DRIVER` for a live check touches **two** files, not one: the
+instance's `<instance>.env` (what the app/CLI use) and `.env.testing.priv`
+(what PHPUnit uses) — different bootstraps read them and neither stays in
+sync with the other automatically. A suite that "still passes" after only
+one was switched is not evidence of anything; it may have quietly run on
+the old driver. Confirm the actual driver a run used from the run's own
+output, not from which env file you remember editing.
+
 ## Logs — three channels, and the `log_check` trap
 
 A request can return the right value and still hide a silent error. Three

@@ -127,12 +127,14 @@ package alias → `MY_`/`APP_`) is in `docs/architecture/`.
   consuming project.
 - **Skills must move with the code.** If a change alters a documented
   convention, update the matching skill in `system/skills/` in the same change.
-- **`system/third_party/` is upstream-tracked — leave it as-is.** MX, the BE
-  Ion Auth fork, and REST_Controller are kept close to their upstreams so
-  updates merge cleanly. No style sweeps, no refactors; surgical bug fixes
-  only, and prefer fixing in the MGR_ subclass layer instead. The BE Ion Auth
-  fork carries a documented set of deliberate edits and purposeful deviations
-  — see `docs/development/auth-upstream.md` before/after any upstream merge.
+- **`system/third_party/` is this repo's own committed copy — not a
+  Composer dependency.** MX, the BE Ion Auth fork, and REST_Controller are
+  kept close to upstream so updates merge cleanly (Composer dependencies
+  live under `vendor/` instead, and are never edited). No style sweeps, no
+  refactors; surgical bug fixes only, and prefer fixing in the MGR_ subclass
+  layer instead. The BE Ion Auth fork carries a documented set of deliberate edits
+  and purposeful deviations — see `docs/development/auth-upstream.md`
+  before/after any upstream merge.
 - **`extras/` is legacy example code, not a pattern source.** It is kept so
   legacy CI3 projects can see the shapes they are upgrading from, and it is
   `export-ignore`d, so it never reaches a consuming project. Do not homologate
