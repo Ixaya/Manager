@@ -84,6 +84,12 @@ a driver choice:
 - `Json` is normalized to `'{"a": 1}'` by MySQL and stored verbatim as
   `'{"a":1}'` by MariaDB.
 
+**Twin note:** `sample/docs/development/database.md` carries a curated,
+PostgreSQL/MySQL-only prose extract of this matrix (per-`MgrFieldType`
+fetch-type conversion, plus the `Char` padding difference above) for the
+shipped audience, which has no access to this file. Update that doc too if
+the underlying facts here change.
+
 ## Why this matters to a consuming project
 
 The types are part of an API's observable contract, not an internal detail: a

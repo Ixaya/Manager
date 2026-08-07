@@ -22,8 +22,8 @@ design — see `decisions.md`.
 `postgre` ship in `sample/docker/Dockerfile`; `pdo/mysql` and `pdo/pgsql`
 are fully supported at performance parity but require adding the subdriver
 to `docker-php-ext-install` and rebuilding — documented in
-`sample/docs/development/docker.md`'s "Running over PDO instead of the
-native driver" and `docs/development/docker-decisions.md`'s "Database
+`sample/docs/development/database.md`'s "Running over PDO instead of the
+native driver" and `docs/development/database.md`'s "Database
 extensions" entry.
 
 **Validated:** PostgreSQL and MySQL, native and `pdo/*`, migrate clean and
