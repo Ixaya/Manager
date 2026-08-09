@@ -181,6 +181,87 @@ This is the same discipline as `mgr-code-style`'s comment cap, scaled to
 prose: an agent that doesn't already suspect its write-up is too long won't
 stop on its own, so the cap has to be stated, not implied.
 
+## Fix-in-place: resolving a single proposal without a campaign
+
+Call this a **fix-in-place** — the name to ask for when a proposal doesn't
+need the machinery below. The workspace anatomy above assumes scale: many
+findings, sessions spread across days, an LLM-authored review batch that
+needs independent verification before it's trusted. None of that holds for
+a proposal in `00-proposals/` that is already a single, self-contained,
+root-caused defect or improvement, closeable in one sitting — the proposal
+file already reads like a `review.md`, and promoting it into a numbered
+`docs/workspace/NN-<item>/` directory (spec + handoff + review + prompts,
+a closing-review session, a pending gate, distillation) duplicates state
+that already lives in one place, for one item that never needed
+cross-session continuity in the first place.
+
+**Signal it fits:** the proposal names a specific, bounded fix — not an
+open DECISION that needs a design session — and nothing about it depends
+on another finding or spans more than one sitting. A proposal with a real
+unresolved tradeoff between two designs, or a fix that fans out across many
+call sites, is not this; promote it to a campaign instead.
+
+**Mechanics:**
+
+- No campaign directory. Work directly off `00-proposals/<item>/spec.md` —
+  it is both the finding and the baseline.
+- One session, one prompt (skeleton below). Confirm the code still matches
+  whatever the proposal quotes before editing — same baseline-discipline
+  rule as any fix-pass; drifted means stop and report, not improvise.
+- Scope is exactly what the proposal's own disposition names. A proposal
+  that documents an interim mitigation alongside a bigger, blocked real fix
+  (a Composer patch, an unresolved design question) stays on the
+  mitigation — the session does not also attempt the blocked path.
+- A small embedded decision (which of two named mechanisms, say) is fine to
+  make and record inside the same session — it doesn't need a separate
+  wait-for-approval gate the way a campaign's open DECISIONs do. If the
+  decision turns out bigger than it looked (touches more call sites than
+  expected, needs a mechanism the proposal didn't name), STOP and report
+  instead of escalating scope solo.
+- Live-test per the usual rule — behavior changed, probe it
+  (`mgr-live-probes`/`mgr-docker-ops`); a string/doc fix, a grep confirms it.
+- No commits, ever.
+
+**Closing.** Append a short "Resolution (\<date\>)" section to the *same*
+proposal file — what changed, one line of verification evidence, nothing
+narrated. Once the operator has reviewed and committed, archive it the
+same way a campaign is archived: `tar cJf
+docs/workspace/archive/00-proposals/<item>.tar.xz -C
+docs/workspace/00-proposals <item>`, then delete the live directory and
+its `00-shared/proposals.md` row. Tar, not a plain move: `.gitignore`
+already keeps a plain file in `docs/workspace/` out of a keyword grep, but
+a raw directory listing (`find`, a Glob-style search) doesn't consult
+`.gitignore` at all, and a direct `Read` doesn't either — an agent that
+lists the archive rather than searching its content can still walk
+straight into a resolved proposal and mistake it for live. Compressed,
+that same walk hits a binary file instead of a page of readable prose.
+The root-cause trace stays available for deliberate recall — one
+`tar xf` — while nothing about a routine sweep surfaces it by accident.
+
+**Prompt skeleton** (shorter than the campaign skeleton below — no
+approval-list gate, since there is exactly one item):
+
+```
+You're resolving <proposal-title> in place — a self-contained item, not a
+campaign. Read 00-proposals/<item>/spec.md in full; it is both the finding
+and the baseline.
+
+Scope: <exactly what's in, per the proposal's own disposition>. OUT of
+scope: <whatever the proposal deferred or left as a bigger, undecided
+path — name it>.
+
+Before editing, confirm the code still matches what the proposal quotes.
+If it's drifted, stop and report.
+
+<Runtime-confirmation step, if the proposal named one as unverified.> <The
+embedded decision, if any, and what makes it stay in-session vs.
+escalate.> <Live-test instruction if behavior changed.>
+
+Append a "Resolution (<date>)" section to spec.md: what changed, one line
+of verification evidence. No commits. Finish by stating what you did and
+what you deliberately left out per scope.
+```
+
 ## Validation before fixing
 
 A findings doc authored by LLM review passes carries two risks until checked:

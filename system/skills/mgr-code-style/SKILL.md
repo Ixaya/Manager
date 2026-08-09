@@ -23,7 +23,13 @@ style from those files.
    in IDE popups, not as documentation prose. One summary line,
    `@param`/`@return` with array shapes (`array<string, mixed>`, `array{key:
    ?string, path: string}`) where arrays are structured, `@throws` when it
-   throws. No essays.
+   throws. No essays. Skip `@param` for a plain scalar/nullable/union type
+   that adds nothing beyond its name (`bool $delete`, `?string $order_by`) —
+   tag a param only when it's an array needing a shape, or its role needs a
+   sentence the signature can't carry (e.g. a by-reference mutation). A
+   function whose name and signature are already fully self-explanatory
+   (`insert(array $data): int|string|bool`) needs only the one-line summary —
+   don't force empty `@param`/`@return` lines onto it.
 3. **Named parameters at call sites.** Mandatory for boolean arguments
    (`set_alter_keys(data: $data, delete: true)`) and when skipping defaults;
    standard for calls with 3+ arguments (`field(name: 'email', type:
