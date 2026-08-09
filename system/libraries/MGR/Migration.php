@@ -65,11 +65,14 @@ class MGR_Migration extends CI_Migration
 	{
 		// Load the specified database connection
 		$CI = &get_instance();
-		$CI->db = $this->load->database($this->_db_group, true);
+		$CI->db = $CI->load->database($this->_db_group, true);
 
+		if (!is_object($CI->db) || !$CI->db->conn_id) {
+			throw new RuntimeException("MGR_Migration: unable to connect to database connection '{$this->_db_group}'.");
+		}
 
 		// Override the default db and dbforge with our connection
-		$this->load->dbforge($this->db);
+		$CI->load->dbforge($CI->db);
 	}
 	protected function _setup_database_table(bool $check_parent_table = false)
 	{

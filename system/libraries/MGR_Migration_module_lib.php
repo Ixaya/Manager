@@ -292,6 +292,9 @@ class MGR_Migration_module_lib
 		$CI = &get_instance();
 		$CI->db = $CI->load->database($conn, true);
 
+		if (!is_object($CI->db) || !$CI->db->conn_id) {
+			throw new RuntimeException("MGR_Migration_module_lib: unable to connect to database connection '{$conn}'.");
+		}
 
 		// Override the default db and dbforge with our connection
 		// $CI->load->dbforge($CI->db);

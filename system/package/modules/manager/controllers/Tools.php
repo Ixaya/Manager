@@ -326,6 +326,10 @@ class $name extends MY_Model {
 
 		$this->load->database();
 
+		if (!$this->db->conn_id) {
+			throw new RuntimeException('Tools::claim_admin: unable to connect to the database.');
+		}
+
 		$user = $this->db
 			->select('id, password')
 			->where('username', $SEED_ADMIN_IDENTITY)
