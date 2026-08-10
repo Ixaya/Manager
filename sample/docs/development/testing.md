@@ -93,6 +93,16 @@ first — the parent loads the model the helpers depend on.
 fails the run, and so does any PHPUnit warning. Every test must assert
 something.
 
+**Assert values, not the driver's PHP types.** A column read back from the
+database is a `string` under the native drivers and a real `int`/`float`
+under PDO, so `assertSame(5, $row['status'])` passes on one driver and fails
+on the other. Compare loosely, or cast both sides, or assert on a value you
+control. Never make such a test pass by setting
+`PDO::ATTR_STRINGIFY_FETCHES` on the connection — that flag is a deliberate
+compatibility bridge for a project migrating an existing API contract, and
+using it to satisfy an assertion silently changes what the whole suite is
+testing.
+
 ## Gotchas
 
 - The bootstrap pins `$_SERVER['argv']` so PHPUnit's own flags are not parsed

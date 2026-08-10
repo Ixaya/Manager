@@ -783,3 +783,138 @@ grep -rn "mgr_build_order_by(" application/
 an `order_by` argument, and any external API docs/clients using an
 `order_by` value that used to fall through silently are updated to send a
 value from the allow-list.
+
+### New scaffolds default to PDO instead of native drivers
+
+`DB_DRIVER`'s shipped default (`sample/.env.sample`, and `database.php`'s
+own `mgr_env('DB_DRIVER', ...)` fallback) flipped from `mysqli` to
+`pdo/mysql`. This affects new projects scaffolded from `sample/` after this
+release only — `composer update` never touches a project's own `.env` or
+`database.php`, so an upgrading project keeps whatever `DB_DRIVER` it
+already has until it deliberately changes it.
+
+Two supported paths going forward:
+
+- **Stay native** (`mysqli`/`postgre`) — still fully supported, no longer
+  the recommendation. Nothing changes: every integer/float/bool column keeps
+  coming back as a string. Worth being clear about why you would choose
+  this, though — holding the string contract is not the reason, since the
+  compatibility option below does that on PDO. The reasons are a host that
+  has only the native extension, or wanting the exact client behavior you
+  already run in production rather than one the framework has matched
+  difference by difference.
+- **Move to PDO** (`pdo/mysql`/`pdo/pgsql`) — native `int`/`float` fetch
+  types (and, on Postgres, real `bool`); see `vendor/ixaya/manager/sample/
+  docs/development/database.md`'s PDO section for the full fetch-type
+  matrix, including `Bool`'s four-way divergence across engine × driver.
+  This changes the
+  JSON type your API emits for every converting column (`"id":11` vs
+  `"id":"11"`) — a breaking change for existing clients unless you also
+  add the compatibility option below.
+
+  To move to PDO WITHOUT changing your API contract, add `PDO::ATTR_
+  STRINGIFY_FETCHES` to your `$db['default']` array's `options` key in
+  `application/config/database.php`:
+
+  ```php
+  $db['default'] = mgr_apply_pdo_dsn([
+      // ...
+      'dbdriver' => mgr_env('DB_DRIVER', 'pdo/mysql'),
+      'options' => [PDO::ATTR_STRINGIFY_FETCHES => true],
+      // ...
+  ]);
+  ```
+
+  Treat this as a deliberate, temporary bridge — drop it later, as its own
+  versioned change, once your clients are updated to expect native types.
+
+```bash
+# confirm which driver a project is actually running before upgrading
+grep -n "DB_DRIVER" .env application/config/database.php
+```
+
+**Verify:** an existing project's `DB_DRIVER` is unchanged after `composer
+update` unless you edited it yourself; a project that opts into PDO without
+the compatibility option confirms its clients tolerate the new JSON types
+before shipping.
+
+### MySQL Strict Mode is now the new-project default
+
+`stricton` (`application/config/database.php`) flipped from `false` to
+`true` for new projects — MySQL/MariaDB connections now run with
+`STRICT_ALL_TABLES`, rejecting zero-dates, silently-truncated values, and
+lax type coercion instead of allowing them through. No effect on Postgres,
+SQLite, or SQL Server connections — this key is MySQL-family only.
+
+Existing projects are unaffected automatically (`composer update` never
+touches your own `database.php`). Before turning it on for a project that's
+been running with `stricton => false`, audit for data that only exists
+because MySQL allowed it — a zero-date (`0000-00-00`) or a value silently
+truncated to fit a column — since strict mode turns each of those into a
+hard write failure going forward, not a silent acceptance.
+
+```sql
+-- any DATE/DATETIME/TIMESTAMP column: check for zero-dates before enabling
+SELECT * FROM `your_table` WHERE `your_date_column` = '0000-00-00';
+```
+
+**Verify:** the query above returns nothing for every date/datetime column
+before you flip `stricton` on an existing project.
+
+### `MGR_Model`'s write methods: `replace()` is gone, and a returned id is typed by the driver
+
+Four related changes to the methods that write a row and hand back its
+primary key. All of them ship on `composer update`, whatever driver a
+project runs.
+
+**`replace()` was split into two methods with different names.** It used to
+pick a SQL mechanism per driver, which meant one call had genuinely
+different semantics depending on where it ran — a partial payload wiped the
+omitted columns on MySQL and preserved them on Postgres. In its place:
+
+- `replace_pk(array $data): bool` — deletes whatever row holds `$data`'s
+  primary key, then inserts `$data`. Every engine, one behavior; the
+  primary key must be present in `$data` or it throws
+  `InvalidArgumentException`. It returns `bool`, not an id: the caller
+  supplied the key, so there is nothing new to report back.
+- `upsert_atomic(array $data, array|string $conflict_target): int|string|bool`
+  — a single insert-or-merge statement against the unique key you name,
+  safe under concurrent callers. Implemented for Postgres; throws
+  `RuntimeException` on any other driver rather than emulating it.
+
+Pick by meaning, not by engine: `replace_pk()` discards the old row,
+`upsert_atomic()` merges into it.
+
+**`upsert()` no longer creates a row under an id you passed.** Given an
+`$id` that does not exist it now returns `false` and writes nothing.
+Previously it ran the `UPDATE`, matched no rows, and returned the id — so a
+stale or wrong id read as success while nothing happened. Passing `null` as
+`$id` still inserts, which is the only path that creates a row now.
+
+**A returned primary key is typed by the connection's fetch mode.** On
+MySQL/MariaDB/SQLite the id used to come from a raw driver call
+(`PDO::lastInsertId()` always returns a string, `mysqli::$insert_id` always
+an int) that ignored how every other column was fetched — so an inserted id
+could disagree with the type `get()` returned for that same column. Every
+id now comes back through a real query, so it matches `get()`: native `int`
+under a `pdo/<engine>` driver, `string` under `mysqli`/`postgre`. This is a
+type change for existing MySQL/MariaDB projects even on the native driver.
+
+**`sync_update_insert()`'s `&$modified` now means "a column actually
+changed".** An `$add_sync = true` call against a row whose data is already
+current sets `sync_enabled` and leaves `$modified` false, where it used to
+set it true. Only affects callers passing `$add_sync`.
+
+`Manager_option::save_value()` returns `false` for an empty key instead of
+`null`, matching the `int|string|bool` its write path already returned.
+
+```bash
+# every call site that needs re-reading against the above
+grep -rn -e "->replace(" -e "->upsert(" -e "sync_update_insert(" application/
+```
+
+**Verify:** no `->replace(` calls remain (each is now `replace_pk()` or
+`upsert_atomic()`); no `upsert()` call relies on an unknown id creating a
+row; no `===` comparison against a returned id assumes a specific PHP type;
+any `$add_sync` sync loop still behaves correctly with the narrower
+`$modified`.

@@ -11,20 +11,43 @@ section's `DB_DRIVER`/`DB_CHAR_SET`/`DB_COLLATION`, and the "Docker
 deployment-dependent" block's `DB_HOST`/`DB_PORT` (`DB_NAME`/`DB_USER` there
 can be any non-empty value):
 
-| Engine | `--profile` | `DB_HOST` | `DB_PORT` | `DB_DRIVER` | `DB_CHAR_SET` / `DB_COLLATION` |
-|---|---|---|---|---|---|
-| PostgreSQL | `postgres` | `postgres` | `5432` | `postgre` | `UTF8` / *(leave empty)* |
-| MySQL 8 | `mysql` | `mysql` | `3306` | `mysqli` | `utf8mb4` / `utf8mb4_0900_ai_ci` |
-| MariaDB | `mariadb` | `mariadb` | `3306` | `mysqli` | `utf8mb4` / `utf8mb4_uca1400_ai_ci` |
+| Engine | `--profile` | `DB_HOST` | `DB_PORT` | `DB_DRIVER` | native equivalent | `DB_CHAR_SET` / `DB_COLLATION` |
+|---|---|---|---|---|---|---|
+| PostgreSQL | `postgres` | `postgres` | `5432` | `pdo/pgsql` | `postgre` | `UTF8` / *(leave empty)* |
+| MySQL 8 | `mysql` | `mysql` | `3306` | `pdo/mysql` | `mysqli` | `utf8mb4` / `utf8mb4_0900_ai_ci` |
+| MariaDB | `mariadb` | `mariadb` | `3306` | `pdo/mysql` | `mysqli` | `utf8mb4` / `utf8mb4_uca1400_ai_ci` |
 
-### Running over PDO instead of the native driver
+`DB_CHAR_SET` has no default — set it. The native drivers refuse to connect
+without one; the PDO drivers accept an empty value and take whatever the
+database itself is configured for, which is fine until the database is not
+what you assumed. `DB_COLLATION` is only read when creating a database, so
+it can stay empty.
 
-Which driver a project runs is a project choice, not just a fallback for a
-host missing an extension. `DB_DRIVER` also accepts `pdo/mysql` and
-`pdo/pgsql`, both measured at performance parity with their native
-counterpart through this framework's own Model-layer benchmark —
-already-tuned defaults in `mgr_apply_pdo_dsn()` are what get you there;
-you don't need to change anything for it.
+### PDO is the default; the native drivers are the compatibility choice
+
+`DB_DRIVER` defaults to `pdo/mysql` for a new project, and `pdo/pgsql` is
+the Postgres equivalent. Both measure at performance parity with their
+native counterpart through this framework's own Model-layer benchmark —
+the already-tuned defaults in `mgr_apply_pdo_dsn()` are what get you there,
+and you don't need to change anything for it.
+
+`mysqli` and `postgre` remain fully supported. Two reasons to stay on them —
+and holding your API's string contract is not one of them, since the
+compatibility option below does that on PDO:
+
+- **Your host doesn't have the PDO subdriver.** Some servers ship only the
+  native extension. That is a deployment fact, not a preference.
+- **You want the exact behavior you already run.** Native and PDO are two
+  client stacks, each pre-initializing its own defaults, and this framework
+  equalizes the differences it has found — `PDO::ATTR_EMULATE_PREPARES` on
+  `pgsql` was one, and it surfaced from benchmarking, not from reading
+  documentation. Others may exist that nobody has hit yet. If you need
+  certainty rather than a list of known differences, the driver you have
+  been running in production is the one that gives it.
+
+Doing nothing is also safe: `composer update` never rewrites your `.env` or
+`application/config/database.php`, so a project keeps whatever `DB_DRIVER`
+it already has until you change it deliberately.
 
 The two paths differ in kind, not in speed:
 
@@ -40,24 +63,33 @@ The two paths differ in kind, not in speed:
   `"id":"11"`) — decide whether that's a fix or a breaking change for your
   clients before switching a project already in production.
 - **`Bool` has four representations across engine × driver** — native
-  Postgres returns the string `'t'`/`'f'` (and `'f'` is truthy in PHP — a
-  real trap on the default driver), native MySQL/MariaDB return `'1'`/`'0'`
-  strings, `pdo/pgsql` returns real `bool`, `pdo/mysql` returns `int`. This
-  is why the migrations skill directs `SmallInt` over `Bool` for `0`/`1`
-  flags regardless of driver.
-- **`DB_CHAR_SET` is silently ignored under `pdo/pgsql`** today — set the
-  database's own encoding to match, or pass it through
-  `mgr_apply_pdo_dsn()`'s `options` directly.
-- **`reconnect()`/`data_seek()` aren't implemented on the PDO path yet** —
-  inert today (nothing in the framework calls either), worth knowing only
-  if you're driving a long-running CLI worker or the websocket loop
-  directly against the connection.
+  Postgres returns the string `'t'`/`'f'` (and `'f'` is truthy in PHP, so a
+  plain `if ($row['flag'])` is wrong there on a false value), native
+  MySQL/MariaDB return `'1'`/`'0'` strings, `pdo/pgsql` returns real
+  `bool`, `pdo/mysql` returns `int`. This is why the migrations skill
+  directs `SmallInt` over `Bool` for `0`/`1` flags regardless of driver.
+- **A primary key returned by a write is typed the same way.** `insert()`,
+  `upsert()` and friends re-derive the new id through a real query, so it
+  matches what `get()` would return for that column — `int` under PDO,
+  `string` under a native driver. Don't compare one against a literal of
+  the other type.
 
-This image ships neither PDO extension by default. Add the one you need to
-`docker/Dockerfile`'s `docker-php-ext-install` list (e.g. `pdo_pgsql \`),
-`./docker_manage.sh -e <instance> --profile <db> build`, then set
-`DB_DRIVER` — `mgr_apply_pdo_dsn()` in `application/config/database.php`
-builds the `dsn` from the same `DB_HOST`/`DB_PORT`/`DB_NAME`.
+**Moving an existing project onto PDO without changing its API contract:**
+uncomment the `PDO::ATTR_STRINGIFY_FETCHES` line in
+`application/config/database.php`'s `mgr_apply_pdo_dsn()`. Every column
+that would otherwise convert comes back a string again, on all three
+engines. One value — not type — still differs: a Postgres `Bool` reads
+`'1'` where the native driver said `'t'`. Treat the flag as temporary and
+delete it once your clients accept native types.
+
+The image ships `pdo_mysql` and `pdo_pgsql`, so nothing needs building for
+MySQL, MariaDB or PostgreSQL — set `DB_DRIVER` and go.
+`mgr_apply_pdo_dsn()` in `application/config/database.php` builds the `dsn`
+from the same `DB_HOST`/`DB_PORT`/`DB_NAME`. Other engines are a different
+story: SQLite works over `pdo/sqlite` (`DB_NAME` is the file path), and SQL
+Server has a compose profile but no driver in the image — the available
+Alpine subdriver has unresolved problems severe enough that shipping it
+would be misleading.
 
 ### Cross-engine quirks worth knowing before you switch engines
 
