@@ -56,7 +56,9 @@ Backing files, in the gitignored `sample/application/modules/probes/`:
 subdriver. Without it, PDO_PGSQL prepares every statement server-side — an
 extra round trip per statement, since CI rebuilds the SQL string on every call
 and so never reuses a prepared statement. It is scoped to `pgsql` because
-`pdo_sqlite` throws on the attribute and `pdo_mysql` already defaults it on.
+`pdo_mysql` already defaults it on and `pdo_sqlite` gains nothing from it
+either way — the attribute is a silent no-op there, accepted at construction
+and ignored by `setAttribute()`.
 
 There is no security cost: CI binds no parameters on any driver — it escapes
 values and splices them into the SQL string, and `pg_query_params`/`bindValue`/
@@ -120,10 +122,11 @@ option off.
 
 1. Set `local.env`'s DB block for the engine and bring up its profile; a fresh
    volume (`down -v`) is needed when changing engine.
-2. Add the engine's PDO subdriver to `sample/docker/Dockerfile`'s
-   `docker-php-ext-install` list and rebuild — the shipped image carries none on
-   purpose. Rebuild the `tools` image too if you also intend to run PHPUnit
-   (`--profile tools build tools`); it is a separate image and a plain `build`
-   misses it. Revert the Dockerfile afterwards.
+2. `pdo_mysql` and `pdo_pgsql` are already in `sample/docker/Dockerfile`, so
+   MySQL, MariaDB and PostgreSQL need no image change. Any other engine means
+   adding its subdriver to the `docker-php-ext-install` list and rebuilding,
+   then reverting the Dockerfile afterwards. Rebuild the `tools` image too if
+   you also intend to run PHPUnit (`--profile tools build tools`); it is a
+   separate image and a plain `build` misses it.
 3. Run migrations, then the two probe invocations above, and paste both rows.
    Record the engine and server version from the probe's own header.

@@ -109,6 +109,54 @@ rule exists: renaming a public method or changing a signature on any
 `MGR_*` class breaks every project subclass sitting on top of it, and
 nothing in the resolution mechanism itself would catch that at build time.
 
+## How MGR_Model composes optional capabilities via traits
+
+Not every method on `MGR_Model` is a first-class citizen of the class body.
+Methods every model uses (`get`/`update`/`delete`/`get_all*` and their
+internal helpers) stay declared directly on the class; a specialized
+capability group that most models never touch — for example the `sync_*`
+family, for importing from an external source — lives in its own PHP trait
+instead, so reading `Model.php` top to bottom shows what a typical model
+actually uses.
+
+A group earns its own trait when it is a coherent capability a model either
+wants entirely or not at all, and it is big enough that its absence makes
+`Model.php` meaningfully easier to read. Splitting one method out, or
+splitting by "these feel related", buys a file and costs a lookup. When in
+doubt it stays on the class — this is a readability seam, not a design
+boundary, and nothing about the framework depends on where a method lives.
+
+Mechanics:
+
+- Each capability trait is its own file under `system/core/MGR/Model/`
+  (e.g. `Model/Sync.php` → `trait MGR_Model_Sync`), carrying the same
+  `BASEPATH` guard as every other framework file.
+- `Model.php` pulls a trait in with an explicit
+  `require MGRPATH . 'core/MGR/Model/Sync.php';` directly below its own
+  `BASEPATH` guard, then composes it with `use MGR_Model_Sync;` as the
+  first line of the class body. The explicit `require` is necessary:
+  nothing scans `system/core/MGR/` or its subdirectories the way
+  `MY_Model.php`'s single `require MGRPATH . "core/MGR/Model.php";` pulls
+  in `MGR_Model` itself — a trait file left unrequired is simply never
+  loaded.
+- A composed method is indistinguishable at runtime from one declared
+  directly on `MGR_Model`: `$this`, protected properties, and calls to
+  other `MGR_Model` methods all resolve normally from inside a trait, so a
+  capability's own `MgrDriver::match()`-style per-engine branching can live
+  entirely inside its trait, self-contained.
+
+Overriding from a project needs no trait-aware syntax. A trait's methods are
+compiled into the class that `use`s it, so from a project's
+`MY_Model`/`APP_Model_Dyn` subclass a trait-provided method behaves exactly
+like one declared on `MGR_Model` — redeclare it to override, and `parent::`
+still reaches the trait's implementation. The alias-chain rule is unaffected:
+the public surface a subclass sees is identical either way, which also means
+moving a method into a trait is not a breaking change, and moving one back is
+not either.
+
+The cost is a lookup: a method absent from `Model.php` means checking the
+class's `use` list and following into `Model/<Trait>.php`.
+
 ## Why MX keeps its own `CI::$APP` / global `$CFG`, not `get_instance()`
 
 CI3's native way to reach the super-object is

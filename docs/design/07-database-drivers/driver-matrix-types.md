@@ -35,30 +35,43 @@ driver without trusting the surrounding notes.
 Measured 2026-08-05. PHP 8.4.24; PostgreSQL 18.4, MySQL 8.4.11, MariaDB
 12.3.2. Every PDO column reported `emulate_prep: true`.
 
-| column (`MgrFieldType`) | pg native | pg PDO | my native | my PDO | maria native | maria PDO |
-|---|---|---|---|---|---|---|
-| `TinyInt` | string | **int** | string | **int** | string | **int** |
-| `SmallInt` | string | **int** | string | **int** | string | **int** |
-| `Int` | string | **int** | string | **int** | string | **int** |
-| `BigInt` | string | **int** | string | **int** | string | **int** |
-| `Decimal` | string | string | string | string | string | string |
-| `Float` | string | **float** | string | **float** | string | **float** |
-| `Double` | string | **float** | string | **float** | string | **float** |
-| `Bool` | string `'t'` | **bool** | string `'1'` | **int** | string `'1'` | **int** |
-| `Char` | string | string | string | string | string | string |
-| `VarChar` | string | string | string | string | string | string |
-| `Text` | string | string | string | string | string | string |
-| `Date` | string | string | string | string | string | string |
-| `DateTime` | string | string | string | string | string | string |
-| `Timestamp` | string | string | string | string | string | string |
-| `Json` | string | string | string | string | string | string |
-| `Uuid` | string | string | string | string | string | string |
-| `id` (PK) | string | **int** | string | **int** | string | **int** |
+The `+str` columns are the same PDO connection with
+`PDO::ATTR_STRINGIFY_FETCHES` set, measured 2026-08-07 with the same probe —
+the compatibility path a project takes to move onto PDO without changing the
+types its API emits.
+
+| column (`MgrFieldType`) | pg native | pg PDO | pg PDO+str | my native | my PDO | my PDO+str | maria native | maria PDO | maria PDO+str |
+|---|---|---|---|---|---|---|---|---|---|
+| `TinyInt` | string | **int** | string | string | **int** | string | string | **int** | string |
+| `SmallInt` | string | **int** | string | string | **int** | string | string | **int** | string |
+| `Int` | string | **int** | string | string | **int** | string | string | **int** | string |
+| `BigInt` | string | **int** | string | string | **int** | string | string | **int** | string |
+| `Decimal` | string | string | string | string | string | string | string | string | string |
+| `Float` | string | **float** | string | string | **float** | string | string | **float** | string |
+| `Double` | string | **float** | string | string | **float** | string | string | **float** | string |
+| `Bool` | string `'t'` | **bool** | string `'1'` | string `'1'` | **int** | string `'1'` | string `'1'` | **int** | string `'1'` |
+| `Char` | string | string | string | string | string | string | string | string | string |
+| `VarChar` | string | string | string | string | string | string | string | string | string |
+| `Text` | string | string | string | string | string | string | string | string | string |
+| `Date` | string | string | string | string | string | string | string | string | string |
+| `DateTime` | string | string | string | string | string | string | string | string | string |
+| `Timestamp` | string | string | string | string | string | string | string | string | string |
+| `Json` | string | string | string | string | string | string | string | string | string |
+| `Uuid` | string | string | string | string | string | string | string | string | string |
+| `id` (PK) | string | **int** | string | string | **int** | string | string | **int** | string |
 
 **The native drivers stringify everything, on all three engines.** Every
-divergence is PDO returning a native PHP type.
+divergence is PDO returning a native PHP type, and every one of them goes
+back to `string` under `STRINGIFY_FETCHES`.
 
-Three details that a summary would lose:
+Four details that a summary would lose:
+
+- **`STRINGIFY_FETCHES` restores the type contract, not the value contract.**
+  Every converting column returns to `string`, `Bool` included — but
+  Postgres's `Bool` comes back `'1'`, where its native driver says `'t'`. A
+  project comparing `=== 't'` is not protected by the flag; one comparing
+  `is_string()` or another string from the same source is. MySQL and MariaDB
+  match native exactly, values included.
 
 - **`Decimal` stays a string under PDO on every engine.** Deliberate on PDO's
   part — converting to `float` would lose precision. So "PDO returns numbers as
