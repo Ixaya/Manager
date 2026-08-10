@@ -136,7 +136,7 @@ What's specific to probes:
 source docker/env/<instance>.agent.env      # AGENT_BASE_URL / _USERNAME / _PASSWORD
 KEY=$(curl -s -X POST "$AGENT_BASE_URL/auth/api/login" \
   -d "username=$AGENT_USERNAME&password=$AGENT_PASSWORD" \
-  | python3 -c "import sys,json;print(json.load(sys.stdin)['api_key'])")
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['response']['api_key'])")
 curl -s -H "X-API-KEY: $KEY" "$AGENT_BASE_URL/probes/api/<controller>/<item>"
 curl -s -o /dev/null -w "%{http_code}\n" "$AGENT_BASE_URL/probes/api/<controller>/<item>"  # keyless must 401/403
 ./docker_manage.sh -e <instance> -b [-m] --profile <db> down -v   # include EVERY --profile used

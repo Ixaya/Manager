@@ -371,3 +371,33 @@ Cost: none — the `tools` service already exists for exactly this; the change
 is presentational, not new tooling.
 Revisit when: never — a future exception needs its own documented rationale,
 not a silently reappearing bare command.
+
+**A framework-dev instance should default to Postgres; MySQL/MariaDB are
+parity-testing only.**
+Decision: when bootstrapping an instance for framework development (not a
+consuming project — see `sample/docs/development/docker.md`'s setup section
+for the generic copy-from-`sample.*` steps), default it to `--profile
+postgres` / `DB_DRIVER=pdo/pgsql`: after copying the templates to
+`<instance>.env`/`<instance>.docker.env`/`<instance>.priv.env` and
+`.env.sample` to `.env.<instance>`, override `DB_HOST=postgres` and
+`DB_DRIVER=pdo/pgsql` in `<instance>.env` before first `up`. Bring up
+MySQL/MariaDB only for the cross-engine matrix pass
+(`framework-workflow.md`'s "Cross-engine verification"), never as the
+everyday instance.
+Why: this has been this repo's own dev/test default since Docker's
+introduction for 2.0, independent of the separate PDO-vs-native driver
+decision — that later change only picked which protocol reaches Postgres,
+not the engine choice itself. Postgres is also the leading candidate under
+discussion for consuming projects' own default (see "Should new projects
+default to PostgreSQL instead of MySQL?", an open proposal) — dogfooding it
+here keeps this repo's daily-driver experience aligned with where the
+framework may be headed, independent of when/whether that proposal lands.
+Evidence: this repo's own `local` instance already runs this way
+(`local.env`'s `DB_DRIVER=pdo/pgsql` / `DB_HOST=postgres`, verified
+2026-08-09) — this entry makes it an intentional, documented default
+instead of tribal state in one gitignored file.
+Cost: none — instance env files are gitignored and per-repo; a project's
+own instance env is unaffected either way.
+Revisit when: recreating a deleted instance env — default it back to
+`--profile postgres` / `DB_DRIVER=pdo/pgsql`, not MySQL, unless a specific
+session needs the MySQL/MariaDB matrix profiles instead.

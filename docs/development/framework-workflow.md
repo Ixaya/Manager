@@ -13,7 +13,10 @@ the framework repository.
 
 Everything runs through the Docker stack in `sample/` — run the commands
 below from that directory, and read ports, hosts, and paths from the instance
-env-files under `sample/docker/env/` instead of hardcoding them.
+env-files under `sample/docker/env/` instead of hardcoding them. Setting up a
+fresh instance follows `sample/docs/development/docker.md`'s generic setup
+steps; for framework development, default it to `--profile postgres` /
+`DB_DRIVER=pdo/pgsql` — see `docker-decisions.md` for why.
 
 This is not a fallback for machines without host PHP — Docker is the only
 supported way to run these commands, regardless of what's installed on the
