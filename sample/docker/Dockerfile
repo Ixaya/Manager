@@ -45,6 +45,8 @@ RUN set -eux; \
     docker-php-ext-install -j"$(nproc)" \
         mysqli \
         pgsql \
+        pdo_mysql \
+        pdo_pgsql \
         pcntl \
         sockets \
         opcache \

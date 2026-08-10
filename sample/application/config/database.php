@@ -22,8 +22,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |	    off, surfacing as an unexplained 500 on every request.
 |	['password'] (string)
 |	['database'] (string) Required, no fallback — as username.
-|	['dbdriver'] (string) mysqli (also MariaDB) or postgre. A compound
-|	    'pdo/<engine>' value — pdo/mysql, pdo/pgsql — goes through PDO.
+|	['dbdriver'] (string) pdo/mysql or pdo/pgsql (default, typed fetches),
+|	    or mysqli (also MariaDB) / postgre (native, stringified fetches).
 |	['dbprefix'] (string) Prepended to table names by the Query Builder.
 |	['pconnect'] (bool) TRUE reuses a persistent connection.
 |	['db_debug'] (bool) What a query that fails to execute does:
@@ -32,16 +32,20 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |	    FALSE returns null/false and carries on, so every call must check.
 |	['cache_on'] (bool) TRUE caches query results into cachedir.
 |	['cachedir'] (string) Writable path for that cache.
-|	['char_set'] (string) Client character set.
+|	['char_set'] (string) Client character set. No default — the right
+|	    value is engine-specific (see docs/development/database.md's
+|	    engine table).
 |	['dbcollat'] (string) Client collation, engine-specific; empty for
 |	    PostgreSQL, a matching utf8mb4_* value for MySQL or MariaDB.
 |	['swap_pre'] (string) Prefix in your own queries to swap for dbprefix.
 |	['encrypt'] (bool|array) TRUE/FALSE for sqlsrv and pdo/sqlsrv; mysqli
 |	    and pdo/mysql take an array of ssl_key, ssl_cert, ssl_ca,
 |	    ssl_capath, ssl_cipher, ssl_verify.
+|	['options'] (array) Passed straight to the PDO constructor on a
+|	    'pdo/<engine>' driver; ignored otherwise.
 |	['compress'] (bool) TRUE enables client compression (MySQL only).
-|	['stricton'] (bool) TRUE forces Strict Mode — stricter SQL while
-|	    developing.
+|	['stricton'] (bool) TRUE forces MySQL/MariaDB Strict Mode
+|	    (STRICT_ALL_TABLES); no effect on other engines.
 |	['failover'] (array) Zero or more full configs tried if this one fails.
 |	['save_queries'] (bool) TRUE keeps every executed query for
 |	    last_query() and DB profiling, at a memory cost proportional to
@@ -68,19 +72,39 @@ if (!function_exists('mgr_apply_pdo_dsn')) {
 
 		[$dbdriver, $subdriver] = explode('/', $config['dbdriver'], 2);
 
-		$dsn = "{$subdriver}:host={$config['hostname']}";
-		if (!empty($config['port'])) {
-			$dsn .= ";port={$config['port']}";
-		}
-		$dsn .= ";dbname={$config['database']}";
+		$dsn_body = match ($subdriver) {
+			'sqlite' => $config['database'],
+			'dblib' => "host={$config['hostname']}"
+				. (empty($config['port']) ? '' : ":{$config['port']}")
+				. ";dbname={$config['database']}",
+			'sqlsrv' => "Server={$config['hostname']}"
+				. (empty($config['port']) ? '' : ",{$config['port']}")
+				. ";database={$config['database']}",
+			default => "host={$config['hostname']}"
+				. (empty($config['port']) ? '' : ";port={$config['port']}")
+				. ";dbname={$config['database']}",
+		};
+		$dsn = "{$subdriver}:{$dsn_body}";
 
 		$overrides = ['dbdriver' => $dbdriver, 'dsn' => $dsn];
+		$options = $config['options'] ?? [];
 
-		// Without this pgsql prepares every statement server-side, adding a round
-		// trip that guards nothing since CI binds no parameters. pdo_sqlite rejects
-		// the attribute, hence the subdriver check.
 		if ($subdriver === 'pgsql') {
-			$overrides['options'] = ($config['options'] ?? []) + [PDO::ATTR_EMULATE_PREPARES => true];
+			// avoids server-side prepares — they slow queries with no benefit here, since CI binds no parameters.
+			$options += [PDO::ATTR_EMULATE_PREPARES => true];
+
+			// pdo_pgsql has no _db_set_charset(); the DSN's `options` keyword is
+			// the only way libpq accepts a client_encoding.
+			if (!empty($config['char_set'])) {
+				$overrides['dsn'] = $dsn . ";options='-c client_encoding={$config['char_set']}'";
+			}
+		}
+
+		// keeps mysqli/postgre's stringified fetch contract when moving to PDO
+		// $options += [PDO::ATTR_STRINGIFY_FETCHES => true];
+
+		if ($options !== []) {
+			$overrides['options'] = $options;
 		}
 
 		return array_merge($config, $overrides);
@@ -94,18 +118,18 @@ $db['default'] = mgr_apply_pdo_dsn([
 	'username' => mgr_env_required('DB_USER'),
 	'password' => mgr_env('DB_PASS', ''),
 	'database' => mgr_env_required('DB_NAME'),
-	'dbdriver' => mgr_env('DB_DRIVER', 'mysqli'),
+	'dbdriver' => mgr_env('DB_DRIVER', 'pdo/mysql'),
 	'dbprefix' => '',
 	'pconnect' => false,
 	'db_debug' => (ENVIRONMENT !== 'production'),
 	'cache_on' => false,
 	'cachedir' => '',
-	'char_set' => mgr_env('DB_CHAR_SET', 'utf8mb4'),
+	'char_set' => mgr_env('DB_CHAR_SET', ''),
 	'dbcollat' => mgr_env('DB_COLLATION', ''),
 	'swap_pre' => '',
 	'encrypt' => false,
 	'compress' => false,
-	'stricton' => false,
+	'stricton' => true,
 	'failover' => [],
 	'save_queries' => true
 ]);
@@ -117,18 +141,18 @@ $db['default'] = mgr_apply_pdo_dsn([
 // 	'username' => mgr_env('DB_SEC_USER', 'root'),
 // 	'password' => mgr_env('DB_SEC_PASS', ''),
 // 	'database' => mgr_env('DB_SEC_NAME', ''),
-// 	'dbdriver' => mgr_env('DB_SEC_DRIVER', 'mysqli'),
+// 	'dbdriver' => mgr_env('DB_SEC_DRIVER', 'pdo/mysql'),
 // 	'dbprefix' => '',
 // 	'pconnect' => false,
 // 	'db_debug' => (ENVIRONMENT !== 'production'),
 // 	'cache_on' => false,
 // 	'cachedir' => '',
-// 	'char_set' => mgr_env('DB_SEC_CHAR_SET', 'utf8mb4'),
+// 	'char_set' => mgr_env('DB_SEC_CHAR_SET'),
 // 	'dbcollat' => mgr_env('DB_SEC_COLLATION', ''),
 // 	'swap_pre' => '',
 // 	'encrypt' => false,
 // 	'compress' => false,
-// 	'stricton' => false,
+// 	'stricton' => true,
 // 	'failover' => [],
 // 	'save_queries' => true
 // ]);
