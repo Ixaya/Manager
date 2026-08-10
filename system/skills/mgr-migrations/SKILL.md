@@ -109,9 +109,11 @@ $this->field(
 VarChar Text MediumText LongText Blob MediumBlob LongBlob Bool Date Time
 DateTime Timestamp Year Json Uuid Enum`. Pick the semantic type and let the
 builder map it (e.g. `Json` → JSONB on Postgres, `Bool` → TINYINT(1) on MySQL
-/ BOOLEAN on Postgres, `Uuid` → CHAR(36) on MySQL / native UUID on Postgres).
-Invalid combinations throw `InvalidArgumentException` at construction — no
-silent bad DDL.
+/ BOOLEAN on Postgres, `Uuid` → CHAR(36) on MySQL / native UUID on Postgres,
+`Timestamp` → DATETIME2 on SQL Server, where the `TIMESTAMP` keyword means
+something else entirely — a `ROWVERSION` counter, one per table, not a
+datetime). Invalid combinations throw `InvalidArgumentException` at
+construction — no silent bad DDL.
 
 Use `Bool` only for true boolean semantics (`true`/`false` values). For
 `0`/`1` flag columns (`enabled`, `deleted`, …) use `SmallInt`/`TinyInt`:

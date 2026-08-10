@@ -398,6 +398,15 @@ final class MgrFieldBuilder
 					: $constraint;
 				break;
 
+			case MgrFieldType::Timestamp:
+				// SQL Server's TIMESTAMP is a ROWVERSION synonym (max one per
+				// table, not a datetime) — DATETIME2 is what DateTime maps to.
+				if ($this->driver === MgrDriver::SQLServer) {
+					$type = 'DATETIME2';
+					$constraint = '';
+				}
+				break;
+
 			case MgrFieldType::Enum:
 				if ($this->driver->isMysqlFamily()) {
 					$quoted = array_map(

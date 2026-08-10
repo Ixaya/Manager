@@ -46,19 +46,19 @@ enum MgrDriver: string
 			return match (strtolower(trim($raw))) {
 				'mysqli', 'mysql', 'mariadb' => self::MySQL,
 				'postgre', 'pgsql'           => self::Postgres,
-				'sqlsrv', 'mssql'            => self::SQLServer,
+				'sqlsrv', 'mssql', 'dblib'   => self::SQLServer,
 				'sqlite3', 'sqlite'          => self::SQLite,
 				default                      => self::MySQL,
 			};
 		}
 
 		return match (strtolower(trim($raw))) {
-			'mysqli', 'mysql'    => self::MySQL,
-			'mariadb'            => self::MariaDB,
-			'postgre', 'pgsql'   => self::Postgres,
-			'sqlsrv', 'mssql'    => self::SQLServer,
-			'sqlite3', 'sqlite'  => self::SQLite,
-			default              => self::MySQL,
+			'mysqli', 'mysql'          => self::MySQL,
+			'mariadb'                  => self::MariaDB,
+			'postgre', 'pgsql'         => self::Postgres,
+			'sqlsrv', 'mssql', 'dblib' => self::SQLServer,
+			'sqlite3', 'sqlite'        => self::SQLite,
+			default                    => self::MySQL,
 		};
 	}
 

@@ -11,18 +11,16 @@ class Manager_option extends MY_Model
 		parent::__construct();
 	}
 
-	public function save_value($key, $value)
+	public function save_value(string $key, mixed $value): int|string|bool
 	{
 		if (!empty($key)) {
-
-			$data = ['key' => $key, 'value' => $value];
-			return $this->replace($data);
+			return $this->upsert_where(data: ['value' => $value], where: ['key' => $key]);
 		}
 
-		return null;
+		return false;
 	}
 
-	public function get_value($key, $default = null)
+	public function get_value(string $key, mixed $default = null): mixed
 	{
 		if (!empty($key)) {
 			$result = $this->get($key);

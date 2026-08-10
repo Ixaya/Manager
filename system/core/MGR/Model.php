@@ -2,8 +2,14 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
+require MGRPATH . 'core/MGR/Model/Sync.php';
+require MGRPATH . 'core/MGR/Model/Upsert_Replace.php';
+
 class MGR_Model extends CI_Model
 {
+	use MGR_Model_Sync;
+	use MGR_Model_Upsert_Replace;
+
 	protected ?object $my_db = null;
 	protected MgrDriver $my_db_driver;
 
@@ -29,6 +35,7 @@ class MGR_Model extends CI_Model
 
 	protected bool $legacy_mode = false;
 
+	/** Connects immediately unless $lazy_connect is set. */
 	public function __construct()
 	{
 		// $this->load->helper('inflector');
@@ -40,6 +47,11 @@ class MGR_Model extends CI_Model
 		}
 	}
 
+	/**
+	 * Opens the DB connection (by name, $this->connection_name, or the
+	 * default group), resolves $my_db_driver, and applies the session
+	 * timezone and override filter.
+	 */
 	public function connect(?string $connection_name = null): void
 	{
 		if ($connection_name) {
@@ -70,6 +82,10 @@ class MGR_Model extends CI_Model
 		$this->connected = true;
 	}
 
+	/**
+	 * Injects an already-open connection instead of opening one via
+	 * connect() — still resolves $my_db_driver and the override filter.
+	 */
 	public function set_connection(object $db_connection): void
 	{
 		$this->my_db = $db_connection;
@@ -83,6 +99,10 @@ class MGR_Model extends CI_Model
 		$this->connected = true;
 	}
 
+	/**
+	 * Re-runs connect() only if $connection_name or $database_name
+	 * actually changed from what's already active.
+	 */
 	public function reconnect_database(string $connection_name, string $database_name, bool $generate_table_name = false): void
 	{
 		$needs_reload = false;
@@ -107,6 +127,7 @@ class MGR_Model extends CI_Model
 		}
 	}
 
+	/** Connects if not already connected. */
 	public function check_connect(): void
 	{
 		if (!$this->connected) {
@@ -114,11 +135,13 @@ class MGR_Model extends CI_Model
 		}
 	}
 
+	/** Derives the table name from this model's class name. */
 	protected function generate_table_name(): void
 	{
 		$this->table_name = strtolower(get_class($this));
 	}
 
+	/** Sets the override column and immediately resolves set_override(). */
 	public function set_override_column(string $column_name): void
 	{
 		$this->override_column = $column_name;
@@ -159,7 +182,11 @@ class MGR_Model extends CI_Model
 		}
 	}
 
-	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
+	/**
+	 * Fetches a single row by primary key.
+	 *
+	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
+	 */
 	public function get(int|string $id, string|array|null $fields = null): ?array
 	{
 		$this->apply_common_filters($fields);
@@ -167,7 +194,12 @@ class MGR_Model extends CI_Model
 		$this->my_db->where($this->primary_key, $id);
 		return $this->execute_row();
 	}
-	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
+
+	/**
+	 * Fetches a single row matching arbitrary WHERE conditions.
+	 *
+	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
+	 */
 	public function get_where(array $where, string|array|null $fields = null): ?array
 	{
 		$this->apply_common_filters($fields);
@@ -177,13 +209,9 @@ class MGR_Model extends CI_Model
 	}
 
 	/**
-	 * Get MIN and MAX values for a single field
+	 * Gets MIN and MAX for a single field in one query.
 	 *
-	 * @param string $field Field name to get min/max for
-	 * @param array $where Optional WHERE conditions
-	 * @param string|null $field_alias Field alias to get min/max for
-	 * @return array<string, mixed> Array with min_{field} and max_{field} properties, or null if no results
-	 *
+	 * @return array<string, mixed>|null Keyed min_{$field_alias}/max_{$field_alias}, null if the query failed
 	 */
 	public function get_min_max(string $field, array $where = [], ?string $field_alias = null): ?array
 	{
@@ -202,7 +230,7 @@ class MGR_Model extends CI_Model
 		return $this->execute_row();
 	}
 
-	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	/** @return ?array Array of result rows, empty array if no results found, null if the query failed */
 	public function get_all(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
@@ -210,7 +238,7 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	/** @return ?array Array of result rows, empty array if no results found, null if the query failed */
 	public function get_all_join(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null, ?string $join_table = null, ?string $join_where = null, string  $join_method = 'left'): ?array
 	{
 		$this->apply_list_filters($fields, $where, $limit, $order_by, $group_by);
@@ -222,7 +250,7 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	/** @return ?array Array of result rows, empty array if no results found, null if the query failed */
 	public function get_all_like(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
@@ -234,7 +262,7 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	/** @return ?array Array of result rows, empty array if no results found, null if the query failed */
 	public function get_all_or_like(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
@@ -250,7 +278,7 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	/** @return ?array Array of result rows, empty array if no results found, null if the query failed */
 	public function get_all_in(string $field, array $values, string|array|null $fields = null, int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
@@ -262,14 +290,14 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
-	/* @return ?array Array of result rows, empty array if no results found, null if the query failed */
+	/** @return ?array Array of result rows, empty array if no results found, null if the query failed */
 	public function get_all_updated(string $last_update, string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{
 		$where['last_update >'] = $last_update;
 		return $this->get_all($fields, $where, $limit, $order_by, $group_by);
 	}
 
-	/* @return ?int Row count, null if the query failed — 0 means the table genuinely has no matching rows */
+	/** @return ?int Row count, null if the query failed — 0 means the table genuinely has no matching rows */
 	public function count_all(?array $where = null): ?int
 	{
 		$this->apply_common_filters();
@@ -290,6 +318,7 @@ class MGR_Model extends CI_Model
 	}
 
 
+	/** Inserts a new row, returns its id. */
 	public function insert(array $data): int|string|bool
 	{
 		$this->check_connect();
@@ -300,14 +329,14 @@ class MGR_Model extends CI_Model
 			$data[$this->override_column] = $this->override_id;
 		}
 
-		$success = $this->my_db->insert($this->table_name, $data);
-		if ($success) {
-			return $this->my_db->insert_id();
-		} else {
+		if (!$this->my_db->insert($this->table_name, $data)) {
 			return false;
 		}
+
+		return $this->insert_id();
 	}
 
+	/** Inserts every row in $rows in one batch, returns the affected count. */
 	public function insert_bulk(array $rows): int
 	{
 		if ($rows === []) {
@@ -329,6 +358,7 @@ class MGR_Model extends CI_Model
 		return $this->my_db->affected_rows();
 	}
 
+	/** Updates by primary key — $id may be a single value, or an array to update every matching row. */
 	public function update(array $data, int|string|array $id): bool
 	{
 		$this->apply_alter_filters();
@@ -342,6 +372,8 @@ class MGR_Model extends CI_Model
 
 		return $this->my_db->update($this->table_name, $data);
 	}
+
+	/** Updates rows matching $where; refuses to run (returns false) if $where is empty. */
 	public function update_where(array $data, array $where): bool
 	{
 		if ($where === []) {
@@ -356,19 +388,27 @@ class MGR_Model extends CI_Model
 		return $this->my_db->update($this->table_name, $data);
 	}
 
+	/** Inserts if $id is null, otherwise updates the row at $id — false if that id doesn't exist. */
 	public function upsert(array $data, int|string|null $id = null): int|string|bool
 	{
-		if ($id !== null) {
-			if ($this->update($data, $id)) {
-				return $id;
-			}
-		} else {
+		if ($id === null) {
 			return $this->insert($data);
+		}
+
+		$row = $this->get_where([$this->primary_key => $id]);
+
+		if (empty($row)) {
+			return false;
+		}
+
+		if ($this->update($data, $id)) {
+			return $row[$this->primary_key];
 		}
 
 		return false;
 	}
 
+	/** Inserts if no row matches $where, otherwise updates the row found. */
 	public function upsert_where(array $data, array $where, array $insert_data = []): int|string|bool
 	{
 		$row = $this->get_where($where);
@@ -384,126 +424,10 @@ class MGR_Model extends CI_Model
 		return false;
 	}
 
-	public function sync_update_insert(array $data, array $where, bool $insert = true, bool $add_sync = false, bool $add_import = true, array $extra_data = [], bool &$modified = false): int|string|false
-	{
-		$this->check_connect();
-
-		$this->cleanup_columns($where, true);
-		$row = $this->get_where($where);
-
-		$this->cleanup_columns($data);
-		if (!empty($row)) {
-			$update_data = [];
-			foreach (array_keys($data) as $key) {
-				// Loose compare: DB drivers return strings ("5") that must equal typed values (5); strict here would resync every row.
-				if (($row[$key] ?? null) != $data[$key]) {
-					$update_data[$key] = $data[$key];
-				}
-			}
-
-			if (count($update_data) > 0) {
-				$this->set_alter_keys($update_data);
-
-				$update_data = array_merge($extra_data, $update_data);
-			} elseif (!$add_sync) {
-				return $row[$this->primary_key];
-			}
-
-			if ($add_sync) {
-				$update_data['sync_enabled'] = 1;
-			}
-
-			$this->apply_alter_filters();
-			$result = $this->my_db->update($this->table_name, $update_data, [$this->primary_key => $row[$this->primary_key]]);
-			if ($result === true) {
-				$modified = true;
-				return $row[$this->primary_key];
-			}
-		} elseif ($insert) {
-			$this->set_alter_keys($data);
-
-			if ($add_import) {
-				$data['import_date'] = $data['last_update'];
-			}
-			if ($add_sync) {
-				$data['sync_enabled'] = 1;
-			}
-
-			$result = $this->my_db->insert($this->table_name, array_merge($data, $where, $extra_data));
-			if ($result === true) {
-				$modified = true;
-				return $this->my_db->insert_id();
-			}
-		}
-
-		return false;
-	}
-
-	public function sync_update(int|string $id, array $data, bool $timestamp = true, ?array $row = null, int $default_count = 0): bool
-	{
-		$this->check_connect();
-		$this->cleanup_columns($data);
-
-		if ($row !== null) {
-			$update_data = [];
-
-			foreach (array_keys($data) as $key) {
-				// Loose compare: DB drivers return strings ("5") that must equal typed values (5); strict here would resync every row.
-				if ($row[$key] != $data[$key]) {
-					$update_data[$key] = $data[$key];
-				}
-			}
-
-			$update_count = count($update_data);
-			if ($update_count == 0) {
-				return false;
-			}
-
-			if ($timestamp === true && $update_count <= $default_count) {
-				$timestamp = false;
-			}
-
-			$id =  $row[$this->primary_key];
-			$data = $update_data;
-		}
-
-		if ($this->use_last_update && $timestamp === true) {
-			$data['last_update'] = date('Y-m-d H:i:s');
-		}
-
-		$this->apply_alter_filters();
-		$this->my_db->where($this->primary_key, $id);
-
-		return $this->my_db->update($this->table_name, $data);
-	}
-	public function sync_update_enabled(int|string|null $id, int $status): bool
-	{
-		$this->check_connect();
-
-		$query = "UPDATE {$this->table_name} SET sync_enabled = ?";
-		$args = [$status];
-		if ($id !== null) {
-			$query .= " WHERE id = ?";
-			$args[] = $id;
-		}
-		return $this->my_db->query($query, $args);
-	}
-	public function sync_commit_enabled(): bool
-	{
-		$this->check_connect();
-
-		// CASE, not NOT/!sync_enabled: sync_enabled can hold values above 1
-		// and this must binarize any nonzero value to 0.
-		$query = "UPDATE {$this->table_name}
-			SET enabled = sync_enabled,
-				deleted = CASE WHEN sync_enabled = 0 THEN 1 ELSE 0 END,
-				last_update = ?
-			WHERE enabled != sync_enabled
-				AND (enabled = 0 OR enabled = 1)";
-
-		$now = date('Y-m-d H:i:s');
-		return $this->my_db->query($query, [$now]);
-	}
+	/**
+	 * Trims string values in place; with $only_trim false, also nullifies
+	 * values that are "empty" but not the literal 0.
+	 */
 	public function cleanup_columns(array &$data, bool $only_trim = false): void
 	{
 		foreach ($data as &$row) {
@@ -517,6 +441,7 @@ class MGR_Model extends CI_Model
 		}
 	}
 
+	/** Deletes by primary key, or soft-deletes (flags deleted/enabled) if $soft_delete is set. */
 	public function delete(int|string $id): bool
 	{
 		$this->apply_alter_filters();
@@ -533,6 +458,7 @@ class MGR_Model extends CI_Model
 		return $this->my_db->update($this->table_name, $data);
 	}
 
+	/** Deletes rows matching $where (or soft-deletes); refuses to run if $where is empty. */
 	public function delete_where(array $where): bool
 	{
 		$this->check_connect();
@@ -554,6 +480,7 @@ class MGR_Model extends CI_Model
 		return $this->my_db->update($this->table_name, $data);
 	}
 
+	/** Runs raw SQL — result rows for a SELECT, affected-row count for a write, false on failure. */
 	public function query(string $query, ?array $arguments = null): array|int|false
 	{
 		$this->check_connect();
@@ -574,28 +501,9 @@ class MGR_Model extends CI_Model
 	}
 
 	/**
-	 * Cross-engine equivalent of REPLACE INTO: delete any row matching
-	 * $data's primary key, then insert $data fresh
+	 * Builds a blank row keyed by the table's real columns (or $properties
+	 * if given), every value ''.
 	 */
-	public function replace(array $data): int|string|bool
-	{
-		$this->my_db->trans_start();
-
-		if (isset($data[$this->primary_key])) {
-			$id = $data[$this->primary_key];
-
-			$this->apply_alter_filters();
-			$this->my_db->where($this->primary_key, $id);
-			$this->my_db->delete($this->table_name);
-		}
-
-		$result = $this->insert($data);
-
-		$this->my_db->trans_complete();
-
-		return $this->my_db->trans_status() ? $result : false;
-	}
-
 	public function empty_row(?array $properties = null, bool $include_id = true): array
 	{
 		$this->check_connect();
@@ -612,11 +520,13 @@ class MGR_Model extends CI_Model
 		return array_fill_keys(array_keys($properties), '');
 	}
 
+	/** empty_row(), as an object. */
 	public function empty_object(?array $properties = null, bool $include_id = true): object
 	{
 		return (object) $this->empty_row($properties, $include_id);
 	}
 
+	/** Slugifies $text: strips accents/punctuation, lowercases, underscores separators. */
 	public function clean_string(string $text): string
 	{
 		$utf8 = [
@@ -639,11 +549,13 @@ class MGR_Model extends CI_Model
 		return preg_replace("/[^A-Za-z0-9_]/", '', $clean); // Remove special characters
 	}
 
+	/** Generates a random hash string. */
 	public function get_hash(int $length = 13): string
 	{
 		return mgr_generate_hash($length);
 	}
 
+	/** Generates a hash not already present in $field, giving up after 25 attempts. */
 	public function get_unique_hash(int $length = 13, string $field = 'hash'): ?string
 	{
 		for ($i = 0; $i < 25; $i++) {
@@ -657,12 +569,18 @@ class MGR_Model extends CI_Model
 
 		return null;
 	}
-	/* @return array<string, mixed>|null Associative array of the row, null if not found or query fails */
+
+	/**
+	 * Fetches a single row by an arbitrary field, defaulting to 'hash'.
+	 *
+	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
+	 */
 	public function by_hash(string $hash, string $field = 'hash'): ?array
 	{
 		return $this->get_where([$field => $hash]);
 	}
 
+	/** Echoes the last query, or logs and returns it if $return is true. */
 	public function debug_query(bool $return = false): ?string
 	{
 		$last_query = $this->my_db->last_query();
@@ -675,6 +593,7 @@ class MGR_Model extends CI_Model
 		return null;
 	}
 
+	/** Sets the DB session's timezone — a no-op on SQLite/SQL Server, which have no session TZ concept. */
 	public function set_database_time_zone(string $time_zone): void
 	{
 		$offset = mgr_get_time_zone_offset($time_zone);
@@ -700,15 +619,8 @@ class MGR_Model extends CI_Model
 	}
 
 	/**
-	 * Apply common filters to all queries
-	 *
-	 * Ensures database connection is established and applies standard WHERE conditions
-	 * that should be present in all queries:
-	 * - Override conditions from $this->where_override (e.g., tenant filtering, user scope)
-	 * - Soft delete filter to exclude deleted records (if enabled)
-	 *
-	 * @param string $fields Comma-separated field names for SELECT clause (empty = SELECT *)
-	 * @return void
+	 * Applies the override filter and soft-delete filter shared by every
+	 * query, plus an optional field selection.
 	 */
 	protected function apply_common_filters(string|array|null $fields = null): void
 	{
@@ -728,15 +640,8 @@ class MGR_Model extends CI_Model
 	}
 
 	/**
-	 * Apply common filters for list/collection queries
-	 * Includes field selection, where conditions, pagination, sorting, and grouping
-	 *
-	 * @param string $fields Comma-separated field names for SELECT clause (empty = SELECT *)
-	 * @param array $where Additional WHERE conditions as associative array, (empty = No where)
-	 * @param string|array $limit LIMIT clause (e.g., "10" or "10, 20" for offset)
-	 * @param string $order_by ORDER BY clause (e.g., "created_at DESC")
-	 * @param string $group_by GROUP BY clause (e.g., "category_id")
-	 *
+	 * apply_common_filters() plus WHERE/limit/order/group — shared by the
+	 * get_all* family.
 	 */
 	protected function apply_list_filters(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): void
 	{
@@ -763,13 +668,7 @@ class MGR_Model extends CI_Model
 		}
 	}
 
-	/**
-	 * Apply WHERE conditions for UPDATE/DELETE operations
-	 *
-	 * Ensures operations respect override column for data isolation
-	 * Also applies where_override if set
-	 *
-	 */
+	/** Applies the override filter for UPDATE/DELETE operations. */
 	protected function apply_alter_filters(): void
 	{
 		$this->check_connect();
@@ -780,13 +679,10 @@ class MGR_Model extends CI_Model
 	}
 
 	/**
-	 * Stamp automatic bookkeeping columns onto a write payload.
+	 * Stamps last_update (and, on $delete, the soft-delete flags) onto a
+	 * write payload in place.
 	 *
-	 * Mutates $data in place before an insert/update/delete applying last_update and soft delete rules
-	 *
-	 * @param array<string, mixed> $data   Write payload, passed by reference and modified in place.
-	 * @param bool                 $delete Whether this write represents a soft-delete operation.
-	 * @return void
+	 * @param array<string, mixed> $data Write payload, passed by reference and modified in place.
 	 */
 	protected function set_alter_keys(array &$data, bool $delete = false): void
 	{
@@ -802,13 +698,9 @@ class MGR_Model extends CI_Model
 	}
 
 	/**
-	 * Execute a single-row query and return result safely
+	 * Runs a built single-row query safely, freeing the result after fetch.
+	 * Shared by get(), get_where(), and by_hash().
 	 *
-	 * Executes the built query on the specified table, handles query failures gracefully,
-	 * frees memory after fetching the result, and returns data as an associative array.
-	 * This is a helper method for get* methods that fetch a single record.
-	 *
-	 * @param string|null $table The table name to query
 	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
 	protected function execute_row(?string $table = null): ?array
@@ -831,14 +723,9 @@ class MGR_Model extends CI_Model
 	}
 
 	/**
-	 * Execute a list query and return results safely
+	 * Runs a built list query safely, freeing the result after fetch.
+	 * Shared by the get_all* family.
 	 *
-	 * Executes the built query on the specified table, handles query failures gracefully,
-	 * frees memory after fetching results, and returns data as an array.
-	 * This is a helper method for get_all* methods that need to execute queries
-	 * with different WHERE conditions (LIKE, IN, BETWEEN, etc.)
-	 *
-	 * @param string $table The table name to query
 	 * @return ?array Array of result rows, empty array if no results found, null if the query failed
 	 */
 	protected function execute_list(?string $table = null): ?array
@@ -856,5 +743,27 @@ class MGR_Model extends CI_Model
 		$Q->free_result();
 
 		return $data;
+	}
+
+	/**
+	 * Resolves the id of the row just inserted.
+	 *
+	 * @return int|string|bool The new id, or false if it could not be read back.
+	 */
+	protected function insert_id(): int|string|bool
+	{
+		$sql = match ($this->my_db_driver) {
+			MgrDriver::MySQL, MgrDriver::MariaDB => 'SELECT LAST_INSERT_ID() AS id',
+			MgrDriver::SQLite                    => 'SELECT last_insert_rowid() AS id',
+			default                              => null,
+		};
+
+		if ($sql === null) {
+			return $this->my_db->insert_id();
+		}
+
+		$row = $this->my_db->query($sql)->row_array();
+
+		return $row['id'] ?? false;
 	}
 }

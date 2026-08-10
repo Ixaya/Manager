@@ -200,7 +200,7 @@ class BaseModelTest extends CITestCase
 			: null;
 		$id = $this->insert_probe(['name' => 'Original', 'status' => 5, 'category_id' => $category_id]);
 
-		self::$model->replace(['id' => $id, 'name' => 'Replaced', 'create_date' => date('Y-m-d H:i:s')]);
+		self::$model->replace_pk(['id' => $id, 'name' => 'Replaced', 'create_date' => date('Y-m-d H:i:s')]);
 
 		$row = self::$model->get($id);
 		$this->assertSame('Replaced', $row['name']);

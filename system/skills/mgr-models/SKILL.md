@@ -139,10 +139,16 @@ insert_bulk(array $rows): int                  // affected rows
 update(array $data, int|string|array $id): bool   // array $id => WHERE IN
 update_where(array $data, array $where): bool     // refuses empty $where
 upsert(array $data, int|string|null $id = null): int|string|bool
-    // $id given => update (returns $id); null => insert (returns insert_id)
+    // null $id => insert; an $id that exists => update, returns it;
+    // an $id that does NOT exist => false, and no row is created under it
 upsert_where(array $data, array $where, array $insert_data = []): int|string|bool
     // row matching $where exists => update; else insert(data + where + insert_data)
-replace(array $data): int|string|bool          // delete-then-insert by primary key, cross-engine — full row replacement, not a partial update
+upsert_atomic(array $data, array|string $conflict_target): int|string|bool
+    // one statement, insert-or-merge on the named unique key — safe under concurrent
+    // callers. Postgres only; throws RuntimeException on every other driver
+replace_pk(array $data): bool
+    // deletes whatever row holds $data's primary key, then inserts $data — needs
+    // the primary key present in $data, throws InvalidArgumentException without it
 delete(int|string $id): bool                   // soft or hard per $soft_delete
 delete_where(array $where): bool               // refuses empty $where
 ```
@@ -151,13 +157,32 @@ Note `create_date` is NOT set automatically — set it explicitly on insert
 (`$data['create_date'] = date('Y-m-d H:i:s');`), matching existing
 controllers.
 
+**A returned primary key carries the driver's fetch type.** Every method
+above that returns an id re-derives it through a real query, so it matches
+what `get()` returns for that column — `int` under a `pdo/<engine>` driver,
+`string` under `mysqli`/`postgre`. Never compare one against a typed literal
+(`$id === 135`) and never cast just one side; cast both, or compare against
+a value from the same source. Loose `==` is not the escape hatch — PHP
+compares numeric strings as numbers, so `'007' == '7'` is true.
+
+**Only `upsert_atomic()` is race-safe.** The other three read first and
+write second, so two callers racing on the same row can both find it missing
+and both insert. `replace_pk()`'s transaction stops it half-applying; it
+does not stop the collision. That is fine when one request owns the row, and
+wrong for a queue worker or a webhook receiver — reach for `upsert_atomic()`
+there, not as a general-purpose upsert.
+
+`replace_pk()` discards the old row, so a column missing from `$data` comes
+back empty; `upsert_atomic()` merges, so an omitted column keeps its value.
+
 ## Sync methods (external-source imports: time trackers, invoicing APIs, bank feeds…)
 
 ```php
 sync_update_insert(array $data, array $where, bool $insert = true, bool $add_sync = false,
                    bool $add_import = true, array $extra_data = [], bool &$modified = false): int|string|false
     // Diff-aware upsert keyed by $where — writes only changed columns, returns the PK.
-    // $add_import stamps import_date; $add_sync flags sync_enabled=1; $modified reports writes.
+    // $add_import stamps import_date; $add_sync flags sync_enabled=1; $modified reports a
+    // real column change — an $add_sync-only touch on an up-to-date row leaves it false.
 sync_update(int|string $id, array $data, bool $timestamp = true, ?array $row = null, int $default_count = 0): bool
     // Diff-aware update; pass the current $row to skip no-op writes.
 sync_update_enabled(int|string|null $id, int $status): bool  // set sync_enabled flag ($id null = all rows)
@@ -281,7 +306,14 @@ $q = $this->db->query("SELECT * FROM invoice WHERE client_id = $id");
 // WRONG — string-concatenated dynamic SQL
 $sql = "SELECT * FROM invoice WHERE 1=1" . ($status ? " AND status = $status" : "");
 
+// WRONG — a returned primary key is typed by the driver's fetch mode, so
+// this is true on one driver and false on another
+if ($this->invoice->insert($data) === '135') { ... }
+
 // RIGHT
 $this->load->model('billing/invoice');
 $rows = $this->invoice->get_all(where: ['status' => $status]);
+
+$id = $this->invoice->insert($data);
+if ((string) $id === (string) $expected_id) { ... }
 ```

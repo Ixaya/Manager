@@ -323,7 +323,7 @@ class MGR_Exceptions extends CI_Exceptions
 	 * Turns CI's multi-line database error text into the error_db envelope.
 	 *
 	 * @param  string|array $message CI's 'Error Number:' / 'Filename:' / 'Line Number:' block.
-	 * @return array{status: int, message: string, error: array{heading: string, errno: ?int, file: ?string, line: ?int, query?: string}}
+	 * @return array{status: int, message: string, error: array{heading: string, errno: int|string|null, file: ?string, line: ?int, query?: string}}
 	 */
 	protected function _parse_db_error($message)
 	{
@@ -340,19 +340,27 @@ class MGR_Exceptions extends CI_Exceptions
 			],
 		];
 
+		// The only caller (DB_driver::display_error()) always builds this in the
+		// same order — errno, message, SQL — so position, not keyword-sniffing,
+		// is what's safe to rely on here.
+		$message_set = false;
+
 		foreach ($parts as $part) {
 			$part = trim($part);
 
-			if (preg_match('/^Error Number:\s*(\d+)$/i', $part, $m)) {
-				$data['error']['errno'] = (int) $m[1];
+			if (preg_match('/^Error Number:\s*(.*)$/i', $part, $m)) {
+				$data['error']['errno'] = $m[1] !== '' ? $m[1] : null;
 			} elseif (preg_match('/^Filename:\s*(.+)$/i', $part, $m)) {
 				$data['error']['file'] = $this->clean_file_path(trim($m[1]));
 			} elseif (preg_match('/^Line Number:\s*(\d+)$/i', $part, $m)) {
 				$data['error']['line'] = (int) $m[1];
-			} elseif (preg_match('/^(SELECT|INSERT|UPDATE|DELETE|SHOW|REPLACE)/i', $part)) {
-				$data['error']['query'] = $part;
+			} elseif (!$message_set) {
+				if (!empty($part)) {
+					$data['message'] = $this->clean_driver_message($part);
+				}
+				$message_set = true;
 			} elseif (!empty($part)) {
-				$data['message'] = $this->clean_postgres_message($part);
+				$data['error']['query'] = $part;
 			}
 		}
 
@@ -360,22 +368,22 @@ class MGR_Exceptions extends CI_Exceptions
 	}
 
 	/**
-	 * Strips libpq's "LINE N: ...` / `^` pointer echo (redundant with `error.query`)
-	 * and its double space after the severity label from a native Postgres message.
-	 * Other engines' driver messages never start with this prefix, so they pass through
-	 * unchanged.
+	 * Strips driver noise already captured elsewhere (`error.errno`,
+	 * `error.query`): libpq's `LINE N:` echo (`postgre` and `pdo/pgsql`
+	 * both hit this), FreeTDS's trailing `[<code>] (severity <n>) [<sql>]`
+	 * block. Other messages pass through.
 	 *
 	 * @param  string $message
 	 * @return string
 	 */
-	protected function clean_postgres_message(string $message): string
+	protected function clean_driver_message(string $message): string
 	{
-		if (!preg_match('/^(ERROR|WARNING|NOTICE|FATAL|PANIC):\s+/', $message)) {
-			return $message;
+		if (preg_match('/^(ERROR|WARNING|NOTICE|FATAL|PANIC):\s+/', $message)) {
+			$message = preg_replace('/\nLINE \d+:.*/s', '', $message);
+
+			return preg_replace('/^(ERROR|WARNING|NOTICE|FATAL|PANIC):\s+/', '$1: ', $message);
 		}
 
-		$message = preg_replace('/\nLINE \d+:.*/s', '', $message);
-
-		return preg_replace('/^(ERROR|WARNING|NOTICE|FATAL|PANIC):\s+/', '$1: ', $message);
+		return preg_replace('/\s*\[\d+\]\s*\(severity\s*\d+\)\s*\[.*\]$/is', '', $message);
 	}
 }
