@@ -110,7 +110,7 @@ VarChar Text MediumText LongText Blob MediumBlob LongBlob Bool Date Time
 DateTime Timestamp Year Json Uuid Enum`. Pick the semantic type and let the
 builder map it (e.g. `Json` → JSONB on Postgres, `Bool` → TINYINT(1) on MySQL
 / BOOLEAN on Postgres, `Uuid` → CHAR(36) on MySQL / native UUID on Postgres,
-`Timestamp` → DATETIME2 on SQL Server, where the `TIMESTAMP` keyword means
+`Timestamp` → DATETIMEOFFSET on SQL Server, where the `TIMESTAMP` keyword means
 something else entirely — a `ROWVERSION` counter, one per table, not a
 datetime). Invalid combinations throw `InvalidArgumentException` at
 construction — no silent bad DDL.
@@ -132,6 +132,21 @@ across all engines.
 `TEXT` on SQLite — on three of the four engines the column accepts any value,
 so the constraint you think you declared does not exist. Use `VarChar` and
 validate in application code unless the table is MySQL-only by design.
+
+`Text` maps to `NVARCHAR(MAX)` on SQL Server — Microsoft's documented
+replacement for the deprecated `TEXT` type. MySQL/PostgreSQL/SQLite keep
+their own plain `TEXT`, already correct there.
+
+`Float` (4-byte, single precision) maps to MySQL/MariaDB `FLOAT`, PostgreSQL
+`REAL`, and SQL Server `FLOAT(24)` — three engine-specific spellings of the
+same width; a bare `FLOAT` on PostgreSQL/SQL Server otherwise defaults to
+8-byte double precision. SQLite has no true single-precision float — every
+value stores as 8-byte IEEE regardless of declared type.
+
+`TinyInt` is unsigned-only on SQL Server (0-255, no signed 1-byte type
+exists there) — a column meant to hold negative values fails to store what
+MySQL's signed `TINYINT` (-128..127) can. Use `SmallInt` instead if the
+column needs negative values and must stay portable to SQL Server.
 
 ## Altering tables
 

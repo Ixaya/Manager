@@ -687,7 +687,7 @@ class MGR_Model extends CI_Model
 	protected function set_alter_keys(array &$data, bool $delete = false): void
 	{
 		if ($this->use_last_update) {
-			$data['last_update'] = date('Y-m-d H:i:s');
+			$data['last_update'] = mgr_get_now_date_time_sql_format();
 		}
 
 		if ($delete === true) {

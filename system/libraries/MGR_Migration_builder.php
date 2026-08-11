@@ -11,19 +11,33 @@ defined('BASEPATH') or exit('No direct script access allowed');
 enum MgrFieldType: string
 {
 	// ── Integers ─────────────────────────────────────────────────────────────
-	/** 1-byte int. MySQL: TINYINT. PostgreSQL: SMALLINT (no native TINYINT). */
+	/**
+	 * 1-byte int. MySQL: TINYINT. PostgreSQL: SMALLINT (no native TINYINT).
+	 * SQL Server: TINYINT is unsigned-only (0-255) — a negative value throws a range error on
+	 * write, so avoid negative values if the column needs to stay portable to SQL Server.
+	 */
 	case TinyInt	 = 'TINYINT';
 	/** 2-byte int. */
 	case SmallInt	= 'SMALLINT';
 	/** 4-byte int — most common. */
 	case Int		  = 'INT';
-	/** 8-byte int. */
+	/**
+	 * 8-byte int. SQL Server has no wider integer type — `unsigned: true` has no effect
+	 * there (stays a signed BIGINT). Postgres widens to DECIMAL (arbitrary precision).
+	 */
 	case BigInt	  = 'BIGINT';
 
 	// ── Decimals ─────────────────────────────────────────────────────────────
-	/** Exact decimal. Use $precision + $scale params on field(). */
+	/**
+	 * Exact decimal. Use $precision + $scale params on field().
+	 * No wider type exists on Postgres or SQL Server — `unsigned: true` has no effect on
+	 * either engine (stays a signed-range DECIMAL).
+	 */
 	case Decimal	 = 'DECIMAL';
-	/** 4-byte float. */
+	/**
+	 * 4-byte float. MySQL/MariaDB: FLOAT. PostgreSQL: REAL. SQL Server: FLOAT(24).
+	 * SQLite has no 4-byte type — stores at its usual 8-byte REAL affinity regardless.
+	 */
 	case Float		= 'FLOAT';
 	/** 8-byte float. MySQL: DOUBLE. PostgreSQL: DOUBLE PRECISION. */
 	case Double	  = 'DOUBLE';
@@ -65,7 +79,7 @@ enum MgrFieldType: string
 	case Time		 = 'TIME';
 	/** Date + time, no timezone. MySQL: DATETIME. PostgreSQL: TIMESTAMP. */
 	case DateTime	= 'DATETIME';
-	/** Timestamp. MySQL: TIMESTAMP. PostgreSQL: TIMESTAMP. */
+	/** Timestamp. MySQL: TIMESTAMP. PostgreSQL: TIMESTAMPTZ. SQL Server: DATETIMEOFFSET. */
 	case Timestamp  = 'TIMESTAMP';
 	/** Year only. MySQL: YEAR. PostgreSQL/SQL Server: SMALLINT. SQLite: INTEGER. */
 	case Year		 = 'YEAR';
@@ -81,6 +95,9 @@ enum MgrFieldType: string
 	/**
 	 * UUID/GUID.
 	 * MySQL/MariaDB: CHAR(36). PostgreSQL: UUID (native). SQL Server: UNIQUEIDENTIFIER. SQLite: TEXT.
+	 * PostgreSQL lowercases on read (MySQL/MariaDB round-trips case); SQL Server sorts by
+	 * mixed-endian byte order, not lexicographically. Neither has a schema-level fix — normalize
+	 * at the caller if cross-engine-identical comparison or ordering is required.
 	 */
 	case Uuid		 = 'UUID';
 
@@ -235,15 +252,15 @@ final class MgrFieldBuilder
 	/** Produce the CI dbforge-compatible field array. */
 	public function build(): array
 	{
-		['type' => $type, 'constraint' => $constraint, 'default' => $default] = $this->_resolveColumn();
+		['type' => $type, 'constraint' => $constraint, 'default' => $default, 'unsigned' => $unsigned] = $this->_resolveColumn();
 
 		$field = ['type' => $type];
 
 		if ($constraint !== '') {
 			$field['constraint'] = $constraint;
 		}
-		if ($this->unsigned) {
-			$field['unsigned'] = $this->unsigned;
+		if ($unsigned) {
+			$field['unsigned'] = $unsigned;
 		}
 		if ($this->nullable !== null) {
 			$field['null'] = $this->nullable;
@@ -273,14 +290,19 @@ final class MgrFieldBuilder
 	 *  TinyInt		 │ TINYINT				 │ SMALLINT				 │ TINYINT				 │ INTEGER
 	 *  Blob*			│ BLOB/MED/LONG		 │ BYTEA					 │ VARBINARY(MAX)		│ BLOB
 	 *  Json			 │ JSON					 │ JSONB					 │ NVARCHAR(MAX)		 │ TEXT
+	 *  Date			 │ DATE					 │ DATE					  │ DATE					  │ TEXT
+	 *  Time			 │ TIME					 │ TIME					  │ TIME					  │ TEXT
 	 *  DateTime		│ DATETIME				│ TIMESTAMP				│ DATETIME2			  │ TEXT
+	 *  Timestamp		│ TIMESTAMP		│ TIMESTAMPTZ		│ DATETIMEOFFSET	│ TEXT
+	 *  Float			 │ FLOAT					 │ REAL					  │ FLOAT(24)			  │ FLOAT
 	 *  Double		  │ DOUBLE				  │ DOUBLE PRECISION	  │ FLOAT					│ DOUBLE
+	 *  Text			 │ TEXT					 │ TEXT					  │ NVARCHAR(MAX)		 │ TEXT
 	 *  MediumText	 │ MEDIUMTEXT			 │ TEXT					  │ NVARCHAR(MAX)		 │ TEXT
 	 *  LongText		│ LONGTEXT				│ TEXT					  │ NVARCHAR(MAX)		 │ TEXT
 	 *  Year			 │ YEAR					 │ SMALLINT				 │ SMALLINT				│ INTEGER
 	 *  Uuid			 │ CHAR(36)				│ UUID					  │ UNIQUEIDENTIFIER	 │ TEXT
 	 *  Enum			 │ ENUM('a','b',…)	  │ VARCHAR(max_len)	  │ NVARCHAR(max_len)	│ TEXT
-	 *  UNSIGNED		│ supported			  │ ignored				  │ ignored				 │ ignored
+	 *  UNSIGNED		│ supported			  │ widens (SmallInt/Int/BigInt/Float; Decimal capped) │ widens (SmallInt/Int/Float; BigInt/Decimal capped) │ ignored
 	 */
 
 	/**
@@ -291,21 +313,42 @@ final class MgrFieldBuilder
 	 * real PHP bools so each CI driver escapes them natively:
 	 * MySQL/SQLite → 1/0, PostgreSQL → TRUE/FALSE, SQL Server BIT → 1/0.
 	 *
-	 * @return array{type: string, constraint: string, default: mixed}
+	 * @return array{type: string, constraint: string, default: mixed, unsigned: bool}
 	 */
 	protected function _resolveColumn(): array
 	{
-		$type	  = $this->type->value;
+		$type	  = $this->type;
+		$unsigned = $this->unsigned;
+
+		// Postgres/SQL Server have no UNSIGNED keyword, and CI3's own vendored widening for
+		// both is a no-op (upstream _attr_unsigned() bug) — honored here instead by re-dispatching
+		// to the next-widest MgrFieldType. Read $type below, never $this->type — a case added
+		// later must see the widened value.
+		if ($unsigned && ($this->driver === MgrDriver::Postgres || $this->driver === MgrDriver::SQLServer)) {
+			$widened = match ($type) {
+				MgrFieldType::SmallInt => MgrFieldType::Int,
+				MgrFieldType::Int	   => MgrFieldType::BigInt,
+				MgrFieldType::Float	  => MgrFieldType::Double,
+				MgrFieldType::BigInt	 => $this->driver === MgrDriver::Postgres ? MgrFieldType::Decimal : null,
+				default					  => null,
+			};
+			if ($widened !== null) {
+				$type	  = $widened;
+				$unsigned = false;
+			}
+		}
+
+		$type_value = $type->value;
 		$constraint	= $this->constraint !== null ? (string) $this->constraint : '';
 		$default  = $this->default;
 
-		switch ($this->type) {
+		switch ($type) {
 
 			case MgrFieldType::Bool:
 				if ($default !== MgrFieldDefault::NotSet && $default !== null) {
 					$default = filter_var($default, FILTER_VALIDATE_BOOLEAN);
 				}
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['BOOLEAN', ''],
 					MgrDriver::SQLServer			 => ['BIT',	  ''],
 					MgrDriver::SQLite				 => ['INTEGER', ''],
@@ -315,7 +358,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::TinyInt:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['SMALLINT', ''],
 					MgrDriver::SQLite					 => ['INTEGER',  ''],
 					default								  => ['TINYINT',  $constraint],
@@ -325,17 +368,17 @@ final class MgrFieldBuilder
 			case MgrFieldType::Blob:
 			case MgrFieldType::MediumBlob:
 			case MgrFieldType::LongBlob:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['BYTEA',			 ''],
 					MgrDriver::SQLServer				 => ['VARBINARY(MAX)', ''],
 					MgrDriver::SQLite					 => ['BLOB',			  ''],
 					MgrDriver::MySQL,
-					MgrDriver::MariaDB					  => [$this->type->value, ''],
+					MgrDriver::MariaDB					  => [$type_value, ''],
 				};
 				break;
 
 			case MgrFieldType::Json:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['JSONB',			''],
 					MgrDriver::SQLServer				 => ['NVARCHAR(MAX)', ''],
 					MgrDriver::SQLite					 => ['TEXT',			 ''],
@@ -344,8 +387,16 @@ final class MgrFieldBuilder
 				};
 				break;
 
+			case MgrFieldType::Date:
+			case MgrFieldType::Time:
+				[$type_value, $constraint] = match ($this->driver) {
+					MgrDriver::SQLite					 => ['TEXT',			 ''],
+					default								  => [$type_value, ''],
+				};
+				break;
+
 			case MgrFieldType::DateTime:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['TIMESTAMP', ''],
 					MgrDriver::SQLServer				 => ['DATETIME2', ''],
 					MgrDriver::SQLite					 => ['TEXT',		''],
@@ -354,27 +405,36 @@ final class MgrFieldBuilder
 				};
 				break;
 
+			case MgrFieldType::Float:
+				[$type_value, $constraint] = match ($this->driver) {
+					MgrDriver::Postgres				  => ['REAL',	 ''],
+					MgrDriver::SQLServer				 => ['FLOAT',	 '24'],
+					default								  => ['FLOAT',	 ''],
+				};
+				break;
+
 			case MgrFieldType::Double:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['DOUBLE PRECISION', ''],
 					MgrDriver::SQLServer				 => ['FLOAT',				''],
 					default								  => ['DOUBLE',			  ''],
 				};
 				break;
 
+			case MgrFieldType::Text:
 			case MgrFieldType::MediumText:
 			case MgrFieldType::LongText:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['TEXT',			 ''],
 					MgrDriver::SQLServer				 => ['NVARCHAR(MAX)', ''],
 					MgrDriver::SQLite					 => ['TEXT',			 ''],
 					MgrDriver::MySQL,
-					MgrDriver::MariaDB					  => [$this->type->value, ''],
+					MgrDriver::MariaDB					  => [$type_value, ''],
 				};
 				break;
 
 			case MgrFieldType::Year:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres, MgrDriver::SQLServer => ['SMALLINT', ''],
 					MgrDriver::SQLite								 => ['INTEGER',  ''],
 					MgrDriver::MySQL,
@@ -383,7 +443,7 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Uuid:
-				[$type, $constraint] = match ($this->driver) {
+				[$type_value, $constraint] = match ($this->driver) {
 					MgrDriver::Postgres				  => ['UUID',				  ''],
 					MgrDriver::SQLServer				 => ['UNIQUEIDENTIFIER',  ''],
 					MgrDriver::SQLite					 => ['TEXT',				  ''],
@@ -399,12 +459,13 @@ final class MgrFieldBuilder
 				break;
 
 			case MgrFieldType::Timestamp:
-				// SQL Server's TIMESTAMP is a ROWVERSION synonym (max one per
-				// table, not a datetime) — DATETIME2 is what DateTime maps to.
-				if ($this->driver === MgrDriver::SQLServer) {
-					$type = 'DATETIME2';
-					$constraint = '';
-				}
+				[$type_value, $constraint] = match ($this->driver) {
+					MgrDriver::Postgres				  => ['TIMESTAMPTZ', ''],
+					MgrDriver::SQLServer				 => ['DATETIMEOFFSET', ''],
+					MgrDriver::SQLite					 => ['TEXT',		 ''],
+					MgrDriver::MySQL,
+					MgrDriver::MariaDB					  => [$type_value, ''],
+				};
 				break;
 
 			case MgrFieldType::Enum:
@@ -413,17 +474,17 @@ final class MgrFieldBuilder
 						static fn (string $v): string => "'" . str_replace(['\\', "'"], ['\\\\', "''"], $v) . "'",
 						$this->enum_values
 					);
-					$type	= 'ENUM(' . implode(',', $quoted) . ')';
+					$type_value = 'ENUM(' . implode(',', $quoted) . ')';
 					$constraint = '';
 				} else {
 					$max	 = max(array_map('strlen', $this->enum_values));
-					$type	= ($this->driver === MgrDriver::SQLServer) ? 'NVARCHAR' : 'VARCHAR';
+					$type_value = ($this->driver === MgrDriver::SQLServer) ? 'NVARCHAR' : 'VARCHAR';
 					$constraint = (string) max($max, 1);
 				}
 				break;
 		}
 
-		return ['type' => $type, 'constraint' => $constraint, 'default' => $default];
+		return ['type' => $type_value, 'constraint' => $constraint, 'default' => $default, 'unsigned' => $unsigned];
 	}
 }
 

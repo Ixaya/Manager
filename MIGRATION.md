@@ -918,3 +918,125 @@ grep -rn -e "->replace(" -e "->upsert(" -e "sync_update_insert(" application/
 row; no `===` comparison against a returned id assumes a specific PHP type;
 any `$add_sync` sync loop still behaves correctly with the narrower
 `$modified`.
+
+### `MgrFieldType::Timestamp` now maps to `TIMESTAMPTZ` (Postgres) / `DATETIMEOFFSET` (SQL Server)
+
+`Timestamp` previously fell through to plain `TIMESTAMP` on Postgres (no
+branch existed) and mapped to `DATETIME2` on SQL Server. Both now carry an
+offset: Postgres `TIMESTAMPTZ` re-derives its displayed value under the
+session timezone on every read, matching what MySQL/MariaDB's real
+`TIMESTAMP` already does; SQL Server has no session-timezone concept at
+all, so `DATETIMEOFFSET` there stores whatever offset a write carried
+verbatim, with no read-time conversion. MySQL/MariaDB and SQLite are
+unchanged (SQLite also gained an explicit `TEXT` override, matching every
+other type's pattern — no behavior change).
+
+`composer update` never alters an existing schema, so a live Postgres or
+SQL Server deployment's `Timestamp` columns stay on the old type
+indefinitely — the mapping only affects migrations written after this
+release. Alter existing columns explicitly once you're ready. Neither
+snippet below runs as-is on purpose: both fail loudly until you replace the
+placeholder with the zone/offset your app was actually storing under — a
+query that runs unedited and looks fine is how naive timestamps end up
+silently reinterpreted as the wrong zone.
+
+```sql
+-- Postgres: fails with "time zone ... not recognized" until you name the
+-- real zone your naive TIMESTAMP values were stored under
+ALTER TABLE your_table
+  ALTER COLUMN your_timestamp_column TYPE TIMESTAMPTZ
+  USING your_timestamp_column AT TIME ZONE 'REPLACE_WITH_YOUR_APP_TIMEZONE';
+```
+
+```sql
+-- SQL Server: a plain ALTER COLUMN ... DATETIMEOFFSET silently assumes
+-- +00:00 for every existing row, since DATETIME2 carries no offset to
+-- convert from — go through TODATETIMEOFFSET() instead so a wrong/missing
+-- offset fails the UPDATE rather than mis-converting every row
+ALTER TABLE your_table ADD your_timestamp_column_tz DATETIMEOFFSET;
+UPDATE your_table
+  SET your_timestamp_column_tz = TODATETIMEOFFSET(your_timestamp_column, 'REPLACE_WITH_YOUR_APP_OFFSET');
+-- then drop your_timestamp_column and rename your_timestamp_column_tz into its place
+```
+
+```bash
+# find every migration declaring a Timestamp column, to locate affected tables
+grep -rn "MgrFieldType::Timestamp" application/
+```
+
+**Verify:** every `Timestamp` column in a Postgres or SQL Server deployment
+has been altered (or deliberately left, with the asymmetry above
+understood) before relying on the new read-back behavior.
+
+### `MgrFieldType::Float` now maps to `REAL` (Postgres) / `FLOAT(24)` (SQL Server)
+
+`Float` previously fell through to a bare `FLOAT` literal on every engine —
+MySQL/MariaDB store that as true 4-byte single precision, but Postgres and
+SQL Server both silently upgrade a bare `FLOAT` to double precision, so a
+`Float` column stored twice its documented 4-byte width on those two
+engines. Postgres now maps to `REAL` and SQL Server to `FLOAT(24)`;
+MySQL/MariaDB and SQLite are unchanged (SQLite has no smaller type and
+already stored at its usual 8-byte affinity).
+
+`composer update` never alters an existing schema, so a live Postgres or
+SQL Server deployment's `Float` columns keep their current double-precision
+storage indefinitely — the narrower mapping only affects migrations written
+after this release. Narrowing an existing column is optional; do it only if
+you actually need the storage/precision match and have confirmed no stored
+value needs more than ~7 significant digits:
+
+```sql
+-- Postgres
+ALTER TABLE your_table ALTER COLUMN your_float_column TYPE REAL;
+-- SQL Server
+ALTER TABLE your_table ALTER COLUMN your_float_column FLOAT(24);
+```
+
+```bash
+# find every migration declaring a Float column, to locate affected tables
+grep -rn "MgrFieldType::Float" application/
+```
+
+**Verify:** any Postgres/SQL Server `Float` column relying on
+double-precision storage either stays on the old type deliberately or has
+confirmed no stored value needs more than ~7 significant digits before
+narrowing.
+
+### `unsigned: true` now actually widens the column on Postgres and SQL Server
+
+Both engines have no `UNSIGNED` keyword, so `MgrFieldType`'s intent was
+always to widen the type instead — but CI3's own vendored widening table for
+both was silently broken (a no-op bug in `CI_DB_forge::_attr_unsigned()`),
+so `unsigned: true` on a Postgres or SQL Server migration produced a
+column identical to `unsigned: false`, no error, no warning. Now fixed at
+the `MGR_Migration_builder` layer: `SmallInt`→`INT` (both engines — no
+per-engine translation needed; Postgres accepts `INT` as its own alias for
+`INTEGER`), `Int`→`BIGINT`, `Float`→`DOUBLE PRECISION` (Postgres) / bare
+`FLOAT` (SQL Server), and, Postgres only, `BigInt`→`DECIMAL` (arbitrary
+precision; alias of `NUMERIC`). `BigInt` on SQL Server
+and `Decimal` on both engines have no wider type and stay unaffected —
+`unsigned: true` there was and remains a documented no-op. MySQL/MariaDB
+were never affected (their own `UNSIGNED` keyword already worked correctly).
+
+`composer update` never alters an existing schema, so a live Postgres or
+SQL Server column declared `unsigned: true` keeps its current (never
+actually widened) type indefinitely — only migrations written after this
+release get the real widening. If an existing column's declared intent
+(e.g. an unsigned `Int` meant to hold values beyond `2^31`) was silently
+never honored, audit and widen it explicitly:
+
+```sql
+-- Postgres
+ALTER TABLE your_table ALTER COLUMN your_column TYPE BIGINT;
+-- SQL Server
+ALTER TABLE your_table ALTER COLUMN your_column BIGINT;
+```
+
+```bash
+# find every migration declaring an unsigned column on an affected type
+grep -rn "unsigned: true" application/ | grep -E "SmallInt|Int|BigInt|Float"
+```
+
+**Verify:** every Postgres/SQL Server column declared `unsigned: true` on
+`SmallInt`/`Int`/`Float` (or `BigInt` on Postgres) either already holds
+values within its old, narrower range, or has been widened explicitly.

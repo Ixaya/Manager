@@ -93,7 +93,7 @@ trait MGR_Model_Sync
 		}
 
 		if ($this->use_last_update && $timestamp === true) {
-			$data['last_update'] = date('Y-m-d H:i:s');
+			$data['last_update'] = mgr_get_now_date_time_sql_format();
 		}
 
 		$this->apply_alter_filters();
@@ -128,7 +128,7 @@ trait MGR_Model_Sync
 			WHERE enabled != sync_enabled
 				AND (enabled = 0 OR enabled = 1)";
 
-		$now = date('Y-m-d H:i:s');
+		$now = mgr_get_now_date_time_sql_format();
 		return $this->my_db->query($query, [$now]);
 	}
 }

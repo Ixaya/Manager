@@ -63,3 +63,9 @@ function mgr_get_now_date_time($time_zone = null)
 	$date_time_zone = !empty($time_zone) ? new DateTimeZone($time_zone) : null;
 	return new DateTime('now', $date_time_zone);
 }
+
+/** Get the current SQL-formatted (`Y-m-d H:i:s`) date and time with an optional timezone. */
+function mgr_get_now_date_time_sql_format(?string $time_zone = null): string
+{
+	return mgr_get_now_date_time($time_zone)->format('Y-m-d H:i:s');
+}

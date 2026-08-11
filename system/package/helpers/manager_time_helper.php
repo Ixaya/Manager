@@ -109,8 +109,10 @@ function mgr_get_date_option(string $option, $date = null): string
 function mgr_create_date_time(?string $date_string = null, ?string $format = null): ?DateTime
 {
 	if (empty($date_string)) {
-		new DateTime();
+		return mgr_get_now_date_time();
 	}
+
+	$app_timezone = new DateTimeZone(date_default_timezone_get());
 
 	if ($format !== null) {
 		$date_time = DateTime::createFromFormat($format, $date_string);
@@ -120,17 +122,29 @@ function mgr_create_date_time(?string $date_string = null, ?string $format = nul
 			if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
 				log_message('debug', "Date format warnings/errors for '{$date_string}' with format '{$format}'");
 			} else {
-				return $date_time;
+				return $date_time->setTimezone($app_timezone);
 			}
 		}
 	}
 
 	try {
-		return new DateTime($date_string);
+		// converges an offset-suffixed input (TIMESTAMPTZ/TIMESTAMP reads) onto
+		// the app timezone instead of leaving it locked to its parsed offset.
+		return (new DateTime($date_string))->setTimezone($app_timezone);
 	} catch (Exception $e) {
 		log_message('error', "Failed to parse date string '{$date_string}': " . $e->getMessage());
 		return null;
 	}
+}
+
+/**
+ * Format a Timestamp column's raw driver value as ISO-8601, so API output
+ * reads identically regardless of the connected engine (MySQL's naive
+ * string vs. Postgres/SQL-Server's offset-suffixed one).
+ */
+function mgr_format_date_time_iso(string $raw_value): ?string
+{
+	return mgr_create_date_time($raw_value)?->format(DateTimeInterface::ATOM);
 }
 
 /**

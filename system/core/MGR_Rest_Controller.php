@@ -46,9 +46,7 @@ class MGR_Rest_Controller extends REST_Controller
 	{
 		$this->user_id = $this->_apiuser->user_id;
 
-		$now = mgr_get_now_date_time();
-
-		$data['last_api_date'] = $now->format('Y-m-d H:i:s');
+		$data['last_api_date'] = mgr_get_now_date_time_sql_format();
 		$data['last_api_os'] = $this->get_platform();
 
 		$this->rest->db->where('id', $this->user_id);
@@ -315,9 +313,7 @@ class MGR_Rest_Controller extends REST_Controller
 	 */
 	public function print_log(object $object)
 	{
-		$now = mgr_get_now_date_time();
-
-		$timestamp = $now->format('Y-m-d H:i:s');
+		$timestamp = mgr_get_now_date_time()->format('Y-m-d H:i:s');
 		echo(PHP_EOL . $timestamp . '(' . get_called_class() . '): ' . json_encode($object));
 	}
 }
