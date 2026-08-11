@@ -5,6 +5,35 @@ defined('BASEPATH') or exit('No direct script access allowed');
 trait MGR_Model_Upsert_Replace
 {
 	/**
+	 * REPLACE INTO semantics: delete any row conflicting with $data's primary/unique
+	 * key, then insert $data fresh — MySQL/MariaDB native REPLACE, SQLite's
+	 * INSERT OR REPLACE. Both physically delete-then-insert on a conflict, so an
+	 * id already present in $data comes back unchanged and an omitted column
+	 * resets to its default rather than keeping the replaced row's value.
+	 *
+	 * @param array<string, mixed> $data
+	 * @return int|string|bool The row's id, or false on failure.
+	 * @throws RuntimeException If the current driver has no verified implementation.
+	 */
+	public function replace(array $data): int|string|bool
+	{
+		if (!$this->my_db_driver->isMysqlFamily() && $this->my_db_driver !== MgrDriver::SQLite) {
+			throw new RuntimeException(
+				"MGR_Model::replace(): no verified implementation for driver '{$this->my_db_driver->value}'."
+			);
+		}
+
+		$this->set_alter_keys($data);
+
+		$success = $this->my_db->replace($this->table_name, $data);
+		if ($success) {
+			return $this->insert_id();
+		} else {
+			return false;
+		}
+	}
+
+	/**
 	 * REPLACE INTO semantics: delete any row occupying $data's primary key,
 	 * then insert $data fresh.
 	 *

@@ -146,6 +146,10 @@ upsert_where(array $data, array $where, array $insert_data = []): int|string|boo
 upsert_atomic(array $data, array|string $conflict_target): int|string|bool
     // one statement, insert-or-merge on the named unique key — safe under concurrent
     // callers. Postgres only; throws RuntimeException on every other driver
+replace(array $data): int|string|bool
+    // REPLACE INTO: one statement, delete-then-insert whatever row conflicts on a
+    // primary/unique key. MySQL/MariaDB/SQLite only; throws RuntimeException on
+    // every other driver
 replace_pk(array $data): bool
     // deletes whatever row holds $data's primary key, then inserts $data — needs
     // the primary key present in $data, throws InvalidArgumentException without it
@@ -165,15 +169,18 @@ what `get()` returns for that column — `int` under a `pdo/<engine>` driver,
 a value from the same source. Loose `==` is not the escape hatch — PHP
 compares numeric strings as numbers, so `'007' == '7'` is true.
 
-**Only `upsert_atomic()` is race-safe.** The other three read first and
-write second, so two callers racing on the same row can both find it missing
-and both insert. `replace_pk()`'s transaction stops it half-applying; it
-does not stop the collision. That is fine when one request owns the row, and
-wrong for a queue worker or a webhook receiver — reach for `upsert_atomic()`
-there, not as a general-purpose upsert.
+**`upsert_atomic()` and `replace()` are race-safe; `upsert()`, `upsert_where()`,
+and `replace_pk()` are not.** The first two are each a single statement the
+engine runs atomically. The other three read first and write second, so two
+callers racing on the same row can both find it missing and both insert.
+`replace_pk()`'s transaction stops it half-applying; it does not stop the
+collision. That is fine when one request owns the row, and wrong for a queue
+worker or a webhook receiver — reach for `upsert_atomic()` or `replace()`
+there, not `upsert()`/`upsert_where()`/`replace_pk()`.
 
-`replace_pk()` discards the old row, so a column missing from `$data` comes
-back empty; `upsert_atomic()` merges, so an omitted column keeps its value.
+`replace()` and `replace_pk()` both discard the old row, so a column missing
+from `$data` comes back empty; `upsert_atomic()` merges, so an omitted column
+keeps its value.
 
 ## Sync methods (external-source imports: time trackers, invoicing APIs, bank feeds…)
 

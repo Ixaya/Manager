@@ -147,6 +147,15 @@ one, so the reasoning that held at the time stays readable.
   named unique key — Postgres only, throwing elsewhere rather than
   emulating). `upsert()` also stopped treating an unknown id as an insert
   target, which was reporting success while writing nothing.
+- **2026-08-11 (partial reversal of the entry above): `replace()` is back,
+  scoped to MySQL/MariaDB/SQLite only.** The original method carried two
+  behaviors because it dispatched across all five drivers, some of which
+  (Postgres `ON CONFLICT`, SQL Server `MERGE`) don't share REPLACE INTO's
+  full-row delete-then-insert semantics. Restricted to the three drivers
+  that do share that mechanism, the disagreement the retirement was
+  guarding against doesn't arise, so the method is reinstated rather than
+  redesigned. `replace_pk()` and `upsert_atomic()` are unchanged and still
+  the only options on the other two engines.
 - **2026-08-09: fixes to CI3's database layer go through its public API or
   its config, never through an override.** Those classes live in a Composer
   dependency with no subclass seam, so "override the driver method" always
