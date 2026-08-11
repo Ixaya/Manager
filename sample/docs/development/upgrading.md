@@ -81,7 +81,43 @@ a new major needs the constraint raised by hand.
 Substitute your own instance name for `local` throughout if you use a
 different one.
 
-## 3. See what changed — the GitHub compare is the primary path
+## 3. Read the shipped behavioral upgrade notes first
+
+Every release that changes behavior a project may already depend on ships a
+matching file at `vendor/ixaya/manager/system/docs/upgrading/<version>.md` —
+written for exactly this reconcile, with the grep to find affected call sites
+and a **Verify** checklist per change baked in. A purely additive release
+carries no file at all; its absence for a version you're crossing means
+there was nothing behavioral to flag for that release, not that a file is
+missing.
+
+List what shipped between the version you noted in step 1 and the one you
+just landed on:
+
+```bash
+ls vendor/ixaya/manager/system/docs/upgrading/
+```
+
+Read every `<version>.md` whose version falls in that range (inclusive of
+the version you updated to), in order. If your constraint tracks
+`master`/a `dev-*` branch rather than a tagged release, this mechanism stops
+at the last tag — the unreleased `next.md` in the repo is a live draft that
+can still be revised or reverted before it tags, so it's deliberately left
+out here; fall back to the compare/commit-message reading in step 1 and step
+4 for anything past the last tag.
+
+This is the fast path to the gotchas that actually bite in production — a
+client parsing a response shape that no longer exists, a read that now
+returns `null` where it used to return `[]`, a column type that silently
+double-widened on one engine. It covers only the framework's own behavior,
+though, not the scaffold: bringing your copied `sample/` files forward
+(`.env` templates, `docker/`, `application/config` and `core`, your own
+`docs/`) still needs the compare view below. These notes don't replace that
+step — they front-load the part of the reconcile that's cheapest to get
+wrong and, being plain files already in `vendor/`, need no network access to
+read.
+
+## 4. See what changed — the GitHub compare is the primary path
 
 Open the compare between the version you noted in "Note the current
 version" above and the version now in `composer.lock`, old first — the
@@ -151,7 +187,7 @@ diff or every commit, so they're not a step to run on every upgrade — check
 them on a bigger jump, or when you suspect a change affects behavior and
 want the short version before reading commit messages.
 
-## 4. Offline fallback — no network access
+## 5. Offline fallback — no network access
 
 An installed copy has no `.git` (Composer ships a dist archive), so a local
 `git diff` against the old release is not possible. What it does ship is the
@@ -182,7 +218,7 @@ customizations and the upstream changes mixed together with no way to tell
 them apart — that is exactly the axis the compare view supplies. Use this
 only when the compare is unreachable, never as a routine replacement.
 
-## 5. Reconcile per file — adopt, adapt, or keep local
+## 6. Reconcile per file — adopt, adapt, or keep local
 
 Go through the changed paths one at a time and decide, per file:
 
@@ -198,7 +234,7 @@ This is never a script to run unattended: any shipped file may have been
 customized, so every hunk is a decision for you to make, not one to
 automate away.
 
-## 6. Re-run migrations and the quality gates
+## 7. Re-run migrations and the quality gates
 
 A release can ship new framework migrations. Check what is pending *before*
 running anything — `plan` only reports, and there is no down-migration, so an
