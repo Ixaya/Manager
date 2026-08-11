@@ -30,6 +30,23 @@ extensions" entry.
 pass the sample's full PHPUnit suite (86 tests / 209 assertions) each.
 Gates (`phpstan`, `php-cs-fixer`) green throughout.
 
+**`MgrFieldType::Timestamp`** maps to PostgreSQL `TIMESTAMPTZ` / SQL Server
+`DATETIMEOFFSET` (was a bare `TIMESTAMP` literal on every engine).
+**`mgr_create_date_time()`** normalizes every return path to the
+app-configured timezone. **`mgr_format_date_time_iso()`**
+(`manager_time_helper.php`) formats a `Timestamp` column's raw read-back as
+ISO-8601 for API output — optional, at controller-response time. `Text`,
+`Float`, and the `UNSIGNED`-widening path on PostgreSQL/SQL Server got
+schema-mapping corrections; `TinyInt`'s SQL-Server range and `Uuid`'s
+case/sort divergence are documented, not code-fixed (no schema-level fix
+exists for either). Full rationale: `decisions.md`'s "Schema type mapping"
+section.
+
+**Validated (schema type mapping):** PostgreSQL and MySQL native drivers,
+live-tested through the real model `get()`/`select()` read path, not a
+hand-rolled cast. SQL Server is code-only/unvalidated for all of it, pending
+`pdo-dblib-vendor-gaps`. Gates green throughout.
+
 ## Remaining open work
 
 Named by title — a promoted proposal moves out of `00-proposals/`, and a
@@ -52,3 +69,7 @@ path here would need editing back:
   local dev happens to provision databases through Docker; proposes a
   dedicated `database.md` pair instead, since production uses an external,
   Docker-uninvolved database.
+- **`timestamp-write-format-atom`** — whether
+  `mgr_get_now_date_time_sql_format()` should write an offset-explicit
+  literal instead of its current naive one; blocked on an unproven MySQL
+  strict-mode literal-parsing question.

@@ -237,3 +237,94 @@ native driver.
   why the `mgr-migrations` skill already directs `SmallInt` over `Bool` for
   `0`/`1` flag columns; the guidance holds under PDO too and was not
   duplicated a third time.
+
+## Schema type mapping (MgrFieldType)
+
+Absorbed from `docs/workspace/22-timestamp-timezone-mapping/` at
+distillation — a different axis than driver choice above (`MgrFieldType`'s
+own cross-engine SQL, exercised identically on native and PDO), landed here
+rather than a separate initiative because it is the same subsystem
+(`MGR_Migration_builder`) and the same reader.
+
+- **2026-08-10: `MgrFieldType::Timestamp` repointed from a bare `TIMESTAMP`
+  literal on every engine to PostgreSQL `TIMESTAMPTZ` / SQL Server
+  `DATETIMEOFFSET`.** A plain `TIMESTAMP` column does not re-derive under a
+  session-timezone shift the way `TIMESTAMPTZ` does — live-confirmed: a row
+  written at `12:00:00+00` under one session offset, re-read after shifting
+  the session to `-05:00`, still read back `12:00:00` (unshifted) on plain
+  `TIMESTAMP`, but `07:00:00-05` (correctly shifted) on `TIMESTAMPTZ`. SQL
+  Server's own `TIMESTAMP` keyword is not a datetime type — it is a
+  `ROWVERSION` synonym — so `DATETIMEOFFSET` was the substitute there
+  regardless; see `docs/development/database.md` for that naming collision
+  and the PostgreSQL trigger's now-disappeared implicit cast. This is a
+  breaking change for any deployment with live `Timestamp` columns —
+  `MIGRATION.md` carries the `ALTER COLUMN` path. SQL Server's half is
+  code-only, unvalidated, pending `pdo-dblib-vendor-gaps`.
+- **2026-08-10: SQL Server gets no read-time conversion parity with
+  PostgreSQL/MySQL for `Timestamp`, and that is architecturally forced, not
+  an oversight.** SQL Server has no session-timezone concept at all
+  (`MGR/Model.php:596`; `set_rest_timezone()` has no SQL Server branch).
+  `DATETIMEOFFSET` stores whatever offset a write carried, verbatim, with no
+  session-driven re-derivation the way PostgreSQL's `TIMESTAMPTZ` or MySQL's
+  native `TIMESTAMP` (both converting via a session GUC/variable) get.
+  Nothing to build here — documented so a future reader doesn't mistake
+  "as far as this type can ever go" for "not yet finished."
+- **2026-08-10: `mgr_create_date_time()` now normalizes every return path to
+  the app-configured timezone** (`->setTimezone()` on both the
+  `createFromFormat` success path and the raw-constructor path) — a
+  prerequisite for the `Timestamp` repoint above to read back safely; an
+  offset-suffixed string parsed without it stayed locked to its own parsed
+  offset instead of converging on the app's.
+- **2026-08-10: three field-type corrections, all code-only/live-tested per
+  the applicable engine, and the docblock table amended:** `Text` gained the
+  SQL Server branch `MediumText`/`LongText` already had (`NVARCHAR(MAX)`,
+  Microsoft's documented replacement for the deprecated `TEXT` type — it had
+  been falling through to a bare, deprecated `TEXT` literal purely because no
+  case existed for it, not for any functional reason). `Float` (4-byte) now
+  gets PostgreSQL `REAL` and SQL Server `FLOAT(24)` instead of both engines'
+  bare `FLOAT` silently defaulting to 8-byte double precision — live-verified
+  on PostgreSQL/MySQL before fixing, since that default was the one fact
+  resting on recollection rather than a code read. SQL Server's `TinyInt`
+  caveat (unsigned-only, 0-255, no signed 1-byte type exists there) has no
+  schema-level fix — documented on the enum case and in the `mgr-migrations`
+  skill instead.
+- **2026-08-10: an `unsigned: true` field on PostgreSQL or SQL Server is
+  honored by re-dispatching `MgrFieldBuilder::_resolveColumn()` to the
+  next-widest `MgrFieldType`** (`SmallInt`→`Int`, `Int`→`BigInt`,
+  `Float`→`Double`, PostgreSQL-only `BigInt`→`Decimal`), not by passing
+  `unsigned` through to CI3's own dbforge attribute. The original finding
+  claimed the cross-engine docblock table's "ignored" row for `UNSIGNED` on
+  PostgreSQL/SQL Server was wrong in isolation; validating it surfaced the
+  real defect instead — CI3's own vendored `postgre_forge`/`sqlsrv_forge`
+  `_attr_unsigned()` is a no-op on both engines (upstream bug), so the
+  request was doing nothing at all, not merely being reported wrong.
+  SQL Server's `BigInt` and both engines' `Decimal` stay capped (no wider
+  type exists) — `default => null` in the widen `match`, deliberately
+  untouched. Full mechanism in `docs/development/database.md`; the
+  `unsigned-widen-noop` proposal narrowed to the raw-CI3-bypass case this
+  fix doesn't reach (a caller going around `MgrFieldBuilder` straight to
+  dbforge).
+- **2026-08-10: `Uuid`'s case-folding and sort-order divergence gets no
+  normalization helper — documented on the enum case instead.** PostgreSQL's
+  native `UUID` lowercases on read; MySQL/MariaDB's `CHAR(36)` round-trips
+  whatever case was written; SQL Server's `UNIQUEIDENTIFIER` additionally
+  sorts by mixed-endian byte order, not lexicographically. No framework
+  knowledge is hidden behind the fix — it is `strtolower($raw_value)`, exactly
+  as clear inline as a named wrapper would be — so nothing was built.
+- **2026-08-10: a new helper, `mgr_format_date_time_iso()`, normalizes a
+  `Timestamp` column's raw read-back to ISO-8601 across engines** — built
+  because, unlike `Uuid`, there IS hidden framework knowledge to encapsulate:
+  a caller has to already know to route through the timezone-aware
+  `mgr_create_date_time()` to avoid a naive-looking string on MySQL diverging
+  silently from an offset-suffixed one on PostgreSQL/SQL-Server. Optional, at
+  controller-response time — never automatic. Documented in the
+  `mgr-helpers-libraries` skill.
+- **2026-08-10: the write-side counterpart — whether
+  `mgr_get_now_date_time_sql_format()` should emit an offset-explicit literal
+  instead of its current naive `Y-m-d H:i:s` — stays parked, not built.**
+  Redundant on PostgreSQL/MySQL (both now store the instant as UTC
+  internally regardless of the literal's display format); the one engine
+  where it would close a real gap is SQLite, which has no timezone-aware
+  storage at all. Blocked on an unproven fact: whether MySQL's strict-mode
+  literal parser even accepts a `T`-separated, offset-suffixed string.
+  Full write-up: `docs/workspace/00-proposals/timestamp-write-format-atom/spec.md`.

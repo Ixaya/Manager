@@ -49,3 +49,58 @@ The connection-layer work holds: `fromCI()`'s `subdriver` param,
 the full engine × driver matrix that was run. The default-driver
 recommendation stands, restated on non-performance grounds once the ~2×
 argument was retracted (`decisions.md`).
+
+## Schema type mapping — validation record (campaign 22)
+
+Condensed from the closing review of
+`docs/workspace/22-timestamp-timezone-mapping/` (2026-08-10). Full
+provenance and per-objective evidence live in that campaign's three
+`review.md`/`handoff.md` pairs while the workspace exists; this is the
+permanent summary.
+
+### What was verified
+
+PostgreSQL and MySQL, native drivers, through the real model
+`get()`/`select()` read path (not a hand-rolled cast) — the `Timestamp`
+repoint, `mgr_create_date_time()`'s timezone normalization, the `Text`/
+`Float`/`UNSIGNED`-widening schema fixes, and the new
+`mgr_format_date_time_iso()` helper. MariaDB skipped as redundant with
+MySQL for this batch (same wire protocol, no divergent case touched). SQL
+Server is code-inspection-only throughout, blocked on `pdo-dblib-vendor-gaps`.
+Gates (`phpstan` level 5, `php-cs-fixer`) clean throughout.
+
+### Findings
+
+1. **The `UNSIGNED` docblock row's specific claim was a false positive, but
+   validating it surfaced a real bug.** The review claimed PostgreSQL/SQL
+   Server "ignore" `unsigned: true`; reading the code showed CI3's own
+   vendored `postgre_forge`/`sqlsrv_forge` `_attr_unsigned()` genuinely is a
+   no-op on both engines — an upstream bug, live-confirmed, not a documentation
+   gap. Fixed by re-dispatching to the next-widest `MgrFieldType` inside
+   `MgrFieldBuilder` itself (`decisions.md`).
+2. **The `Float`-defaults-to-double-precision claim rested on recollection,
+   not a code read, and was live-verified before fixing** — PostgreSQL and
+   SQL Server's bare `FLOAT` (no precision argument) do default to
+   `FLOAT(53)`/double precision by each engine's own documented default,
+   confirmed live rather than assumed.
+3. **The engine read-back shapes for `Timestamp` and `Uuid` were captured
+   through the framework's own model read path, not a hand-rolled
+   `::text`-cast**, closing a gap the earlier objectives' own evidence had
+   left (their logs captured schema types, not what a caller actually gets
+   back). Full matrix: `driver-matrix-timestamp-uuid.md`.
+4. **One deferred question was written up as its own proposal rather than
+   left as workspace prose:** whether `mgr_get_now_date_time_sql_format()`
+   should write an offset-explicit literal, blocked on an unproven MySQL
+   strict-mode literal-parsing fact — `timestamp-write-format-atom`
+   (`handoff.md`'s "Remaining open work").
+
+### Verdict
+
+The schema-mapping work holds on every item live-tested: no bare `TIMESTAMP`
+fallthrough on PostgreSQL's `Timestamp` branch, no `DATETIME2` on SQL
+Server's, no bare `TEXT` on SQL Server's plain `Text` branch, no bare
+`FLOAT` shared between `Float` and `Double` on the same engine, and the
+`UNSIGNED` widening matches the corrected docblock table exactly. SQL
+Server's `DATETIMEOFFSET`/`NVARCHAR(MAX)`/`FLOAT(24)` mappings are
+code-correct by inspection but remain unvalidated live, same standing gap
+as the rest of this initiative's SQL-Server coverage.

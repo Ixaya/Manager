@@ -49,3 +49,53 @@ stack" entry.
 Revisit when: nothing here is a one-way door — a project's needs, or the
 framework's own default, can move either way. The excluded subdriver
 returns as part of whichever fix resolves it, not before.
+
+**`MgrFieldType::Timestamp` maps to SQL Server's `DATETIMEOFFSET`, never its
+own `TIMESTAMP` keyword.**
+Decision: campaign 22 (2026-08-10) repointed `Timestamp` from a bare
+`TIMESTAMP` literal on every engine to PostgreSQL `TIMESTAMPTZ` / SQL
+Server `DATETIMEOFFSET`.
+Why: SQL Server's `TIMESTAMP` keyword is not a datetime type at all — it is
+a `ROWVERSION` synonym, a per-table monotonic write counter — so the
+semantic "timestamp" this type is meant for was never reachable through
+that keyword on SQL Server; `DATETIMEOFFSET` is the closest match that also
+stores an explicit offset. On PostgreSQL, the bare `TIMESTAMP` this type
+used to emit does not re-derive under a session-timezone shift the way
+`TIMESTAMPTZ` does — confirmed live before the repoint. One side effect the
+code carries no comment for: `modify_field_timestamp()`'s PostgreSQL
+trigger (`NEW.{$column} := NOW()`) used to narrow `NOW()`'s native
+`timestamptz` result into the then-naive `TIMESTAMP` column under an
+implicit cast; with the column now `TIMESTAMPTZ`, that cast no longer
+happens — nothing to fix in the trigger, just a different write path than
+before.
+Evidence: `docs/design/07-database-drivers/decisions.md`'s "Schema type
+mapping" section; live read-back matrix in
+`driver-matrix-timestamp-uuid.md` (PostgreSQL/MySQL, native drivers).
+Cost: breaking change for any existing PostgreSQL/SQL-Server deployment
+with live `Timestamp` columns — `MIGRATION.md` carries the `ALTER COLUMN`
+path.
+Revisit when: SQL Server's `DATETIMEOFFSET` side is code-only, unvalidated
+— pending `pdo-dblib-vendor-gaps`.
+
+**An `unsigned: true` field on PostgreSQL or SQL Server is honored by
+re-dispatching to the next-widest `MgrFieldType`, not by CI3's own forge
+attribute.**
+Decision: `MgrFieldBuilder::_resolveColumn()` widens `SmallInt`→`Int`,
+`Int`→`BigInt`, `Float`→`Double`, and (PostgreSQL only) `BigInt`→`Decimal`
+before resolving the column, instead of passing `unsigned` through to
+dbforge for those two engines.
+Why: CI3's own vendored `postgre_forge`/`sqlsrv_forge` classes carry an
+`_attr_unsigned()` implementation that is a no-op on both engines — an
+upstream bug, not a missing feature — so `unsigned: true` silently did
+nothing on either engine before this fix (live-confirmed, campaign 22,
+2026-08-10). SQL Server has no integer type wider than `BigInt`, so that
+one case is capped rather than widened, documented on the enum case itself.
+Evidence: `docs/design/07-database-drivers/decisions.md`'s "Schema type
+mapping" section; the `unsigned-widen-noop` proposal (narrowed to the
+raw-CI3-bypass case, still open).
+Cost: none beyond the re-dispatch logic — no Composer patch, since the
+workaround stays inside this framework's own `MgrFieldBuilder` (same
+config/public-API-only approach the `mgr-helpers-libraries` skill's
+"working around a gap in CI3's database layer" section documents).
+Revisit when: CI3's vendored forge classes are patched upstream — unlikely,
+and not blocking anything above.

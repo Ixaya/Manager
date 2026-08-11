@@ -45,3 +45,50 @@ Full rationale in `decisions.md`; measured data in
   here.
 - Schema/migration content fixes on the real pre-2.0 project that motivated
   this — that project's own concern, not this repo's.
+
+## Schema type mapping (MgrFieldType), campaign 22
+
+Absorbed at distillation from `docs/workspace/22-timestamp-timezone-mapping/`
+— sparked by checking whether `MgrFieldType::Timestamp`'s PostgreSQL mapping
+actually re-derives under a session-timezone change (it didn't), which grew
+into a broader sweep of every other `MgrFieldType` case for the same class of
+defect, plus an optional read-side normalization helper for the divergence
+that sweep couldn't fix at the schema level.
+
+### What shipped
+
+- `MgrFieldType::Timestamp` repointed: PostgreSQL `TIMESTAMP` → `TIMESTAMPTZ`,
+  SQL Server → `DATETIMEOFFSET` (was a bare `TIMESTAMP` literal, SQL Server's
+  own `TIMESTAMP` keyword being a `ROWVERSION` synonym, not a datetime type).
+  `mgr_create_date_time()` now normalizes every return path to the
+  app-configured timezone, the prerequisite for reading the repointed column
+  back safely.
+- Three field-type corrections: `Text` gained SQL Server's `NVARCHAR(MAX)`
+  branch (was falling through to a bare, deprecated `TEXT` literal); `Float`
+  gained PostgreSQL `REAL` / SQL Server `FLOAT(24)` (was defaulting to
+  8-byte double precision on both); `TinyInt`'s SQL-Server unsigned-only
+  range documented (no schema-level fix exists).
+  `Uuid`'s PostgreSQL-lowercases/SQL-Server-mixed-endian-sorts divergence
+  documented the same way — no schema-level fix, normalize at the caller.
+- A real vendor bug surfaced mid-sweep: CI3's own vendored
+  `postgre_forge`/`sqlsrv_forge` `_attr_unsigned()` is a no-op on both
+  engines, so `unsigned: true` silently did nothing there. Fixed inside
+  `MgrFieldBuilder::_resolveColumn()` by re-dispatching to the next-widest
+  `MgrFieldType` before resolving the column — no Composer patch needed.
+- A new helper, `mgr_format_date_time_iso()`
+  (`system/package/helpers/manager_time_helper.php`), formats a `Timestamp`
+  column's raw driver value as ISO-8601 so API output reads identically
+  across engines — optional, at controller-response time, never automatic.
+  No equivalent helper was built for `Uuid` (see `decisions.md`): the entire
+  fix is `strtolower()`, no framework knowledge worth hiding.
+- Full per-engine live-test evidence (PostgreSQL/MySQL native drivers, plus
+  code-inspection-only SQL Server): `driver-matrix-timestamp-uuid.md`.
+
+### Explicitly out of scope
+
+- SQL Server validation for any of the above — code-only this entire
+  campaign, blocked on the open `pdo-dblib-vendor-gaps` proposal.
+- Switching `mgr_get_now_date_time_sql_format()`'s write format to an
+  offset-explicit literal — parked as its own proposal
+  (`docs/workspace/00-proposals/timestamp-write-format-atom/spec.md`),
+  blocked on an unproven MySQL strict-mode literal-parsing question.
