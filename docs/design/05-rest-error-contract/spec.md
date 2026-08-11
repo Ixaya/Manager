@@ -57,4 +57,4 @@ rather than deferred — that ruling and its cost are in `decisions.md`.
 - Final state and remaining open items: `handoff.md` here.
 - Observed validation record, all four engine × environment combinations:
   `review.md` here.
-- Consumer-facing breaking changes: `MIGRATION.md`, "Upgrading within 2.x".
+- Consumer-facing breaking changes: `system/docs/upgrading/2.3.0.md`.

@@ -16,7 +16,7 @@ suite; auth behavior was checked only by throwaway CLI probes.
 - **Config/Lang core seam** (`system/core/MGR/{Config,Lang}.php` +
   `sample/application/core/MY_{Config,Lang}.php`): makes module-aware config
   and language survive a function-scoped PHPUnit boot. Consuming projects must
-  add the two shims to adopt the harness — see `MIGRATION.md`.
+  add the two shims to adopt the harness — see `system/docs/upgrading/2.0.0.md`.
 - **Directory renames** so the three test-related concerns stop colliding by
   name: `application/tests/` → `tests/`; `application/modules/test/` →
   `modules/probes/`; `docker/php/tests/` → `docker/php/smoke/` (baked as
@@ -34,4 +34,4 @@ fixtures rather than mocks.
 
 - Authoring guide (how to write/extend tests): `sample/docs/development/testing.md`.
 - Running the suite (tools service, testing env): `sample/docs/development/docker.md`.
-- Consumer adoption (copy `tests/`, add the shims): `MIGRATION.md`.
+- Consumer adoption (copy `tests/`, add the shims): `system/docs/upgrading/2.0.0.md`.

@@ -86,16 +86,25 @@ errors are never cemented into standing docs.
 state lives" block — the four per-campaign file roles (spec / handoff / review
 / prompts, the runbook flagged operator-only and never loaded as instructions)
 and the shared files beside it, condensed from the Workspace anatomy above.
-Then copy this playbook's "Fix-pass process" and "Live-testing" sections into
-it, plus a condensed session-gates block — the task-list approval gate, a
-generic look-for-applicable-skills line, the per-item restatement (the fourth
-gate, baseline-mismatch = stop, is already in the fix-pass rules). Keep the
-file lean: every session re-reads it, so every line is a recurring cost —
-per-item machinery (skill pointers, traps, closing checks) stays in the
-campaign prompts. From then on the file is the operator's. Personal process
-adjustments (reporting language, summary format, extra gates) are direct edits
-to the copy; there is no separate deviations list. This playbook stays the
-canonical standard; `methodology.md` is the standard as this operator runs it.
+Then copy this playbook's "Fix-pass process" (which is where the "permanent
+docs wait for distillation" rule lives — it travels with the section, not as
+a separate item), "Live-testing", and "When the material is prose" sections
+into it, plus a condensed session-gates block — the task-list approval gate, a
+generic look-for-applicable-skills line (pointing at
+`docs/development/skill-authoring.md` when the work touches a skill itself),
+the per-item restatement, and work solo (the fourth gate, baseline-mismatch =
+stop, is already in the fix-pass rules). Keep the file lean: every session
+re-reads it, so every line is a recurring cost — per-item machinery (skill
+pointers, traps, closing checks) stays in the campaign prompts. From then on
+the file is the operator's. Personal process adjustments (reporting language,
+summary format, extra gates) are direct edits to the copy; there is no
+separate deviations list. This playbook stays the canonical standard;
+`methodology.md` is the standard as this operator runs it — and since it is
+copied once and then diverges, a later fix landed only in this canonical
+playbook (a new Fix-pass bullet, a new anti-pattern) does not reach an
+existing `methodology.md` automatically; re-sync it by hand when a change here
+is meant to apply going forward, the same way distillation re-syncs memory
+against the repo.
 
 `conventions.md` is seeded at each campaign start from this template:
 
@@ -380,9 +389,31 @@ the suspect part" is a legitimate way to open an objective.
   upstream-tracked directories (`system/third_party/`) except as a deliberate,
   documented, one-commit exception recorded for re-verification after upstream
   merges (see `docs/development/auth-upstream.md` for the worked example).
+- **Permanent documentation (`docs/design/*`, the shipped `sample/docs/*`,
+  `docs/development/*`) waits for distillation, even for a finding a session
+  believes is fully settled.** A session sees only its own item — it can't
+  know whether an early conclusion holds once later items in the same
+  campaign run. More than one campaign has written up a real gap early, only
+  to have a later session reclassify it as not-a-gap once the premise was
+  actually tested. Editing permanent docs mid-campaign risks shipping a
+  narrative that stops being true before the campaign even closes, and
+  leaves distillation cleaning up piecemeal edits instead of writing the
+  record once, holistically, with the whole arc in view. Keep findings and
+  fixes in the item's own `spec.md`/`handoff.md`, or a `00-proposals/` entry
+  for cross-cutting material, until distillation. Exception: `system/skills/`
+  still moves with the code in the same change, per AGENTS.md's hard rule —
+  a different concern (correctness for the next agent reading it right now)
+  that nothing here relaxes.
 - **Stop-and-flag on surprises.** A bug surfaced mid-item that isn't the item
   is its own finding — flag it for a decision, don't silently patch or ignore
   it.
+- **Comments written during a fix are left as the agent wrote them, not
+  trimmed in place.** Nagging a mid-fix agent to tighten prose spends a
+  back-and-forth on wording instead of the fix, and pulls focus off code that
+  matters more. Let comments run generous here — a dedicated distillation
+  pass (Endgame, below) sweeps every comment the campaign generated in one
+  holistic view, once, with the code-style skill freshly loaded and the whole
+  campaign's rationale still available to judge against.
 - **No commits, ever.** The operator reviews and commits; batches meant to be
   one commit must be kept as one coherent changeset.
 
@@ -626,6 +657,18 @@ The failures new operators hit first — each is the negative of a rule above:
 - **The narrating write-up.** A `handoff.md` entry or exit report that
   re-tells the investigation instead of stating its conclusion — see Writing
   discipline above.
+- **The chat-only closing review.** A verdict table and punch list stated
+  only in the reply text disappears the moment the session ends — state
+  lives in files, closing review included. Write it to `closing-review.md`
+  in the same turn the review finishes, not after being asked a second time.
+- **The approval list wider than the Scope line, unexplained.** A prompt
+  that says "list items 1-6" while Scope only names 1, 2, 5 reads as
+  ambiguous to whoever runs it — reasonably assumed to mean "work all 6,"
+  which is exactly wrong for a validation-only session. If the list is
+  meant to show more than this session's actual work (unresolved
+  candidates, later-objective context), say so explicitly in the prompt. A
+  session that hits this mismatch while executing should flag it and ask,
+  not silently pick a range.
 - **Delegating inside a session.** Current Advanced-tier models reach for
   subagents readily; a narrow session gains nothing from them — context
   re-established per agent, cost multiplied, baseline discipline split across
@@ -636,8 +679,9 @@ The failures new operators hit first — each is the negative of a rule above:
 1. **Closing review** (separate session, strong model): for every item marked
    fixed, re-diff current code against the recorded baseline; verify any
    do-not-regress properties verbatim; re-run the campaign's consolidated
-   greps; produce a per-section verdict table and a punch list (fix nothing in
-   that session).
+   greps; produce a per-section verdict table and a punch list, **written to
+   a file in the campaign directory (`closing-review.md`) in the same turn —
+   never left only in the chat reply** (fix nothing in that session).
 2. **Pending-task gate** (opens the distillation session, before its plan is
    proposed). Sweep the whole workspace for anything still open — `pending.md`,
    deferred verdicts in the objective records, follow-ons a late objective
@@ -666,12 +710,26 @@ The failures new operators hit first — each is the negative of a rule above:
    to skills; decisions + final state + validation record to
    `docs/design/<initiative>/` per the documentation standard
    (`sample/docs/documentation.md` + the framework addendum); operational
-   runbooks to `docs/development/`; consumer traps to MIGRATION.md — one
-   source of truth, pointers not duplicates. Sweep `00-shared/conventions.md`
+   runbooks to `docs/development/`; consumer traps to
+   `system/docs/upgrading/next.md` — one source of truth, pointers not
+   duplicates. Sweep `00-shared/conventions.md`
    in the same pass: campaign rules that proved durable go to skills or this
    playbook, parked-but-alive items to `pending.md` (title + pointer), the
    rest dies with the workspace — `methodology.md` is the operator's and is
    never swept.
+
+   **Also sweep every comment the campaign's fix sessions generated in the
+   touched code, as its own deliverable** — not a leftover to catch
+   incidentally while writing something else. After reading
+   `docs/documentation.md` and loading `mgr-code-style`, go comment by
+   comment and decide TRIM / REMOVE / KEEP against the skill's rules, now
+   that the whole campaign is in view and the fix-pass rule above
+   deliberately left them unpruned rather than tightened piecemeal
+   mid-session. A comment that earns keeping at length despite the cut is
+   itself a signal: the fact underneath it usually belongs in
+   `docs/design/` or `docs/development/`, not just a shorter comment — treat
+   that instinct as an input to the rest of this distillation, not a
+   coincidence to override.
 
    **Then prune the agent memory the new documentation replaces.** A rule is
    usually written to memory the moment it is agreed, and documented in the

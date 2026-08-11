@@ -11,6 +11,8 @@
 /extras     export-ignore
 /docs       export-ignore
 /AGENTS.md  export-ignore
+/SECURITY.md  export-ignore
+/system/docs/upgrading/next.md  export-ignore
 /.gitattributes     export-ignore
 /.php-cs-fixer.php  export-ignore
 /phpstan.neon       export-ignore

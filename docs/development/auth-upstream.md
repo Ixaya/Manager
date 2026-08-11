@@ -151,8 +151,9 @@ merging a newer upstream, diff against this list and re-run the probe suite in
 
 ## Purposeful deviations from the legacy CI3 production code
 
-For migrating legacy consumers the silent traps are documented in MIGRATION.md
-("Ion Auth" items 1–5). Framework-side decisions:
+For migrating legacy consumers the silent traps are documented in
+`system/docs/upgrading/2.0.0.md` ("Ion Auth" items 1–5). Framework-side
+decisions:
 
 - **Selector/validator token architecture** (activation, forgotten-password,
   remember-me): hashed validator in DB, plaintext only in the user-side code.
@@ -205,7 +206,7 @@ all of these intact:
    anything lost.
 2. Greps (all must be zero / explained):
    - `grep -rnE "IonAuth\." system/third_party/BE/ system/package/`
-   - the two consolidated call-site greps in MIGRATION.md's Ion Auth section
+   - the two consolidated call-site greps in `system/docs/upgrading/2.0.0.md`'s Ion Auth section
      (removed APIs, 4-arg `login()`, legacy keys) over `sample/application/` —
      probe-module hits calling the current API are expected noise.
 3. Run the gitignored probe suite against the `local` Docker stack (`-b -m`,
@@ -220,4 +221,4 @@ all of these intact:
 4. Pre-deploy on a real target: the schema gate (`SHOW COLUMNS FROM user LIKE
    '%selector%'` — note the singular `user` table; three `*_selector` columns
    present, `salt` absent — migration `20260213175009_Ion_auth_v2.php`) and
-   MIGRATION.md's consumer greps on the target's app tree.
+   `system/docs/upgrading/2.0.0.md`'s consumer greps on the target's app tree.

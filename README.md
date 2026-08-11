@@ -30,7 +30,7 @@ The framework is **always consumed as a Composer dependency**: your project boot
 
 ## How to Install
 
-This is the quick version. If you want a more in depth guide follow `SETUP.md` instead, which covers this setup in full.
+This is the quick version. If you want a more in depth guide follow `system/docs/setup.md` instead, which covers this setup in full.
 
 ### Requirements
 

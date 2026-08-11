@@ -40,7 +40,7 @@ stayed a plain `CI_Config` and module config reads fataled. Subclassing
 (`MY_Config` → `MGR_Config` → `MX_Config`, same for Lang) makes `load_class()`
 cache an MX-capable instance from the first call, so the swap becomes a no-op in
 normal boots and correct under PHPUnit. Consuming projects must add both shims
-to adopt the harness; recorded in `MIGRATION.md`.
+to adopt the harness; recorded in `system/docs/upgrading/2.0.0.md`.
 
 ## One clean example
 

@@ -3,8 +3,8 @@
 > Scope: moving to a newer 2.x release of `ixaya/manager` via `composer
 > update`, and reconciling the parts of the scaffold you copied into your
 > project at setup time. For the one-time 1.x → 2.0 structural move, see
-> the root `MIGRATION.md` instead — that is a single migration, not the
-> ongoing release loop this document covers.
+> `system/docs/upgrading/2.0.0.md` instead — that is a single migration, not
+> the ongoing release loop this document covers.
 
 ## What changes on a release
 
@@ -22,8 +22,8 @@ Skills under `.claude/skills/` need none of this: they are symlinks
 straight into `vendor/ixaya/manager/system/skills/`, so their content
 updates the moment `composer update` finishes. The only follow-up is a new
 skill *name* — no symlink exists yet for a skill that didn't exist before,
-so re-run the skill-linking loop from `SETUP.md` after a release that adds
-one.
+so re-run the skill-linking loop from `system/docs/setup.md` after a release
+that adds one.
 
 ## 1. Note the current version
 

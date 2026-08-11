@@ -258,7 +258,7 @@ rather than a separate initiative because it is the same subsystem
   regardless; see `docs/development/database.md` for that naming collision
   and the PostgreSQL trigger's now-disappeared implicit cast. This is a
   breaking change for any deployment with live `Timestamp` columns —
-  `MIGRATION.md` carries the `ALTER COLUMN` path. SQL Server's half is
+  `system/docs/upgrading/2.3.1.md` carries the `ALTER COLUMN` path. SQL Server's half is
   code-only, unvalidated, pending `pdo-dblib-vendor-gaps`.
 - **2026-08-10: SQL Server gets no read-time conversion parity with
   PostgreSQL/MySQL for `Timestamp`, and that is architecturally forced, not

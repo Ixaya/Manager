@@ -64,7 +64,7 @@ all three lang files. phpstan and php-cs-fixer clean (operator-run).
 - Pre-deploy schema gate on the target DB: three `*_selector` columns
   present, `salt` absent — note the physical table is `user`, singular
   (migration `20260213175009_Ion_auth_v2.php`).
-- Run MIGRATION.md's consumer greps on the deploy target's app tree before
+- Run `system/docs/upgrading/2.0.0.md`'s consumer greps on the deploy target's app tree before
   cutover; compare the target's legacy `identity_extra_columns` against its
   instance env (`AUTH_IDENTITY_EXTRA_COLUMNS`).
 - Pre-release engine sweep (CLI suites + probe `all` on postgres, mysql,

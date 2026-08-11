@@ -5,7 +5,7 @@
 | Version | Supported |
 |---|---|
 | 2.x     | Yes — security fixes land here |
-| 1.x     | No — end of life; upgrade via `MIGRATION.md` |
+| 1.x     | No — end of life; upgrade via `system/docs/upgrading/2.0.0.md` |
 
 The framework requires PHP 8.2 or newer; security fixes are only validated
 against supported PHP versions.

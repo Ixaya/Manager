@@ -72,8 +72,8 @@ Evidence: `docs/design/07-database-drivers/decisions.md`'s "Schema type
 mapping" section; live read-back matrix in
 `driver-matrix-timestamp-uuid.md` (PostgreSQL/MySQL, native drivers).
 Cost: breaking change for any existing PostgreSQL/SQL-Server deployment
-with live `Timestamp` columns — `MIGRATION.md` carries the `ALTER COLUMN`
-path.
+with live `Timestamp` columns — `system/docs/upgrading/2.3.1.md` carries the
+`ALTER COLUMN` path.
 Revisit when: SQL Server's `DATETIMEOFFSET` side is code-only, unvalidated
 — pending `pdo-dblib-vendor-gaps`.
 

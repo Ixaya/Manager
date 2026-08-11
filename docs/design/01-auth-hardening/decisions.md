@@ -81,7 +81,8 @@ traceability to commits and probe names. The resulting rules live in
 - **LB5/LB7/LB8/LB10: KEEP the new signatures/formats** (object returns,
   template rendering, strict types, remember-only cookie cleanup). Loud
   failures (TypeError, `__call` throw) are acceptable migration surfaces;
-  silent ones got MIGRATION.md entries (items 2b, 2c) or code fixes.
+  silent ones got `system/docs/upgrading/2.0.0.md` entries (items 2b, 2c) or
+  code fixes.
 - **C3/C4: dead code deleted, not preserved** — unreachable `__call`
   aliases; the never-written identity-cookie auto-login block plus its
   config key. Operator grep across external projects found zero callers.

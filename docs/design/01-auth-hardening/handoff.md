@@ -15,7 +15,8 @@ decision recorded in `decisions.md`); everything verified per `review.md`.
 - Config: identity+IP lockout default, admin hash params, argon2 alias
   comment, `userExpire` clarification; `identityCookieName` removed.
 - Docs/skills: `system/skills/mgr-auth/SKILL.md` (conventions +
-  invariants), MIGRATION.md Ion Auth items 1-5 (consumer traps),
+  invariants), `system/docs/upgrading/2.0.0.md` Ion Auth items 1-5 (consumer
+  traps),
   rest-controller skill password-reset note, helpers skill
   `mgr_is_sql_identifier` entry.
 

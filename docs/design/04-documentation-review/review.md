@@ -49,7 +49,7 @@ documents already mention.
 **Rename: verified by state, not by report.** Ten `mgr-*` directories and
 nothing else; ten `name: mgr-*` fields; zero surviving intermediates from the
 superseded `manager-` pass; ten H1 titles in the `# Manager <Topic>` form. A
-slug sweep returns four hits, all inside the `MIGRATION.md` note that quotes
+slug sweep returns four hits, all inside the `system/docs/upgrading/2.0.0.md` note that quotes
 the old names on purpose.
 
 **Discovery was verified live, in three pieces of evidence:**
@@ -105,7 +105,7 @@ dangerous instance instead. See `decisions.md`.
   `system/skills/mgr-rest-controller/references/full-example.md`.
   Wrapping them would break the token; the exemption matches the precedent
   already recorded for two such lines in `docs/development/docker-decisions.md`.
-- **Four `ixaya-*` occurrences remain**, all in the `MIGRATION.md` rename note,
+- **Four `ixaya-*` occurrences remain**, all in the `system/docs/upgrading/2.0.0.md` rename note,
   where removing them would make the note useless.
 - **`README.md` was not reflowed** — see the open items in `handoff.md`.
 

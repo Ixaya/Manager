@@ -34,8 +34,8 @@ Four independent review passes, ~60 auth findings total:
   edits only as documented, re-verifiable exceptions).
 - Make every KEEP-vs-FIX call explicitly instead of by omission, and record
   the decision.
-- Leave migrating legacy consumers a safe path (MIGRATION.md guidance,
-  library wrappers, loud failures over silent ones).
+- Leave migrating legacy consumers a safe path (`system/docs/upgrading/2.0.0.md`
+  guidance, library wrappers, loud failures over silent ones).
 - Establish repeatable runtime verification (REST probes + CLI suites)
   across postgres, mysql, and mariadb.
 
@@ -44,6 +44,6 @@ Four independent review passes, ~60 auth findings total:
 - Conventions and invariants: `system/skills/mgr-auth/SKILL.md`.
 - `BE_` edit inventory and upstream-merge procedure:
   `docs/development/auth-upstream.md`.
-- Consumer migration guidance: `MIGRATION.md` (Ion Auth items 1-5).
+- Consumer migration guidance: `system/docs/upgrading/2.0.0.md` (Ion Auth items 1-5).
 - Decisions with rationale: `decisions.md` here.
 - Validation results and final state: `review.md` / `handoff.md` here.

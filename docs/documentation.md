@@ -8,16 +8,31 @@
 
 ## Framework deltas to the base standard
 
-- **Repository root** additionally carries four documents the base
-  standard's clean-root rule would otherwise send under `docs/`. Each is
-  here because its reader arrives before `docs/` is reachable or relevant:
-  - `SETUP.md` — the full first-install guide. It cannot live under
-    `docs/`: a consuming project has no `docs/` until the scaffold copy
-    step inside this guide has run.
-  - `MIGRATION.md` — upgrade guidance for consuming projects on Manager
-    1.x; its home whenever the decision matrix would ask.
-  - `SECURITY.md` — vulnerability reporting; conventional root location.
+- **Repository root** carries two documents the base standard's clean-root
+  rule would otherwise send under `docs/`:
+  - `SECURITY.md` — vulnerability reporting. Stays at root (not
+    `system/docs/`) because GitHub's private-vulnerability-reporting tab
+    only detects `SECURITY.md` at repo root, `.github/`, or top-level
+    `docs/` — moving it anywhere else silently breaks that reporting path.
   - `CLAUDE.md` — a one-line `@AGENTS.md` import, not content.
+- **`system/docs/`** is the shipped, **project-facing** reference tree —
+  the material a consuming project actually reads, as opposed to this
+  repo's own process docs under `docs/`. It ships in full to every
+  `vendor/ixaya/manager/`, so it stays small and curated:
+  - `system/docs/setup.md` — the full first-install guide (formerly root
+    `SETUP.md`). It could not live under this repo's own `docs/` — a
+    consuming project has no `docs/` until the scaffold copy step inside
+    this guide has run — but `system/docs/` ships with `vendor/`
+    regardless, so that blocker doesn't apply to it.
+  - `system/docs/upgrading/` — upgrade guidance, split by release instead
+    of one growing file: `<version>.md` documents what to do to move *to*
+    that version, and `next.md` is an always-existing accumulator for
+    unreleased upgrade-relevant work. A campaign/session writes its
+    consumer trap to `next.md` the moment it closes, rather than waiting
+    for a version number to exist. The release pass renames `next.md` →
+    `<version>.md` when that release is cut, then recreates an empty
+    `next.md` for the following cycle — so "where does unreleased work go"
+    never depends on a tag existing yet.
 - **`README.md` is the package's public face** and changes rarely,
   deliberately, and minimally: when installation steps actually change,
   when a major capability ships, or to fix an error. Keep diffs surgical —

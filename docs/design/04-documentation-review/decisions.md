@@ -47,7 +47,7 @@ so it takes the readable form while `name:` takes the distinctive one.
 
 **The rename is a soft breaking change** for anyone who typed `/ixaya-auth`.
 No application code references a skill name, so nothing breaks at runtime;
-the consumer action is recorded in `MIGRATION.md`.
+the consumer action is recorded in `system/docs/upgrading/2.0.0.md`.
 
 ## A shipped contrast must be unconditional — the canon test
 
@@ -125,7 +125,8 @@ written first, at the sample bar, and then enforced.
   `system/skills/`, where the reader is guaranteed the sample's stack. Root
   guides may adopt it and do, but a root document addressing an environment
   this repository does not control is judged on its own terms — which is why
-  `MIGRATION.md`'s bare host commands are correct as written. Rescoping the
+  the `system/docs/upgrading/*.md` guides' bare host commands are correct
+  as written. Rescoping the
   rule was preferred over naming a per-file exception.
 
 ## The frontmatter description follow-on: enforce literally, blanket

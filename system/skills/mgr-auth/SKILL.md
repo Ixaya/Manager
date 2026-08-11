@@ -105,7 +105,7 @@ if ($user !== false) {
 - Session mode (no `disable_session()`, session library loaded): `login()`
   returns `true`, stores the session, and regenerates the session id.
 - There is no 4th `login()` argument; `disable_session()` replaced the legacy
-  `$returnUser` flag (see MIGRATION.md, Ion Auth item 2).
+  `$returnUser` flag (see `system/docs/upgrading/2.0.0.md`, Ion Auth item 2).
 
 API endpoints then issue an `X-API-KEY` via `Rest_key_model` — flow and key
 lifecycle live in the mgr-rest-controller skill.

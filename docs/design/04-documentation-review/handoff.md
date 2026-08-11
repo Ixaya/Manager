@@ -66,7 +66,7 @@ listed in `decisions.md`.
 
 ## Consumer-facing change
 
-`MIGRATION.md` carries the rename note: stale `.claude/skills/ixaya-*`
+`system/docs/upgrading/2.0.0.md` carries the rename note: stale `.claude/skills/ixaya-*`
 symlinks must be deleted by hand, because the loop that creates them only
 writes the names it finds and will not remove the old ones. Re-run the loop,
 then invoke `/mgr-*`. No application code references a skill name, so nothing
