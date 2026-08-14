@@ -117,3 +117,23 @@ between them.
   last value (verified live: `'{"b": 2, "a": 1, "a": 3}'` reads back as
   `'{"a": 3, "b": 2}'`). None of this is round-trip safe if a client cares
   about key order, formatting, or duplicate keys.
+- **A key-prefix-length index (`add_index()`'s `prefix_lengths`) translates
+  per engine, not literally.** MySQL/MariaDB emit the prefix directly in the
+  column list (InnoDB's key-size limit requires one on `TEXT`/`MEDIUMTEXT`
+  columns — a bare index on one is rejected outright there). PostgreSQL has
+  no prefix syntax, so the framework builds an equivalent expression index
+  (`left(col, n)`) instead, matching the same first-N-characters semantics.
+  SQLite ignores the parameter — it enforces no comparable key-size limit.
+  **SQL Server throws** — `NVARCHAR(MAX)` (what `Text`/`MediumText`/
+  `LongText` map to there) cannot be an index key column at all, prefix or
+  not; a persisted computed column is the only real fix, and outside what
+  this helper builds.
+- **Foreign keys (`add_foreign_key()`/`drop_foreign_key()`) are always a
+  post-create `ALTER TABLE`, never declared at `CREATE TABLE` time.** Works
+  as a straightforward `ADD`/`DROP CONSTRAINT` on MySQL/MariaDB/PostgreSQL/
+  SQL Server (`RESTRICT` maps to SQL Server's `NO ACTION`, its nearest
+  equivalent — SQL Server has no `RESTRICT` keyword). **SQLite throws on
+  both** — it has no `ALTER TABLE ADD`/`DROP CONSTRAINT` for foreign keys at
+  all; a FK there can only be declared inline in the original
+  `CREATE TABLE` statement, and retrofitting one onto an existing table
+  needs a full table-recreate, which these helpers don't build.

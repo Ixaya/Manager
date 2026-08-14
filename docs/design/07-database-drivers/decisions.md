@@ -337,3 +337,78 @@ rather than a separate initiative because it is the same subsystem
   storage at all. Blocked on an unproven fact: whether MySQL's strict-mode
   literal parser even accepts a `T`-separated, offset-suffixed string.
   Full write-up: `docs/workspace/00-proposals/timestamp-write-format-atom/spec.md`.
+
+## Schema key constraints (foreign keys, index prefix length)
+
+A consuming project surfaced two real gaps in `MGR_Migration_builder`: no
+way to add a foreign key, and no way to give an index a MySQL/MariaDB-style
+key-prefix length. Both closed as `add_foreign_key()`/`drop_foreign_key()`/
+`add_index()`'s new `prefix_lengths` param — mechanics in
+`docs/development/database.md`; this section is the rationale.
+
+- **2026-08-14: no `CREATE TABLE`-time form for either — ruled out, not
+  deferred.** Checked directly against every forge subclass in
+  `vendor/nielbuys/framework/system/database/drivers/` (`postgre`, `sqlsrv`,
+  `sqlite3`, `mysqli`, `pdo/subdrivers/*`) and the base `DB_forge.php`: zero
+  `FOREIGN`/`REFERENCES` handling anywhere — the only constraint dbforge
+  emits at `CREATE TABLE` time is the primary key. Adding FK support there
+  would mean patching `vendor/nielbuys/framework` itself, which this
+  framework's own rules never do directly, and needs
+  `cweagans/composer-patches` wired in first (not set up — same missing
+  prerequisite already blocking `pdo-dblib-vendor-gaps`). Both helpers are
+  therefore always a post-create `ALTER TABLE`/`CREATE INDEX` call, whether
+  the target table was created earlier in the same `up()` or already
+  existed.
+- **2026-08-14: where the four engines don't converge on one mechanism, the
+  builder throws rather than emitting a silently-wrong or
+  semantically-different translation.** Two engines hit a hard limit no
+  drop-in translation can paper over: SQL Server cannot index a
+  `TEXT`/`NVARCHAR(MAX)` column at all (not a length problem — a hard type
+  restriction; the real fix is a persisted computed column, a bigger,
+  schema-shape-changing operation than `add_index()`'s contract implies),
+  and SQLite has no `ALTER TABLE ADD/DROP CONSTRAINT` for foreign keys at
+  all (a FK there is only ever declared inline in the original
+  `CREATE TABLE`; retrofitting one onto an existing table needs the
+  documented 12-step recreate-table procedure). Both engines throw a clear
+  `RuntimeException` instead of attempting either workaround — cheaper to
+  ship, and correctly documents the gap rather than silently no-op-ing or
+  emitting DDL the engine will reject anyway.
+- **2026-08-14: PostgreSQL's `prefix_lengths` translation is an expression
+  index (`left(col, n)`), not a no-op.** Postgres has no prefix-index
+  syntax, but the expression faithfully reproduces MySQL prefix-index
+  semantics (matches/sorts on the first N characters only, not the full
+  value) — the behavior a caller who wrote a prefix length actually wants,
+  not merely "the closest thing Postgres has." SQLite's own translation
+  really is a no-op: it enforces no comparable key-size limit, so the
+  parameter is ignored and a plain full-column index is built.
+- **2026-08-14: live-verified on PostgreSQL and MySQL 8** (FK enforcement —
+  a bad insert rejected with the real constraint violation on both — and the
+  prefix index landing as `left(description, 191)` on Postgres,
+  `` `description`(191) `` on MySQL); the SQLite throw path was also
+  live-triggered. MariaDB was not separately booted — it shares the
+  identical MySQL code path throughout. SQL Server's throw is
+  **CANNOT-VERIFY at runtime** — this sandbox cannot boot the SQL Server
+  container at all (same environment limitation `pdo-dblib-vendor-gaps`
+  hit); confirmed correct by direct code inspection instead (the throw is a
+  pure PHP branch, evaluated before any query is built).
+- **2026-08-14: `add_index()` validates `prefix_lengths` at the PHP layer —
+  a mistake guard, not an injection defense.** A live edge-case pass (bad
+  table/column names, an unvalidated `prefix_lengths` value) confirmed the
+  real protection against a malicious identifier is CI3's own
+  single-statement `query()` call, not `escape_identifiers()` — the latter
+  only wraps an identifier in the engine's quote character and does not
+  escape an embedded quote inside it, so a crafted name can still break the
+  intended quoting boundary; every case tested still failed as one broken
+  statement rather than executing a second one, live-confirmed on
+  PostgreSQL and MySQL 8 with no schema corruption. Migration table/column
+  names are developer-authored, the same trust boundary as the rest of this
+  framework's migration API, so this was not treated as a live
+  vulnerability. What was worth fixing: `prefix_lengths` values had no
+  runtime type check at all (PHP doesn't enforce array value types), so a
+  wrong value silently reached the database as a raw string and failed
+  there with a confusing SQL syntax error instead of a clear one at the
+  mistake. Added two guards, `MgrFieldBuilder::_validate()`'s pattern —
+  every `prefix_lengths` key must be one of `$columns` (catches a typo
+  between the two), every value must be a positive int — both throwing a
+  class-prefixed `InvalidArgumentException` before any query is built.
+  Live-confirmed both guards fire and valid usage is unaffected.

@@ -498,6 +498,9 @@ class MGR_Migration_builder
 	/** Detected once per migration instance — all field() calls reuse this. */
 	protected MgrDriver $db_driver;
 
+	/** Allowed FK referential actions — kept to the vocabulary every engine understands. */
+	protected const FK_ACTIONS = ['RESTRICT', 'CASCADE', 'SET NULL', 'SET DEFAULT', 'NO ACTION'];
+
 	public function __construct()
 	{
 		$CI = &get_instance();
@@ -680,16 +683,51 @@ class MGR_Migration_builder
 	 * @param  string $table   Table name
 	 * @param  array|string $columns  Column(s) to index
 	 * @param  bool $unique   Whether the index is unique
+	 * @param  array<string,mixed> $prefix_lengths  Column => key-prefix length (MySQL/MariaDB's InnoDB
+	 *         key-size limit). PostgreSQL: `left()` expression index. SQLite: ignored. SQL Server: throws.
 	 * @return void
+	 * @throws InvalidArgumentException if a $prefix_lengths key isn't in $columns, or a value isn't a positive int
+	 * @throws RuntimeException if $prefix_lengths is non-empty on SQL Server
 	 */
-	protected function add_index(string $table, array|string $columns, bool $unique = false): void
+	protected function add_index(string $table, array|string $columns, bool $unique = false, array $prefix_lengths = []): void
 	{
 		$columns     = (array)$columns;
 		$index_name  = $this->_index_name($table, $columns);
 		$unique_sql  = $unique ? 'UNIQUE ' : '';
 
+		foreach ($prefix_lengths as $column => $length) {
+			if (!in_array($column, $columns, true)) {
+				throw new InvalidArgumentException(
+					"MGR_Migration_builder::add_index(): prefix_lengths key '{$column}' is not one of the indexed columns."
+				);
+			}
+			if (!is_int($length) || $length < 1) {
+				throw new InvalidArgumentException(
+					"MGR_Migration_builder::add_index(): prefix_lengths['{$column}'] must be a positive int, got "
+						. var_export($length, true) . '.'
+				);
+			}
+		}
+
+		if (!empty($prefix_lengths) && $this->db_driver === MgrDriver::SQLServer) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::add_index(): SQL Server cannot index a TEXT/NVARCHAR(MAX) "
+					. "column at all, prefix length or not — index '{$index_name}' on '{$table}' needs a "
+					. "persisted computed column instead, which this helper does not build."
+			);
+		}
+
 		match ($this->db_driver) {
-			MgrDriver::Postgres,
+			MgrDriver::Postgres => (function () use ($table, $columns, $index_name, $unique_sql, $prefix_lengths) {
+				$table_ident   = $this->db->escape_identifiers($table);
+				$columns_ident = implode(', ', array_map(
+					fn ($c) => isset($prefix_lengths[$c])
+						? "left({$this->db->escape_identifiers($c)}, {$prefix_lengths[$c]})"
+						: $this->db->escape_identifiers($c),
+					$columns
+				));
+				$this->db->query("CREATE {$unique_sql}INDEX IF NOT EXISTS {$index_name} ON {$table_ident} ({$columns_ident});");
+			})(),
 			MgrDriver::SQLite => (function () use ($table, $columns, $index_name, $unique_sql) {
 				$table_ident   = $this->db->escape_identifiers($table);
 				$columns_ident = implode(', ', array_map([$this->db, 'escape_identifiers'], $columns));
@@ -701,9 +739,12 @@ class MGR_Migration_builder
 				$this->db->query("CREATE {$unique_sql}INDEX {$index_name} ON {$table_ident} ({$columns_ident});");
 			})(),
 			MgrDriver::MySQL,
-			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql) {
+			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql, $prefix_lengths) {
 				$table_ident   = '`' . $table . '`';
-				$columns_ident = implode(', ', array_map(fn ($c) => '`' . $c . '`', $columns));
+				$columns_ident = implode(', ', array_map(
+					fn ($c) => isset($prefix_lengths[$c]) ? "`{$c}`({$prefix_lengths[$c]})" : "`{$c}`",
+					$columns
+				));
 				$this->db->query("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");
 			})()
 		};
@@ -735,6 +776,105 @@ class MGR_Migration_builder
 				$table_ident = '`' . $table . '`';
 				$this->db->query("DROP INDEX `{$index_name}` ON {$table_ident};");
 			})(),
+		};
+	}
+
+	/**
+	 * Adds a foreign key to an existing table.
+	 *
+	 * @param  string $table        Table getting the FK column
+	 * @param  string $column       Column on $table holding the reference
+	 * @param  string $ref_table    Referenced table
+	 * @param  string $ref_column   Referenced column. Default 'id'
+	 * @param  string $on_delete    One of self::FK_ACTIONS. Default 'RESTRICT'
+	 * @param  string $on_update    One of self::FK_ACTIONS. Default 'RESTRICT'
+	 * @return void
+	 * @throws RuntimeException on SQLite
+	 * @throws InvalidArgumentException if $on_delete/$on_update isn't in self::FK_ACTIONS
+	 */
+	protected function add_foreign_key(
+		string $table,
+		string $column,
+		string $ref_table,
+		string $ref_column = 'id',
+		string $on_delete = 'RESTRICT',
+		string $on_update = 'RESTRICT',
+	): void {
+		if ($this->db_driver === MgrDriver::SQLite) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::add_foreign_key(): SQLite has no ALTER TABLE ADD CONSTRAINT "
+					. "for foreign keys — a FK can only be declared inline in the original CREATE TABLE "
+					. "statement. Retrofitting '{$table}.{$column}' -> '{$ref_table}.{$ref_column}' needs "
+					. "the 12-step recreate-table procedure, which this helper does not build."
+			);
+		}
+		if (!in_array($on_delete, self::FK_ACTIONS, true)) {
+			throw new InvalidArgumentException("add_foreign_key(): invalid on_delete '{$on_delete}'.");
+		}
+		if (!in_array($on_update, self::FK_ACTIONS, true)) {
+			throw new InvalidArgumentException("add_foreign_key(): invalid on_update '{$on_update}'.");
+		}
+
+		$fk_ident = $this->db->escape_identifiers($this->_fk_name($table, $column));
+		// SQL Server has no RESTRICT keyword — same behavior as NO ACTION there.
+		$on_delete_sql = ($this->db_driver === MgrDriver::SQLServer && $on_delete === 'RESTRICT') ? 'NO ACTION' : $on_delete;
+		$on_update_sql = ($this->db_driver === MgrDriver::SQLServer && $on_update === 'RESTRICT') ? 'NO ACTION' : $on_update;
+
+		$table_ident     = $this->db->escape_identifiers($table);
+		$column_ident    = $this->db->escape_identifiers($column);
+		$ref_table_ident = $this->db->escape_identifiers($ref_table);
+		$ref_column_ident = $this->db->escape_identifiers($ref_column);
+
+		$this->db->query(
+			"ALTER TABLE {$table_ident} ADD CONSTRAINT {$fk_ident} FOREIGN KEY ({$column_ident}) "
+				. "REFERENCES {$ref_table_ident} ({$ref_column_ident}) "
+				. "ON DELETE {$on_delete_sql} ON UPDATE {$on_update_sql};"
+		);
+	}
+
+	/**
+	 * Drops a foreign key from an existing table.
+	 *
+	 * @param  string $table   Table the FK lives on
+	 * @param  string $column  Column the FK was created on
+	 * @return void
+	 * @throws RuntimeException on SQLite
+	 */
+	protected function drop_foreign_key(string $table, string $column): void
+	{
+		if ($this->db_driver === MgrDriver::SQLite) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::drop_foreign_key(): SQLite has no ALTER TABLE DROP CONSTRAINT "
+					. "for foreign keys — dropping '{$table}.{$column}' needs the 12-step recreate-table "
+					. "procedure, which this helper does not build."
+			);
+		}
+
+		$fk_ident    = $this->db->escape_identifiers($this->_fk_name($table, $column));
+		$table_ident = $this->db->escape_identifiers($table);
+
+		match ($this->db_driver) {
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB => $this->db->query("ALTER TABLE {$table_ident} DROP FOREIGN KEY {$fk_ident};"),
+			MgrDriver::Postgres,
+			MgrDriver::SQLServer => $this->db->query("ALTER TABLE {$table_ident} DROP CONSTRAINT {$fk_ident};"),
+		};
+	}
+
+	/**
+	 * Generates a consistent foreign key constraint name.
+	 *
+	 * @param  string $table
+	 * @param  string $column
+	 * @return string
+	 */
+	protected function _fk_name(string $table, string $column): string
+	{
+		$name = "fk_{$table}_{$column}";
+		return match ($this->db_driver) {
+			MgrDriver::Postgres, MgrDriver::SQLite => $this->_truncate_identifier($name, 63),
+			MgrDriver::SQLServer                   => $this->_truncate_identifier($name, 128),
+			MgrDriver::MySQL, MgrDriver::MariaDB    => $this->_truncate_identifier($name, 64),
 		};
 	}
 

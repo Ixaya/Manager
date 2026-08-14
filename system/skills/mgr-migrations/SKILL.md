@@ -1,6 +1,6 @@
 ---
 name: mgr-migrations
-description: Use when creating or editing a database migration, adding/modifying tables or columns, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns) of the ixaya/manager framework — instead of the legacy CI_Migration/dbforge-array style.
+description: Use when creating or editing a database migration, adding/modifying tables or columns, adding a foreign key or a key-prefix-length index, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns, add_foreign_key()/add_index() prefix lengths) of the ixaya/manager framework — instead of the legacy CI_Migration/dbforge-array style.
 ---
 
 # Manager Migrations (MGR_Migration_builder)
@@ -171,6 +171,26 @@ $this->drop_index(table: 'user', columns: ['email']);
 
 `down()` must reverse `up()` (see `Ion_auth_v2.php` for a full symmetric
 example).
+
+## Key-prefix-length indexes and foreign keys
+
+Always call these after the target table exists — there is no
+`CREATE TABLE`-time form for either.
+
+```php
+$this->add_index(table: 'cfdi_cat_tax', columns: ['description'], prefix_lengths: ['description' => 768]);
+
+$this->add_foreign_key(
+    table: 'bank_movement', column: 'bank_account_id',
+    ref_table: 'bank_account', ref_column: 'id',
+    on_delete: 'CASCADE',   // one of RESTRICT (default) / CASCADE / SET NULL / SET DEFAULT / NO ACTION
+);
+$this->drop_foreign_key('bank_movement', 'bank_account_id');
+```
+
+`add_index()`'s `prefix_lengths` throws on SQL Server. `add_foreign_key()`
+and `drop_foreign_key()` both throw on SQLite. Engine mechanics for all
+three: `docs/development/database.md`'s "Cross-engine quirks" section.
 
 ## Running migrations
 
