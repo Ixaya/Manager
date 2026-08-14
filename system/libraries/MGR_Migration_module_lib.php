@@ -25,9 +25,20 @@ class MGR_Migration_module_lib
 	/** @var array<string, object> */
 	protected array $_libs = [];
 
+	protected bool $_force_db_debug = false;
+
 	public function __construct()
 	{
 		$this->CI = & get_instance();
+	}
+
+	/**
+	 * Forces db_debug on for every connection this instance opens from now on,
+	 * regardless of the app's own setting.
+	 */
+	public function force_db_debug(): void
+	{
+		$this->_force_db_debug = true;
 	}
 
 	// ---- Read-only: what WOULD run. No writes, nothing executed. ----------
@@ -283,7 +294,13 @@ class MGR_Migration_module_lib
 			'db_group'       => $conn,
 		], $name);
 
-		return $this->_libs[$conn] = $this->CI->{$name};
+		$lib = $this->_libs[$conn] = $this->CI->{$name};
+
+		if ($this->_force_db_debug) {
+			$lib->db->db_debug = true;
+		}
+
+		return $lib;
 	}
 
 	protected function _setup_database_connection(string $conn)
@@ -294,6 +311,10 @@ class MGR_Migration_module_lib
 
 		if (!is_object($CI->db) || !$CI->db->conn_id) {
 			throw new RuntimeException("MGR_Migration_module_lib: unable to connect to database connection '{$conn}'.");
+		}
+
+		if ($this->_force_db_debug) {
+			$CI->db->db_debug = true;
 		}
 
 		// Override the default db and dbforge with our connection

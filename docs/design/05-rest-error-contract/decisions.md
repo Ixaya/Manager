@@ -138,6 +138,15 @@ kept for traceability.
   on: a failed query stops the request. Mode (ii), off: the call returns and
   every DB call must check. Forcing the flag was dropped — it overrides a
   decision that is the project's to make.
+- **2026-08-14 (migration-silent-ddl-failure-in-production proposal): `manager/tools/migrate`
+  forces `db_debug` on for the CLI migration commands specifically, narrower
+  than reopening #6c.** #6c is about request-time behavior; this is a CLI op
+  whose only job is to mutate schema, gated off from any request by `Tools`'s
+  own `is_cli()` check. Root cause is upstream: `nielbuys/framework`'s
+  `Migration.php` runner discards `up()`'s failed-query return value, so with
+  `db_debug` off — the docker template's shipped default — a broken migration
+  recorded itself as applied while the DDL never landed. Forcing the flag for
+  the run's own connection surfaces that failure without a vendor patch.
 
 ## Traceability
 

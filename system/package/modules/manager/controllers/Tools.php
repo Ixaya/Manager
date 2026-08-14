@@ -125,6 +125,7 @@ class Tools extends CI_Controller
 		}
 
 		$this->load->library('migration_module_lib');
+		$this->migration_module_lib->force_db_debug();
 		echo $this->migration_module_lib->version_set($database, $module_key, $version) . PHP_EOL;
 	}
 
@@ -143,6 +144,7 @@ class Tools extends CI_Controller
 	public function migrate_database(string $connection_name = 'default', ?string $version = null, ?string $module_key = null)
 	{
 		$this->load->library('migration_module_lib');
+		$this->migration_module_lib->force_db_debug();
 
 		// 2. Targeted version (single target) — may run down() migrations
 		if ($version !== null) {

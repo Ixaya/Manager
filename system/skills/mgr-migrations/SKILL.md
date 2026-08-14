@@ -211,6 +211,12 @@ manager/tools/version_set {version} {app|module:key} {conn}  # record version WI
 
 `RUN_MIGRATIONS=true` on one instance migrates on startup.
 
+`migrate`/`migrate_database`/`version_set` force `db_debug` on for the
+connection they touch, regardless of the app's own setting — a failed DDL
+statement halts the CLI with the query/file/line instead of silently
+recording the migration as applied. `plan`/`version_list` stay read-only and
+don't force it.
+
 Version tracking: the application sequence lives in the `migrations` table
 (single row); each module tracks independently in `migrations_path` (one row
 per module key). Module keys in CLI use `:` for `/` (e.g. `manager:tools`).
