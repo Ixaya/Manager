@@ -338,13 +338,14 @@ rather than a separate initiative because it is the same subsystem
   literal parser even accepts a `T`-separated, offset-suffixed string.
   Full write-up: `docs/workspace/00-proposals/timestamp-write-format-atom/spec.md`.
 
-## Schema key constraints (foreign keys, index prefix length)
+## Schema key constraints (foreign keys, index prefix length, primary keys)
 
-A consuming project surfaced two real gaps in `MGR_Migration_builder`: no
-way to add a foreign key, and no way to give an index a MySQL/MariaDB-style
-key-prefix length. Both closed as `add_foreign_key()`/`drop_foreign_key()`/
-`add_index()`'s new `prefix_lengths` param — mechanics in
-`docs/development/database.md`; this section is the rationale.
+A consuming project surfaced three real gaps in `MGR_Migration_builder`: no
+way to add a foreign key, no way to give an index a MySQL/MariaDB-style
+key-prefix length, and no way to change a primary key after `CREATE TABLE`.
+All closed as `add_foreign_key()`/`drop_foreign_key()`, `add_index()`'s new
+`prefix_lengths` param, and `add_primary_key()`/`drop_primary_key()` —
+mechanics in `docs/development/database.md`; this section is the rationale.
 
 - **2026-08-14: no `CREATE TABLE`-time form for either — ruled out, not
   deferred.** Checked directly against every forge subclass in
@@ -412,3 +413,66 @@ key-prefix length. Both closed as `add_foreign_key()`/`drop_foreign_key()`/
   between the two), every value must be a positive int — both throwing a
   class-prefixed `InvalidArgumentException` before any query is built.
   Live-confirmed both guards fire and valid usage is unaffected.
+- **2026-08-15: moving a primary key keeps the surrogate `id` column and
+  gives it an index — it does not strip the column's auto-increment, and
+  never drops the column.** The consuming migration that raised this dropped
+  `id` outright to make a pivot table's composite key its only identity.
+  Rejected as the model of the problem: `MGR_Model::get()`, `update()` and
+  `delete()` all address a row by a single scalar id, so a table without one
+  leaves the model API entirely — a schema change that silently costs three
+  core methods. The first framework-side design then over-read
+  MySQL/MariaDB's rule as *the column must lose its auto-increment*, and
+  grew a `remove_auto_increment()`/`add_auto_increment()` pair to take the
+  attribute off and put it back. The rule is only *the column must be the
+  leading column of some key*: an ordinary index satisfies it, the column is
+  never touched, and its values and counter are never at risk. Every
+  intermediate state stays valid and non-destructive, which matters because
+  DDL on MySQL is never transactional — a failure mid-migration cannot be
+  rolled back, so the reachable property is "each step is individually
+  safe", not atomicity. The strip-and-restore route failed that: an
+  interrupted run left the column stripped and, on Postgres, its sequence
+  dropped. `remove_auto_increment()` was removed before release.
+- **2026-08-15: `drop_primary_key()` reads the constraint name from the
+  catalog instead of computing it.** The add side must choose a name
+  (`pk_{table}`, matching what CI's own forge assigns at `CREATE TABLE`
+  time), but the drop side computing that same name only ever worked for
+  keys this framework created. PostgreSQL auto-names an `ALTER`-time
+  primary key `{table}_pkey` and SQL Server `PK__table__<hash>` — the exact
+  shapes a legacy project migrating onto this framework arrives with, and
+  the shape the originating migration itself had. One
+  `information_schema.table_constraints` read removes the assumption
+  entirely. MySQL/MariaDB need no lookup: they rename every primary key to
+  the literal `PRIMARY` and drop it by keyword.
+- **2026-08-15: `add_auto_increment()` homologates MySQL's numbering
+  semantics onto PostgreSQL rather than exposing the difference.** MySQL
+  treats `0`/`NULL` as "assign a value" when the attribute is applied and
+  positions the counter itself; PostgreSQL does neither — attaching a
+  sequence leaves existing rows exactly as they were. The same sequence of
+  builder calls therefore produced numbered rows on one engine and
+  all-zeros on the other, with the failure surfacing one call later as a
+  duplicate-key error on the primary key. The Postgres branch now issues
+  the equivalent `UPDATE ... WHERE col = 0 OR col IS NULL` and `setval()`
+  explicitly. Also fixed here: the sequence was positioned with
+  `COALESCE(MAX(col), 0)`, and `setval()` rejects `0` as out of bounds for a
+  sequence whose minimum is 1 — so the helper threw on an empty table, the
+  one case its own documentation claimed was verified. Both live-tested
+  through the builder on PostgreSQL, MySQL and MariaDB, empty and populated.
+- **2026-08-15: `add_column()` cannot add an AUTO_INCREMENT column to an
+  existing table on MySQL/MariaDB — parked, not fixed.** Same engine rule,
+  hit from the other direction: the forge emits `ADD COLUMN` alone, and the
+  key would have to be in the same statement. Works in one statement on
+  PostgreSQL (`serial`) and SQL Server (`IDENTITY`). A portable five-call
+  recipe exists and is documented; closing it properly means either
+  patching `vendor/nielbuys/framework` (blocked on
+  `cweagans/composer-patches`, the same prerequisite blocking
+  `pdo-dblib-vendor-gaps`) or adding a new builder helper that owns the
+  whole operation. Full write-up:
+  `docs/workspace/00-proposals/add-column-auto-increment-mysql/spec.md`.
+- **2026-08-15: SQL Server keeps its arm wherever the SQL is plain ANSI,
+  and throws where it needs IDENTITY surgery — unverified either way.**
+  This environment cannot run SQL Server (no ARM image; `docker/env/mssql.env`
+  is still missing), so `add_primary_key()`/`drop_primary_key()`'s
+  `ADD`/`DROP CONSTRAINT` and the `information_schema` read are reasoned,
+  not tested. Worth noting the alternative was worse than untested: the
+  computed-name approach they replaced was affirmatively broken there, since
+  it could never match a `PK__table__<hash>` auto-name.

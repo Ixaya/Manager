@@ -711,9 +711,8 @@ class MGR_Migration_builder
 
 		if (!empty($prefix_lengths) && $this->db_driver === MgrDriver::SQLServer) {
 			throw new RuntimeException(
-				"MGR_Migration_builder::add_index(): SQL Server cannot index a TEXT/NVARCHAR(MAX) "
-					. "column at all, prefix length or not — index '{$index_name}' on '{$table}' needs a "
-					. "persisted computed column instead, which this helper does not build."
+				"MGR_Migration_builder::add_index(): SQL Server cannot index by key prefix — "
+					. "index '{$index_name}' on '{$table}'."
 			);
 		}
 
@@ -802,10 +801,8 @@ class MGR_Migration_builder
 	): void {
 		if ($this->db_driver === MgrDriver::SQLite) {
 			throw new RuntimeException(
-				"MGR_Migration_builder::add_foreign_key(): SQLite has no ALTER TABLE ADD CONSTRAINT "
-					. "for foreign keys — a FK can only be declared inline in the original CREATE TABLE "
-					. "statement. Retrofitting '{$table}.{$column}' -> '{$ref_table}.{$ref_column}' needs "
-					. "the 12-step recreate-table procedure, which this helper does not build."
+				"MGR_Migration_builder::add_foreign_key(): SQLite cannot add a foreign key to the "
+					. "existing table '{$table}'."
 			);
 		}
 		if (!in_array($on_delete, self::FK_ACTIONS, true)) {
@@ -844,9 +841,8 @@ class MGR_Migration_builder
 	{
 		if ($this->db_driver === MgrDriver::SQLite) {
 			throw new RuntimeException(
-				"MGR_Migration_builder::drop_foreign_key(): SQLite has no ALTER TABLE DROP CONSTRAINT "
-					. "for foreign keys — dropping '{$table}.{$column}' needs the 12-step recreate-table "
-					. "procedure, which this helper does not build."
+				"MGR_Migration_builder::drop_foreign_key(): SQLite cannot drop the foreign key on "
+					. "'{$table}.{$column}'."
 			);
 		}
 
@@ -862,46 +858,199 @@ class MGR_Migration_builder
 	}
 
 	/**
-	 * Generates a consistent foreign key constraint name.
+	 * Adds a primary key to an existing table.
 	 *
-	 * @param  string $table
-	 * @param  string $column
-	 * @return string
+	 * @throws RuntimeException on SQLite
 	 */
-	protected function _fk_name(string $table, string $column): string
+	protected function add_primary_key(string $table, array|string $columns): void
 	{
-		$name = "fk_{$table}_{$column}";
-		return match ($this->db_driver) {
-			MgrDriver::Postgres, MgrDriver::SQLite => $this->_truncate_identifier($name, 63),
-			MgrDriver::SQLServer                   => $this->_truncate_identifier($name, 128),
-			MgrDriver::MySQL, MgrDriver::MariaDB    => $this->_truncate_identifier($name, 64),
+		if ($this->db_driver === MgrDriver::SQLite) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::add_primary_key(): SQLite cannot add a primary key to the existing table '{$table}'."
+			);
+		}
+
+		$table_ident   = $this->db->escape_identifiers($table);
+		$columns_ident = implode(', ', array_map([$this->db, 'escape_identifiers'], (array)$columns));
+
+		match ($this->db_driver) {
+			// MySQL/MariaDB rename every primary key to the literal PRIMARY — naming it there is pointless.
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB => $this->db->query("ALTER TABLE {$table_ident} ADD PRIMARY KEY ({$columns_ident});"),
+			MgrDriver::Postgres,
+			MgrDriver::SQLServer => $this->db->query(
+				"ALTER TABLE {$table_ident} ADD CONSTRAINT {$this->db->escape_identifiers($this->_pk_name($table))} "
+					. "PRIMARY KEY ({$columns_ident});"
+			),
+		};
+	}
+
+	/**
+	 * Drops the primary key from an existing table.
+	 *
+	 * MySQL/MariaDB reject this while it would leave an AUTO_INCREMENT column
+	 * unkeyed — index that column first, and drop the index once the new key
+	 * is in place.
+	 *
+	 * @throws RuntimeException on SQLite, or when the table has no primary key
+	 */
+	protected function drop_primary_key(string $table): void
+	{
+		if ($this->db_driver === MgrDriver::SQLite) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::drop_primary_key(): SQLite cannot drop the primary key of the existing table '{$table}'."
+			);
+		}
+
+		$table_ident = $this->db->escape_identifiers($table);
+
+		match ($this->db_driver) {
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB => $this->db->query("ALTER TABLE {$table_ident} DROP PRIMARY KEY;"),
+			MgrDriver::Postgres,
+			MgrDriver::SQLServer => (function () use ($table, $table_ident) {
+				// Read the live name rather than _pk_name(): a table the framework did not
+				// create carries the engine's own ({table}_pkey, PK__table__<hash>).
+				$schema = $this->db_driver === MgrDriver::Postgres ? 'current_schema()' : 'SCHEMA_NAME()';
+				$row    = $this->db->query(
+					'SELECT constraint_name AS pk_name FROM information_schema.table_constraints WHERE table_name = '
+						. $this->db->escape($table) . " AND table_schema = {$schema} AND constraint_type = 'PRIMARY KEY';"
+				)->row();
+
+				if ($row === null) {
+					throw new RuntimeException(
+						"MGR_Migration_builder::drop_primary_key(): table '{$table}' has no primary key."
+					);
+				}
+
+				$this->db->query(
+					"ALTER TABLE {$table_ident} DROP CONSTRAINT {$this->db->escape_identifiers($row->pk_name)};"
+				);
+			})(),
+		};
+	}
+
+	/**
+	 * Adds AUTO_INCREMENT to an existing column, numbering the rows that hold
+	 * no value yet (0 or NULL) and continuing past the highest existing one.
+	 * The column must already be keyed — MySQL/MariaDB reject an unkeyed
+	 * AUTO_INCREMENT column. Any COMMENT on the column is lost.
+	 *
+	 * @throws RuntimeException on SQL Server/SQLite, or when the column is not found
+	 */
+	protected function add_auto_increment(string $table, string $column): void
+	{
+		if ($this->db_driver === MgrDriver::SQLServer || $this->db_driver === MgrDriver::SQLite) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::add_auto_increment(): {$this->db_driver->name} cannot add an "
+					. "auto-increment attribute to the existing column '{$table}.{$column}'."
+			);
+		}
+
+		$table_ident  = $this->db->escape_identifiers($table);
+		$column_ident = $this->db->escape_identifiers($column);
+
+		match ($this->db_driver) {
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB => (function () use ($table, $column, $table_ident, $column_ident) {
+				// MODIFY COLUMN redeclares the whole column, so the current type has to be
+				// read back rather than assumed.
+				$row = $this->db->query(
+					"SHOW COLUMNS FROM {$table_ident} WHERE Field = " . $this->db->escape($column) . ';'
+				)->row();
+
+				if ($row === null) {
+					throw new RuntimeException(
+						"MGR_Migration_builder::add_auto_increment(): column '{$table}.{$column}' not found."
+					);
+				}
+
+				$this->db->query(
+					"ALTER TABLE {$table_ident} MODIFY COLUMN {$column_ident} {$row->Type} NOT NULL AUTO_INCREMENT;"
+				);
+			})(),
+			MgrDriver::Postgres => (function () use ($table, $column, $table_ident, $column_ident) {
+				$sequence       = $this->_pg_sequence_name($table, $column);
+				$sequence_ident = $this->db->escape_identifiers($sequence);
+
+				$this->db->query("CREATE SEQUENCE {$sequence_ident};");
+				$this->db->query(
+					"ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} "
+						. "SET DEFAULT nextval('{$sequence}'::regclass);"
+				);
+				$this->db->query("ALTER SEQUENCE {$sequence_ident} OWNED BY {$table_ident}.{$column_ident};");
+				// Postgres neither numbers existing rows nor positions the sequence itself.
+				// MySQL does both and reads 0/NULL as "assign one" — homologated here.
+				$this->db->query(
+					"UPDATE {$table_ident} SET {$column_ident} = nextval('{$sequence}'::regclass) "
+						. "WHERE {$column_ident} = 0 OR {$column_ident} IS NULL;"
+				);
+				$this->db->query(
+					"SELECT setval('{$sequence}'::regclass, "
+						. "COALESCE((SELECT MAX({$column_ident}) FROM {$table_ident}), 1), "
+						. "(SELECT MAX({$column_ident}) FROM {$table_ident}) IS NOT NULL);"
+				);
+			})(),
 		};
 	}
 
 	/**
 	 * Generates a consistent index name.
 	 * Postgres includes table name to avoid cross-schema collisions.
-	 *
-	 * @param  string $table
-	 * @param  array  $columns
-	 * @return string
 	 */
 	protected function _index_name(string $table, array $columns): string
 	{
 		$suffix = implode('_', $columns);
-		return match ($this->db_driver) {
+		$name   = match ($this->db_driver) {
 			MgrDriver::Postgres,
-			MgrDriver::SQLite   => $this->_truncate_identifier("{$table}_{$suffix}_key", 63),
-			MgrDriver::SQLServer => $this->_truncate_identifier($suffix, 128),
+			MgrDriver::SQLite    => "{$table}_{$suffix}_key",
+			MgrDriver::SQLServer,
 			MgrDriver::MySQL,
-			MgrDriver::MariaDB  => $this->_truncate_identifier($suffix, 64)
+			MgrDriver::MariaDB   => $suffix,
 		};
+
+		return $this->_truncate_identifier($name);
 	}
+
 	/**
-	 * Ensures the index name never exceeds name limit.
+	 * Generates a consistent foreign key constraint name.
 	 */
-	protected function _truncate_identifier(string $identifier, int $constraint): string
+	protected function _fk_name(string $table, string $column): string
 	{
+		return $this->_truncate_identifier("fk_{$table}_{$column}");
+	}
+
+	/**
+	 * Generates a consistent primary key constraint name.
+	 */
+	protected function _pk_name(string $table): string
+	{
+		return $this->_truncate_identifier("pk_{$table}");
+	}
+
+	/**
+	 * Generates the sequence name Postgres itself assigns a SERIAL column, so
+	 * a restored one is indistinguishable from a natively declared one.
+	 */
+	protected function _pg_sequence_name(string $table, string $column): string
+	{
+		return $this->_truncate_identifier("{$table}_{$column}_seq");
+	}
+
+	/**
+	 * Ensures an identifier never exceeds the engine's name limit.
+	 * Pass $constraint only to override that limit.
+	 */
+	protected function _truncate_identifier(string $identifier, ?int $constraint = null): string
+	{
+		$constraint ??= match ($this->db_driver) {
+			MgrDriver::Postgres,
+			MgrDriver::SQLite    => 63,
+			MgrDriver::SQLServer => 128,
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB   => 64,
+		};
+
 		if (strlen($identifier) <= $constraint) {
 			return $identifier;
 		}

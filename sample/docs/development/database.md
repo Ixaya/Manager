@@ -137,3 +137,31 @@ between them.
   all; a FK there can only be declared inline in the original
   `CREATE TABLE` statement, and retrofitting one onto an existing table
   needs a full table-recreate, which these helpers don't build.
+- **A primary key is only named on some engines, so
+  `drop_primary_key()` asks the catalog rather than guessing.**
+  MySQL/MariaDB rename every primary key to the literal `PRIMARY` and drop
+  it by keyword; PostgreSQL and SQL Server need the constraint's real name,
+  which is whatever created it — the framework's `pk_{table}`, or the
+  engine's own auto-name for a key it created itself (`{table}_pkey` on
+  Postgres, `PK__table__<hash>` on SQL Server). The helper reads
+  `information_schema.table_constraints` for the live name, so it works on
+  tables the framework didn't create. **SQLite throws**, same reason as
+  foreign keys.
+- **An AUTO_INCREMENT column must stay keyed on MySQL/MariaDB — no other
+  engine cares.** Moving the primary key off such a column fails there with
+  *"there can be only one auto column and it must be defined as a key"*
+  unless the column gets an index of its own first. PostgreSQL and SQL
+  Server attach the sequence/IDENTITY to the column independently of any
+  key, so nothing is needed. The same rule is why `add_column()` cannot add
+  an AUTO_INCREMENT column to an existing table on MySQL/MariaDB at all,
+  while `serial` (Postgres) and `IDENTITY` (SQL Server) do it in one
+  statement — the mgr-migrations skill carries the portable recipe for both
+  directions.
+- **Numbering existing rows is MySQL behavior the framework homologates.**
+  When `add_auto_increment()` applies the attribute, MySQL/MariaDB
+  renumber every row holding `0` or `NULL` and position the counter past the
+  highest surviving value. PostgreSQL does neither on its own, so the
+  framework issues the equivalent `UPDATE` and `setval()` explicitly —
+  without them the same migration would leave every Postgres row at `0` and
+  fail the next unique key. Rows already holding a real value are untouched
+  on both.

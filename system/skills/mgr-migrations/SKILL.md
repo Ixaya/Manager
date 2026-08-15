@@ -1,6 +1,6 @@
 ---
 name: mgr-migrations
-description: Use when creating or editing a database migration, adding/modifying tables or columns, adding a foreign key or a key-prefix-length index, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns, add_foreign_key()/add_index() prefix lengths) of the ixaya/manager framework — instead of the legacy CI_Migration/dbforge-array style.
+description: Use when creating or editing a database migration, adding/modifying tables or columns, adding a foreign key, a primary key, or a key-prefix-length index, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns, add_foreign_key()/add_primary_key()/add_index() prefix lengths) of the ixaya/manager framework — instead of the legacy CI_Migration/dbforge-array style.
 ---
 
 # Manager Migrations (MGR_Migration_builder)
@@ -172,10 +172,11 @@ $this->drop_index(table: 'user', columns: ['email']);
 `down()` must reverse `up()` (see `Ion_auth_v2.php` for a full symmetric
 example).
 
-## Key-prefix-length indexes and foreign keys
+## Key-prefix-length indexes, foreign keys, and primary keys
 
 Always call these after the target table exists — there is no
-`CREATE TABLE`-time form for either.
+`CREATE TABLE`-time form for any of them (a PK declared at creation time is
+`$this->dbforge->add_key()` instead — see "Creating a table" above).
 
 ```php
 $this->add_index(table: 'cfdi_cat_tax', columns: ['description'], prefix_lengths: ['description' => 768]);
@@ -186,11 +187,78 @@ $this->add_foreign_key(
     on_delete: 'CASCADE',   // one of RESTRICT (default) / CASCADE / SET NULL / SET DEFAULT / NO ACTION
 );
 $this->drop_foreign_key('bank_movement', 'bank_account_id');
+
+$this->add_primary_key(table: 'user_client', columns: ['user_id', 'client_identifier']);
+$this->drop_primary_key('user_client');
 ```
 
-`add_index()`'s `prefix_lengths` throws on SQL Server. `add_foreign_key()`
-and `drop_foreign_key()` both throw on SQLite. Engine mechanics for all
-three: `docs/development/database.md`'s "Cross-engine quirks" section.
+`add_index()`'s `prefix_lengths` throws on SQL Server. `add_foreign_key()`,
+`drop_foreign_key()`, `add_primary_key()`, and `drop_primary_key()` all throw
+on SQLite — retrofitting any of these onto an existing table needs SQLite's
+recreate-table procedure, which none of these helpers build. Engine
+mechanics for all: `docs/development/database.md`'s "Cross-engine quirks"
+section.
+
+### Moving the primary key onto a composite key
+
+Keep the `id` column. Models address rows by a single scalar id
+(`get($id)`, `update($data, $id)`, `delete($id)`), so a table without one
+drops out of the model API entirely — the composite key goes *alongside*
+`id`, never instead of it.
+
+`id` still needs a key of its own once the primary key moves off it:
+MySQL/MariaDB refuse to leave an AUTO_INCREMENT column unkeyed even
+momentarily, failing with *"Incorrect table definition; there can be only
+one auto column and it must be defined as a key."* An index satisfies that
+without touching the column, so its values and counter are never disturbed.
+
+```php
+// up()
+$this->add_index(table: 'user_client', columns: ['id'], unique: true);
+$this->drop_primary_key('user_client');
+$this->add_primary_key(table: 'user_client', columns: ['user_id', 'client_identifier']);
+
+// down()
+$this->drop_primary_key('user_client');
+$this->add_primary_key(table: 'user_client', columns: ['id']);
+$this->drop_index(table: 'user_client', columns: ['id']);
+```
+
+The index is created first and dropped last — it stands in for the primary
+key for as long as `id` isn't one, so dropping it any earlier fails the same
+way. `unique: true` keeps the uniqueness the primary key used to enforce,
+which is also what guarantees `down()`'s `add_primary_key(['id'])` can't hit
+a duplicate.
+
+### Restoring an AUTO_INCREMENT column
+
+`add_column()` cannot add an AUTO_INCREMENT column to an existing table on
+MySQL/MariaDB — the engine rejects the column unless it is keyed in the same
+statement. Add it as a plain column, key it, then let `add_auto_increment()`
+number the rows. Reversing a migration that dropped the surrogate key
+entirely:
+
+```php
+$this->drop_primary_key('user_client');
+$this->dbforge->add_column('user_client', $this->field(
+    name: 'id', type: MgrFieldType::Int, unsigned: true, nullable: false, default: 0
+));
+$this->add_index(table: 'user_client', columns: ['id']);   // plain: every row still holds 0
+$this->add_auto_increment('user_client', 'id');
+$this->add_primary_key(table: 'user_client', columns: ['id']);
+$this->drop_index(table: 'user_client', columns: ['id']);
+```
+
+The index has to be plain and has to come first: `add_auto_increment()`
+needs the column keyed before it can number anything, and a unique key
+would reject the placeholder zeros it hasn't replaced yet.
+
+`add_auto_increment()` numbers every row holding `0` or `NULL` and leaves
+the rest alone, then positions the counter past the highest existing value —
+so it both fills a fresh column and resumes a populated one. On Postgres it
+builds the sequence under the name a `SERIAL` column would have gotten
+(`{table}_{column}_seq`). It throws on SQL Server and SQLite, which cannot
+add `IDENTITY`/`AUTOINCREMENT` to an existing column at all.
 
 ## Running migrations
 
