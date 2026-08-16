@@ -1,6 +1,6 @@
 ---
 name: mgr-migrations
-description: Use when creating or editing a database migration, adding/modifying tables or columns, adding a foreign key, a primary key, or a key-prefix-length index, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern (field(), MgrFieldType, cross-engine columns, add_foreign_key()/add_primary_key()/add_index() prefix lengths) of the ixaya/manager framework — instead of the legacy CI_Migration/dbforge-array style.
+description: Use when creating or editing a database migration, adding/modifying tables or columns, changing a column's type, adding a foreign key, a primary key, or a key-prefix-length index, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern of the ixaya/manager framework — typed field() columns, cross-engine type mapping, and the index/key/type-change helpers that close CI3's per-engine forge gaps — instead of the legacy CI_Migration/dbforge-array style.
 ---
 
 # Manager Migrations (MGR_Migration_builder)
@@ -169,8 +169,50 @@ $this->add_index(table: 'user', columns: ['email'], unique: true);  // cross-eng
 $this->drop_index(table: 'user', columns: ['email']);
 ```
 
+Tightening `nullable: true` to `false` fails while any row still holds
+`NULL` — a `default` in the same call sets the column default, it does not
+backfill. `UPDATE` those rows first.
+
 `down()` must reverse `up()` (see `Ion_auth_v2.php` for a full symmetric
 example).
+
+### Cross-family type changes
+
+A type change with no automatic cast between the old and the new type —
+string to numeric is the common case — fails on PostgreSQL with *"column
+... cannot be cast automatically ... You might need to specify USING"*. Use
+`modify_column_cast()` there instead of `$this->dbforge->modify_column()`.
+It is safe to reach for on any engine: outside PostgreSQL it delegates to
+`$this->dbforge->modify_column()` unchanged, and it never converts a value
+the engine would otherwise reject — an overlong or out-of-range value fails
+the migration exactly as a plain `modify_column()` would.
+
+```php
+$this->modify_column_cast('supplier_invoice', $this->field(
+    name: 'fiscal_status', type: MgrFieldType::TinyInt, constraint: 4, nullable: false, default: 0,
+));
+```
+
+Pass one column's `field()` output directly — not spread, and not several
+columns at once; `null`, `default` and a rename on that column are applied
+for you.
+
+The cast assumes every stored value already parses as the new type — check
+the live data first. A `VarChar` column holding text labels (`'pending'`,
+`'paid'`) has to be normalized before the type change, with an ordinary
+`UPDATE`. There is no per-call cast override: an expression passed to
+PostgreSQL's `USING` clause would convert nothing on the other engines, and
+this is the form that behaves the same everywhere.
+
+```php
+$this->db->query(
+    "UPDATE supplier_invoice SET fiscal_status = "
+    . "CASE fiscal_status WHEN 'pending' THEN '1' WHEN 'paid' THEN '2' ELSE '0' END"
+);
+$this->modify_column_cast('supplier_invoice', $this->field(
+    name: 'fiscal_status', type: MgrFieldType::TinyInt, constraint: 4, nullable: false, default: 0,
+));
+```
 
 ## Key-prefix-length indexes, foreign keys, and primary keys
 

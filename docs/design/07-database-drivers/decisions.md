@@ -89,6 +89,15 @@ one, so the reasoning that held at the time stays readable.
   Recorded in `docs/development/framework-workflow.md`'s "Cross-engine
   verification" and `docs/development/spec-campaigns.md`'s live-testing
   list.
+- **2026-08-16 (supersedes the ruling above): the matrix runs whichever
+  driver the instance is configured with, and that is `pdo/*` by default.**
+  Once `pdo/mysql` became what a new project gets (2026-08-09), a routine
+  pass pinned to the native drivers verifies the configuration fewer and
+  fewer projects run. The matrix stays one run per engine — the driver
+  dimension is not doubled, it moves — and `mysqli`/`postgre` get their own
+  pass when a change touches driver-specific behavior (CI3's driver classes,
+  fetch types, connection handling) or when asked for by name. Same two
+  documents carry it.
 - **2026-08-05: one `$this->db->query()` call per statement**, everywhere in
   the framework and consuming projects. CI's PDO driver uses the prepared
   protocol, which rejects multiple commands in one call; native `postgre`'s

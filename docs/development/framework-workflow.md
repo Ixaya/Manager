@@ -174,12 +174,13 @@ the matrix (`--profile postgres`, `--profile mysql`, `--profile mariadb`)
 before a release when DB behavior changed: driver quirks have made a fix that
 was correct on one engine wrong on another.
 
-**The matrix is the native drivers only.** `pdo/mysql` and `pdo/pgsql` are
-supported opt-in configurations, not matrix rows: adding them would double
-the engines every DB fix has to be re-verified on, and in practice even
-MariaDB does not get run every time. Test a PDO variant when a change
-touches the PDO path specifically, or when asked for it by name — not as
-part of a routine parity or regression pass.
+**The matrix is engines, not drivers.** Each run uses whatever `DB_DRIVER`
+the instance is configured with, which is `pdo/*` by default — the same
+driver a new project gets. Doubling every engine with its native counterpart
+is not a routine pass; in practice even MariaDB does not get run every time.
+Give `mysqli`/`postgre` their own pass when a change touches driver-specific
+behavior — CI3's driver classes, fetch types, connection handling — or when
+asked for it by name.
 
 Tear down with every profile flag the session used, or the leftover
 containers outlive it:

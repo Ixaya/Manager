@@ -678,6 +678,53 @@ class MGR_Migration_builder
 	}
 
 	/**
+	 * Changes one column's type, the same as `$this->dbforge->modify_column()`,
+	 * with the `USING` cast CI3's Postgres forge omits. Every other attribute on
+	 * the column (null, default, rename) is delegated to `$this->dbforge->modify_column()`.
+	 *
+	 * @param  array<string, array<string, mixed>> $field  One `field()` call's return value, passed directly (no spread)
+	 * @return void
+	 * @throws InvalidArgumentException if $field isn't exactly one column
+	 */
+	protected function modify_column_cast(string $table, array $field): void
+	{
+		if (count($field) !== 1) {
+			throw new InvalidArgumentException(
+				'MGR_Migration_builder::modify_column_cast(): expects exactly one column — call this once per '
+					. 'casted column and $this->dbforge->modify_column() separately for the ones that do not need one.'
+			);
+		}
+
+		if ($this->db_driver !== MgrDriver::Postgres) {
+			$this->dbforge->modify_column($table, $field);
+			return;
+		}
+
+		$column       = array_key_first($field);
+		$attributes   = $field[$column];
+		$table_ident  = $this->db->escape_identifiers($table);
+		$column_ident = $this->db->escape_identifiers($column);
+
+		if (isset($attributes['type'])) {
+			$type = $attributes['type'] . (isset($attributes['constraint']) ? "({$attributes['constraint']})" : '');
+			// Cast to the unconstrained type and let the TYPE clause apply the length: an explicit
+			// cast to VARCHAR(n)/CHAR(n) truncates an overlong value silently, where the column type
+			// alone rejects it. Bare CHAR is CHAR(1) in Postgres, so TEXT stands in as its base.
+			$cast_type = $attributes['type'] === 'CHAR' ? 'TEXT' : $attributes['type'];
+			$this->db->query(
+				"ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} TYPE {$type} "
+					. "USING {$column_ident}::{$cast_type}"
+			);
+		}
+
+		// 'unsigned' never reaches Postgres DDL — nothing to delegate.
+		$rest = array_diff_key($attributes, array_flip(['type', 'constraint', 'unsigned']));
+		if (!empty($rest)) {
+			$this->dbforge->modify_column($table, [$column => $rest]);
+		}
+	}
+
+	/**
 	 * Adds an index to an existing table.
 	 *
 	 * @param  string $table   Table name

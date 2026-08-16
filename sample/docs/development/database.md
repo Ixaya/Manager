@@ -165,3 +165,15 @@ between them.
   without them the same migration would leave every Postgres row at `0` and
   fail the next unique key. Rows already holding a real value are untouched
   on both.
+- **A cross-family `modify_column()` type change fails on PostgreSQL —
+  native driver and `pdo/pgsql` alike.** A bare `ALTER COLUMN ... TYPE ...`
+  has no automatic cast between families (string to numeric is the common
+  case) and fails with *"column ... cannot be cast automatically"*.
+  `modify_column_cast()` supplies the missing `USING` clause, and applies
+  the column's remaining attributes itself. Its cast targets the
+  unconstrained type, so a value the new type can't hold — an overlong
+  string, an out-of-range number — still fails the migration rather than
+  being truncated into place. Values that don't parse as the new type at all
+  (text labels becoming numbers) are normalized by an `UPDATE` before the
+  type change, which is what every engine needs; the mgr-migrations skill
+  carries both shapes.

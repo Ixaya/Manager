@@ -99,3 +99,45 @@ config/public-API-only approach the `mgr-helpers-libraries` skill's
 "working around a gap in CI3's database layer" section documents).
 Revisit when: CI3's vendored forge classes are patched upstream — unlikely,
 and not blocking anything above.
+
+**`MGR_Migration_builder::modify_column_cast()` emits the `USING` cast as raw
+SQL rather than subclassing CI3's Postgres forge, and casts to the
+unconstrained type.**
+Decision (2026-08-16): a cross-family `modify_column()` type change (e.g.
+VarChar -> TinyInt) fails on PostgreSQL with no `USING` clause — the same bug
+sits in `CI_DB_postgre_forge` (native driver) and `CI_DB_pdo_pgsql_forge`
+(the `pdo/pgsql` subdriver), two unrelated vendor classes. Subclassing one of
+them in-process was the first design and was dropped once live-testing showed
+`pdo/pgsql` never loads that class at all. Shipped as raw
+`$this->db->query()` SQL instead, the pattern `add_foreign_key()`/
+`add_primary_key()` already use for their own PostgreSQL gaps. The cast
+targets the type without its length modifier — `col::VARCHAR`, and `TEXT`
+for `CHAR`, whose bare form means `CHAR(1)` — and there is no per-call cast
+override: values that don't parse as the new type are normalized by an
+`UPDATE` ahead of the type change.
+Why: the SQL text is identical whichever vendor class CI3 loaded, so raw SQL
+needs only the resolved `field()` output to be correct on both. Dropping the
+modifier from the cast leaves the length check to the column's own type: an
+explicit `col::VARCHAR(5)` truncates a longer value silently, where the
+`TYPE VARCHAR(5)` clause alone rejects it — this helper must not destroy data
+that a plain `modify_column()` would have refused to touch. A `using`
+parameter was built and then removed: `USING` is a PostgreSQL clause, so the
+argument would convert nothing on the other engines, and emulating it there
+with a pre-`UPDATE` diverges where it matters — the expression result has to
+round-trip through the old column type (`to_timestamp(bigint_col)` has
+nowhere to land), most non-trivial expressions are engine-specific anyway,
+and a failed `ALTER` would leave PostgreSQL untouched but the other engines
+holding rewritten, often unreversible data. The caller's own `UPDATE` is two
+visible lines and behaves identically everywhere; where the framework cannot
+do something on an engine it throws (`add_index()`'s `prefix_lengths`,
+`add_auto_increment()`), it does not accept an argument and ignore it.
+Evidence: live-tested 2026-08-16 through a probe controller on `pdo/pgsql`
+and `pdo/mysql` — bare cast, `UPDATE`-then-cast on text labels, non-numeric
+text still refused without one, the missing-`NULL`-backfill caveat, the
+`down()` direction, and narrowing (VarChar, Char, numeric) refused with data
+intact on both. Native `postgre` and MariaDB not separately exercised;
+MariaDB shares MySQL's passthrough unchanged.
+Cost: a value mapping is a separate `UPDATE` the migration writes itself. One
+column per call, so a batch where only some columns need a cast calls this
+once per casted column.
+Revisit when: nothing pending.

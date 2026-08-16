@@ -18,13 +18,23 @@ design — see `decisions.md`.
 `$this->db->query()` per DDL statement instead of combining
 `DROP TRIGGER IF EXISTS …; CREATE TRIGGER …` into one call.
 
-**Native drivers are the default and the recommendation.** `mysqli` and
-`postgre` ship in `sample/docker/Dockerfile`; `pdo/mysql` and `pdo/pgsql`
-are fully supported at performance parity but require adding the subdriver
-to `docker-php-ext-install` and rebuilding — documented in
-`sample/docs/development/database.md`'s "Running over PDO instead of the
-native driver" and `docs/development/database.md`'s "Database
-extensions" entry.
+**`MGR_Migration_builder::modify_column_cast()`** adds the `USING` cast a
+cross-family `modify_column()` type change needs on PostgreSQL (the native
+driver and the `pdo/pgsql` subdriver both omit it — separate vendor
+classes, same bug). One column per call, applying that column's remaining
+attributes itself, and casting to the unconstrained type so a value the new
+type can't hold still fails the migration instead of being truncated.
+Live-tested on `pdo/pgsql` and `pdo/mysql`; native `postgre`, MariaDB and
+SQL Server not separately exercised.
+
+**PDO is the default and the recommendation; the native drivers stay fully
+supported.** `sample/.env.sample` ships `DB_DRIVER=pdo/mysql` — the
+2026-08-09 ruling in `decisions.md`, superseding this initiative's original
+native-first one — and `sample/docker/Dockerfile` installs `mysqli`,
+`pgsql`, `pdo_mysql` and `pdo_pgsql`, so moving between them needs no image
+change. Details in `sample/docs/development/database.md`'s "PDO is the
+default" section and `docs/development/database.md`'s "Database extensions"
+entry.
 
 **Validated:** PostgreSQL and MySQL, native and `pdo/*`, migrate clean and
 pass the sample's full PHPUnit suite (86 tests / 209 assertions) each.
