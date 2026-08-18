@@ -732,14 +732,21 @@ class MGR_Migration_builder
 	 * @param  bool $unique   Whether the index is unique
 	 * @param  array<string,mixed> $prefix_lengths  Column => key-prefix length (MySQL/MariaDB's InnoDB
 	 *         key-size limit). PostgreSQL: `left()` expression index. SQLite: ignored. SQL Server: throws.
+	 * @param  string|null $name  Exact index name to use, bypassing the derived name — needed to
+	 *         line up with an index created outside this method (`dbforge->add_key()`, hand-run DDL)
 	 * @return void
 	 * @throws InvalidArgumentException if a $prefix_lengths key isn't in $columns, or a value isn't a positive int
 	 * @throws RuntimeException if $prefix_lengths is non-empty on SQL Server
 	 */
-	protected function add_index(string $table, array|string $columns, bool $unique = false, array $prefix_lengths = []): void
-	{
+	protected function add_index(
+		string $table,
+		array|string $columns,
+		bool $unique = false,
+		array $prefix_lengths = [],
+		?string $name = null,
+	): void {
 		$columns     = (array)$columns;
-		$index_name  = $this->_index_name($table, $columns);
+		$index_name  = $name ?? $this->_index_name($table, $columns);
 		$unique_sql  = $unique ? 'UNIQUE ' : '';
 
 		foreach ($prefix_lengths as $column => $length) {
@@ -797,22 +804,27 @@ class MGR_Migration_builder
 	}
 
 	/**
-	 * Drops an index from an existing table.
+	 * Drops an index from an existing table, if a matching one exists.
 	 *
 	 * @param  string $table   Table name
-	 * @param  array|string $columns  Column(s) the index was created on
-	 * @return void
+	 * @param  array|string $columns  Column(s) the index was created on — ignored when $name is
+	 *         given, still required so a call site can name the intent either way
+	 * @param  string|null $name  Exact index name to look for, bypassing the derived name — needed
+	 *         for an index created outside this builder (`dbforge->add_key()`, hand-run DDL, a
+	 *         name that differs per environment)
+	 * @return bool  true if a matching index existed and was dropped, false if none did
 	 */
-	protected function drop_index(string $table, array|string $columns): void
+	protected function drop_index(string $table, array|string $columns, ?string $name = null): bool
 	{
-		$columns    = (array)$columns;
-		$index_name = $this->_index_name($table, $columns);
+		$index_name = $name ?? $this->_index_name($table, (array)$columns);
+
+		if (!$this->_index_exists($table, $index_name)) {
+			return false;
+		}
 
 		match ($this->db_driver) {
 			MgrDriver::Postgres,
-			MgrDriver::SQLite => (function () use ($index_name) {
-				$this->db->query("DROP INDEX IF EXISTS {$index_name};");
-			})(),
+			MgrDriver::SQLite => $this->db->query("DROP INDEX {$index_name};"),
 			MgrDriver::SQLServer => (function () use ($table, $index_name) {
 				$table_ident = $this->db->escape_identifiers($table);
 				$this->db->query("DROP INDEX {$index_name} ON {$table_ident};");
@@ -823,6 +835,8 @@ class MGR_Migration_builder
 				$this->db->query("DROP INDEX `{$index_name}` ON {$table_ident};");
 			})(),
 		};
+
+		return true;
 	}
 
 	/**
@@ -834,6 +848,7 @@ class MGR_Migration_builder
 	 * @param  string $ref_column   Referenced column. Default 'id'
 	 * @param  string $on_delete    One of self::FK_ACTIONS. Default 'RESTRICT'
 	 * @param  string $on_update    One of self::FK_ACTIONS. Default 'RESTRICT'
+	 * @param  string|null $name    Exact constraint name to use, bypassing the derived name
 	 * @return void
 	 * @throws RuntimeException on SQLite
 	 * @throws InvalidArgumentException if $on_delete/$on_update isn't in self::FK_ACTIONS
@@ -845,6 +860,7 @@ class MGR_Migration_builder
 		string $ref_column = 'id',
 		string $on_delete = 'RESTRICT',
 		string $on_update = 'RESTRICT',
+		?string $name = null,
 	): void {
 		if ($this->db_driver === MgrDriver::SQLite) {
 			throw new RuntimeException(
@@ -859,7 +875,7 @@ class MGR_Migration_builder
 			throw new InvalidArgumentException("add_foreign_key(): invalid on_update '{$on_update}'.");
 		}
 
-		$fk_ident = $this->db->escape_identifiers($this->_fk_name($table, $column));
+		$fk_ident = $this->db->escape_identifiers($name ?? $this->_fk_name($table, $column));
 		// SQL Server has no RESTRICT keyword — same behavior as NO ACTION there.
 		$on_delete_sql = ($this->db_driver === MgrDriver::SQLServer && $on_delete === 'RESTRICT') ? 'NO ACTION' : $on_delete;
 		$on_update_sql = ($this->db_driver === MgrDriver::SQLServer && $on_update === 'RESTRICT') ? 'NO ACTION' : $on_update;
@@ -877,14 +893,17 @@ class MGR_Migration_builder
 	}
 
 	/**
-	 * Drops a foreign key from an existing table.
+	 * Drops a foreign key from an existing table, if a matching one exists.
 	 *
 	 * @param  string $table   Table the FK lives on
-	 * @param  string $column  Column the FK was created on
-	 * @return void
+	 * @param  string $column  Column the FK was created on — ignored when $name is given, still
+	 *         required so a call site can name the intent either way
+	 * @param  string|null $name  Exact constraint name to look for, bypassing the derived name —
+	 *         needed for a constraint created outside this builder or named differently per environment
+	 * @return bool  true if a matching foreign key existed and was dropped, false if none did
 	 * @throws RuntimeException on SQLite
 	 */
-	protected function drop_foreign_key(string $table, string $column): void
+	protected function drop_foreign_key(string $table, string $column, ?string $name = null): bool
 	{
 		if ($this->db_driver === MgrDriver::SQLite) {
 			throw new RuntimeException(
@@ -893,7 +912,13 @@ class MGR_Migration_builder
 			);
 		}
 
-		$fk_ident    = $this->db->escape_identifiers($this->_fk_name($table, $column));
+		$fk_name = $name ?? $this->_fk_name($table, $column);
+
+		if (!$this->_fk_exists($table, $fk_name)) {
+			return false;
+		}
+
+		$fk_ident    = $this->db->escape_identifiers($fk_name);
 		$table_ident = $this->db->escape_identifiers($table);
 
 		match ($this->db_driver) {
@@ -902,6 +927,8 @@ class MGR_Migration_builder
 			MgrDriver::Postgres,
 			MgrDriver::SQLServer => $this->db->query("ALTER TABLE {$table_ident} DROP CONSTRAINT {$fk_ident};"),
 		};
+
+		return true;
 	}
 
 	/**
@@ -1060,11 +1087,70 @@ class MGR_Migration_builder
 	}
 
 	/**
+	 * Whether an index by this exact name exists on the table, per the engine's own catalog —
+	 * not a lookup by column, so it never matches a different index over the same columns.
+	 */
+	protected function _index_exists(string $table, string $index_name): bool
+	{
+		$table_escaped = $this->db->escape($table);
+		$name_escaped  = $this->db->escape($index_name);
+
+		$row = match ($this->db_driver) {
+			MgrDriver::Postgres => $this->db->query(
+				"SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() "
+					. "AND tablename = {$table_escaped} AND indexname = {$name_escaped};"
+			)->row(),
+			MgrDriver::SQLite => $this->db->query(
+				"SELECT 1 FROM sqlite_master WHERE type = 'index' "
+					. "AND tbl_name = {$table_escaped} AND name = {$name_escaped};"
+			)->row(),
+			MgrDriver::SQLServer => $this->db->query(
+				"SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID({$table_escaped}) "
+					. "AND name = {$name_escaped};"
+			)->row(),
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB => $this->db->query(
+				"SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() "
+					. "AND table_name = {$table_escaped} AND index_name = {$name_escaped};"
+			)->row(),
+		};
+
+		return $row !== null;
+	}
+
+	/**
 	 * Generates a consistent foreign key constraint name.
 	 */
 	protected function _fk_name(string $table, string $column): string
 	{
 		return $this->_truncate_identifier("fk_{$table}_{$column}");
+	}
+
+	/**
+	 * Whether a foreign key by this exact name exists on the table, per
+	 * `information_schema.table_constraints` — not reachable on SQLite, which has no such catalog
+	 * and where `drop_foreign_key()` already throws before calling this.
+	 */
+	protected function _fk_exists(string $table, string $fk_name): bool
+	{
+		$schema = match ($this->db_driver) {
+			MgrDriver::Postgres  => 'current_schema()',
+			MgrDriver::SQLServer => 'SCHEMA_NAME()',
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB   => 'DATABASE()',
+			MgrDriver::SQLite    => throw new RuntimeException(
+				'MGR_Migration_builder::_fk_exists(): SQLite has no foreign-key catalog to query.'
+			),
+		};
+
+		$row = $this->db->query(
+			'SELECT 1 FROM information_schema.table_constraints WHERE table_name = '
+				. $this->db->escape($table) . " AND table_schema = {$schema} "
+				. 'AND constraint_name = ' . $this->db->escape($fk_name)
+				. " AND constraint_type = 'FOREIGN KEY';"
+		)->row();
+
+		return $row !== null;
 	}
 
 	/**

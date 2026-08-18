@@ -169,6 +169,12 @@ $this->add_index(table: 'user', columns: ['email'], unique: true);  // cross-eng
 $this->drop_index(table: 'user', columns: ['email']);
 ```
 
+`add_index()`/`drop_index()` (and `add_foreign_key()`/`drop_foreign_key()`,
+below) take an optional `name` to override the derived one — needed for an
+index/FK this builder didn't create itself. `drop_index()` and
+`drop_foreign_key()` return `bool`, not `void`: `true` if a matching
+index/FK existed and was dropped, `false` if it didn't (never throws).
+
 Tightening `nullable: true` to `false` fails while any row still holds
 `NULL` — a `default` in the same call sets the column default, it does not
 backfill. `UPDATE` those rows first.
@@ -240,6 +246,10 @@ on SQLite — retrofitting any of these onto an existing table needs SQLite's
 recreate-table procedure, which none of these helpers build. Engine
 mechanics for all: `docs/development/database.md`'s "Cross-engine quirks"
 section.
+
+`add_foreign_key()` takes the same optional `name` as `add_index()` (see
+"Altering tables" above), and `drop_foreign_key()` returns `bool` the same
+way `drop_index()` does.
 
 ### Moving the primary key onto a composite key
 

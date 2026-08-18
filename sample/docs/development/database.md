@@ -137,6 +137,22 @@ between them.
   all; a FK there can only be declared inline in the original
   `CREATE TABLE` statement, and retrofitting one onto an existing table
   needs a full table-recreate, which these helpers don't build.
+- **A plain `dbforge->add_key()` index isn't named the way
+  `add_index()`/`drop_index()` expect, except by coincidence on
+  MySQL/MariaDB.** `_index_name()` derives `{table}_{cols}_key` on
+  Postgres/SQLite and bare `{cols}` on MySQL/MariaDB/SQL Server, but CI's
+  own `add_key()` names a plain index `{table}_{cols}` — no `_key` suffix —
+  everywhere except MySQL/MariaDB, whose forge driver overrides the base
+  naming to already emit that same bare `{cols}` form. The two conventions
+  agree on MySQL/MariaDB by coincidence, not by design. Before this was
+  caught, `drop_index()` against a legacy `add_key()` index issued
+  `DROP INDEX IF EXISTS` against a name that never existed on
+  Postgres/SQLite — a silent no-op reported as success — and threw on SQL
+  Server instead of no-op'ing (that branch had no `IF EXISTS`).
+  `drop_index()`/`drop_foreign_key()` now check the engine's own catalog and
+  return `bool` (found-and-dropped vs. not found) instead of assuming;
+  pass the real name via the new `name` parameter for anything this builder
+  didn't create itself — the mgr-migrations skill covers the call shape.
 - **A primary key is only named on some engines, so
   `drop_primary_key()` asks the catalog rather than guessing.**
   MySQL/MariaDB rename every primary key to the literal `PRIMARY` and drop
