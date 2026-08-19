@@ -28,11 +28,9 @@ class Tools extends CI_Controller
 			['plan', 'Per-module migration status: current/latest/pending per database.'],
 			['version_list [module_key] [database]', 'List recorded migration versions (or one module\'s migration files).'],
 			['version_set <version> [module_key] [database]', 'Force the recorded migration version without running migrations.'],
-			['migration <name>', 'Create a new migration file from the MGR_Migration_builder template.'],
-			['generate_migration_timestamp <name>', 'Print a timestamped migration file name.'],
-			['seeder <name>', 'Create a new seed file.'],
-			['seed <name>', 'Run the specified seed file (stub — not implemented).'],
-			['model <name> <module>', 'Create a new MY_Model skeleton in the given module.'],
+			['migration_file <name> <module> [database]', 'Create a new migration file — auto-versioned _v{n} if the name already exists in that module.'],
+			['migration_path <name> <module> [database]', 'Print the auto-versioned name + destination path for a migration, as JSON.'],
+			['model_file <name> <module> [table]', 'Create a new MY_Model skeleton in the given module, optionally overriding $table_name.'],
 			['generate_enc_key [length]', 'Generate a random encryption key (hex, default 16 bytes).'],
 			['claim_admin', 'One-shot: rotate the seeded admin\'s factory password and print the new one.'],
 			['env_check [key]', 'Per-key env source report (values never printed). No key = framework must-haves.'],
@@ -49,22 +47,11 @@ class Tools extends CI_Controller
 		echo PHP_EOL;
 	}
 
-	public function generate_migration_timestamp(string $name)
-	{
-		$timestamp = date('YmdHis');
-
-		echo $timestamp . '_' . $name . ".php\r\n";
-	}
-
 	public function generate_enc_key(string $length = '16')
 	{
 		$this->load->library('encryption');
 		$key = bin2hex($this->encryption->create_key((int)$length));
 		die($key);
-	}
-	public function migration(string $name)
-	{
-		$this->make_migration_file($name);
 	}
 
 	public function plan()
@@ -158,38 +145,23 @@ class Tools extends CI_Controller
 		}
 	}
 
-	public function seeder(string $name)
+	/**
+	 * Creates a new migration file, auto-versioning the name with `_v{n}`
+	 * when it already exists in the module — see migration_path().
+	 */
+	public function migration_file(string $name, string $module, string $database = 'default')
 	{
-		$this->make_seed_file($name);
-	}
+		[
+			'name'            => $versioned_name,
+			'table_name'      => $table_name,
+			'path'            => $relative_path,
+			'is_modification' => $is_modification,
+		] = $this->_migration_path($name, $module, $database);
 
-	public function seed(string $name)
-	{
-		//Note: add "fzaninotto/faker" to composer and uncomment
-		// $this->faker = Faker\Factory::create();
-
-		// $seeder = new Seeder();
-
-		// $seeder->call($name);
-	}
-
-	public function model($name, $module)
-	{
-		$this->make_model_file($name, $module);
-	}
-
-	protected function make_migration_file($name, $database = 'default', $module = '')
-	{
-		$date = new DateTime();
+		$date      = new DateTime();
 		$timestamp = $date->format('YmdHis');
 
-		$table_name = strtolower($name);
-
-		if ($module == '') {
-			$base_path = APPPATH . "database/migrations/$database";
-		} else {
-			$base_path = APPPATH . "modules/$module/migrations/$database";
-		}
+		$base_path = APPPATH . $relative_path;
 
 		if (!is_dir($base_path)) {
 			if (!mkdir($base_path, 0755, true) && !is_dir($base_path)) {
@@ -197,30 +169,13 @@ class Tools extends CI_Controller
 			}
 		}
 
-		$path = "$base_path/{$timestamp}_{$name}.php";
+		$path = "$base_path/{$timestamp}_{$versioned_name}.php";
 
 		$my_migration = fopen($path, "w") or die("Unable to create migration file!");
 
-		$migration_template = "<?php
-
-class Migration_$name extends MGR_Migration_builder {
-
-	public function up() {
-		\$this->dbforge->add_field([
-			...\$this->field_id('id'),
-			...\$this->field(name: 'name', type: MgrFieldType::VarChar, constraint: 100),
-			...\$this->field_timestamps()
-		]);
-
-		\$this->dbforge->add_key('id', true);
-		\$this->dbforge->create_table('$table_name');
-	}
-
-	public function down() {
-		\$this->dbforge->drop_table('$table_name');
-	}
-
-}";
+		$migration_template = $is_modification
+			? $this->_migration_modification_template($versioned_name, $table_name)
+			: $this->_migration_creation_template($versioned_name, $table_name);
 
 		fwrite($my_migration, $migration_template);
 
@@ -229,67 +184,144 @@ class Migration_$name extends MGR_Migration_builder {
 		echo "$path migration has successfully been created." . PHP_EOL;
 	}
 
-	protected function make_seed_file(string $name)
+	/**
+	 * Prints the auto-versioned migration name and destination path, for
+	 * writing a migration's own content directly instead of going through
+	 * migration_file()'s template.
+	 */
+	public function migration_path(string $name, string $module, string $database = 'default')
 	{
-		$path = APPPATH . "database/seeds/$name.php";
+		echo json_encode($this->_migration_path($name, $module, $database)) . PHP_EOL;
+	}
 
-		$my_seed = fopen($path, "w") or die("Unable to create seed file!");
+	/**
+	 * Module-qualified migration name (`{Module}_{name}`, `_v{n}` appended
+	 * if that name already exists anywhere under the module's own
+	 * migrations, across every database connection it has), plus the
+	 * destination directory and the unqualified table name.
+	 *
+	 * @return array{name: string, table_name: string, path: string, is_modification: bool}
+	 */
+	protected function _migration_path(string $name, string $module, string $database = 'default'): array
+	{
+		$table_name         = strtolower($name);
+		$qualified_base     = ucfirst(strtolower("{$module}_{$name}"));
+		$qualified_base_key = strtolower($qualified_base);
+		$existing           = $this->_module_migration_names($module);
+		$path               = "modules/$module/migrations/$database";
 
-		$seed_template = "<?php
-
-class $name extends Seeder {
-
-	private \$table = 'users';
-
-	public function run() {
-		\$this->db->truncate(\$this->table);
-
-		//seed records manually
-		\$data = [
-			'user_name' => 'admin',
-			'password' => '9871'
-		];
-		\$this->db->insert(\$this->table, \$data);
-
-		//seed many records using faker
-		\$limit = 33;
-		echo \"seeding \$limit user accounts\";
-
-		for (\$i = 0; \$i < \$limit; \$i++) {
-			echo \".\";
-
-			\$data = array(
-				'user_name' => \$this->faker->unique()->userName,
-				'password' => '1234',
-			);
-
-			\$this->db->insert(\$this->table, \$data);
+		if (!in_array($qualified_base_key, $existing, true)) {
+			return [
+				'name'            => $qualified_base,
+				'table_name'      => $table_name,
+				'path'            => $path,
+				'is_modification' => false,
+			];
 		}
 
-		echo PHP_EOL;
+		for ($version = 2; in_array("{$qualified_base_key}_v{$version}", $existing, true); $version++) {
+		}
+
+		return [
+			'name'            => "{$qualified_base}_v{$version}",
+			'table_name'      => $table_name,
+			'path'            => $path,
+			'is_modification' => true,
+		];
 	}
-}
-";
 
-		fwrite($my_seed, $seed_template);
+	/**
+	 * Every migration name segment already used under a module's
+	 * migrations directory, across every database connection it has,
+	 * lowercased.
+	 *
+	 * @return string[]
+	 */
+	protected function _module_migration_names(string $module): array
+	{
+		$names = [];
 
-		fclose($my_seed);
+		foreach (glob(APPPATH . "modules/$module/migrations/*", GLOB_ONLYDIR) ?: [] as $connection_dir) {
+			foreach (glob("$connection_dir/*_*.php") ?: [] as $file) {
+				if (preg_match('/^\d+_(.+)$/', basename($file, '.php'), $matches) === 1) {
+					$names[] = strtolower($matches[1]);
+				}
+			}
+		}
 
-		echo "$path seeder has successfully been created." . PHP_EOL;
+		return $names;
 	}
 
-	protected function make_model_file(string $name, string $module)
+	/**
+	 * Template for a migration's first version — a generic table with an
+	 * id primary key and the standard timestamp pair, safe to run unedited.
+	 */
+	protected function _migration_creation_template(string $name, string $table_name): string
+	{
+		return "<?php
+
+defined('BASEPATH') or exit('No direct script access allowed');
+
+class Migration_$name extends MGR_Migration_builder {
+	protected \$table_name = '$table_name';
+	public function up() {
+		\$this->dbforge->add_field([
+			...\$this->field_id('id'),
+			...\$this->field_timestamps()
+		]);
+
+		\$this->dbforge->add_key('id', true);
+		\$this->dbforge->create_table(\$this->table_name);
+
+		\$this->modify_field_timestamp(table: \$this->table_name, column: 'last_update');
+		\$this->modify_field_timestamp(table: \$this->table_name, column: 'create_date', on_update: false);
+	}
+
+	public function down() {
+		\$this->dbforge->drop_table(\$this->table_name);
+	}
+
+}";
+	}
+
+	/**
+	 * Template for a later version against an existing table — deliberately
+	 * empty rather than a sample: a fabricated add_column()/drop_column()
+	 * pair left un-edited would succeed silently against a real table.
+	 */
+	protected function _migration_modification_template(string $name, string $table_name): string
+	{
+		return "<?php
+
+defined('BASEPATH') or exit('No direct script access allowed');
+
+class Migration_$name extends MGR_Migration_builder {
+	protected \$table_name = '$table_name';
+	public function up() {
+	}
+
+	public function down() {
+	}
+
+}";
+	}
+
+	public function model_file(string $name, string $module, ?string $table = null)
 	{
 		$path = APPPATH . "modules/$module/models/$name.php";
 
 		$my_model = fopen($path, "w") or die("Unable to create model file!");
+
+		$table_property = $table !== null
+			? "\n\tprotected \$table_name = '{$table}';\n"
+			: '';
 
 		$model_template = "<?php
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class $name extends MY_Model {
-
+$table_property
 	public function __construct() {
 		parent::__construct();
 	}

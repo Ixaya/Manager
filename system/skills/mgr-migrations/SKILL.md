@@ -11,12 +11,10 @@ description: Use when creating or editing a database migration, adding/modifying
 
 New migrations extend **`MGR_Migration_builder`** and declare columns with the
 typed `field()` builder. Do NOT extend `CI_Migration` with hand-written
-dbforge arrays — that is the legacy style (still visible in older projects
-under the root `application/database/migrations/` folder and, misleadingly, in
-the template that `manager/tools/migration` scaffolds; rewrite that template
-output if you use it). The builder validates fields at construction time and
-translates types per DB engine (MySQL/MariaDB, PostgreSQL, SQL Server, SQLite)
-automatically.
+dbforge arrays — that is the legacy style, still visible in older projects
+under the root `application/database/migrations/` folder. The builder
+validates fields at construction time and translates types per DB engine
+(MySQL/MariaDB, PostgreSQL, SQL Server, SQLite) automatically.
 
 Source of truth (only read if something here is insufficient):
 - `vendor/ixaya/manager/system/libraries/MGR_Migration_builder.php` —
@@ -27,10 +25,14 @@ Source of truth (only read if something here is insufficient):
   `application/libraries/MY_Migration.php`
 - `vendor/ixaya/manager/system/libraries/MGR_Migration_module_lib.php` —
   plan/run/version API used by the CLI
+- `vendor/ixaya/manager/system/package/modules/manager/controllers/Tools.php` —
+  `migration_file()`/`migration_path()`, the scaffolding + auto-versioning
+  commands below
 - Canonical examples:
   `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Attachment.php`
   (create table), `.../20260213175009_Ion_auth_v2.php` (modify/add/drop
-  columns, rename, indexes)
+  columns, rename, indexes — filename predates the module-qualified naming
+  below; copy the column operations, not the class-name shape)
 
 ## File placement and naming
 
@@ -39,11 +41,31 @@ application/modules/{module}/migrations/{connection}/{YmdHis}_{Name}.php  # wher
 application/database/migrations/{connection}/...   # app-level — legacy history only, don't add here
 ```
 
-`{connection}` is the DB group name (`default`, etc.). Class name is
-`Migration_{Name}` with only the first word capitalized (file
-`20260213175009_Ion_auth_v2.php` → `class Migration_Ion_auth_v2`). Generate a
-timestamp by running `manager/tools/generate_migration_timestamp Name` via
-`bin/cli_run.sh` (see "Running migrations" below for the invocation form).
+`{connection}` is the DB group name (`default`, etc.). `{Name}` should be
+module-qualified — `{Module}_{table}` (a `billing` module's
+`invoice` table → `Billing_invoice`) — so two modules can never pick the
+same migration class name. If that exact qualified name already exists
+anywhere in the module's own migrations directories (any connection), append
+`_v{n}` — `_v2` for the second one, `_v3` for the third, and so on; never
+edit an applied migration in place (see "Rules" below). Check the module's
+existing filenames by hand — no tooling required.
+
+Class name is `Migration_{Name}` with only the first word capitalized (file
+`20260213175009_Ion_auth_v2.php` → `class Migration_Ion_auth_v2` — this one
+predates module-qualification, hence the bare name; copy its capitalization
+mechanics, not its naming).
+
+`manager/tools/migration_file <name> <module> [database]` (via
+`bin/cli_run.sh`, needs the Docker stack up — see "Running migrations"
+below) applies this rule and writes the file for you: it derives the
+qualified/versioned name and pre-fills `up()`/`down()` with a
+safe-to-run-unedited starting point (id + timestamps) on the first version,
+empty on a later one — a fabricated sample against an already-existing
+table would succeed silently if left un-edited, so nothing is pre-filled;
+write the real `add_column`/`modify_column`/`drop_column` calls per
+"Altering tables" below. `manager/tools/migration_path <name> <module>
+[database]` prints the same derived name and destination directory as JSON
+without writing anything, for wiring into a migration authored by hand.
 
 ## Creating a table
 

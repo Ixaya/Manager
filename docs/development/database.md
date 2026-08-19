@@ -141,3 +141,38 @@ Cost: a value mapping is a separate `UPDATE` the migration writes itself. One
 column per call, so a batch where only some columns need a cast calls this
 once per casted column.
 Revisit when: nothing pending.
+
+**Generated migration class names are qualified by module
+(`Migration_{Module}_{table}`), not just versioned (`_v{n}`).**
+Decision (2026-08-18): `Tools::migration_file()`/`migration_path()` derive
+`{Module}_{table}[_v{n}]`, prefixing the owning module, instead of a bare
+`{table}[_v{n}]`.
+Why: every migration class here lives in PHP's bare global namespace — the
+vendored `CI_Migration::version()` resolves classes as a flat
+`'Migration_'.ucfirst(strtolower($name))`, no namespace involved anywhere in
+that chain, and it is not editable (Composer dependency). `Tools::migrate()`
+loops every configured connection, and `MGR_Migration_module_lib::run()`
+loops every module target per connection, all inside one PHP process — two
+same-named migration classes from different modules or connections both
+pending in one run get `include_once`'d back to back, which is a fatal
+`Cannot redeclare class`, not a per-module nuisance. Module directory names
+are already unique within a project, so qualifying by module makes
+cross-module collision impossible by construction rather than merely
+unlikely — the only lever available given no real namespace exists to
+borrow. `$table_name` itself stays unqualified (`invoice`, not
+`billing_invoice`) — this only affects the migration's own class/file
+identity, never the SQL table name, which would be its own schema-breaking
+decision.
+Evidence: live-reproduced 2026-08-18 on the `local` Docker instance — two
+throwaway modules each declaring `class Migration_Zzconflict`, a fresh DB
+(both pending): `tools migrate` → `PHP Fatal error: Cannot redeclare class
+Migration_Zzconflict`, and the crash pre-empted the real `manager` module's
+own pending migrations later in the same run. Full write-up (design
+alternatives considered, the naming-scheme discussion):
+`docs/workspace/00-proposals/migration-versioning/spec.md`, archived to
+`docs/workspace/archive/00-proposals/` once committed.
+Cost: the 9 migrations already shipped under
+`system/package/modules/manager/migrations/default/` predate this and are
+not retroactively qualified.
+Revisit when: the `manager-migrations-homologation` proposal is picked up
+(or dropped) — decides whether the shipped 9 ever get qualified.
