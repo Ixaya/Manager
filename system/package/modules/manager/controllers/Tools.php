@@ -268,7 +268,8 @@ class Migration_$name extends MGR_Migration_builder {
 	public function up() {
 		\$this->dbforge->add_field([
 			...\$this->field_id('id'),
-			...\$this->field_timestamps()
+			...\$this->field(name: 'create_date', type: MgrFieldType::Timestamp, nullable: true),
+			...\$this->field(name: 'last_update', type: MgrFieldType::Timestamp, nullable: true),
 		]);
 
 		\$this->dbforge->add_key('id', true);

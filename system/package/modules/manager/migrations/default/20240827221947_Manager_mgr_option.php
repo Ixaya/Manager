@@ -4,6 +4,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Migration_Manager_mgr_option extends MGR_Migration_builder
 {
+	protected $table_name = 'manager_option';
+
 	public function up()
 	{
 		$this->dbforge->add_field([
@@ -13,13 +15,13 @@ class Migration_Manager_mgr_option extends MGR_Migration_builder
 		]);
 
 		$this->dbforge->add_key('key', true);
-		$this->dbforge->create_table('manager_option');
+		$this->dbforge->create_table($this->table_name);
 
-		$this->modify_field_timestamp('manager_option', 'last_update');
+		$this->modify_field_timestamp($this->table_name, 'last_update');
 	}
 
 	public function down()
 	{
-		$this->dbforge->drop_table('manager_option', true);
+		$this->dbforge->drop_table($this->table_name);
 	}
 }

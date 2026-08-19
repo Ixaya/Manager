@@ -4,6 +4,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Migration_Manager_user_key extends MGR_Migration_builder
 {
+	protected $table_name = 'user_key';
+
 	public function up()
 	{
 		$this->dbforge->add_field([
@@ -20,11 +22,11 @@ class Migration_Manager_user_key extends MGR_Migration_builder
 
 		$this->dbforge->add_key('id', true);
 		$this->dbforge->add_key('key');
-		$this->dbforge->create_table('user_key');
+		$this->dbforge->create_table($this->table_name);
 	}
 
 	public function down()
 	{
-		$this->dbforge->drop_table('user_key');
+		$this->dbforge->drop_table($this->table_name);
 	}
 }

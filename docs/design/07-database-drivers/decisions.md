@@ -346,6 +346,26 @@ rather than a separate initiative because it is the same subsystem
   storage at all. Blocked on an unproven fact: whether MySQL's strict-mode
   literal parser even accepts a `T`-separated, offset-suffixed string.
   Full write-up: `docs/workspace/00-proposals/timestamp-write-format-atom/spec.md`.
+- **2026-08-19: `modify_field_timestamp()` became two independent,
+  declarative bools (`on_update`, `default`) instead of gaining a sibling
+  `remove_*` function.** Each flag now unconditionally reflects the column's
+  end state — dropping one never assumes what an earlier call left behind,
+  matching how `modify_column()` already behaves. Backward-compatible with
+  every existing caller (`Manager_mgr_option`, `Manager_ion_auth`,
+  `Tools.php`'s own scaffold template), verified by reading each call site
+  rather than assumed. Considered and rejected: a single `add`-style toggle
+  governing both artifacts at once, which would have made `on_update`'s
+  meaning depend on another parameter's value.
+- **2026-08-19: the default half is now implemented for SQL Server too, via
+  a named `df_{table}_{column}` constraint and `SYSDATETIMEOFFSET()`** —
+  matching the `DATETIMEOFFSET` type `Timestamp` already maps to there (a
+  bare `GETDATE()`/`CURRENT_TIMESTAMP` would silently mislabel local server
+  time as UTC; see `sample/docs/development/database.md`'s cross-engine
+  quirks). SQLite has no equivalent: setting a default on an existing column
+  needs the recreate-table procedure this builder doesn't implement
+  anywhere, so it throws instead of silently no-op'ing. Unverified either
+  way on SQL Server — no ARM image in this environment, reasoned from T-SQL
+  syntax only, same caveat as the primary-key entry above.
 
 ## Schema key constraints (foreign keys, index prefix length, primary keys)
 

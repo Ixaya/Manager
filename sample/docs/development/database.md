@@ -193,3 +193,12 @@ between them.
   (text labels becoming numbers) are normalized by an `UPDATE` before the
   type change, which is what every engine needs; the mgr-migrations skill
   carries both shapes.
+- **Writing `CURRENT_TIMESTAMP`/`GETDATE()` into a `DATETIMEOFFSET` column
+  silently mislabels local server time as UTC, on SQL Server only.**
+  `Timestamp` maps to `DATETIMEOFFSET` there; both of those functions return
+  a plain `datetime` with no offset, and SQL Server's implicit conversion to
+  `DATETIMEOFFSET` stamps the missing offset as `+00:00` rather than the
+  server's real one. `SYSDATETIMEOFFSET()` carries the actual offset and is
+  the correct function for any raw SQL writing "now" into a `Timestamp`
+  column there. Postgres/MySQL/MariaDB/SQLite are unaffected — none of them
+  has this offset-vs-naive distinction for the value itself.

@@ -91,15 +91,17 @@ class Migration_Manager_attachment extends MGR_Migration_builder
             ...$this->field(name: 'title', type: MgrFieldType::VarChar, constraint: 100),
             ...$this->field(name: 'model_name', type: MgrFieldType::VarChar, constraint: 32),
             ...$this->field(name: 'model_hash', type: MgrFieldType::VarChar, constraint: 32),
-            ...$this->field_timestamps(),                 // create_date (NOT NULL) + last_update (NULL)
+            ...$this->field(name: 'create_date', type: MgrFieldType::Timestamp, nullable: true),
+            ...$this->field(name: 'last_update', type: MgrFieldType::Timestamp, nullable: true),
         ]);
 
         $this->dbforge->add_key('id', true);              // primary key
         $this->dbforge->add_key(['model_hash', 'model_name']); // composite index
         $this->dbforge->create_table('attachment');
 
-        // make last_update auto-update on row changes (per-engine trigger/modifier)
-        $this->modify_field_timestamp('attachment');
+        // last_update auto-updates on every UPDATE; create_date only defaults on INSERT
+        $this->modify_field_timestamp(table: 'attachment', column: 'last_update');
+        $this->modify_field_timestamp(table: 'attachment', column: 'create_date', on_update: false);
     }
 
     public function down()
@@ -373,14 +375,23 @@ don't force it.
 
 Version tracking: the application sequence lives in the `migrations` table
 (single row); each module tracks independently in `migrations_path` (one row
-per module key). Module keys in CLI use `:` for `/` (e.g. `manager:tools`).
-Targets are auto-discovered: the app dir plus every module with a
-`migrations/{conn}/` dir — including modules shipped inside the vendor
-package.
+per module key). Module keys in CLI use `:` for `/` (e.g. `manager:tools` for
+a module under your own `application/modules/`). A module shipped inside
+`vendor/` — the framework's own `manager` module included — needs the full
+offset instead: `vendor:ixaya:manager:system:package:modules:manager`.
+`manager/tools/version_list` prints the exact key for every discovered
+target, including this one, if the derived form isn't obvious. Targets are
+auto-discovered: the app dir plus every module with a `migrations/{conn}/`
+dir — including modules shipped inside the vendor package.
 
 ## Rules
 
 - One concern per migration; never edit an applied migration — add a new one.
+  Exception: a pure rename (filename + class together) or a refactor that
+  provably produces byte-identical DDL (inlining a shared helper's current
+  expansion, say) is safe — version tracking is keyed by timestamp number,
+  not name or content, so nothing changes for an environment that already
+  applied it.
 - Migrations run through dbforge/`$this->db` on the connection being migrated
   — don't load models inside migrations.
 - Legacy files under the root `application/database/migrations/` folder are

@@ -4,6 +4,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Migration_Manager_attachment extends MGR_Migration_builder
 {
+	protected $table_name = 'attachment';
+
 	public function up()
 	{
 		$this->dbforge->add_field([
@@ -14,16 +16,17 @@ class Migration_Manager_attachment extends MGR_Migration_builder
 			...$this->field(name: 'type', type: MgrFieldType::VarChar, constraint: 128),
 			...$this->field(name: 'model_name', type: MgrFieldType::VarChar, constraint: 32),
 			...$this->field(name: 'model_hash', type: MgrFieldType::VarChar, constraint: 32),
-			...$this->field_timestamps()
+			...$this->field(name: 'create_date', type: MgrFieldType::Timestamp, nullable: false),
+			...$this->field(name: 'last_update', type: MgrFieldType::Timestamp, nullable: true),
 		]);
 
 		$this->dbforge->add_key('id', true);
 		$this->dbforge->add_key(['model_hash', 'model_name']);
-		$this->dbforge->create_table('attachment');
+		$this->dbforge->create_table($this->table_name);
 	}
 
 	public function down()
 	{
-		$this->dbforge->drop_table('attachment');
+		$this->dbforge->drop_table($this->table_name);
 	}
 }

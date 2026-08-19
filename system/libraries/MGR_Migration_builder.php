@@ -471,7 +471,7 @@ final class MgrFieldBuilder
 			case MgrFieldType::Enum:
 				if ($this->driver->isMysqlFamily()) {
 					$quoted = array_map(
-						static fn (string $v): string => "'" . str_replace(['\\', "'"], ['\\\\', "''"], $v) . "'",
+						static fn(string $v): string => "'" . str_replace(['\\', "'"], ['\\\\', "''"], $v) . "'",
 						$this->enum_values
 					);
 					$type_value = 'ENUM(' . implode(',', $quoted) . ')';
@@ -599,6 +599,10 @@ class MGR_Migration_builder
 	/**
 	 * Standard create_date + last_update timestamp columns.
 	 *
+	 * Frozen — every call site is an already-applied migration, so changing these
+	 * specs would silently change what it produces on a fresh install. Declare both
+	 * fields explicitly in new migrations instead of calling this.
+	 *
 	 * @return array[]  Two field arrays — spread into add_field() calls or loop them.
 	 */
 	protected function field_timestamps(): array
@@ -618,28 +622,35 @@ class MGR_Migration_builder
 	}
 
 	/**
-	 * Adds an auto-update trigger/modifier for a timestamp column.
+	 * Declaratively sets a timestamp column's default and on-update trigger/modifier —
+	 * each flag independently reflects the column's end state, not a delta from
+	 * whatever an earlier call left behind.
 	 *
-	 * Behaviour varies by engine — the end result is the same: the column
-	 * is automatically set to the current timestamp on every UPDATE.	 *
-	 *
-	 * @param  string $table	Table name
-	 * @param  string $column  Column name to auto-update. Default: 'last_update'
-	 * @param  bool $on_update	Add on update trigger
+	 * @param  string $table	 Table name
+	 * @param  string $column	 Column name. Default: 'last_update'
+	 * @param  bool $on_update	 Auto-set the column to the current timestamp on every UPDATE
+	 * @param  bool $default	 Default the column to the current timestamp on INSERT
 	 * @return void
+	 * @throws RuntimeException if $default is true on SQLite — it has no ALTER COLUMN;
+	 *   setting a default on an existing column needs the recreate-table procedure,
+	 *   which this builder does not implement.
 	 */
-	protected function modify_field_timestamp(string $table, string $column = 'last_update', bool $on_update = true): void
+	protected function modify_field_timestamp(string $table, string $column = 'last_update', bool $on_update = true, bool $default = true): void
 	{
 		$table_ident  = $this->db->escape_identifiers($table);
 		$column_ident = $this->db->escape_identifiers($column);
 
 		match ($this->db_driver) {
-			MgrDriver::Postgres => (function () use ($table_ident, $column_ident, $table, $column, $on_update) {
-				$this->db->query("ALTER TABLE {$table_ident}
-                ALTER COLUMN {$column_ident}
-                SET DEFAULT CURRENT_TIMESTAMP;");
+			MgrDriver::Postgres => (function () use ($table_ident, $column_ident, $table, $column, $on_update, $default) {
+				$this->db->query($default
+					? "ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} SET DEFAULT CURRENT_TIMESTAMP;"
+					: "ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} DROP DEFAULT;");
+
+				// One statement per query(): a PDO connection in extended mode rejects multi-command SQL.
+				$this->db->query("DROP TRIGGER IF EXISTS trg_{$table}_{$column} ON {$table_ident};");
 
 				if (!$on_update) {
+					$this->db->query("DROP FUNCTION IF EXISTS set_{$table}_{$column}();");
 					return;
 				}
 
@@ -651,9 +662,6 @@ class MGR_Migration_builder
                 END;
                 $$ LANGUAGE plpgsql;");
 
-				// One statement per query(): a PDO connection in extended mode rejects multi-command SQL.
-				$this->db->query("DROP TRIGGER IF EXISTS trg_{$table}_{$column} ON {$table_ident};");
-
 				$this->db->query("CREATE TRIGGER trg_{$table}_{$column}
                 BEFORE UPDATE ON {$table_ident}
                 FOR EACH ROW
@@ -661,19 +669,32 @@ class MGR_Migration_builder
 			})(),
 
 			MgrDriver::MySQL,
-			MgrDriver::MariaDB => (function () use ($table, $column, $on_update) {
-				$sql = "ALTER TABLE `{$table}`
-                MODIFY COLUMN `{$column}`
-                TIMESTAMP DEFAULT CURRENT_TIMESTAMP";
-
-				if ($on_update) {
-					$sql .= " ON UPDATE CURRENT_TIMESTAMP";
-				}
-				$this->db->query($sql);
+			MgrDriver::MariaDB => (function () use ($table, $column, $on_update, $default) {
+				$clause = ($default ? ' DEFAULT CURRENT_TIMESTAMP' : '') . ($on_update ? ' ON UPDATE CURRENT_TIMESTAMP' : '');
+				$this->db->query("ALTER TABLE `{$table}` MODIFY COLUMN `{$column}` TIMESTAMP{$clause}");
 			})(),
 
-			// SQLite, SQLServer — no-op, silently skip
-			default => null,
+			MgrDriver::SQLServer => (function () use ($table_ident, $column_ident, $table, $column, $default) {
+				$constraint_ident = $this->db->escape_identifiers("df_{$table}_{$column}");
+
+				$this->db->query("IF EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = 'df_{$table}_{$column}')
+                ALTER TABLE {$table_ident} DROP CONSTRAINT {$constraint_ident};");
+
+				if ($default) {
+					$this->db->query("ALTER TABLE {$table_ident} ADD CONSTRAINT {$constraint_ident} DEFAULT (SYSDATETIMEOFFSET()) FOR {$column_ident};");
+				}
+			})(),
+
+			// SQLite has no ALTER COLUMN. The on-update trigger stays unimplemented;
+			MgrDriver::SQLite => (function () use ($default) {
+				if ($default) {
+					throw new RuntimeException(
+						'MGR_Migration_builder::modify_field_timestamp(): SQLite has no ALTER COLUMN — '
+							. 'setting a default on an existing column needs the recreate-table procedure, '
+							. 'which this builder does not implement.'
+					);
+				}
+			})(),
 		};
 	}
 
@@ -774,7 +795,7 @@ class MGR_Migration_builder
 			MgrDriver::Postgres => (function () use ($table, $columns, $index_name, $unique_sql, $prefix_lengths) {
 				$table_ident   = $this->db->escape_identifiers($table);
 				$columns_ident = implode(', ', array_map(
-					fn ($c) => isset($prefix_lengths[$c])
+					fn($c) => isset($prefix_lengths[$c])
 						? "left({$this->db->escape_identifiers($c)}, {$prefix_lengths[$c]})"
 						: $this->db->escape_identifiers($c),
 					$columns
@@ -795,7 +816,7 @@ class MGR_Migration_builder
 			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql, $prefix_lengths) {
 				$table_ident   = '`' . $table . '`';
 				$columns_ident = implode(', ', array_map(
-					fn ($c) => isset($prefix_lengths[$c]) ? "`{$c}`({$prefix_lengths[$c]})" : "`{$c}`",
+					fn($c) => isset($prefix_lengths[$c]) ? "`{$c}`({$prefix_lengths[$c]})" : "`{$c}`",
 					$columns
 				));
 				$this->db->query("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");
