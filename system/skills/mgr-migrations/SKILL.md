@@ -57,15 +57,28 @@ mechanics, not its naming).
 
 `manager/tools/migration_file <name> <module> [database]` (via
 `bin/cli_run.sh`, needs the Docker stack up — see "Running migrations"
-below) applies this rule and writes the file for you: it derives the
-qualified/versioned name and pre-fills `up()`/`down()` with a
+below) applies this rule and prints a ready-to-run `cat > ... <<'MGR_EOF'`
+command — paste its full output into your own host shell to write the
+file, since a container-side write to `application/` either can't persist
+(no bind) or is blocked outright (the `-b` live-code bind mounts it
+read-only; see `docs/development/docker.md`'s "Live-code dev modes" section
+— `sample/docs/development/docker.md` in the framework repo). It derives
+the qualified/versioned name and pre-fills `up()`/`down()` with a
 safe-to-run-unedited starting point (id + timestamps) on the first version,
 empty on a later one — a fabricated sample against an already-existing
 table would succeed silently if left un-edited, so nothing is pre-filled;
 write the real `add_column`/`modify_column`/`drop_column` calls per
 "Altering tables" below. `manager/tools/migration_path <name> <module>
-[database]` prints the same derived name and destination directory as JSON
-without writing anything, for wiring into a migration authored by hand.
+[database]` prints just the derived name and destination directory as
+JSON, for wiring into a migration authored by hand instead of using
+migration_file()'s template.
+
+Both commands take an optional 4th arg, `force_modification` (any truthy
+value, e.g. `1`). Use it on the first migration for a table that already
+exists but has no module-qualified migration history, such as tables from
+older projects or tables created manually. This forces the tool to generate
+a modification migration (`_v2`) instead of a create migration. You only need
+the flag once; subsequent modifications are detected normally.
 
 ## Creating a table
 
@@ -349,6 +362,8 @@ manager/tools/migrate        # everything forward, all connections in $config['m
 manager/tools/migrate {version} {module_key}  # single target to version — DOWNGRADES run down()!
 manager/tools/version_list   # list version_list commands per target
 manager/tools/version_set {version} {app|module:key} {conn}  # record version WITHOUT running (adopting existing DBs)
+manager/tools/migration_file {name} {module} {database}      # e.g. migration_file Invoice billing default — paste its printed command into your host shell
+manager/tools/migration_file {name} {module} {database} 1    # force_modification is positional, 4th arg — not a named flag
 ```
 
 `RUN_MIGRATIONS=true` on one instance migrates on startup.

@@ -28,9 +28,9 @@ class Tools extends CI_Controller
 			['plan', 'Per-module migration status: current/latest/pending per database.'],
 			['version_list [module_key] [database]', 'List recorded migration versions (or one module\'s migration files).'],
 			['version_set <version> [module_key] [database]', 'Force the recorded migration version without running migrations.'],
-			['migration_file <name> <module> [database]', 'Create a new migration file — auto-versioned _v{n} if the name already exists in that module.'],
-			['migration_path <name> <module> [database]', 'Print the auto-versioned name + destination path for a migration, as JSON.'],
-			['model_file <name> <module> [table]', 'Create a new MY_Model skeleton in the given module, optionally overriding $table_name.'],
+			['migration_file <name> <module> [database] [force_modification]', 'Print a `cat > ... <<\'MGR_EOF\'` command that writes an auto-versioned migration file (_v{n} if the name already exists in that module) — paste it into a host shell. force_modification=1 starts a table with pre-tool history at _v2 instead of a fresh create.'],
+			['migration_path <name> <module> [database] [force_modification]', 'Print the auto-versioned name + destination path for a migration, as JSON. See migration_file for force_modification.'],
+			['model_file <name> <module> [table]', 'Print a `cat > ... <<\'MGR_EOF\'` command that writes a new MY_Model skeleton in the given module, optionally overriding $table_name — paste it into a host shell.'],
 			['generate_enc_key [length]', 'Generate a random encryption key (hex, default 16 bytes).'],
 			['claim_admin', 'One-shot: rotate the seeded admin\'s factory password and print the new one.'],
 			['env_check [key]', 'Per-key env source report (values never printed). No key = framework must-haves.'],
@@ -146,52 +146,46 @@ class Tools extends CI_Controller
 	}
 
 	/**
-	 * Creates a new migration file, auto-versioning the name with `_v{n}`
-	 * when it already exists in the module — see migration_path().
+	 * Prints a `cat > ... <<'MGR_EOF'` command that writes the migration
+	 * file when pasted into a host shell — nothing is written by this call
+	 * itself. Auto-versions the name with `_v{n}` when it already exists
+	 * in the module — see migration_path().
+	 *
+	 * @param string $force_modification Truthy to force the modification
+	 *   branch (`_v2`) for a table whose history predates the
+	 *   `{Module}_{name}` naming convention, instead of a duplicate
+	 *   create-table migration for a table that already exists.
 	 */
-	public function migration_file(string $name, string $module, string $database = 'default')
+	public function migration_file(string $name, string $module, string $database = 'default', string $force_modification = '0')
 	{
 		[
 			'name'            => $versioned_name,
 			'table_name'      => $table_name,
 			'path'            => $relative_path,
 			'is_modification' => $is_modification,
-		] = $this->_migration_path($name, $module, $database);
+			'legacy_cutover'  => $legacy_cutover,
+		] = $this->_migration_path($name, $module, $database, (bool) $force_modification);
 
 		$date      = new DateTime();
 		$timestamp = $date->format('YmdHis');
-
-		$base_path = APPPATH . $relative_path;
-
-		if (!is_dir($base_path)) {
-			if (!mkdir($base_path, 0755, true) && !is_dir($base_path)) {
-				throw new \RuntimeException('Unable to create migrations directory: ' . $base_path);
-			}
-		}
-
-		$path = "$base_path/{$timestamp}_{$versioned_name}.php";
-
-		$my_migration = fopen($path, "w") or die("Unable to create migration file!");
+		$path      = "application/{$relative_path}/{$timestamp}_{$versioned_name}.php";
 
 		$migration_template = $is_modification
-			? $this->_migration_modification_template($versioned_name, $table_name)
+			? $this->_migration_modification_template($versioned_name, $table_name, $legacy_cutover)
 			: $this->_migration_creation_template($versioned_name, $table_name);
 
-		fwrite($my_migration, $migration_template);
-
-		fclose($my_migration);
-
-		echo "$path migration has successfully been created." . PHP_EOL;
+		echo $this->_write_file_command($path, $migration_template) . PHP_EOL;
 	}
 
 	/**
-	 * Prints the auto-versioned migration name and destination path, for
-	 * writing a migration's own content directly instead of going through
-	 * migration_file()'s template.
+	 * Prints the auto-versioned migration name and destination path as
+	 * JSON, for wiring into a migration authored by hand instead of going
+	 * through migration_file()'s template. See migration_file() for
+	 * $force_modification.
 	 */
-	public function migration_path(string $name, string $module, string $database = 'default')
+	public function migration_path(string $name, string $module, string $database = 'default', string $force_modification = '0')
 	{
-		echo json_encode($this->_migration_path($name, $module, $database)) . PHP_EOL;
+		echo json_encode($this->_migration_path($name, $module, $database, (bool) $force_modification)) . PHP_EOL;
 	}
 
 	/**
@@ -200,9 +194,14 @@ class Tools extends CI_Controller
 	 * migrations, across every database connection it has), plus the
 	 * destination directory and the unqualified table name.
 	 *
-	 * @return array{name: string, table_name: string, path: string, is_modification: bool}
+	 * @param bool $force_modification Skip the existence check and always
+	 *   return the modification branch — for a table whose migrations
+	 *   predate the `{Module}_{name}` convention, where the on-disk glob
+	 *   can never match the qualified name even though the table already
+	 *   exists.
+	 * @return array{name: string, table_name: string, path: string, is_modification: bool, legacy_cutover: bool}
 	 */
-	protected function _migration_path(string $name, string $module, string $database = 'default'): array
+	protected function _migration_path(string $name, string $module, string $database = 'default', bool $force_modification = false): array
 	{
 		$table_name         = strtolower($name);
 		$qualified_base     = ucfirst(strtolower("{$module}_{$name}"));
@@ -210,12 +209,13 @@ class Tools extends CI_Controller
 		$existing           = $this->_module_migration_names($module);
 		$path               = "modules/$module/migrations/$database";
 
-		if (!in_array($qualified_base_key, $existing, true)) {
+		if (!$force_modification && !in_array($qualified_base_key, $existing, true)) {
 			return [
 				'name'            => $qualified_base,
 				'table_name'      => $table_name,
 				'path'            => $path,
 				'is_modification' => false,
+				'legacy_cutover'  => false,
 			];
 		}
 
@@ -227,6 +227,7 @@ class Tools extends CI_Controller
 			'table_name'      => $table_name,
 			'path'            => $path,
 			'is_modification' => true,
+			'legacy_cutover'  => $force_modification,
 		];
 	}
 
@@ -288,13 +289,23 @@ class Migration_$name extends MGR_Migration_builder {
 	 * Template for a later version against an existing table — deliberately
 	 * empty rather than a sample: a fabricated add_column()/drop_column()
 	 * pair left un-edited would succeed silently against a real table.
+	 *
+	 * @param bool $legacy_cutover Table whose migrations predate the
+	 *   `{Module}_{name}` naming convention — adds a pointer comment since
+	 *   `_v{n}` restarts at `_v2` here with no `_v1`/bare version in this
+	 *   module, which could otherwise misread as the table's first
+	 *   migration.
 	 */
-	protected function _migration_modification_template(string $name, string $table_name): string
+	protected function _migration_modification_template(string $name, string $table_name, bool $legacy_cutover = false): string
 	{
+		$legacy_comment = $legacy_cutover
+			? "\n// Continues pre-existing migration history for this table; earlier migrations predate the {Module}_{name} naming convention.\n"
+			: '';
+
 		return "<?php
 
 defined('BASEPATH') or exit('No direct script access allowed');
-
+{$legacy_comment}
 class Migration_$name extends MGR_Migration_builder {
 	protected \$table_name = '$table_name';
 	public function up() {
@@ -306,11 +317,14 @@ class Migration_$name extends MGR_Migration_builder {
 }";
 	}
 
+	/**
+	 * Prints a ready-to-run `cat > ... <<'MGR_EOF'` shell command that
+	 * writes the model file — see migration_file()'s docblock for why this
+	 * prints instead of writing directly.
+	 */
 	public function model_file(string $name, string $module, ?string $table = null)
 	{
-		$path = APPPATH . "modules/$module/models/$name.php";
-
-		$my_model = fopen($path, "w") or die("Unable to create model file!");
+		$path = "application/modules/$module/models/$name.php";
 
 		$table_property = $table !== null
 			? "\n\tprotected \$table_name = '{$table}';\n"
@@ -328,11 +342,21 @@ $table_property
 }
 ";
 
-		fwrite($my_model, $model_template);
+		echo $this->_write_file_command($path, $model_template) . PHP_EOL;
+	}
 
-		fclose($my_model);
+	/**
+	 * A `mkdir -p`-then-`cat > $path <<'MGR_EOF' ... MGR_EOF` command:
+	 * pasted into a host shell (not run in-container), it creates $path's
+	 * directory if needed and writes $content to $path verbatim — the
+	 * quoted delimiter disables the shell's own `$`/backtick expansion,
+	 * which would otherwise mangle the PHP inside.
+	 */
+	protected function _write_file_command(string $path, string $content): string
+	{
+		$dir = dirname($path);
 
-		echo "$path model has successfully been created." . PHP_EOL;
+		return "mkdir -p $dir && cat > $path <<'MGR_EOF'\n{$content}\nMGR_EOF";
 	}
 
 	public function cli_exec(string $module, string $library, string $function, string $identifier = '')

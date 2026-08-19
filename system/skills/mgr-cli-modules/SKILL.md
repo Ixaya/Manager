@@ -81,6 +81,11 @@ Conventions:
   `$this->response()`.
 - Add `@property` docblocks for everything loaded via `$this->load` — that's
   how PHPStan resolves CI3 magic properties.
+- A command that generates a project file (a scaffold, e.g.
+  `migration_file`/`model_file`) prints a `cat > ... <<'MGR_EOF'` command
+  instead of writing the file itself — `application/` is read-only under
+  this stack's live-code dev bind (and non-persistent without it), so only
+  the developer's own host shell can create the file (see mgr-migrations).
 - Migration/seed/scaffold commands already exist in `manager/tools` (see
   mgr-migrations) — don't reinvent them.
 - Health/status checks: `manager/health_checks` already exists (CLI and

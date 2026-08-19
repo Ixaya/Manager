@@ -176,3 +176,63 @@ Cost: the 9 migrations already shipped under
 not retroactively qualified.
 Revisit when: the `manager-migrations-homologation` proposal is picked up
 (or dropped) — decides whether the shipped 9 ever get qualified.
+
+**`Tools::migration_file()`/`migration_path()` take a `$force_modification`
+flag to seed a table whose history predates module-qualified naming.**
+Decision (2026-08-18): a truthy `$force_modification` (CLI: a 4th arg)
+skips the existence check in `_migration_path()` and returns the
+modification branch unconditionally, so the first tool-managed migration
+for such a table lands at `_v2` rather than a bare/`_v1` name.
+Why: the module-qualification decision above created a gap for every table
+in every project adopting this tool, not just the 9 shipped here —
+`_module_migration_names()` only matches filenames whose tail is already
+`{module}_{name}`, so a table with pre-qualification history is invisible
+to the existence check and would otherwise get handed a create-table
+template for a table that already exists. The `_v2` landing spot is
+deliberately the same numbering a second module's copy of the same table
+name would get, since `_v{n}` was never a lifetime count of a table's
+modifications, only a collision key scoped to this tool's own qualified
+series. The generated file gets a one-line pointer comment
+(`_migration_modification_template()`'s `$legacy_cutover` param) noting
+that earlier migrations predate the naming convention, so `_v2` with no
+`_v1` in the module doesn't read as a mistake.
+Cost: only needed once per table — after the qualified name exists on
+disk, later modifications are detected normally without the flag.
+Revisit when: nothing pending.
+
+**`Tools::migration_file()`/`model_file()` print a `cat > ... <<'MGR_EOF'`
+command instead of writing the file themselves.**
+Decision (2026-08-18): both commands compute the versioned name/path and
+render the template exactly as before, but the final step changed from
+`fopen()`/`fwrite()` against `APPPATH` to printing a heredoc-style shell
+command via a shared `_write_file_command()` helper; the developer pastes
+the full output into their own host shell to create the file.
+Why: a container-side write to `application/` only ever reaches the host
+filesystem when that path is bind-mounted read-write, and this stack's own
+live-code dev bind (`-b`) mounts it **read-only** on purpose (`docker.md`'s
+"Live-code dev modes" — the bind exists for hot-reloading host edits into
+the container, not the reverse); without `-b` the write lands in the
+container's own ephemeral layer and is gone the moment `--rm` cleans it up.
+There is no bind mode in this stack where a container-side write both
+succeeds and persists to the host tree a developer would commit. Printing a
+command shifts the actual file-creation step to the host shell, which can
+always write its own filesystem — the container's only job becomes
+computing the correct name/version/template, something `migration_path()`
+already conceded (it has only ever printed JSON, never written a file).
+The heredoc delimiter (`MGR_EOF`) is single-quoted specifically to disable
+the shell's `$`/backtick expansion inside the pasted block — unquoted, a
+migration full of `$this->table_name` etc. would have every `$expression`
+substituted by the shell before `cat` ever saw it.
+Evidence: live-reproduced 2026-08-18 on the `local` Docker instance before
+this fix — `migration_file` under `-b` threw on `mkdir()` against the
+read-only bind with **zero console output** (no `display_errors`, nothing
+in `/var/log/manager`): a silent failure a developer could easily miss.
+Cost: `migration_file`/`model_file` no longer create a file as a
+side-effect of one command; every use requires copying the printed block
+into a second, host-side paste. Accepted because the prior "creates a file"
+behavior was already broken (silently, in the most common dev-loop
+configuration) rather than merely inconvenient.
+Revisit when: a writable, host-persisted bind mode is added to this stack
+for a use case that isn't live-code hot-reload — unlikely, since that would
+reintroduce the same class of "container mutates a tree it doesn't own"
+risk the read-only `-b` bind was built to avoid.
