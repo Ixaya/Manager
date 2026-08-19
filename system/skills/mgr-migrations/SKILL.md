@@ -29,10 +29,9 @@ Source of truth (only read if something here is insufficient):
   `migration_file()`/`migration_path()`, the scaffolding + auto-versioning
   commands below
 - Canonical examples:
-  `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Attachment.php`
-  (create table), `.../20260213175009_Ion_auth_v2.php` (modify/add/drop
-  columns, rename, indexes — filename predates the module-qualified naming
-  below; copy the column operations, not the class-name shape)
+  `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Manager_attachment.php`
+  (create table), `.../20260213175009_Manager_ion_auth_v2.php` (modify/add/drop
+  columns, rename, indexes)
 
 ## File placement and naming
 
@@ -51,9 +50,7 @@ edit an applied migration in place (see "Rules" below). Check the module's
 existing filenames by hand — no tooling required.
 
 Class name is `Migration_{Name}` with only the first word capitalized (file
-`20260213175009_Ion_auth_v2.php` → `class Migration_Ion_auth_v2` — this one
-predates module-qualification, hence the bare name; copy its capitalization
-mechanics, not its naming).
+`20260213175009_Manager_ion_auth_v2.php` → `class Migration_Manager_ion_auth_v2`).
 
 `manager/tools/migration_file <name> <module> [database]` (via
 `bin/cli_run.sh`, needs the Docker stack up — see "Running migrations"
@@ -85,7 +82,7 @@ the flag once; subsequent modifications are detected normally.
 ```php
 <?php
 
-class Migration_Attachment extends MGR_Migration_builder
+class Migration_Manager_attachment extends MGR_Migration_builder
 {
     public function up()
     {
@@ -214,7 +211,7 @@ Tightening `nullable: true` to `false` fails while any row still holds
 `NULL` — a `default` in the same call sets the column default, it does not
 backfill. `UPDATE` those rows first.
 
-`down()` must reverse `up()` (see `Ion_auth_v2.php` for a full symmetric
+`down()` must reverse `up()` (see `Manager_ion_auth_v2.php` for a full symmetric
 example).
 
 ### Cross-family type changes

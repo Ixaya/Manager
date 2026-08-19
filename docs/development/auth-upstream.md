@@ -220,5 +220,5 @@ all of these intact:
      MariaDB 12.3.
 4. Pre-deploy on a real target: the schema gate (`SHOW COLUMNS FROM user LIKE
    '%selector%'` — note the singular `user` table; three `*_selector` columns
-   present, `salt` absent — migration `20260213175009_Ion_auth_v2.php`) and
+   present, `salt` absent — migration `20260213175009_Manager_ion_auth_v2.php`) and
    `system/docs/upgrading/2.0.0.md`'s consumer greps on the target's app tree.
