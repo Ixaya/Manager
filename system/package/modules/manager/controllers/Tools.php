@@ -208,8 +208,10 @@ class Tools extends CI_Controller
 		$qualified_base_key = strtolower($qualified_base);
 		$existing           = $this->_module_migration_names($module);
 		$path               = "modules/$module/migrations/$database";
+		$has_history        = in_array($qualified_base_key, $existing, true)
+			|| preg_grep('/^' . preg_quote($qualified_base_key, '/') . '_v\d+$/', $existing) !== [];
 
-		if (!$force_modification && !in_array($qualified_base_key, $existing, true)) {
+		if (!$force_modification && !$has_history) {
 			return [
 				'name'            => $qualified_base,
 				'table_name'      => $table_name,
