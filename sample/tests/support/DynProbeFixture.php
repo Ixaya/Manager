@@ -19,6 +19,7 @@ class Dyn_probe_model extends APP_Model_Dyn
 	{
 		$this->table_name = 'dyn_probe_test';
 		$this->soft_delete = true;
+		$this->sync_timestamp_columns = ['create_date', 'last_update', 'import_date'];
 
 		parent::__construct();
 	}

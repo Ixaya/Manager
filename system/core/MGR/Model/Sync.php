@@ -4,6 +4,25 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 trait MGR_Model_Sync
 {
+	/** Columns diffed as instants rather than raw strings — set by a model syncing a TIMESTAMPTZ column. */
+	protected array $sync_timestamp_columns = [];
+
+	/**
+	 * Reconciles a naive vs. offset-suffixed timestamp value onto the same
+	 * instant before diffing.
+	 *
+	 * @see mgr_format_date_time_sql()
+	 */
+	private function normalize_timestamp_value(?string $value): ?string
+	{
+		if ($value === null) {
+			return null;
+		}
+
+		$this->load->helper('manager_time_helper');
+		return mgr_format_date_time_sql($value);
+	}
+
 	public function sync_update_insert(array $data, array $where, bool $insert = true, bool $add_sync = false, bool $add_import = true, array $extra_data = [], bool &$modified = false): int|string|false
 	{
 		$this->check_connect();
@@ -15,8 +34,15 @@ trait MGR_Model_Sync
 		if (!empty($row)) {
 			$update_data = [];
 			foreach (array_keys($data) as $key) {
+				$stored   = $row[$key] ?? null;
+				$incoming = $data[$key];
+				if (in_array($key, $this->sync_timestamp_columns, true)) {
+					$stored   = $this->normalize_timestamp_value($stored);
+					$incoming = $this->normalize_timestamp_value($incoming);
+				}
+
 				// Loose compare: DB drivers can return strings ("5") that must equal typed values (5); strict here would resync every row.
-				if (($row[$key] ?? null) != $data[$key]) {
+				if ($stored != $incoming) {
 					$update_data[$key] = $data[$key];
 				}
 			}
@@ -73,8 +99,15 @@ trait MGR_Model_Sync
 			$update_data = [];
 
 			foreach (array_keys($data) as $key) {
+				$stored   = $row[$key];
+				$incoming = $data[$key];
+				if (in_array($key, $this->sync_timestamp_columns, true)) {
+					$stored   = $this->normalize_timestamp_value($stored);
+					$incoming = $this->normalize_timestamp_value($incoming);
+				}
+
 				// Loose compare: DB drivers return strings ("5") that must equal typed values (5); strict here would resync every row.
-				if ($row[$key] != $data[$key]) {
+				if ($stored != $incoming) {
 					$update_data[$key] = $data[$key];
 				}
 			}

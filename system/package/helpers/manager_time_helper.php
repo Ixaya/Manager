@@ -138,13 +138,19 @@ function mgr_create_date_time(?string $date_string = null, ?string $format = nul
 }
 
 /**
- * Format a Timestamp column's raw driver value as ISO-8601, so API output
- * reads identically regardless of the connected engine (MySQL's naive
- * string vs. Postgres/SQL-Server's offset-suffixed one).
+ * Format a string Timestamp raw value as ISO-8601
  */
 function mgr_format_date_time_iso(string $raw_value): ?string
 {
 	return mgr_create_date_time($raw_value)?->format(DateTimeInterface::ATOM);
+}
+
+/**
+ * Format a string Timestamp raw value as SQL-formatted (`Y-m-d H:i:s`)
+ */
+function mgr_format_date_time_sql(string $raw_value): ?string
+{
+	return mgr_create_date_time($raw_value)?->format('Y-m-d H:i:s');
 }
 
 /**

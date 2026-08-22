@@ -471,7 +471,7 @@ final class MgrFieldBuilder
 			case MgrFieldType::Enum:
 				if ($this->driver->isMysqlFamily()) {
 					$quoted = array_map(
-						static fn(string $v): string => "'" . str_replace(['\\', "'"], ['\\\\', "''"], $v) . "'",
+						static fn (string $v): string => "'" . str_replace(['\\', "'"], ['\\\\', "''"], $v) . "'",
 						$this->enum_values
 					);
 					$type_value = 'ENUM(' . implode(',', $quoted) . ')';
@@ -795,7 +795,7 @@ class MGR_Migration_builder
 			MgrDriver::Postgres => (function () use ($table, $columns, $index_name, $unique_sql, $prefix_lengths) {
 				$table_ident   = $this->db->escape_identifiers($table);
 				$columns_ident = implode(', ', array_map(
-					fn($c) => isset($prefix_lengths[$c])
+					fn ($c) => isset($prefix_lengths[$c])
 						? "left({$this->db->escape_identifiers($c)}, {$prefix_lengths[$c]})"
 						: $this->db->escape_identifiers($c),
 					$columns
@@ -816,7 +816,7 @@ class MGR_Migration_builder
 			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql, $prefix_lengths) {
 				$table_ident   = '`' . $table . '`';
 				$columns_ident = implode(', ', array_map(
-					fn($c) => isset($prefix_lengths[$c]) ? "`{$c}`({$prefix_lengths[$c]})" : "`{$c}`",
+					fn ($c) => isset($prefix_lengths[$c]) ? "`{$c}`({$prefix_lengths[$c]})" : "`{$c}`",
 					$columns
 				));
 				$this->db->query("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");

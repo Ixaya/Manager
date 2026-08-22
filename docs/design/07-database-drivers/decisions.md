@@ -366,6 +366,21 @@ rather than a separate initiative because it is the same subsystem
   anywhere, so it throws instead of silently no-op'ing. Unverified either
   way on SQL Server — no ARM image in this environment, reasoned from T-SQL
   syntax only, same caveat as the primary-key entry above.
+- **2026-08-21: `MGR_Model_Sync`'s diff loops gained an opt-in
+  `$sync_timestamp_columns` list on the trait, rather than detecting
+  timestamp-shaped values by pattern or teaching the model layer column
+  types.** Live-confirmed on a fresh PostgreSQL DB: `sync_update_insert()`
+  and `sync_update()` compare via loose `!=`, which the same
+  naive-vs-offset-suffixed divergence behind `mgr_format_date_time_iso()`
+  breaks — a TIMESTAMPTZ column registered as changed on every call, even
+  with byte-identical data. Fixed by reusing the sibling
+  `mgr_format_date_time_sql()` (built alongside `_iso()` above) to reconcile
+  both sides before comparing, gated on the new column list so a model that
+  never syncs a timestamp pays nothing. Rejected: write-side-only
+  normalization (the mismatch is against caller-supplied data the write
+  path never sees) and driver-aware read normalization in the DB layer
+  (larger schema-metadata plumbing than the bug needs). Documented in the
+  `mgr-models` skill.
 
 ## Schema key constraints (foreign keys, index prefix length, primary keys)
 

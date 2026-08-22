@@ -196,6 +196,14 @@ sync_update_enabled(int|string|null $id, int $status): bool  // set sync_enabled
 sync_commit_enabled(): bool  // enabled = sync_enabled, deleted binarized from it (0 vs nonzero) — commit a sync pass; sync_enabled may exceed 1 for multi-stage progress
 ```
 
+Both diff loops compare via loose `!=`, which breaks on TIMESTAMPTZ columns:
+Postgres/SQL-Server echo them back offset-suffixed (`...+00`) while the app
+writes naive strings, so an unchanged value still looks changed. Declare
+`protected array $sync_timestamp_columns = ['create_date', ...];` on a model
+that syncs any timestamp-shaped column — those keys are then diffed as
+instants (via `mgr_format_date_time_sql()`) instead of raw strings. Opt-in
+only; empty by default.
+
 ## Utilities
 
 ```php
