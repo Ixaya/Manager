@@ -29,137 +29,99 @@ class Rest_key_model extends MY_Model
 	}
 
 	/**
-	 * Insert a key into the database
+	 * Inserts a new key, stamping the caller's IP/user-agent and an optional device UUID.
 	 *
-	 * @access public
-	 * @return bool
+	 * @param array<string, mixed> $data extra columns to store alongside the generated key (e.g. user_id)
+	 * @return string|bool the generated key when $returnKey is true, otherwise the insert result
 	 */
-	public function add_key($data = [], $level = false, $returnKey = false, $device_uuid = null)
+	public function add_key(array $data = [], int|false $level = false, bool $returnKey = false, ?string $device_uuid = null): string|bool
 	{
 		if (!empty($device_uuid)) {
 			$data['device_uuid'] = $device_uuid;
 		}
 
-		//Commented out to skip dns resolution time
-		// $remoteIP = gethostbyaddr($_SERVER['REMOTE_ADDR']);
-		// if (strstr($remoteIP, ', ')) {
-		// 	$ips = explode(', ', $remoteIP);
-		// 	$remoteIP = $ips[0];
-		// }
-
-		$data['ip_addresses'] = $_SERVER['REMOTE_ADDR']; //$remoteIP
+		$data['ip_addresses'] = $_SERVER['REMOTE_ADDR'];
 		$data['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
 
-		// Build a new key
 		$key = $this->_generate_key();
-		// If no key level provided, provide a generic key
 		if ($level) {
 			$data['level'] = $level;
 		}
 
-		//$ignore_limits = ctype_digit($this->put('ignore_limits')) ? (int) $this->put('ignore_limits') : 1;
 		$result = $this->_insert_key($key, $data);
-		// Insert the new key
 		if ($returnKey) {
 			return $key;
-		} else {
-			return $result;
 		}
+
+		return $result;
 	}
 
 	/**
-	 * Remove a key from the database to stop it working
-	 *
-	 * @access public
-	 * @return bool
+	 * Deletes a key; returns false if it doesn't exist.
 	 */
-	public function delete_key($key)
+	public function delete_key(string $key): bool
 	{
-
-		// Does this key exist?
 		if (!$this->_key_exists($key)) {
 			return false;
 		}
 
-		// Destroy it
 		$this->_delete_key($key);
 
-		// Respond that the key was destroyed
 		return true;
 	}
 
 	/**
-	 * Change the level
-	 *
-	 * @access public
-	 * @return bool
+	 * Changes a key's level; returns false if the key doesn't exist.
 	 */
-	public function set_key_level($key, $new_level)
+	public function set_key_level(string $key, int $new_level): bool
 	{
-		// Does this key exist?
 		if (!$this->_key_exists($key)) {
 			return false;
 		}
 
-		// Update the key level
-		if ($this->_update_key($key, ['level' => $new_level])) {
-			return true;
-		} else {
-			return false;
-		}
+		return $this->_update_key($key, ['level' => $new_level]);
 	}
 
 	/**
-	 * Suspend a key
-	 *
-	 * @access public
-	 * @return bool
+	 * Suspends a key by setting its level to 0; returns false if it doesn't exist.
 	 */
-	public function suspend_key($key)
+	public function suspend_key(string $key): bool
 	{
-		// Does this key exist?
 		if (!$this->_key_exists($key)) {
 			return false;
 		}
 
-		// Update the key level
-		if ($this->_update_key($key, ['level' => 0])) {
-			return true;
-		} else {
-			return false;
-		}
+		return $this->_update_key($key, ['level' => 0]);
 	}
 
 	/**
-	 * Regenerate a key
-	 *
-	 * @access public
-	 * @return bool
+	 * Suspends the old key and issues a new one carrying its level and ignore_limits flag.
 	 */
-	public function regenerate_post($old_key)
+	public function regenerate_key(string $old_key): bool
 	{
 		$key_details = $this->_get_key($old_key);
 
-		// Does this key exist?
 		if (!$key_details) {
 			return false;
 		}
 
-		// Build a new key
 		$new_key = $this->_generate_key();
 
-		// Insert the new key
-		if ($this->_insert_key($new_key, ['level' => $key_details['level'], 'ignore_limits' => $key_details['ignore_limits']])) {
-			// Suspend old key
-			$this->_update_key($old_key, ['level' => 0]);
-
-			return true;
-		} else {
+		if (!$this->_insert_key($new_key, ['level' => $key_details['level'], 'ignore_limits' => $key_details['ignore_limits']])) {
 			return false;
 		}
+
+		$this->_update_key($old_key, ['level' => 0]);
+
+		return true;
 	}
 
-	public function get_user_key($user_id, $device_uuid = null)
+	/**
+	 * Returns the existing API key for a user's device, or creates one if none exists.
+	 *
+	 * @return string|bool the key, or the result of add_key() when a new one had to be created
+	 */
+	public function get_user_key(int|string $user_id, ?string $device_uuid = null): string|bool
 	{
 		$where = ['user_id' => $user_id];
 
@@ -170,11 +132,15 @@ class Rest_key_model extends MY_Model
 			->row_array();
 		if ($keyRow) {
 			return $keyRow['key'];
-		} else {
-			return $this->add_key($where, 1, true, $device_uuid);
 		}
+
+		return $this->add_key($where, 1, true, $device_uuid);
 	}
-	public function delete_user_key($user_id)
+
+	/**
+	 * Deletes every key belonging to a user.
+	 */
+	public function delete_user_key(int|string $user_id): bool
 	{
 		$this->check_connect();
 
@@ -182,15 +148,17 @@ class Rest_key_model extends MY_Model
 			->where('user_id', $user_id)
 			->delete(config_item('rest_keys_table'));
 	}
+
 	/* Helper Methods */
 
-	protected function _generate_key()
+	/**
+	 * Generates a random key, falling back to a time-seeded hash if secure bytes are unavailable.
+	 */
+	protected function _generate_key(): string
 	{
 		do {
-			// Generate a random salt
 			$salt = base_convert(bin2hex($this->security->get_random_bytes(64)), 16, 36);
 
-			// If an error occurred, then fall back to the previous method
 			if (empty($salt)) {
 				$salt = hash('sha256', time() . mt_rand());
 			}
@@ -203,7 +171,10 @@ class Rest_key_model extends MY_Model
 
 	/* Private Data Methods */
 
-	protected function _get_key($key)
+	/**
+	 * @return array<string, mixed> empty when the key doesn't exist
+	 */
+	protected function _get_key(string $key): array
 	{
 		$this->check_connect();
 
@@ -213,7 +184,7 @@ class Rest_key_model extends MY_Model
 			->row_array();
 	}
 
-	protected function _key_exists($key)
+	protected function _key_exists(string $key): bool
 	{
 		$this->check_connect();
 
@@ -222,7 +193,10 @@ class Rest_key_model extends MY_Model
 			->count_all_results(config_item('rest_keys_table')) > 0;
 	}
 
-	protected function _insert_key($key, $data)
+	/**
+	 * @param array<string, mixed> $data
+	 */
+	protected function _insert_key(string $key, array $data): bool
 	{
 		$this->check_connect();
 
@@ -234,7 +208,10 @@ class Rest_key_model extends MY_Model
 			->insert(config_item('rest_keys_table'));
 	}
 
-	protected function _update_key($key, $data)
+	/**
+	 * @param array<string, mixed> $data
+	 */
+	protected function _update_key(string $key, array $data): bool
 	{
 		$this->check_connect();
 
@@ -243,7 +220,7 @@ class Rest_key_model extends MY_Model
 			->update(config_item('rest_keys_table'), $data);
 	}
 
-	protected function _delete_key($key)
+	protected function _delete_key(string $key): bool
 	{
 		$this->check_connect();
 

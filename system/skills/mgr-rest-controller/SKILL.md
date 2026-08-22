@@ -166,7 +166,7 @@ $key = $this->rest_key_model->get_user_key($user_id, $device_uuid);  // existing
 if (empty($key)) {
     $key = $this->rest_key_model->add_key(['user_id' => $user_id], $level, true, $device_uuid);
 }
-// also available: regenerate_post($old_key), suspend_key($key),
+// also available: regenerate_key($old_key), suspend_key($key),
 //                 set_key_level($key, $level), delete_key($key), delete_user_key($user_id)
 ```
 
