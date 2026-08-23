@@ -153,15 +153,31 @@ between them.
   return `bool` (found-and-dropped vs. not found) instead of assuming;
   pass the real name via the new `name` parameter for anything this builder
   didn't create itself — the mgr-migrations skill covers the call shape.
-- **A primary key is only named on some engines, so
-  `drop_primary_key()` asks the catalog rather than guessing.**
-  MySQL/MariaDB rename every primary key to the literal `PRIMARY` and drop
-  it by keyword; PostgreSQL and SQL Server need the constraint's real name,
+- **`add_index()`/`add_foreign_key()` are idempotent no-ops on a re-run,
+  the same as their drop counterparts.** A raw `CREATE INDEX`/
+  `ALTER TABLE ADD {INDEX|CONSTRAINT}` throws a duplicate-name error the
+  second time a migration runs against a table that already has it — the
+  failure a consuming project hit directly. Both now check the same
+  catalog `drop_index()`/`drop_foreign_key()` already used and skip
+  silently on a name match, returning `bool` (`true` = created, `false` =
+  already existed) instead of `void`. `add_primary_key()` is the one
+  exception: see below.
+- **A primary key is only named on some engines, so both
+  `add_primary_key()`/`drop_primary_key()` ask the catalog rather than
+  guessing.** MySQL/MariaDB rename every primary key to the literal
+  `PRIMARY`; PostgreSQL and SQL Server need the constraint's real name,
   which is whatever created it — the framework's `pk_{table}`, or the
   engine's own auto-name for a key it created itself (`{table}_pkey` on
-  Postgres, `PK__table__<hash>` on SQL Server). The helper reads
-  `information_schema.table_constraints` for the live name, so it works on
-  tables the framework didn't create. **SQLite throws**, same reason as
+  Postgres, `PK__table__<hash>` on SQL Server). Both read
+  `information_schema.table_constraints` for the live name (a shared
+  `_existing_pk_name()` helper), so they work on tables the framework
+  didn't create. `drop_primary_key()` returns `bool` — `false`, not a
+  throw, if the table has no primary key to drop, the same contract as
+  `drop_index()`/`drop_foreign_key()`. `add_primary_key()` does NOT follow
+  the no-op convention above, though: a table has only one primary-key
+  slot, so an existing PK on different columns means the caller's
+  drop-first intent wasn't met, not a harmless retry — it throws
+  `RuntimeException` instead. **SQLite throws** on both, same reason as
   foreign keys.
 - **An AUTO_INCREMENT column must stay keyed on MySQL/MariaDB — no other
   engine cares.** Moving the primary key off such a column fails there with

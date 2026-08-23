@@ -205,9 +205,11 @@ $this->drop_index(table: 'user', columns: ['email']);
 
 `add_index()`/`drop_index()` (and `add_foreign_key()`/`drop_foreign_key()`,
 below) take an optional `name` to override the derived one — needed for an
-index/FK this builder didn't create itself. `drop_index()` and
-`drop_foreign_key()` return `bool`, not `void`: `true` if a matching
-index/FK existed and was dropped, `false` if it didn't (never throws).
+index/FK this builder didn't create itself. All four are idempotent
+no-ops on a re-run and all four return `bool` — `true` if the
+call actually created/dropped something, `false` if a matching one already
+existed (`add_*`) or didn't exist (`drop_*`) — none of the four throw on an
+existing/missing match.
 
 Tightening `nullable: true` to `false` fails while any row still holds
 `NULL` — a `default` in the same call sets the column default, it does not
@@ -283,7 +285,12 @@ section.
 
 `add_foreign_key()` takes the same optional `name` as `add_index()` (see
 "Altering tables" above), and `drop_foreign_key()` returns `bool` the same
-way `drop_index()` does.
+way `drop_index()` does. `drop_primary_key()` is the same: `bool`, `false`
+if the table had no primary key to drop. `add_primary_key()` does NOT
+follow the add_index()/add_foreign_key() no-op convention — a table has
+only one primary key slot, so one already existing (on any columns) throws
+`RuntimeException` rather than silently skipping; drop it first if you mean
+to replace it.
 
 ### Moving the primary key onto a composite key
 

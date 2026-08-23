@@ -236,3 +236,44 @@ Revisit when: a writable, host-persisted bind mode is added to this stack
 for a use case that isn't live-code hot-reload — unlikely, since that would
 reintroduce the same class of "container mutates a tree it doesn't own"
 risk the read-only `-b` bind was built to avoid.
+
+**`add_index()`/`add_foreign_key()` gained the existence check
+`drop_index()`/`drop_foreign_key()` already had; `add_primary_key()`
+deliberately did not.**
+Decision (2026-08-22): `add_index()`/`add_foreign_key()` now check the same
+catalog query their drop counterparts already used (`_index_exists()`,
+`_fk_exists()`) and skip silently if a match exists, returning `bool`
+instead of `void` — `true` if created, `false` if a no-op. `add_primary_key()`
+instead throws `RuntimeException` if the table already has a primary key,
+via a new shared `_existing_pk_name()`/`_schema_expr()` pair also used to
+rework `drop_primary_key()`, which now returns `bool` (`false` if there was
+nothing to drop) instead of throwing, and gained a real MySQL/MariaDB
+existence check it previously lacked entirely (it relied on the engine's own
+`Can't DROP 'PRIMARY'` error).
+Why: a consuming project hit the duplicate-name error directly — a raw
+`add_index()`/`add_foreign_key()` re-run threw on every engine but the two
+with native `IF NOT EXISTS` support (Postgres, SQLite), and even that guard
+is name-only, blind to whether the definition matches. `add_primary_key()`
+is a different case: a table has exactly one primary-key slot, so an
+existing PK on different columns means the caller's drop-first intent
+wasn't met, not a harmless retry — no-op'ing there would hide a real
+mismatch instead of surfacing one.
+Evidence: full rationale is `docs/design/07-database-drivers/decisions.md`'s
+"Schema key constraints" section; the project-facing summary is
+`sample/docs/development/database.md`'s "Cross-engine quirks" section, call
+shape in the `mgr-migrations` skill. Live-tested 2026-08-22: PHPStan/
+php-cs-fixer clean; the scaffold's 86-test PHPUnit suite green against a
+freshly migrated PostgreSQL DB; the gitignored probe migrations already
+exercising all six functions (`Probe_key_features`, `Probe_bench`,
+`Probe_primary_key`, `Probe_pk_preserve_id`, `Probe_auto_increment_empty`)
+ran clean via `manager/tools/migrate` on an empty database.
+`add_primary_key()`'s new throw-on-exists path specifically is untested by
+any of them — every probe call there is a clean drop-then-add on a PK the
+same migration just created.
+Cost: none beyond the two new small helpers; the `void`→`bool` return
+changes are source-compatible for every existing caller, which ignores the
+return value.
+Revisit when: a probe exercises `add_primary_key()`'s throw path directly,
+or SQL Server becomes runnable in this environment — its
+`add_primary_key()`/`drop_primary_key()` remain reasoned, not live-tested
+(same gap already open above).

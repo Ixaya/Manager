@@ -520,3 +520,39 @@ mechanics in `docs/development/database.md`; this section is the rationale.
   not tested. Worth noting the alternative was worse than untested: the
   computed-name approach they replaced was affirmatively broken there, since
   it could never match a `PK__table__<hash>` auto-name.
+- **2026-08-22: `add_index()`/`add_foreign_key()` gained the same
+  existence check their drop counterparts already had, closing a gap a
+  consuming project hit directly.** A raw re-run of either threw a
+  duplicate-name error on every engine except the two with native
+  `IF NOT EXISTS` support (Postgres, SQLite), and even there the guard is
+  name-only, blind to whether the definition matches. Both now reuse
+  `_index_exists()`/`_fk_exists()` — the same catalog queries
+  `drop_index()`/`drop_foreign_key()` already had — and skip silently on a
+  name match, returning `bool` instead of `void` to mirror the drop side.
+- **2026-08-22: `add_primary_key()` deliberately does not follow that
+  no-op convention — it throws if the table already has a primary key.**
+  A table has exactly one primary-key slot, so unlike an index or FK
+  (identified by name, where a name collision overwhelmingly means "this
+  migration is re-running"), an existing PK on different columns can only
+  mean the caller's drop-first intent wasn't honored. No-op'ing there would
+  hide a real structural mismatch instead of surfacing one — worse than the
+  native duplicate-PK error it would otherwise get.
+- **2026-08-22: `drop_primary_key()` now returns `bool` instead of
+  throwing when there is nothing to drop, and gained a real existence
+  check on MySQL/MariaDB, which previously had none.** MySQL/MariaDB
+  relied entirely on the engine's own `Can't DROP 'PRIMARY'` error; the
+  catalog read this needed already existed for PostgreSQL/SQL Server (the
+  2026-08-15 entry above), just not extracted for reuse. A shared
+  `_existing_pk_name()` (built on a new `_schema_expr()` helper, itself
+  factored out of `_fk_exists()`'s per-engine schema-qualifier match) now
+  backs both `add_primary_key()`'s guard and `drop_primary_key()`'s lookup.
+- **2026-08-22: live-tested via the existing probe migrations rather than
+  a new one — and one path stayed unexercised.** `manager/tools/migrate`
+  on a freshly wiped PostgreSQL database ran every gitignored probe
+  migration that already calls these six functions (`Probe_key_features`,
+  `Probe_bench`, `Probe_primary_key`, `Probe_pk_preserve_id`,
+  `Probe_auto_increment_empty`) clean, alongside the scaffold's full
+  PHPUnit suite (86 tests) and PHPStan/php-cs-fixer. None of them exercise
+  `add_primary_key()`'s new throw-on-exists branch — every existing call
+  there is a clean drop-then-add on a PK the same migration just created —
+  left open as a gap for whoever next touches this area.
