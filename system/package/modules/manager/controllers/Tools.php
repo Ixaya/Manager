@@ -23,8 +23,8 @@ class Tools extends CI_Controller
 	{
 		$commands = [
 			// [invocation, description] — <arg> required, [arg] optional (positional: skipping one skips the rest)
-			['migrate [version] [module_key]', 'Run pending migrations on every configured database (optionally to a target version).'],
-			['migrate_database [connection] [version] [module_key]', 'Run migrations on one database connection only.'],
+			['migrate [version] [module_key] [confirm_downgrade]', 'Run pending migrations on every configured database (optionally to a target version). A version below the target\'s current one runs down() — refused unless confirm_downgrade=1.'],
+			['migrate_database [connection] [version] [module_key] [confirm_downgrade]', 'Run migrations on one database connection only. See migrate for confirm_downgrade.'],
 			['plan', 'Per-module migration status: current/latest/pending per database.'],
 			['version_list [module_key] [database]', 'List recorded migration versions (or one module\'s migration files).'],
 			['version_set <version> [module_key] [database]', 'Force the recorded migration version without running migrations.'],
@@ -57,6 +57,7 @@ class Tools extends CI_Controller
 	public function plan()
 	{
 		$this->load->library('migration_module_lib');
+		$this->migration_module_lib->force_db_debug();
 
 		$migration_databases = $this->config->item('migration_db') ?? ['default'];
 		foreach ($migration_databases as $database) {
@@ -82,6 +83,7 @@ class Tools extends CI_Controller
 	public function version_list(?string $module_key = null, ?string $database = null)
 	{
 		$this->load->library('migration_module_lib');
+		$this->migration_module_lib->force_db_debug();
 
 		if ($module_key === null) {
 			$databases = $this->config->item('migration_db') ?? ['default'];
@@ -116,7 +118,11 @@ class Tools extends CI_Controller
 		echo $this->migration_module_lib->version_set($database, $module_key, $version) . PHP_EOL;
 	}
 
-	public function migrate(?string $version = null, ?string $module_key = null)
+	/**
+	 * @param string $confirm_downgrade Truthy to allow $version below the target's
+	 *   current version — that runs down() migrations. See migrate_database().
+	 */
+	public function migrate(?string $version = null, ?string $module_key = null, string $confirm_downgrade = '0')
 	{
 		if ($module_key !== null) {
 			$module_key = str_replace(':', '/', $module_key);
@@ -124,18 +130,23 @@ class Tools extends CI_Controller
 
 		$migration_databases = $this->config->item('migration_db') ?? ['default'];
 		foreach ($migration_databases as $database) {
-			$this->migrate_database($database, $version, $module_key);
+			$this->migrate_database($database, $version, $module_key, $confirm_downgrade);
 		}
 	}
 
-	public function migrate_database(string $connection_name = 'default', ?string $version = null, ?string $module_key = null)
+	/**
+	 * @param string $confirm_downgrade Truthy to allow $version below the target's
+	 *   current version — that runs down() migrations, which can drop columns or
+	 *   narrow types on data that already exists. Refused without this otherwise.
+	 */
+	public function migrate_database(string $connection_name = 'default', ?string $version = null, ?string $module_key = null, string $confirm_downgrade = '0')
 	{
 		$this->load->library('migration_module_lib');
 		$this->migration_module_lib->force_db_debug();
 
 		// 2. Targeted version (single target) — may run down() migrations
 		if ($version !== null) {
-			echo $this->migration_module_lib->migrate_target($connection_name, $module_key, $version) . PHP_EOL;
+			echo $this->migration_module_lib->migrate_target($connection_name, $module_key, $version, (bool) $confirm_downgrade) . PHP_EOL;
 			return;
 		}
 

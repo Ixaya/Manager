@@ -168,8 +168,11 @@ class MGR_Migration_module_lib
 	 * down() migrations — destructive and usually irreversible. Inspect plan() first.
 	 *
 	 * @param ?string $key null = application, or a module key from plan()
+	 * @param bool $confirm_downgrade Required true when $version is below the
+	 *   target's current recorded version — otherwise refuses without touching
+	 *   the database, per the WARNING above.
 	 */
-	public function migrate_target(string $conn, ?string $key, string $version): string
+	public function migrate_target(string $conn, ?string $key, string $version, bool $confirm_downgrade = false): string
 	{
 		$lib  = $this->_lib($conn);
 		$path = null;
@@ -183,6 +186,13 @@ class MGR_Migration_module_lib
 		}
 		if ($path === null) {
 			return "[WARN] {$label} -> not found";
+		}
+
+		$versions = $this->_read_versions($conn);
+		$current  = $key === null ? $versions['app'] : ($versions['modules'][$key] ?? 0);
+
+		if ((int) $version < $current && !$confirm_downgrade) {
+			return "[FAIL] {$label}:{$conn} -> {$version} is below the current version ({$current}) and would run down() — pass confirm_downgrade to proceed.";
 		}
 
 		$lib->set_path($path);

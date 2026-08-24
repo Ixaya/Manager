@@ -1108,6 +1108,22 @@ class MGR_Migration_builder
 		};
 	}
 
+	// ── Destructive down() guard ─────────────────────────────────────────────
+
+	/**
+	 * Whether $table holds more rows than $min. A `down()` that drops columns or
+	 * narrows a load-bearing table calls this first and throws when true — remove
+	 * the check only once a destructive downgrade against real data is intentional.
+	 *
+	 * @param  int $min  Row count to exceed before this reports true. Raise it above 0
+	 *         for a table a fresh install always seeds — e.g. 1 for a table with one
+	 *         seeded row — so the guard only fires once real usage exists.
+	 */
+	protected function has_data(string $table, int $min = 0): bool
+	{
+		return $this->db->count_all($table) > $min;
+	}
+
 	/**
 	 * Generates a consistent index name.
 	 * Postgres includes table name to avoid cross-schema collisions.

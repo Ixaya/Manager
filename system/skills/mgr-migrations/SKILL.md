@@ -228,6 +228,27 @@ backfill. `UPDATE` those rows first.
 `down()` must reverse `up()` (see `Manager_ion_auth_v2.php` for a full symmetric
 example).
 
+### Guarding a table's down()
+
+`has_data(string $table, int $min = 0): bool` is available for a `down()`
+that drops columns or narrows types on a table the operator has judged
+essential. Whether a table is essential enough to warrant this isn't a
+call to make unprompted — it depends on business criticality the schema
+alone doesn't show. Add it when asked, or flag the risk and ask first;
+don't add it on your own judgment. Once agreed, check it first and throw
+before the destructive calls run. Raise `$min` above 0 for a table a fresh
+install always seeds (e.g. `min: 1` for one seeded row), so the guard only
+fires once real usage exists:
+
+```php
+if ($this->has_data('invoice')) {
+    throw new RuntimeException('down() would drop invoice columns — remove this check only for an intentional destructive downgrade.');
+}
+```
+
+There is no config/env override — delete the check once the destructive
+downgrade is confirmed intentional.
+
 ### Cross-family type changes
 
 A type change with no automatic cast between the old and the new type —
