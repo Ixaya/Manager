@@ -106,10 +106,20 @@ class Migration_Manager_attachment extends MGR_Migration_builder
 
     public function down()
     {
+        $this->modify_field_timestamp(table: 'attachment', column: 'last_update', on_update: false, default: false);
         $this->dbforge->drop_table('attachment');
     }
 }
 ```
+
+On PostgreSQL, `modify_field_timestamp(..., on_update: true)` (the default)
+creates a trigger function — `drop_table()` alone does not clean it up.
+`DROP TABLE` cascades objects that depend on the table (the trigger), but
+the function is a separate, independently-owned object the trigger only
+references, so it survives as a permanently inert `set_<table>_<column>()`.
+Reverse the call first, as above, for every column `up()` left with
+`on_update: true`. A column called with `on_update: false` — `create_date`
+above — never created a function to begin with and needs no such call.
 
 If the model sets `$soft_delete = true` (see mgr-models), the table needs a
 `deleted` + `enabled` pair — the model filters `WHERE deleted = 0` on reads
@@ -394,11 +404,18 @@ dir — including modules shipped inside the vendor package.
 ## Rules
 
 - One concern per migration; never edit an applied migration — add a new one.
-  Exception: a pure rename (filename + class together) or a refactor that
+  Exceptions: a pure rename (filename + class together); a refactor that
   provably produces byte-identical DDL (inlining a shared helper's current
-  expansion, say) is safe — version tracking is keyed by timestamp number,
-  not name or content, so nothing changes for an environment that already
-  applied it.
+  expansion, say) — version tracking is keyed by timestamp number, not name
+  or content, so nothing changes for an environment that already applied it;
+  or a fix confined to `down()` alone — it only runs on an explicit
+  downgrade through that version, never as a side effect of being forward
+  of it, so an environment already past the migration sees no difference
+  and a future downgrade gets the corrected reversal instead of the bug.
+- A migration whose `down()` drops a table must first reverse any
+  `modify_field_timestamp(..., on_update: true)` call `up()` made against
+  it — see "Creating a table" above for why `drop_table()` alone leaks the
+  PostgreSQL trigger function.
 - Migrations run through dbforge/`$this->db` on the connection being migrated
   — don't load models inside migrations.
 - Legacy files under the root `application/database/migrations/` folder are

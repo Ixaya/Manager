@@ -84,6 +84,7 @@ class Migration_Manager_ion_auth extends MGR_Migration_builder
 
 	public function down()
 	{
+		$this->modify_field_timestamp(table: 'user', column: 'last_update', on_update: false, default: false);
 		$this->dbforge->drop_table('user', true);
 		$this->dbforge->drop_table('group', true);
 		$this->dbforge->drop_table('user_group', true);
