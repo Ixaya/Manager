@@ -78,21 +78,23 @@ against this checkout instead of a lagging vendor mirror needs an extra
 bind not covered here — see `docs/development/framework-workflow.md`
 (framework repo only, no project-side equivalent).
 
-## `exec` into php/ws/cron/cli runs as `www-data` — enforced, not a habit to remember
+## `exec`/`run` into php/ws/cron/cli run as `www-data` — enforced, not a habit to remember
 
-`docker_manage.sh` defaults `exec` into these four services to `-u
-www-data` automatically; you don't need to type it. This exists because a
-command run as root creates root-owned files (a log file, an app file) that
-the app's own `www-data` process then can't write to or read — **silently**,
-no error at the time, just a dropped log write or a `500 Permission denied`
-the next time anyone hits that path. This has bitten this codebase's own
-history more than once — that repeat is why the default moved into the
-script instead of staying a line in a skill.
+`docker_manage.sh` defaults both `exec` and `run` into these four services
+to `-u www-data` automatically; you don't need to type it, for either
+subcommand — `run --rm cli -c "..."` (the standard one-off pattern for
+migrate/claim_admin) gets the same default as `exec php ...`. This exists
+because a command run as root creates root-owned files (a log file, an app
+file) that the app's own `www-data` process then can't write to or read —
+**silently**, no error at the time, just a dropped log write or a `500
+Permission denied` the next time anyone hits that path. This has bitten
+this codebase's own history more than once — that repeat is why the default
+moved into the script instead of staying a line in a skill.
 
-Override only when root is actually needed (installing a package,
-inspecting a file only root can read): `exec -u root php ...`. If you do,
-and you touched `/var/log/manager` or the app tree, run the repair below
-before trusting any subsequent result.
+Override the default only when root is actually needed (installing a
+package, inspecting a file only root can read): `exec -u root php ...` /
+`run --rm -u root cli ...`. If you do, and you touched `/var/log/manager` or
+the app tree, run the repair below before trusting any subsequent result.
 
 ## Confirm the bind actually took
 
@@ -165,6 +167,7 @@ docker compose -f docker/docker-compose.yml exec php bash
 # root-owned files www-data can't read/write afterward
 ./docker_manage.sh -e local exec -u root php bash /var/www/html/bin/cli_run.sh manager/tools/migrate
 
-# RIGHT — default user, no flag needed
+# RIGHT — default user, no flag needed, either subcommand
 ./docker_manage.sh -e local exec php bash /var/www/html/bin/cli_run.sh manager/tools/migrate
+./docker_manage.sh -e local run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/migrate"
 ```

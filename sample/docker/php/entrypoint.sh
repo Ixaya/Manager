@@ -35,10 +35,13 @@ if [[ "${WAIT_FOR_DB:-false}" == "true" ]]; then
     wait_for_tcp "${DB_HOST}" "${DB_PORT:-3306}"
 fi
 
-# 3. Migrations — opt-in, and only ever from the php service
+# 3. Migrations — opt-in, and only ever from the php service. Runs as root
+#    (no user drop before this point), so any log file it creates would
+#    otherwise be unwritable by the www-data workers started below.
 if [[ "${RUN_MIGRATIONS:-false}" == "true" ]]; then
     log "Running database migrations..."
     php /var/www/html/public/index.php manager/tools/migrate
+    chown -R www-data:www-data "${MGR_LOG_PATH%/}" 2>/dev/null || true
     log "Migrations complete."
 fi
 

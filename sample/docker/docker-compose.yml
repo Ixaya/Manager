@@ -312,7 +312,7 @@ services:
   # Lighter local alternative to mysql — NOT Aurora-compatible. Same
   # secrets pattern as mysql above.
   mariadb:
-    image: mariadb:12.3.2
+    image: mariadb:12.3.2-noble
     restart: unless-stopped
     networks: [appnet]
     logging: *logging
@@ -333,9 +333,10 @@ services:
     mem_limit: ${MARIADB_MEM_LIMIT:-512m}
     cpus: ${MARIADB_CPUS:-1.0}
     healthcheck:
-      # `mysqladmin ping` reports the server as alive without needing creds
-      # (MariaDB ships mysqladmin as a compatibility alias for mariadb-admin).
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      # `mariadb-admin ping` reports the server as alive without needing
+      # creds. The mariadb:12.3.2 image no longer ships `mysqladmin` as a
+      # compatibility alias for it.
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 --silent"]
       interval: 10s
       timeout: 5s
       retries: 10

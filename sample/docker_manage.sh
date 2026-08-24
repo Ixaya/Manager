@@ -46,8 +46,8 @@
 # MANAGER_BIND_PATH=<path> set in the instance's DOCKER env-file; without it,
 # this aborts rather than silently falling back to baked vendor code.
 #
-# `exec` into php/ws/cron/cli defaults to -u www-data (below) unless the
-# caller already passed -u/--user — a command run as root there creates
+# `exec`/`run` into php/ws/cron/cli default to -u www-data (below) unless
+# the caller already passed -u/--user — a command run as root there creates
 # root-owned files the app's own www-data process can't read/write
 # afterward, silently. Override with an explicit -u/--user when root is
 # actually needed.
@@ -130,8 +130,8 @@ require_file() { [[ -f "${DOCKER_DIR}/$1" ]] || die "required file missing: dock
 require_file "$APP_SECRETS_MOUNT"
 require_file "$VALKEY_SECRET_FILE"
 
-# ── Default `exec` into an app-image service to www-data ─────────────────────
-if [[ "${1:-}" == "exec" ]]; then
+# ── Default `exec`/`run` into an app-image service to www-data ───────────────
+if [[ "${1:-}" == "exec" || "${1:-}" == "run" ]]; then
     has_user=false
     service=""
     i=2
@@ -146,7 +146,7 @@ if [[ "${1:-}" == "exec" ]]; then
         ((i++))
     done
     if [[ "$has_user" == false && "$service" =~ ^(php|ws|cron|cli)$ ]]; then
-        set -- exec -u www-data "${@:2}"
+        set -- "$1" -u www-data "${@:2}"
     fi
 fi
 

@@ -139,10 +139,22 @@ task-to-skill routing table, and links into `docs/`. Every step from here
 on assumes you (or your agent) work from `AGENTS.md` and the `docs/` tree
 going forward.
 
+Its opening blockquote ships as a placeholder: *"Adapt this paragraph when
+bootstrapping a new project: one sentence on what THIS application is and
+who uses it."* Don't leave that instruction sitting there for whoever
+notices it later — act on it now, at this step, every time: ask the
+operator for one sentence describing what this application is and who uses
+it, and replace the blockquote's second sentence with it before continuing.
+If the operator already stated this earlier in the conversation, use that
+instead of asking again.
+
 **Common failure modes:**
 - Skipping this because setup "already started" — this is the step that
   makes the project self-documenting. Read it even if steps 1–3 went
   smoothly.
+- Leaving the placeholder blockquote unedited (or editing it only when the
+  operator happened to mention the app's purpose unprompted) — the paragraph
+  must never depend on how the setup was initially phrased.
 
 ## 5. Set up your `local` Docker instance — env and secrets
 
@@ -323,6 +335,15 @@ the manifests (a moved base image, re-pulled OS packages).
 - Hitting the app before this step and seeing a bare `500` with an empty
   body — that is the expected state of an unmigrated schema, not a broken
   build. Migrate first, then judge whether something is actually wrong.
+- If a command in this section (or step 10) is ever run with an explicit
+  `-u root` override, fix ownership immediately, at this step, before moving
+  on — don't wait for a later 500 to go troubleshooting it:
+  ```bash
+  ./docker_manage.sh -e local exec -u root php chown -R www-data:www-data /var/log/manager
+  ```
+  (`exec`/`run` into `php`/`ws`/`cron`/`cli` default to `-u www-data`
+  automatically otherwise — see `mgr-docker-ops` — so this only bites an
+  explicit override.)
 
 ## 10. Claim the seeded admin account
 

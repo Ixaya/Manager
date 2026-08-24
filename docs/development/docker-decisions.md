@@ -401,3 +401,48 @@ own instance env is unaffected either way.
 Revisit when: recreating a deleted instance env — default it back to
 `--profile postgres` / `DB_DRIVER=pdo/pgsql`, not MySQL, unless a specific
 session needs the MySQL/MariaDB matrix profiles instead.
+
+**`mariadb` healthcheck uses `mariadb-admin`, not `mysqladmin`.**
+Decision: the `mariadb` service's healthcheck runs `mariadb-admin ping`
+instead of `mysqladmin ping`.
+Why: the pinned `mariadb:12.3.2` image does not ship `mysqladmin` as a
+compatibility alias for `mariadb-admin` — the healthcheck copied the
+`mysql` service's command verbatim when the stack was introduced
+(`8369804`, 2026-07-11) and was never live-verified against a real
+`mariadb` container afterward. It went undetected because this repo's own
+dev instance defaults to Postgres and the cross-engine matrix "in practice
+... does not [run MariaDB] every time" (`framework-workflow.md`) — a fresh
+project setup exercising the `mariadb` profile for the first time is what
+surfaced it.
+Evidence: live-verified 2026-08-24 on a throwaway instance — confirmed
+`mysqladmin` absent and `mariadb-admin` present in the pinned image, and
+the container reports `healthy` with the new command.
+Revisit when: never, unless the pinned `mariadb` image tag changes and
+needs re-verifying.
+
+**`exec`/`run` into php/ws/cron/cli both default to `-u www-data`; the
+boot-time migrate self-heals log ownership.**
+Decision: `docker_manage.sh`'s automatic `-u www-data` default (see
+`mgr-docker-ops`) applies to both the `exec` and `run` subcommands, not
+`exec` alone. `entrypoint.sh` additionally `chown -R www-data:www-data`s
+`MGR_LOG_PATH` immediately after its `RUN_MIGRATIONS=true` boot-time
+migrate step.
+Why: `run --rm cli -c "..."` is the documented, standard one-off command
+pattern (`system/docs/setup.md`, `docker.md`'s local-dev flow,
+`upgrading.md`) — but the wrapper originally only pattern-matched `exec`,
+so this sanctioned path ran as root with none of `exec`'s guardrails,
+leaving a root-owned `log-<date>.log` that `www-data` could never write to
+again. The boot-time migrate has no user to default (the container starts
+as root, before any privilege drop), so it needs its own repair step
+instead — one that runs unconditionally on every boot, not just when a
+prior root-run command happened to leave a mess.
+Evidence: live-verified 2026-08-24 on a throwaway instance — `run --rm cli
+-c "id"` returned `uid=82(www-data)` after the fix; a root-owned log file
+was forced into the volume, `www-data` confirmed unable to append to it,
+then a `php` recreate with `RUN_MIGRATIONS=true` ran migrate and the
+subsequent `chown` restored `www-data` ownership and write access, with
+the API still returning `200`.
+Cost: none — `-u root`/`--user root` still overrides the default on either
+subcommand when root is genuinely needed.
+Revisit when: never, unless a new one-off subcommand pattern (beyond
+`exec`/`run`) is added for these four services and needs the same default.

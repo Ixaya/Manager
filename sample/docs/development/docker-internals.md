@@ -84,6 +84,13 @@ like it needs that pointer, the content belongs here instead.
   moving both vars into `<instance>.env`, or the entrypoint's checks silently
   stop
   working.
+- **`RUN_MIGRATIONS=true`'s boot-time migrate runs as root — there's no user
+  to default there, since it happens before the container execs into
+  `php-fpm` — but `entrypoint.sh` `chown -R www-data:www-data`s
+  `MGR_LOG_PATH` immediately afterward.** This is the one root-owned-file
+  path that no `exec`/`run` user default (see `mgr-docker-ops`) can cover,
+  so it self-heals every boot instead: any log file the migrate step just
+  created comes out `www-data`-owned before `php-fpm` workers ever touch it.
 - **`WEBSOCKET_PORT` is dual-consumer and must stay in `<instance>.env`, never
   `<instance>.docker.env`.** It's read by the PHP app itself (the ws server's
   actual bind port) *and* by compose at render time for the `ws`
