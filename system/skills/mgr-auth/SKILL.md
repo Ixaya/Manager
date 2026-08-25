@@ -61,8 +61,8 @@ Source of truth (only read if something here is insufficient):
   in the `MGR_` subclasses or config, never the `BE_` files — a `BE_` edit
   breaks the next upstream merge. If a change seems to need one, stop and get
   an explicit operator decision. Deliberate-edits inventory and merge
-  procedure: `docs/development/auth-upstream.md` (framework repo only, not
-  shipped).
+  procedure: `framework/docs/development/auth-upstream.md` (framework repo
+  only, not shipped).
 
 Everything below applies to both modes.
 

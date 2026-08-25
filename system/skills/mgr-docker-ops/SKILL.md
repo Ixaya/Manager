@@ -21,8 +21,7 @@ Source of truth (only read if something here is insufficient):
 - `docker_manage.sh` (project root, or `sample/` in the framework repo) —
   the wrapper itself; its header comment documents every flag
 - `docs/development/docker.md` (project root; in the framework repo,
-  `sample/docs/development/docker.md` — the root copy there is a
-  maintainer pointer, not the content) — the deeper reference this skill
+  `sample/docs/development/docker.md`) — the deeper reference this skill
   summarizes: instance bootstrap, engine/profile matrix, the full
   "Live-code dev modes" bind treatment, and the "Silent 500 with empty
   logs" troubleshooting ladder
@@ -75,8 +74,8 @@ Full command list: `manager/tools/help`. The quality-gate commands
 (`phpstan`, `php-cs-fixer`) run through the separate `tools` service instead
 — not `exec` into `php`. In the framework repo specifically, running them
 against this checkout instead of a lagging vendor mirror needs an extra
-bind not covered here — see `docs/development/framework-workflow.md`
-(framework repo only, no project-side equivalent).
+bind not covered here — see `framework/docs/development/framework-workflow.md`
+(not shipped; no project-side equivalent).
 
 ## `exec`/`run` into php/ws/cron/cli run as `www-data` — enforced, not a habit to remember
 

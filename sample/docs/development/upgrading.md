@@ -155,9 +155,9 @@ So `sample/application/config/config.php` in the compare is your
 your `docs/development/docker.md`.
 
 Watch the repository root in particular: it carries its own `AGENTS.md`,
-`README.md`, and `docs/`, which are the framework's, not yours — yours are the
-same-named files under `sample/`. If a path does not start with `sample/`, it is
-not yours, whatever it is named.
+`README.md`, and `framework/docs/`, which are the framework's, not yours —
+yours are the same-named files under `sample/`. If a path does not start with
+`sample/`, it is not yours, whatever it is named.
 
 If the file-by-file view is slow to render — or fails outright with "this
 comparison is taking too long to generate" — append `.diff` (or `.patch`) to

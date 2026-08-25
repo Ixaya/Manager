@@ -17,7 +17,7 @@ PHPStan and the CS fixer are the quality gates. Both run through Docker only
 — never a bare host `composer`/`vendor/bin/...` — via the `tools` service,
 which pins the exact PHP version and extensions the stack ships, so a host
 run is not a valid test of a bug or of its absence. Day-to-day invocations:
-`docs/development/framework-workflow.md`.
+`framework/docs/development/framework-workflow.md`.
 
 The framework has no suite of its own: it is tested through the bundled
 `sample/`, whose PHPUnit suite ships to every consuming project. That is the
@@ -51,6 +51,8 @@ system/
 sample/                 # project scaffold — copied ONCE into new projects
 extras/                 # legacy CI3 example projects — `export-ignore`d, never ships
 patches/                # composer patches for dependencies
+framework/              # framework-repo-only, never shipped: docs/, phpstan-bootstrap.php
+.github/                # GitHub's own metadata (SECURITY.md) — like README, edited only on request
 ```
 
 **Reading a skill's paths in this repo.** The skills state placement in
@@ -68,7 +70,7 @@ base class or implementation the application-shaped trees extend, so "the same
 file at a different root" does not apply — a change lands in every consuming
 project at once. Adding a library is the one placement that is not a root swap
 either: it is three files, under "Where a change goes" in
-`docs/development/framework-workflow.md`.
+`framework/docs/development/framework-workflow.md`.
 
 ## Conventions
 
@@ -88,27 +90,27 @@ up/down, `exec`-ing into a container, or running a `manager/tools` command
 all belong there.
 
 Working on a skill itself — writing a new one, editing one, or validating a
-set produced by another agent — is `docs/development/skill-authoring.md`.
+set produced by another agent — is `framework/docs/development/skill-authoring.md`.
 
 **Testing framework code:** the development loop — quality gates, throwaway
 probes versus the sample's PHPUnit suite, running the sample's `tools`
 service against this checkout instead of its lagging vendor mirror, and the
-cross-engine matrix — is documented under `docs/development/`. Read it before
+cross-engine matrix — is documented under `framework/docs/development/`. Read it before
 verifying a change; the probe conventions themselves (authenticated-not-
 bypassed, log channels) are in the `mgr-live-probes` skill. Test code never
 goes anywhere else in `sample/` or `system/`.
 
 ## Documentation
 
-All project documentation lives under `docs/`. The canonical documentation
+All project documentation lives under `framework/docs/`. The canonical documentation
 standard — layout, categories, lifecycle, drift rules — is the **shipped**
 `sample/docs/documentation.md` (it governs this repo too);
-`docs/documentation.md` is the thin framework-only addendum on top of it.
+`framework/docs/documentation.md` is the thin framework-only addendum on top of it.
 Read both before creating or reorganizing any doc.
 
 How the framework attaches to a project, boots, and resolves a class name to
 a file (`MGRPATH` / the CI package path, the MX load chain, `MGR_*` →
-package alias → `MY_`/`APP_`) is in `docs/architecture/`.
+package alias → `MY_`/`APP_`) is in `framework/docs/architecture/`.
 
 ## Hard rules
 
@@ -133,7 +135,7 @@ package alias → `MY_`/`APP_`) is in `docs/architecture/`.
   live under `vendor/` instead, and are never edited). No style sweeps, no
   refactors; surgical bug fixes only, and prefer fixing in the MGR_ subclass
   layer instead. The BE Ion Auth fork carries a documented set of deliberate edits
-  and purposeful deviations — see `docs/development/auth-upstream.md`
+  and purposeful deviations — see `framework/docs/development/auth-upstream.md`
   before/after any upstream merge.
 - **`extras/` is legacy example code, not a pattern source.** It is kept so
   legacy CI3 projects can see the shapes they are upgrading from, and it is
@@ -167,12 +169,12 @@ package alias → `MY_`/`APP_`) is in `docs/architecture/`.
 
 ## Pending work
 
-Each `docs/workspace/<task>/` directory contains a
+Each `framework/docs/workspace/<task>/` directory contains a
 `handoff.md` recording current state, blockers, and context for continuing that
 specific investigation or initiative. When a workspace task is complete, its
 handoff is distilled into permanent documentation (design/, architecture/,
 development/, modules/) or deleted if inconsequential. The full methodology for
 running a findings/fix campaign through the workspace (validation, baselines,
-session planning) is `docs/development/spec-campaigns.md`. The
+session planning) is `framework/docs/development/spec-campaigns.md`. The
 release check where a fresh agent sets up the framework from scratch is
-`docs/development/agent-smoke-test.md`.
+`framework/docs/development/agent-smoke-test.md`.

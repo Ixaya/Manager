@@ -13,8 +13,8 @@ editing `system/`) does not follow the one-file-plus-config shape below. The
 implementation, an unprefixed alias, and the config sit in three separate
 trees, and a framework library that ships without its alias breaks the alias
 chain for every consuming project. The file table and the exemplar to copy are
-under "Where a change goes" in `docs/development/framework-workflow.md`
-(framework repo only, not shipped).
+under "Where a change goes" in `framework/docs/development/framework-workflow.md`
+(not shipped).
 
 Everything from here on is project-side placement.
 

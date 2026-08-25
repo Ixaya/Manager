@@ -1,0 +1,752 @@
+# Spec campaigns — running a findings/fix initiative with agents
+
+Generalized playbook for any review-then-fix campaign in this repo, distilled
+from the 2026-07 auth/system campaign (`framework/docs/design/01-auth-hardening/`,
+`02-system-fixes/`). It covers the workspace structure, the
+validation-before-fixing procedure, the fix-pass process, and how the operator
+plans sessions (prompts, model, effort).
+
+Status: battle-tested once. After another campaign or two, consider promoting
+this to a shippable skill; until then it stays repo-local so an immature
+methodology doesn't propagate to consuming projects.
+
+## Lifecycle at a glance
+
+```
+review pass(es)  -> findings docs        (workspace/<section>/spec.md)
+validation pass  -> quoted baselines     (workspace/<section>/handoff.md)
+fix sessions     -> one item at a time   (spec entries deleted as fixed)
+closing review   -> re-diff vs baselines (punch list or all-clear)
+pending gate     -> open items disposed   (resolve / defer / hold)
+distillation     -> skills + framework/docs/design (workspace deleted)
+```
+
+The workspace (`framework/docs/workspace/`, gitignored) is the working area; handoff
+baselines carry state between sessions — never the conversation. Operator
+commits; agents never do.
+
+## Workspace anatomy
+
+```
+framework/docs/workspace/
+├── 00-shared/
+│   ├── methodology.md   standing procedure, agent-facing — operator-owned,
+│   │                    persists across campaigns (every session reads it FIRST)
+│   ├── conventions.md   THIS campaign's scratchpad: campaign-wide rules and
+│   │                    knots (read second; swept at distillation)
+│   ├── pending.md       indefinitely parked items buried inside a permanent
+│   │                    doc (framework/docs/design handoff/decisions) — title+pointer
+│   └── proposals.md     index of 00-proposals/, a triage table (kind +
+│                        urgency), `Proposed` column is a real date, not
+│                        an index to renumber
+├── 00-proposals/        one directory per parked item needing more than a title
+│   └── <item>/spec.md   the self-contained write-up proposals.md points at
+└── NN-section/          one numbered directory per domain
+    ├── spec.md          task log: the findings; fixed = entry DELETED
+    ├── handoff.md       validated baselines + running applied-change record
+    ├── review.md        provenance/historic record (how findings were made)
+    └── prompts.md       OPERATOR-ONLY session runbook for this campaign
+                         (agents write it when asked to plan sessions,
+                         never load it as instructions)
+```
+
+Sectioning: split a big findings list by DOMAIN (one section per subsystem or
+concern), not by size. Extract cross-section rules into
+`00-shared/conventions.md` instead of repeating them. If two sections share an
+item (a "knot"), name it in conventions and decide it ONCE.
+
+A campaign large enough to run over weeks nests one level: a campaign
+directory holding a numbered sub-directory per objective, each with its own
+`spec.md` / `handoff.md` / `review.md`, and one `conventions.md` and
+`prompts.md` for the campaign as a whole. Two sequencing rules come out of
+running one that way:
+
+- **An objective that churns identifiers runs LAST.** A rename restates the
+  names every open finding quotes, so running it early stales finding text
+  mid-campaign and forces a re-verification pass before anything can be
+  fixed. Order the review-and-fix objectives first, the rename after them.
+- **A closing-review item too large for a punch-list fix becomes its own
+  objective**, not an oversized fix session. The signal is judgment per site
+  rather than a pattern applied across sites — writing real content for ten
+  files is a new objective; converting a phrasing at ten sites is a sweep.
+- **A campaign that nested usually distils into more than one initiative.**
+  Objectives grouped by domain rarely share one audience, and forcing them
+  into a single `framework/docs/design/` record produces a decisions log nobody can read
+  end to end. Split on audience — the objectives whose decisions a consuming
+  project acts on, versus those that only bind work inside the framework —
+  and let each half point at the other.
+
+`spec.md` is a task log, not documentation: fix an item, then delete its
+entry. Durable conventions go to skills/AGENTS.md at distillation time, so
+errors are never cemented into standing docs.
+
+### Bootstrapping `00-shared/`
+
+`methodology.md` is seeded ONCE, not per campaign. Open it with a short "where
+state lives" block — the four per-campaign file roles (spec / handoff / review
+/ prompts, the runbook flagged operator-only and never loaded as instructions)
+and the shared files beside it, condensed from the Workspace anatomy above.
+Then copy this playbook's "Fix-pass process" (which is where the "permanent
+docs wait for distillation" rule lives — it travels with the section, not as
+a separate item), "Live-testing", and "When the material is prose" sections
+into it, plus a condensed session-gates block — the task-list approval gate, a
+generic look-for-applicable-skills line (pointing at
+`framework/docs/development/skill-authoring.md` when the work touches a skill itself),
+the per-item restatement, and work solo (the fourth gate, baseline-mismatch =
+stop, is already in the fix-pass rules). Keep the file lean: every session
+re-reads it, so every line is a recurring cost — per-item machinery (skill
+pointers, traps, closing checks) stays in the campaign prompts. From then on
+the file is the operator's. Personal process adjustments (reporting language,
+summary format, extra gates) are direct edits to the copy; there is no
+separate deviations list. This playbook stays the canonical standard;
+`methodology.md` is the standard as this operator runs it — and since it is
+copied once and then diverges, a later fix landed only in this canonical
+playbook (a new Fix-pass bullet, a new anti-pattern) does not reach an
+existing `methodology.md` automatically; re-sync it by hand when a change here
+is meant to apply going forward, the same way distillation re-syncs memory
+against the repo.
+
+`conventions.md` is seeded at each campaign start from this template:
+
+```
+# Campaign conventions — <campaign name>
+
+> Standing procedure lives in methodology.md beside this file — this one
+> carries only what is specific to THIS campaign. Agents read both, this
+> file second, before any section files.
+
+## Campaign-wide rules
+
+Rules every section of this campaign shares — stated here once instead
+of repeated per section.
+
+## Knots
+
+Items two or more sections share. Name the knot, decide it ONCE here;
+section specs point at this entry instead of re-deciding.
+
+- <knot>: <decision, or OPEN>
+```
+
+`pending.md` needs no seed: it is created the first time an item is parked,
+and stays titles + pointers only. It is scoped narrowly — only items buried
+inside a permanent doc that isn't otherwise re-read (a `framework/docs/design/*`
+handoff or decisions record), so they don't get forgotten once that record
+stops being read top-to-bottom. A self-contained item that doesn't need a
+host document goes to `00-proposals/` instead, indexed by `proposals.md`.
+
+`00-proposals/` needs no seed either. It exists because a campaign that finds
+real work outside its own scope otherwise has two bad options — grow to absorb
+it, or lose it in a workspace about to be archived. This is the third: write
+the item up once, while the evidence is still in context, and let the campaign
+close on time. Each proposal carries what was found, the ruling that parked
+it, the options as they stood, and the constraints any implementation
+inherits; `proposals.md` indexes it as one row in a triage table — title,
+`Kind` (Fix/Improvement/Feature/Architecture/Documentation/Investigation),
+`Urgency` (High/Medium/Low), and `Proposed`, the real calendar date the
+write-up was created (folder creation date for now; the actual authored date
+going forward) — a date needs no renumbering as rows are added, deleted, or
+reordered by urgency, where an ordinal index would. Unlike `pending.md`, this
+file is expected to be revised — an urgency reassessed ahead of a release, a
+kind corrected once a question turns out to gate a live defect — it is a
+working triage tool, not a frozen log. It is deliberately
+cheap — nothing here is scheduled by default, and a proposal that stops
+mattering is deleted (directory and table row together) rather than
+triaged forever. Two rules keep them worth having:
+
+- **Self-contained.** A proposal must not point into the campaign that raised
+  it; that directory gets archived. Lift the evidence in.
+- **Verified, not restated.** An item written from memory at closing time is
+  worth less than the records it was drawn from. Re-confirm the mechanics —
+  more than one proposal has sharpened into a different item under that check.
+
+Refer to a proposal by title, not by path, from anywhere permanent: a promoted
+proposal moves, and a path would need editing back.
+
+## Writing discipline
+
+The same failure mode that inflates code comments inflates workspace prose:
+entries and write-ups grow across a session as the investigation that
+produced a conclusion folds into the record instead of just the conclusion.
+Terse holds for `spec.md`/`handoff.md` entries, prompts, and session
+summaries the same way it holds for comments: state the fact and, when
+needed, the one line of rationale that survives review — not the
+discussion that produced it.
+
+- **One line per finding entry**, unless the item genuinely carries more
+  than one fact (a baseline quote plus a decision, say) — then one line per
+  fact, not one paragraph.
+- **A growing entry is a signal to cut, not extend.** If a `handoff.md` row
+  is longer after a later session than after the one that wrote it,
+  something that belongs in a decision log or a `framework/docs/design/` record got
+  left in the workspace instead.
+- **Restate, don't narrate.** The per-item restatement (Prompt skeleton,
+  below) is one sentence — what breaks, for whom — not a recap of the
+  finding's history or how it was found.
+- **Exit reports point at evidence, not adjectives.** "Fixed and verified —
+  see grep output above" beats a paragraph of what a good job it was.
+
+This is the same discipline as `mgr-code-style`'s comment cap, scaled to
+prose: an agent that doesn't already suspect its write-up is too long won't
+stop on its own, so the cap has to be stated, not implied.
+
+## Fix-in-place: resolving a single proposal without a campaign
+
+Call this a **fix-in-place** — the name to ask for when a proposal doesn't
+need the machinery below. The workspace anatomy above assumes scale: many
+findings, sessions spread across days, an LLM-authored review batch that
+needs independent verification before it's trusted. None of that holds for
+a proposal in `00-proposals/` that is already a single, self-contained,
+root-caused defect or improvement, closeable in one sitting — the proposal
+file already reads like a `review.md`, and promoting it into a numbered
+`framework/docs/workspace/NN-<item>/` directory (spec + handoff + review + prompts,
+a closing-review session, a pending gate, distillation) duplicates state
+that already lives in one place, for one item that never needed
+cross-session continuity in the first place.
+
+**Signal it fits:** the proposal names a specific, bounded fix — not an
+open DECISION that needs a design session — and nothing about it depends
+on another finding or spans more than one sitting. A proposal with a real
+unresolved tradeoff between two designs, or a fix that fans out across many
+call sites, is not this; promote it to a campaign instead.
+
+**Mechanics:**
+
+- No campaign directory. Work directly off `00-proposals/<item>/spec.md` —
+  it is both the finding and the baseline.
+- One session, one prompt (skeleton below). Confirm the code still matches
+  whatever the proposal quotes before editing — same baseline-discipline
+  rule as any fix-pass; drifted means stop and report, not improvise.
+- Scope is exactly what the proposal's own disposition names. A proposal
+  that documents an interim mitigation alongside a bigger, blocked real fix
+  (a Composer patch, an unresolved design question) stays on the
+  mitigation — the session does not also attempt the blocked path.
+- A small embedded decision (which of two named mechanisms, say) is fine to
+  make and record inside the same session — it doesn't need a separate
+  wait-for-approval gate the way a campaign's open DECISIONs do. If the
+  decision turns out bigger than it looked (touches more call sites than
+  expected, needs a mechanism the proposal didn't name), STOP and report
+  instead of escalating scope solo.
+- Live-test per the usual rule — behavior changed, probe it
+  (`mgr-live-probes`/`mgr-docker-ops`); a string/doc fix, a grep confirms it.
+- No commits, ever.
+
+**Closing.** Append a short "Resolution (\<date\>)" section to the *same*
+proposal file — what changed, one line of verification evidence, nothing
+narrated. Once the operator has reviewed and committed, archive it the
+same way a campaign is archived: `tar cJf
+framework/docs/workspace/archive/00-proposals/<item>.tar.xz -C
+framework/docs/workspace/00-proposals <item>`, then delete the live directory and
+its `00-shared/proposals.md` row. Tar, not a plain move: `.gitignore`
+already keeps a plain file in `framework/docs/workspace/` out of a keyword grep, but
+a raw directory listing (`find`, a Glob-style search) doesn't consult
+`.gitignore` at all, and a direct `Read` doesn't either — an agent that
+lists the archive rather than searching its content can still walk
+straight into a resolved proposal and mistake it for live. Compressed,
+that same walk hits a binary file instead of a page of readable prose.
+The root-cause trace stays available for deliberate recall — one
+`tar xf` — while nothing about a routine sweep surfaces it by accident.
+
+**Prompt skeleton** (shorter than the campaign skeleton below — no
+approval-list gate, since there is exactly one item):
+
+```
+You're resolving <proposal-title> in place — a self-contained item, not a
+campaign. Read 00-proposals/<item>/spec.md in full; it is both the finding
+and the baseline.
+
+Scope: <exactly what's in, per the proposal's own disposition>. OUT of
+scope: <whatever the proposal deferred or left as a bigger, undecided
+path — name it>.
+
+Before editing, confirm the code still matches what the proposal quotes.
+If it's drifted, stop and report.
+
+<Runtime-confirmation step, if the proposal named one as unverified.> <The
+embedded decision, if any, and what makes it stay in-session vs.
+escalate.> <Live-test instruction if behavior changed.>
+
+Append a "Resolution (<date>)" section to spec.md: what changed, one line
+of verification evidence. No commits. Finish by stating what you did and
+what you deliberately left out per scope.
+```
+
+## Validation before fixing
+
+A findings doc authored by LLM review passes carries two risks until checked:
+hallucinated references, and no baseline for later comparison. "Validate" does
+NOT mean "check whether it's already fixed" — it means: does the cited code
+exist, does it behave as claimed, and what does it look like right now.
+
+**Where an item claims what a client RECEIVES or what an engine ACCEPTS, the
+claim is unverified until observed.** Mark it `CANNOT-VERIFY`, never
+`VERIFIED`, and say in the handoff which it is — a verdict table that cannot
+distinguish observed from deduced is worth less than no table.
+
+That is the third risk, and the per-finding checks below do not catch it: a
+finding's PREMISE can be wrong, not just its references. One campaign opened
+on "an uncaught exception returns a body-less 500 in production". Reading the
+call chain inverted it — the catch the finding missed sat one frame further
+in, so the defect was over-disclosure, the opposite shape. Running it inverted
+the picture again and surfaced a third behavior nobody had predicted: a failed
+query answering HTTP 200 with a success envelope. Every reference in that
+finding was real.
+
+When commissioning the review pass that authors a findings doc, ask for full
+coverage and a flat, actionable list — one entry per finding with location,
+claim, severity, and confidence — not analysis prose the findings must be dug
+out of. Current models follow "only report important issues" literally and
+silently drop the rest, and unstructured review output buries what it does
+find. Filtering is validation's job, not the reviewer's.
+
+Per finding:
+
+1. **Existence check.** Open the cited file; line numbers drift, so search by
+   symbol before concluding anything. Nothing found anywhere =
+   `HALLUCINATED-REFERENCE` — say so; never substitute a plausible guess.
+2. **Behavior check.** Read enough context to confirm or refute the SPECIFIC
+   claim — this is what catches false positives.
+3. **Quote the current code verbatim** (a few lines) as the baseline a
+   post-fix pass will diff against.
+4. **Run any "inspect first" grep the item ships, verbatim**, and record the
+   raw output.
+5. **Classify** into exactly one verdict: `VERIFIED` / `FALSE-POSITIVE` /
+   `HALLUCINATED-REFERENCE` / `DRIFTED` / `ALREADY-FIXED` / `CANNOT-VERIFY` /
+   `DECISION-ONLY`.
+6. **Do not fix, do not decide.** Facts and baselines only; open DECISION
+   items stay open.
+
+Validate in read-only parallel batches mirroring the doc's own section
+structure; each batch returns one evidence table plus a flag list.
+
+If a review compared against a source that is not in the repo (an upstream
+original, a production tree pasted into the reviewing agent's context), state
+that once per section: only the local half of such claims is re-verifiable.
+Don't silently skip it, and don't let it taint the local half's verdict.
+
+Validate the validation: campaign experience says a validation claim can
+itself be stale (a "rename" that never landed). When a fix looks pointless,
+re-check the claim before applying it.
+
+### When the material is prose
+
+A documentation campaign runs the same lifecycle, with three differences that
+change the procedure rather than only the subject matter.
+
+**Validation and the finding collapse.** "The cited path does not exist" is
+simultaneously the finding and its own verified baseline — there is no
+behavior to re-check behind it. Quote the current text verbatim anyway: a
+rewrite needs a diff target exactly as a code fix does, and without one a
+later reviewer cannot tell an applied edit from an unapplied one.
+
+**Fix at the source of truth, once.** Where a rule lives in two documents —
+a canonical one and an addendum, or a pair of twins written for different
+audiences — decide which owns the rule and point the other at it. Applying
+the same edit to both is how the two copies start drifting.
+
+**The rubric must already contain the rule.** A campaign enforcing a written
+standard may not invent house rules the standard lacks: enforcing an unwritten
+rule produces findings the standard cannot back, and a reader who checks will
+find nothing. Where a desired convention is absent, the choice is to add it
+to the standard first — a product change, held to that artifact's own bar —
+or to drop it. Both are legitimate; enforcing it silently is not.
+
+**And the inverse: a rule that is too broad gets scoped before it is
+enforced.** Where the written standard demands more than it should, correcting
+the standard comes first and applying the corrected rule second — never
+mass-applying a rule nobody has justified. Scope it on measured adoption per
+category rather than on the rule's own wording, and let a mechanism argument
+override the count where the two disagree (a category can be kept against a
+low rate because the low rate is legacy debt, or exempted despite a high one
+because every compliant file turns out to be vendor boilerplate). "The rule is
+the suspect part" is a legitimate way to open an objective.
+
+## Fix-pass process
+
+- **One item at a time, in the section's priority order.** Every item is a
+  proposal, not a mandate — and that covers its prescribed shape, not just
+  whether to do it: when a remedy prescribes the same edit in more than about
+  three places, re-derive the structure it assumes before the first edit
+  (fan-out is where a wrong shape multiplies). Do not start item N+1 until
+  item N is closed. Items marked batchable (trivial, decision-free) may land
+  together.
+- **Approve-before-edit** on anything behavior-changing or carrying an open
+  DECISION. Present the plan (files, signatures, back-compat), wait.
+- **A one-line fix can look elegant because it is aimed at the wrong layer.**
+  Two diagnostics, cheap on any proposed remedy: when a remedy needs a
+  **second** fix to not be a regression, suspect the layer; and ask which
+  configuration it covers **by default**, not which one it covers at best. The
+  tell is subtle — one campaign's config override survived a full options
+  write-up before anyone noticed the framework wasn't suppressing the failure,
+  our own layer was discarding it.
+- **Baseline discipline:** before editing, confirm the code still matches the
+  handoff quote — if it doesn't, STOP and report, don't improvise. After
+  editing, diff against the quote and state in one line what changed.
+- **Record deviations immediately** — any departure from the item as written,
+  however small, goes into the handoff's fix-pass corrections WITH the
+  operator rationale, before starting the next item.
+- **Where fixes go:** prefer the subclass/config/extension seam; never edit
+  upstream-tracked directories (`system/third_party/`) except as a deliberate,
+  documented, one-commit exception recorded for re-verification after upstream
+  merges (see `framework/docs/development/auth-upstream.md` for the worked example).
+- **Permanent documentation (`framework/docs/design/*`, the shipped `sample/docs/*`,
+  `framework/docs/development/*`) waits for distillation, even for a finding a session
+  believes is fully settled.** A session sees only its own item — it can't
+  know whether an early conclusion holds once later items in the same
+  campaign run. More than one campaign has written up a real gap early, only
+  to have a later session reclassify it as not-a-gap once the premise was
+  actually tested. Editing permanent docs mid-campaign risks shipping a
+  narrative that stops being true before the campaign even closes, and
+  leaves distillation cleaning up piecemeal edits instead of writing the
+  record once, holistically, with the whole arc in view. Keep findings and
+  fixes in the item's own `spec.md`/`handoff.md`, or a `00-proposals/` entry
+  for cross-cutting material, until distillation. Exception: `system/skills/`
+  still moves with the code in the same change, per AGENTS.md's hard rule —
+  a different concern (correctness for the next agent reading it right now)
+  that nothing here relaxes.
+- **Stop-and-flag on surprises.** A bug surfaced mid-item that isn't the item
+  is its own finding — flag it for a decision, don't silently patch or ignore
+  it.
+- **Comments written during a fix are left as the agent wrote them, not
+  trimmed in place.** Nagging a mid-fix agent to tighten prose spends a
+  back-and-forth on wording instead of the fix, and pulls focus off code that
+  matters more. Let comments run generous here — a dedicated distillation
+  pass (Endgame, below) sweeps every comment the campaign generated in one
+  holistic view, once, with the code-style skill freshly loaded and the whole
+  campaign's rationale still available to judge against.
+- **No commits, ever.** The operator reviews and commits; batches meant to be
+  one commit must be kept as one coherent changeset.
+
+## Live-testing (runtime verification)
+
+Reading a diff confirms it looks right, not that it executes right. Probe when
+BEHAVIOR changed (comparison semantics, casts, auth/DB/session state,
+cross-engine SQL); a grep fully confirms a string/doc fix. Timing: at the END
+of a batch, operator-gated ("which items do you want live-tested?") — never
+per-item mid-batch; the stack has real overhead.
+
+Mechanics: probe controllers and the authenticated-not-bypassed rule live in
+the `mgr-live-probes` skill; running/debugging the stack itself (the Docker
+recipe, the three log channels) lives in `mgr-docker-ops` — follow them,
+don't re-derive. Campaign-proven additions:
+
+- One probe method per finding, so an item can be re-tested in isolation;
+  probes stay afterwards (gitignored) for the next re-validation.
+- **Capture the baseline in every environment the change can reach, not only
+  the one the defect lives in.** A production-side fix is judged against the
+  development column: that column is what proves the fix did not quietly
+  remove a signal developers depend on, and without a pre-fix capture of it
+  there is nothing to make the comparison against. The same holds for engines
+  — the one that already behaves correctly is the control that shows a fix
+  homologated an existing behavior rather than inventing one.
+- **Probe the sibling paths in the same run, not just the one under test.**
+  What exposed the wrong-layer fix above was a probe comparing the read
+  method's empty array against the write methods' `false` in one run; reading
+  either alone would have confirmed the wrong story. Where a contract is
+  supposed to be uniform across a family of calls, exercise the family.
+- Run the engine matrix (postgres, mysql, mariadb) before release when DB
+  behavior changed — driver quirks proved decisive (a fix correct on one
+  engine was wrong on another). One run per engine, on whatever `DB_DRIVER`
+  the instance carries (`pdo/*` by default, the same as a new project); the
+  native drivers get their own pass when the change touches driver-specific
+  behavior or when the prompt names it.
+- Consider a durable CLI regression suite for what the throwaway probes
+  proved, minus anything flaky by nature (timing asserts) or too white-box
+  (builder-state reflection).
+
+## Session planning (operator)
+
+Each campaign keeps its own runbook, `<section>/prompts.md`, authored FOR the
+operator by the campaign's planning/validation session — the strong model
+writes the prompts the cheaper execution sessions will run — and appended to
+when a later pass (a closing review, new findings) adds work. It opens with an
+OPERATOR-ONLY header: agents touch it only when explicitly asked to plan
+sessions, and never load it as instructions.
+
+One prompt per session, each pasted into a CLEAN context (never chain two
+sessions in one window), with the `/model` + `/effort` choice recorded above
+the prompt. Mark sessions that worked or failed; the runbook doubles as the
+campaign's execution log. The file always ENDS with the closing-review and
+distillation prompts — seeded as skeletons when the runbook is written, filled
+in as the campaign closes — so the exit is planned from day one. The runbook
+dies with the campaign directory at distillation; a shared runbook that
+outlives its campaigns only goes stale. Durable prompt lessons belong here, in
+this playbook.
+
+When a single campaign session subdivides into several execution sessions, the
+objective may get its own `NN-<objective>/prompts.md`. Two rules for it:
+
+- **Number the sessions as subdivisions of the campaign session they execute**
+  — `S6a`–`S6f` for the sessions carrying out campaign session S6. Never
+  restart at S1: it collides with the campaign runbook's own numbering, and is
+  most confusing precisely when the campaign's S6 *is* the session being
+  subdivided.
+- **Do not copy the closing-review or distillation prompts down.** The
+  campaign runbook owns those, and a second session re-diffing the same
+  baselines is waste. End the objective runbook instead with a short "fold
+  into campaign S<n>" list carrying only the checks the campaign review cannot
+  already cover — so check what that review already does first, since it
+  typically re-diffs every fixed item and re-runs the consolidated greps.
+
+An objective's workspace files cannot be distilled when it closes if later
+campaign sessions still read them. Say so in its handoff.
+
+Model/effort selection — capability tier and reasoning effort are separate
+dials: pick the tier from risk and session horizon, the effort from how deep
+each individual judgment runs. The expensive reasoning already happened during
+validation, so fix sessions run cheap; the passes that produce or re-check
+judgments do not. Cheap is also safer there: surplus reasoning aimed at a
+pre-decided item tends to come out as nitpicking and over-fixing — scope the
+fix-pass rules already forbid — not as quality.
+
+| Session class | Tier / effort | Why |
+|---|---|---|
+| Mechanical fixes against quoted baselines; batch pattern-application | Standard / medium (low for pure string/doc edits) | The reasoning is already done; the session only applies it. |
+| Judgment/decision sessions with pre-digested options; design-sensitive fixes | Standard / high (xhigh for the hardest) | Short horizon, framed options — a smaller model at high effort covers it; escalate the tier only when options interact across the codebase. |
+| Anything touching auth/session/crypto | Advanced / high | Prioritize correctness over speed, regardless of session length. |
+| Validation pass (findings → verified items + baselines) | Advanced / high | This is where the expensive reasoning happens. |
+| Closing review (re-diff every fix vs baselines) | Advanced / high | This is where the stronger model earns its cost. |
+| Distillation / whole-workspace reorganization | Advanced / medium–high | Long horizon with the whole workspace in play; the tier buys coherence, not per-item depth. |
+
+Tier mapping (Claude; re-verify whenever the vendor ships a new generation —
+other vendors add their own mapping in their own change, without touching the
+session-class table):
+
+| Tier | Model | Notes |
+|---|---|---|
+| Fast | Haiku 4.5 | 200K context, no effort dial — isolated mechanical transforms only |
+| Standard | Sonnet 5 | Same 1M window as Advanced; supports xhigh |
+| Advanced | Opus 5 | medium approach previous-generation high — prefer dropping effort before dropping tier |
+| Highest | Fable 5 | 2× Advanced price; hardest long-horizon work only |
+
+Batch by section and let the hardest item set the tier — don't pay the
+high-effort tax on ten renames because one spicy item is mixed in; pull it
+into its own session. Keep sessions narrow: five items with the section's
+handoff open beats thirty items across sections.
+
+### Prompt skeleton
+
+Every session prompt follows this shape (assembled from the campaign's
+best-performing prompts):
+
+```
+<Role frame, one line — the session type and the state it inherits:
+"You're picking up a validated findings list.">
+Read framework/docs/workspace/00-shared/methodology.md and conventions.md first,
+then the spec entries for the items in scope (listed below) in
+<section>/spec.md, with <section>/handoff.md open beside it — every item
+has a verified baseline; before editing, confirm the code still matches
+the quote. If it doesn't, stop and report.
+
+After reading all the tasks, list them in a message — title/headline only —
+and wait for the operator to approve the list — the approved list becomes
+the scope. When an item carries an open DECISION, lay out the options with
+a recommendation and wait: decisions get made in conversation, never
+buried in a diff.
+
+Before coding, always load the code-style skill, and look for any other
+skill that applies to the modification you are working on. <Per-item
+skill pointers when you know them: "mgr-models for #1".>
+
+Scope: <items, in order; the priority item if one exists; what is
+explicitly OUT of scope — including items that are the operator's alone>.
+Process: one at a time, each prefixed "Item N of M". When you START an
+item — after reading its code, handoff row, and spec text — open with a
+one-line RESTATEMENT of the finding in plain language: translate the
+technical headline into what it actually means (what breaks, for whom).
+<Approve-before-edit if behavior-sensitive.> <Per-item notes and traps —
+repeat anything load-bearing from the item text, agents skim.> Diff each
+fix against the handoff quote, record deviations in handoff.md
+immediately, delete finished entries from spec.md. <Closing check when
+the batch has one: "verify after: <grep> — must return zero hits".>
+No commits. Finish by listing what you fixed and what you skipped and
+why.
+```
+
+The task-list approval gate, the skill-loading line, the per-item restatement,
+and the stop-on-baseline-mismatch guardrail are mandatory boilerplate — they
+are the lines that most improved session outcomes. Note the two list moments
+are different: the APPROVAL list (titles only) is cheap and comes straight
+from the docs, before any code is read — asking for reframes there would
+produce guesses. The RESTATEMENT comes at the start of each item, once the
+agent has actually analysed its code and baseline — that is when it can
+genuinely translate the technical headline, and writing it forces the
+digestion before the first edit. Per-item trap notes (what NOT to convert,
+which sub-claim was disproven) belong in the prompt even though they're in the
+docs: repetition there is cheap insurance.
+
+That repetition is the only sanctioned one. Everything else in the skeleton is
+pointers and process, never content — the state (findings, baselines, prior
+deviations) lives in the workspace files. That is what makes the shape cheap
+and repeatable: twenty lines fully brief a session at any model tier, and the
+same prompt re-run a week later still binds to current reality, because the
+files moved with it. Pasted code or findings are a second copy of state — they
+drift, and they bill every turn. A prompt that seems to need a page of pasted
+context is a symptom: the handoff is missing a baseline. The two read pointers
+do the same job for prompts that skip the skeleton: a three-line prompt that
+opens with methodology.md and conventions.md still runs a disciplined session,
+because the standing process lives in the file, not in the prompt.
+
+### Worked example
+
+The skeleton filled in — a three-item fix batch on a fictional export section:
+
+```
+You're picking up a validated findings list. Read
+framework/docs/workspace/00-shared/methodology.md and conventions.md first, then
+the spec entries for #1-#3 in 03-export-engine/spec.md, with
+03-export-engine/handoff.md open beside it — every item has a verified
+baseline; before editing, confirm the code still matches the quote. If
+it doesn't, stop and report.
+
+After reading all the tasks, list them in a message — title/headline
+only — and wait for my approval; the approved list becomes the scope.
+
+Before coding, always load the code-style skill, and look for any other
+skill that applies — mgr-models for #2.
+
+Scope: #1, #2, #3 in that order; #2 is the priority. OUT of scope: #4
+(operator decision pending) and anything touching the queue workers.
+Process: one at a time, each prefixed "Item N of 3". When you START an
+item, open with a one-line RESTATEMENT: what breaks, for whom. #3 trap:
+the date format lives in both the builder and the spreadsheet helper —
+fix both or neither. Diff each fix against the handoff quote, record
+deviations in handoff.md immediately, delete finished entries from
+spec.md. Verify after: grep for the old format string — must return
+zero hits. No commits. Finish by listing what you fixed and what you
+skipped and why.
+```
+
+### The other session shapes
+
+The skeleton is the fix-session shape, but its bones — role frame, context
+files, approval gate, one-at-a-time process, exit report — carry every session
+type; only the per-item process changes:
+
+- **Judgment/decision session** (design-sensitive items, open DECISIONs): per
+  item, restate the finding, check the handoff verdict, run or design the
+  confirming test if it is unverified, then present the options with a
+  recommendation and WAIT. Record every verdict inline in the doc as you go,
+  the keep-as-is ones included — the record is the deliverable.
+- **Closing review** ("You're the closing reviewer."): the per-item process is
+  the one under Endgame below — re-diff against baselines, punch list, fix
+  nothing.
+- **Distillation**: clear the pending-task gate FIRST (Endgame step 2), then
+  propose the distillation plan and wait for approval; then one deliverable at
+  a time, per Endgame — and ask before deleting anything.
+
+### Prompt anti-patterns
+
+The failures new operators hit first — each is the negative of a rule above:
+
+- **The kitchen-sink session.** Thirty items across sections; a narrow session
+  beats it on quality and cost both.
+- **The mixed-tier batch.** One design-sensitive item hidden among ten renames
+  sets the whole session's tier — pull it into its own session.
+- **Pasting code the handoff already quotes.** A second copy of state that
+  drifts and bills every turn; point, don't paste.
+- **No out-of-scope line.** Agents helpfully fix adjacent things — say what is
+  NOT in scope, especially items that are the operator's alone.
+- **Chaining a second task in the same window.** State lives in the files; a
+  new task gets a clean context and a fresh prompt.
+- **Asking for reframes at the approval gate.** Before the code is read, a
+  reframe is a guess — the restatement comes later, per item.
+- **The evidence-free exit report.** "Fixed" and "skipped" claims must point
+  at this session's diff-vs-baseline or grep output — long runs are documented
+  to fabricate status otherwise.
+- **The narrating write-up.** A `handoff.md` entry or exit report that
+  re-tells the investigation instead of stating its conclusion — see Writing
+  discipline above.
+- **The chat-only closing review.** A verdict table and punch list stated
+  only in the reply text disappears the moment the session ends — state
+  lives in files, closing review included. Write it to `closing-review.md`
+  in the same turn the review finishes, not after being asked a second time.
+- **The approval list wider than the Scope line, unexplained.** A prompt
+  that says "list items 1-6" while Scope only names 1, 2, 5 reads as
+  ambiguous to whoever runs it — reasonably assumed to mean "work all 6,"
+  which is exactly wrong for a validation-only session. If the list is
+  meant to show more than this session's actual work (unresolved
+  candidates, later-objective context), say so explicitly in the prompt. A
+  session that hits this mismatch while executing should flag it and ask,
+  not silently pick a range.
+- **Delegating inside a session.** Current Advanced-tier models reach for
+  subagents readily; a narrow session gains nothing from them — context
+  re-established per agent, cost multiplied, baseline discipline split across
+  contexts. Work solo.
+
+## Endgame: closing review, pending gate, distillation
+
+1. **Closing review** (separate session, strong model): for every item marked
+   fixed, re-diff current code against the recorded baseline; verify any
+   do-not-regress properties verbatim; re-run the campaign's consolidated
+   greps; produce a per-section verdict table and a punch list, **written to
+   a file in the campaign directory (`closing-review.md`) in the same turn —
+   never left only in the chat reply** (fix nothing in that session).
+2. **Pending-task gate** (opens the distillation session, before its plan is
+   proposed). Sweep the whole workspace for anything still open — `pending.md`,
+   deferred verdicts in the objective records, follow-ons a late objective
+   flagged, items an objective closed without saying so. List them explicitly
+   and propose a disposition for each, then WAIT for a per-item ruling:
+   - **resolve now** — small enough to close inside the distillation, or a
+     record-keeping fix such as marking a deferred item as closed by a later
+     objective that decided against it;
+   - **defer to the next campaign** — real work, parked with a title and a
+     pointer;
+   - **hold** — stop the review/fix here and resume this campaign later; the
+     workspace stays live and nothing is archived.
+
+   Run this before proposing the plan, not inside it. A deferred item found
+   halfway through distillation reopens decisions already made, and the gate is
+   the last moment the campaign's own records are still readable. Two traps it
+   exists to catch: a verdict that says DEFER while a later objective silently
+   decided the question, and a parked item whose pointer aims into the
+   workspace about to be archived — every surviving pointer must be repointed
+   before the archive step runs, at a `framework/docs/design/` record, a proposal, or a
+   live campaign directory. Check `proposals.md`'s targets too, not only
+   `pending.md`: a proposal written mid-campaign tends to cite the campaign
+   that raised it.
+3. **Distillation** (this campaign's worked example is
+   `framework/docs/design/01-auth-hardening/` + `02-system-fixes/`): durable conventions
+   to skills; decisions + final state + validation record to
+   `framework/docs/design/<initiative>/` per the documentation standard
+   (`sample/docs/documentation.md` + the framework addendum); operational
+   runbooks to `framework/docs/development/`; consumer traps to
+   `system/docs/upgrading/next.md` — one source of truth, pointers not
+   duplicates. Sweep `00-shared/conventions.md`
+   in the same pass: campaign rules that proved durable go to skills or this
+   playbook, parked-but-alive items to `pending.md` (title + pointer), the
+   rest dies with the workspace — `methodology.md` is the operator's and is
+   never swept.
+
+   **Also sweep every comment the campaign's fix sessions generated in the
+   touched code, as its own deliverable** — not a leftover to catch
+   incidentally while writing something else. After reading
+   `framework/docs/documentation.md` and loading `mgr-code-style`, go comment by
+   comment and decide TRIM / REMOVE / KEEP against the skill's rules, now
+   that the whole campaign is in view and the fix-pass rule above
+   deliberately left them unpruned rather than tightened piecemeal
+   mid-session. A comment that earns keeping at length despite the cut is
+   itself a signal: the fact underneath it usually belongs in
+   `framework/docs/design/` or `framework/docs/development/`, not just a shorter comment — treat
+   that instinct as an input to the rest of this distillation, not a
+   coincidence to override.
+
+   **Then prune the agent memory the new documentation replaces.** A rule is
+   usually written to memory the moment it is agreed, and documented in the
+   repo weeks later; without this step the memory survives as a second copy
+   and slowly rots. So for every convention this distillation just wrote into
+   a skill, `AGENTS.md`, or a `framework/docs/` file, delete or trim the memory that was
+   standing in for it, leaving only the residue the new home does not carry.
+   Memory keeps judgment, corrections, and live state — never a procedure the
+   repo now documents. The same pass fixes the two failure modes this has
+   already produced: a "current state" memory that accumulated closed work
+   into a changelog, and cross-links that dangled because two naming
+   conventions were in use. Verify every index entry resolves to a real file
+   before finishing, and re-sync the operator's manual backup afterwards.
+
+   Then list what remains, get operator approval, and archive:
+   `tar cJf framework/docs/workspace/archive/<n>-<name>.tar.xz -C framework/docs/workspace
+   <n>-<name>`, then delete the live folder. The archive keeps the campaign
+   out of the active workspace while letting the operator uncompress it later
+   for a detailed recount — `framework/docs/workspace/archive` is gitignored, same as
+   the rest of `framework/docs/workspace/`.

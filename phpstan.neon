@@ -25,7 +25,7 @@ parameters:
     # Include the vendor directory for autoloading and reflection
     bootstrapFiles:
         - vendor/autoload.php
-        - phpstan-bootstrap.php
+        - framework/phpstan-bootstrap.php
 
 
     # Optionally, ignore errors in the vendor directory
