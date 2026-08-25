@@ -396,7 +396,8 @@ Always via `bin/cli_run.sh` (wraps php with the correct binary path and
 # the manager/tools commands (same URI args through cli_run.sh):
 manager/tools/plan           # dry-run: current/latest/pending per target
 manager/tools/migrate        # everything forward, all connections in $config['migration_db']
-manager/tools/migrate {version} {module_key}  # single target to version — DOWNGRADES run down()!
+manager/tools/migrate latest {module_key}  # single target, forward to its own latest — never runs down()
+manager/tools/migrate {version} {module_key}  # single target to an exact version — DOWNGRADES run down()!
 manager/tools/version_list   # list version_list commands per target
 manager/tools/version_set {version} {app|module:key} {conn}  # record version WITHOUT running (adopting existing DBs)
 manager/tools/migration_file {name} {module} {database}      # e.g. migration_file Invoice billing default — paste its printed command into your host shell
@@ -417,10 +418,13 @@ per module key). Module keys in CLI use `:` for `/` (e.g. `manager:tools` for
 a module under your own `application/modules/`). A module shipped inside
 `vendor/` — the framework's own `manager` module included — needs the full
 offset instead: `vendor:ixaya:manager:system:package:modules:manager`.
-`manager/tools/version_list` prints the exact key for every discovered
-target, including this one, if the derived form isn't obvious. Targets are
-auto-discovered: the app dir plus every module with a `migrations/{conn}/`
-dir — including modules shipped inside the vendor package.
+`manager/tools/plan` and `version_list` both print the exact key for every
+discovered target as their label — including this one — so an app-level
+module and a vendor/package one sharing a name (e.g. `manager`) never
+collide in the output; each line's label is directly usable as the CLI's
+`module_key` argument. Targets are auto-discovered: the app dir plus every
+module with a `migrations/{conn}/` dir — including modules shipped inside
+the vendor package.
 
 ## Rules
 

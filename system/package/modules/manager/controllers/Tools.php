@@ -23,11 +23,11 @@ class Tools extends CI_Controller
 	{
 		$commands = [
 			// [invocation, description] — <arg> required, [arg] optional (positional: skipping one skips the rest)
-			['migrate [version] [module_key] [confirm_downgrade]', 'Run pending migrations on every configured database (optionally to a target version). A version below the target\'s current one runs down() — refused unless confirm_downgrade=1.'],
-			['migrate_database [connection] [version] [module_key] [confirm_downgrade]', 'Run migrations on one database connection only. See migrate for confirm_downgrade.'],
+			['migrate [version=latest] [module_key=all] [confirm_downgrade]', 'Run pending migrations. module_key=all (default) runs every target forward; a specific module_key with version=latest (default) runs only that target, forward to its own latest — never down(). An exact version below that target\'s current one runs down() instead — refused unless confirm_downgrade=1.'],
+			['migrate_database [connection] [module_key=all] [version=latest] [confirm_downgrade]', 'Run migrations on one database connection only. See migrate for module_key/version/confirm_downgrade.'],
 			['plan', 'Per-module migration status: current/latest/pending per database.'],
-			['version_list [module_key] [database]', 'List recorded migration versions (or one module\'s migration files).'],
-			['version_set <version> [module_key] [database]', 'Force the recorded migration version without running migrations.'],
+			['version_list [module_key=all] [database=default]', 'List recorded migration versions (or one module\'s migration files).'],
+			['version_set <version> [module_key=app] [database]', 'Force the recorded migration version without running migrations.'],
 			['migration_file <name> <module> [database] [force_modification]', 'Print a `cat > ... <<\'MGR_EOF\'` command that writes an auto-versioned migration file (_v{n} if the name already exists in that module) — paste it into a host shell. force_modification=1 starts a table with pre-tool history at _v2 instead of a fresh create.'],
 			['migration_path <name> <module> [database] [force_modification]', 'Print the auto-versioned name + destination path for a migration, as JSON. See migration_file for force_modification.'],
 			['model_file <name> <module> [table]', 'Print a `cat > ... <<\'MGR_EOF\'` command that writes a new MY_Model skeleton in the given module, optionally overriding $table_name — paste it into a host shell.'],
@@ -80,12 +80,17 @@ class Tools extends CI_Controller
 		}
 	}
 
-	public function version_list(?string $module_key = null, ?string $database = null)
+	/**
+	 * @param string $module_key CLI form (':' for '/'); 'all' (the default) lists
+	 *   every discovered target's version_list command. 'app' scopes the
+	 *   application's own migrations table.
+	 */
+	public function version_list(string $module_key = 'all', string $database = 'default')
 	{
 		$this->load->library('migration_module_lib');
 		$this->migration_module_lib->force_db_debug();
 
-		if ($module_key === null) {
+		if ($module_key === 'all') {
 			$databases = $this->config->item('migration_db') ?? ['default'];
 			foreach ($databases as $db) {
 				foreach ($this->migration_module_lib->version_list($db) as $line) {
@@ -96,64 +101,78 @@ class Tools extends CI_Controller
 		}
 
 		$key = $module_key === 'app' ? null : str_replace(':', '/', $module_key);
-		foreach ($this->migration_module_lib->version_list_files($database ?? 'default', $key) as $line) {
+		foreach ($this->migration_module_lib->version_list_files($database, $key) as $line) {
 			echo $line . PHP_EOL;
 		}
 	}
 
-	public function version_set(?string $version = null, ?string $module_key = null, string $database = 'default')
+	/**
+	 * @param string $module_key CLI form (':' for '/'); 'app' (the default)
+	 *   scopes the application's own migrations table.
+	 */
+	public function version_set(?string $version = null, string $module_key = 'app', string $database = 'default')
 	{
 		if ($version === null) {
 			echo "[FAIL] version required" . PHP_EOL;
 			return;
 		}
-		if ($module_key === 'app') {
-			$module_key = null;
-		} elseif ($module_key !== null) {
-			$module_key = str_replace(':', '/', $module_key);
-		}
+
+		$key = $module_key === 'app' ? null : str_replace(':', '/', $module_key);
 
 		$this->load->library('migration_module_lib');
 		$this->migration_module_lib->force_db_debug();
-		echo $this->migration_module_lib->version_set($database, $module_key, $version) . PHP_EOL;
+		echo $this->migration_module_lib->version_set($database, $key, $version) . PHP_EOL;
 	}
 
 	/**
-	 * @param string $confirm_downgrade Truthy to allow $version below the target's
-	 *   current version — that runs down() migrations. See migrate_database().
-	 */
-	public function migrate(?string $version = null, ?string $module_key = null, string $confirm_downgrade = '0')
-	{
-		if ($module_key !== null) {
-			$module_key = str_replace(':', '/', $module_key);
-		}
-
-		$migration_databases = $this->config->item('migration_db') ?? ['default'];
-		foreach ($migration_databases as $database) {
-			$this->migrate_database($database, $version, $module_key, $confirm_downgrade);
-		}
-	}
-
-	/**
+	 * @param string $version Exact target version, or 'latest' (the default) for
+	 *   "$module_key's own latest" — never runs down() on that path.
+	 * @param string $module_key CLI form (':' for '/'); 'all' (the default) runs
+	 *   every discovered target forward. 'app' scopes the application's own
+	 *   migrations table.
 	 * @param string $confirm_downgrade Truthy to allow $version below the target's
 	 *   current version — that runs down() migrations, which can drop columns or
 	 *   narrow types on data that already exists. Refused without this otherwise.
+	 *   Irrelevant when $version is 'latest'.
 	 */
-	public function migrate_database(string $connection_name = 'default', ?string $version = null, ?string $module_key = null, string $confirm_downgrade = '0')
+	public function migrate(string $version = 'latest', string $module_key = 'all', string $confirm_downgrade = '0')
+	{
+		$migration_databases = $this->config->item('migration_db') ?? ['default'];
+		foreach ($migration_databases as $database) {
+			$this->migrate_database($database, $module_key, $version, $confirm_downgrade);
+		}
+	}
+
+	/**
+	 * @param string $module_key CLI form (':' for '/'); 'all' (the default) runs
+	 *   every discovered target forward. 'app' scopes the application's own
+	 *   migrations table.
+	 * @param string $version Exact target version, or 'latest' (the default) for
+	 *   "$module_key's own latest" — never runs down() on that path.
+	 * @param string $confirm_downgrade Truthy to allow $version below the target's
+	 *   current version — that runs down() migrations, which can drop columns or
+	 *   narrow types on data that already exists. Refused without this otherwise.
+	 *   Irrelevant when $version is 'latest'.
+	 */
+	public function migrate_database(string $connection_name = 'default', string $module_key = 'all', string $version = 'latest', string $confirm_downgrade = '0')
 	{
 		$this->load->library('migration_module_lib');
 		$this->migration_module_lib->force_db_debug();
 
-		// 2. Targeted version (single target) — may run down() migrations
-		if ($version !== null) {
-			echo $this->migration_module_lib->migrate_target($connection_name, $module_key, $version, (bool) $confirm_downgrade) . PHP_EOL;
+		// 1. No filter — every target, forward to latest.
+		if ($module_key === 'all') {
+			foreach ($this->migration_module_lib->run($connection_name) as $line) {
+				echo $line . PHP_EOL;
+			}
 			return;
 		}
 
-		// 3. Default: everything forward to latest
-		foreach ($this->migration_module_lib->run($connection_name) as $line) {
-			echo $line . PHP_EOL;
-		}
+		// 2. One target: 'latest' becomes null, which migrate_target()
+		// resolves to that target's own latest — it can never downgrade.
+		$key            = $module_key === 'app' ? null : str_replace(':', '/', $module_key);
+		$target_version = $version === 'latest' ? null : $version;
+
+		echo $this->migration_module_lib->migrate_target($connection_name, $key, $target_version, (bool) $confirm_downgrade) . PHP_EOL;
 	}
 
 	/**

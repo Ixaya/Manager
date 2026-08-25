@@ -162,45 +162,58 @@ class MGR_Migration_module_lib
 	}
 
 	/**
-	 * Migrate a SINGLE target to an explicit version.
+	 * Migrate a SINGLE target.
 	 *
-	 * WARNING: a $version below the target's current version runs that target's
-	 * down() migrations — destructive and usually irreversible. Inspect plan() first.
+	 * WARNING: an explicit $version below the target's current version runs that
+	 * target's down() migrations — destructive and usually irreversible. Inspect
+	 * plan() first. $version === null sidesteps this entirely: it resolves to the
+	 * target's own latest file and only ever calls latest() (same as run(), just
+	 * scoped to one target), so it can never trigger a downgrade.
 	 *
 	 * @param ?string $key null = application, or a module key from plan()
+	 * @param ?string $version Exact target version, or null for "this target's
+	 *   own latest" — $confirm_downgrade is irrelevant and ignored on that path.
 	 * @param bool $confirm_downgrade Required true when $version is below the
 	 *   target's current recorded version — otherwise refuses without touching
 	 *   the database, per the WARNING above.
 	 */
-	public function migrate_target(string $conn, ?string $key, string $version, bool $confirm_downgrade = false): string
+	public function migrate_target(string $conn, ?string $key, ?string $version = null, bool $confirm_downgrade = false): string
 	{
-		$lib  = $this->_lib($conn);
-		$path = null;
-		$label = ($key ?? 'application') . ':' . $conn;
+		$lib    = $this->_lib($conn);
+		$label  = ($key ?? 'application') . ':' . $conn;
+		$target = null;
 
 		foreach ($this->_discover_targets($conn) as $t) {
 			if ($t['key'] === $key) {
-				$path = $t['path'];
+				$target = $t;
 				break;
 			}
 		}
-		if ($path === null) {
+		if ($target === null) {
 			return "[WARN] {$label} -> not found";
+		}
+
+		$lib->set_path($target['path']);
+		$lib->set_migration_key($key);
+
+		if ($version === null) {
+			if ($lib->latest() === false) {
+				return "[FAIL] {$label} -> " . $lib->error_string();
+			}
+			$numbers = array_keys($target['files']);
+			return "[ ok ] {$label} -> " . (int) end($numbers);
 		}
 
 		$versions = $this->_read_versions($conn);
 		$current  = $key === null ? $versions['app'] : ($versions['modules'][$key] ?? 0);
 
 		if ((int) $version < $current && !$confirm_downgrade) {
-			return "[FAIL] {$label}:{$conn} -> {$version} is below the current version ({$current}) and would run down() — pass confirm_downgrade to proceed.";
+			return "[FAIL] {$label} -> {$version} is below the current version ({$current}) and would run down() — pass confirm_downgrade to proceed.";
 		}
 
-		$lib->set_path($path);
-		$lib->set_migration_key($key);
-
 		return ($lib->version($version) === false)
-			? "[FAIL] {$label}:{$conn} -> " . $lib->error_string()
-			: "[ ok ] {$label}:{$conn} -> {$version}";
+			? "[FAIL] {$label} -> " . $lib->error_string()
+			: "[ ok ] {$label} -> {$version}";
 	}
 
 	// ---- Internals --------------------------------------------------------
@@ -235,7 +248,10 @@ class MGR_Migration_module_lib
 						continue;
 					}
 					$key = $this->_derive_module_key($dir, $location, $offset);
-					$label = basename($dir). ':' . $conn;
+					// basename($dir) alone collides when an app-level module shadows a
+					// vendor/package one of the same name — use the full key (':'-joined,
+					// matching the CLI's module_key form) so the label stays unambiguous.
+					$label = str_replace('/', ':', $key) . ':' . $conn;
 					$modules[$key] = ['key' => $key, 'label' => $label, 'path' => $mig, 'files' => $files];
 				}
 			}
@@ -258,7 +274,11 @@ class MGR_Migration_module_lib
 	{
 		$out = [];
 		foreach (glob(rtrim($path, '/') . '/*_*.php') ?: [] as $file) {
-			if (preg_match('/^(\d+)_/', basename($file, '.php'), $m)) {
+			// Anchored to exactly 14 digits to match CI_Migration's own
+			// find_migrations() regex ('/^\d{14}_(\w+)$/') — a looser count here
+			// let plan()/version_list() show a file as pending that latest()
+			// then silently excludes, surfacing only as "No migrations were found."
+			if (preg_match('/^(\d{14})_/', basename($file, '.php'), $m)) {
 				$out[(int) $m[1]] = $file; // 64-bit assumed for 14-digit timestamps
 			}
 		}

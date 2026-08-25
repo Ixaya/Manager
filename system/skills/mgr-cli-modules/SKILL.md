@@ -40,6 +40,16 @@ URI segments map to method arguments (`manager/tools/migrate 20240101000000
 reports` → `Tools::migrate('20240101000000', 'reports')`). `CI_ENV` comes from
 the environment.
 
+Because segments bind positionally, a parameter's PHP default is only
+reachable by omitting every parameter after it too — there is no way to skip
+a middle argument while still supplying one later. Give an optional CLI
+parameter a real sentinel default (`string $module_key = 'all'`) instead of
+`?Type = null` for "not supplied," and keep `?Type` for a value with genuine
+distinct meaning once resolved. `Tools::migrate`'s `module_key`/`version`
+(`'all'`, `'app'`, `'latest'`) against `MGR_Migration_module_lib::
+migrate_target()`'s `?string $key`/`?string $version` (real `null` = "the
+application target" / "this target's own latest") is the worked contrast.
+
 ## CLI-only controllers
 
 CLI commands are plain `CI_Controller`s guarded against HTTP access. Cron jobs
