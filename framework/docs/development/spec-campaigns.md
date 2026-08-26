@@ -36,9 +36,11 @@ framework/docs/workspace/
 │   │                    knots (read second; swept at distillation)
 │   ├── pending.md       indefinitely parked items buried inside a permanent
 │   │                    doc (framework/docs/design handoff/decisions) — title+pointer
-│   └── proposals.md     index of 00-proposals/, a triage table (kind +
-│                        urgency), `Proposed` column is a real date, not
-│                        an index to renumber
+│   ├── proposals.md     index of 00-proposals/, a triage table (kind +
+│   │                    urgency + effort, grouped by urgency), `Proposed`
+│   │                    column is a real date, not an index to renumber
+│   └── proposals_priority.md  hand-curated "what's next" shortlist,
+│                        refreshed occasionally — not appended to per session
 ├── 00-proposals/        one directory per parked item needing more than a title
 │   └── <item>/spec.md   the self-contained write-up proposals.md points at
 └── NN-section/          one numbered directory per domain
@@ -143,16 +145,23 @@ close on time. Each proposal carries what was found, the ruling that parked
 it, the options as they stood, and the constraints any implementation
 inherits; `proposals.md` indexes it as one row in a triage table — title,
 `Kind` (Fix/Improvement/Feature/Architecture/Documentation/Investigation),
-`Urgency` (High/Medium/Low), and `Proposed`, the real calendar date the
-write-up was created (folder creation date for now; the actual authored date
-going forward) — a date needs no renumbering as rows are added, deleted, or
-reordered by urgency, where an ordinal index would. Unlike `pending.md`, this
-file is expected to be revised — an urgency reassessed ahead of a release, a
-kind corrected once a question turns out to gate a live defect — it is a
-working triage tool, not a frozen log. It is deliberately
-cheap — nothing here is scheduled by default, and a proposal that stops
-mattering is deleted (directory and table row together) rather than
-triaged forever. Two rules keep them worth having:
+`Urgency` (High/Medium/Low), `Effort` (S/M/L), and `Proposed`, the real
+calendar date the write-up was created (folder creation date for now; the
+actual authored date going forward) — a date needs no renumbering as rows
+are added, deleted, or reordered, where an ordinal index would. Rows are
+grouped by `Urgency` rather than appended chronologically, so the table's
+own top-to-bottom order doubles as a priority view without a separately
+generated index. Unlike `pending.md`, this file is expected to be revised
+— an urgency reassessed ahead of a release, a kind corrected once a
+question turns out to gate a live defect — it is a working triage tool,
+not a frozen log. It is deliberately cheap — nothing here is scheduled by
+default, and a proposal that stops mattering is deleted (directory and
+table row together) rather than triaged forever. A separate file beside
+it, `proposals_priority.md`, holds a short hand-curated "what's next"
+shortlist — kept apart from the mechanical table specifically so a session
+adding a proposal isn't invited to also edit the shortlist by proximity;
+refresh it occasionally (e.g. at a closing review), not per-session. Two
+rules keep proposals themselves worth having:
 
 - **Self-contained.** A proposal must not point into the campaign that raised
   it; that directory gets archived. Lift the evidence in.
@@ -233,8 +242,13 @@ call sites, is not this; promote it to a campaign instead.
 
 **Closing.** Append a short "Resolution (\<date\>)" section to the *same*
 proposal file — what changed, one line of verification evidence, nothing
-narrated. Once the operator has reviewed and committed, archive it the
-same way a campaign is archived: `tar cJf
+narrated. Before archiving, grep already-distilled `framework/docs/design/`
+records by the proposal's title — a proposal can outlive the campaign that
+raised it and get named as open "remaining work" in a permanent doc written
+before this resolution existed; that reference goes stale the moment the
+directory is archived and won't surface again on its own. Update or remove
+it in the same session. Once the operator has reviewed and committed,
+archive it the same way a campaign is archived: `tar cJf
 framework/docs/workspace/archive/00-proposals/<item>.tar.xz -C
 framework/docs/workspace/00-proposals <item>`, then delete the live directory and
 its `00-shared/proposals.md` row. Tar, not a plain move: `.gitignore`

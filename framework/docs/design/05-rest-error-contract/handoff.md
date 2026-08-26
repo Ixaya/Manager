@@ -39,7 +39,7 @@ and writability, and performs a real append test.
 
 ## Remaining open work
 
-Four standing proposals, none blocking. Named by title — a promoted proposal
+Three standing proposals, none blocking. Named by title — a promoted proposal
 moves, and a path here would need editing back:
 
 - **Correlation id** — chosen (stamp the id on every log line), deferred. It
@@ -53,9 +53,6 @@ moves, and a path here would need editing back:
   `clear_login_attempts()` et al. cannot distinguish "no match" from
   "succeeded", so the sample controllers correctly discard those returns. The
   sample teaches the wrong thing until this is answered.
-- **CLI silent failure** — a production-mode unreachable database made a CLI
-  migrate exit `0` with no output on any channel. The same silent-failure
-  shape this initiative fixed on the HTTP path.
 
 ## Accepted residuals
 

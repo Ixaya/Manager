@@ -159,15 +159,22 @@ Watch the repository root in particular: it carries its own `AGENTS.md`,
 yours are the same-named files under `sample/`. If a path does not start with
 `sample/`, it is not yours, whatever it is named.
 
-If the file-by-file view is slow to render — or fails outright with "this
-comparison is taking too long to generate" — append `.diff` (or `.patch`) to
-the same URL for the raw unified diff, which involves no renderer:
+**Enumerate the changed `sample/` paths with the `grep` below, every time —
+don't rely on eyeballing the rendered compare or on handing the compare to
+an LLM-summarization fetch tool to list them for you.** This isn't gated on
+how many versions you're crossing: a single release can rename or
+restructure enough files (a docs reshuffle, a scaffold reorg) to produce a
+diff just as large and misleading as a multi-version jump. Size and
+rename-density are what matter, not hop count. Append `.diff` (or `.patch`)
+to the compare URL for the raw unified diff, which also sidesteps the
+renderer entirely if the file-by-file view is slow or fails outright with
+"this comparison is taking too long to generate":
 
 ```text
 https://github.com/Ixaya/Manager/compare/2.1.1...2.1.2.diff
 ```
 
-The suffix goes on the end of the whole range, after the new version. To pull
+The suffix goes on the end of the whole range, after the new version. Pull
 just your own paths out of it:
 
 ```bash
@@ -175,10 +182,21 @@ curl -s https://github.com/Ixaya/Manager/compare/2.1.1...2.1.2.diff \
   | grep '^diff --git' | grep ' b/sample/'
 ```
 
-Read those lines as `a/<old path> b/<new path>`: when the two differ the file
-was **renamed**, which is the case most easily mistaken for a deletion plus an
-unrelated new file. A template renamed upstream means your copy keeps the old
-name and silently stops matching the scaffold.
+This is exact string matching on diff header lines — it can't miss or
+fabricate an entry the way a model summarizing the whole diff can, and it
+works the same whether the diff spans one release or ten. A fetch tool that
+converts the page to markdown and hands it to a summarizing model can
+silently drop or invent entries once the diff is large enough — it may
+report "no `sample/` changes" when there are several. Reserve a fetch tool
+for prose (commit messages, release notes) where missing a detail is
+low-stakes; never for a file list you intend to act on. The rendered
+compare view still earns its place for reading *why* a change was made —
+the commit messages — just not for compiling the path list.
+
+Read the grep output as `a/<old path> b/<new path>`: when the two differ the
+file was **renamed**, which is the case most easily mistaken for a deletion
+plus an unrelated new file. A template renamed upstream means your copy
+keeps the old name and silently stops matching the scaffold.
 
 `https://github.com/Ixaya/Manager/releases` also carries notes per version
 (open the specific tag, e.g. `releases/tag/2.1.2`, rather than paging

@@ -30,8 +30,11 @@ Source of truth (only read if something here is insufficient):
   commands below
 - Canonical examples:
   `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Manager_attachment.php`
-  (create table), `.../20260213175009_Manager_ion_auth_v2.php` (modify/add/drop
-  columns, rename, indexes)
+  (create table), `.../20260213175005_Manager_ion_auth_v2.php` (add/widen
+  columns) + `.../20260213175009_Manager_ion_auth_v3.php` (drop columns,
+  rename, unique index) — additive and destructive changes split into
+  separate files so a database still shared with an older deployment can
+  stop at the additive one and withhold the destructive one
 
 ## File placement and naming
 
@@ -50,7 +53,7 @@ edit an applied migration in place (see "Rules" below). Check the module's
 existing filenames by hand — no tooling required.
 
 Class name is `Migration_{Name}` with only the first word capitalized (file
-`20260213175009_Manager_ion_auth_v2.php` → `class Migration_Manager_ion_auth_v2`).
+`20260213175009_Manager_ion_auth_v3.php` → `class Migration_Manager_ion_auth_v3`).
 
 `manager/tools/migration_file <name> <module> [database]` (via
 `bin/cli_run.sh`, needs the Docker stack up — see "Running migrations"
@@ -225,7 +228,7 @@ Tightening `nullable: true` to `false` fails while any row still holds
 `NULL` — a `default` in the same call sets the column default, it does not
 backfill. `UPDATE` those rows first.
 
-`down()` must reverse `up()` (see `Manager_ion_auth_v2.php` for a full symmetric
+`down()` must reverse `up()` (see `Manager_ion_auth_v3.php` for a full symmetric
 example).
 
 ### Guarding a table's down()
