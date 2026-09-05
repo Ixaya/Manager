@@ -92,7 +92,7 @@ const handlePageChange = async (page, searchQuery, limit = 10) => {
   await refetch()
 
   formattedData.value = Object.values(data.value.users).map((item) => {
-    return [item.id, `${item.first_name} ${item.last_name}`, item.email, item.ip_address, item.created_on_date, item.last_activity_date]
+    return [item.id, `${item.first_name} ${item.last_name}`, item.email, item.ip_address, item.created_on_date, item.last_api_date]
   })
 
   DataTableOptions.value.data = formattedData.value

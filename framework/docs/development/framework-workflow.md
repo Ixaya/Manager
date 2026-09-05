@@ -26,8 +26,8 @@ evidence: `framework/docs/development/docker-decisions.md`.
 
 ## Where a change goes
 
-`AGENTS.md`'s repo map locates the trees. Three placement rules are easy to
-get wrong, and all three are invisible until a consuming project breaks.
+`AGENTS.md`'s repo map locates the trees. Four placement rules are easy to
+get wrong, and all four are invisible until a consuming project breaks.
 
 **A framework library is three files, not one.** The project-side pattern —
 one `application/libraries/X_lib.php` plus `application/config/lib_x.php` —
@@ -65,6 +65,18 @@ ways neither edit would alone — a log-path change once landed in a project's
 key, and since the Docker half of the same work *did* reach `sample/`, new
 projects got a `log_path` resolving to empty and a read-only-filesystem error
 on first boot.
+
+**A new `system/core/` class must not re-`require` a parent file CI3
+already loads unconditionally.** `MY_Controller.php`, `MY_Model.php`, and
+the rest of the `subclass_prefix` shims are `require_once`d by CI3 itself
+before any controller/model is resolved (`CodeIgniter.php:368-370`), so
+their own target (`MGR/Controller.php`, `MGR/Model.php`, …) is already
+loaded by the time a new class needs it. Adding a second `require` for that
+same file is a fatal "Cannot redeclare class", not a harmless duplicate —
+every shim in this codebase uses plain `require`, which doesn't deduplicate
+the way `require_once` does. Extend the parent class with no `require` at
+all, the way `MGR_Api_Model` (`extends MY_Model`, no require) and
+`MGR_Site_Controller` (`extends MGR_Controller`, no require) both do.
 
 ## Quality gates
 

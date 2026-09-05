@@ -30,7 +30,8 @@ class MGR_Exceptions extends CI_Exceptions
 
 	/**
 	 * Renders a framework error, including 404s and CI's parsed DB errors.
-	 * Logs 5xx that no caller logged first.
+	 * Logs 5xx that no caller logged first. A suppressed 5xx renders the
+	 * generic envelope on the HTML branch too, not just JSON.
 	 *
 	 * @param  string       $heading
 	 * @param  string|array $message
@@ -47,6 +48,10 @@ class MGR_Exceptions extends CI_Exceptions
 		}
 
 		if ($this->validate_html_accept()) {
+			if ($status_code >= 500 && !$this->should_disclose_details()) {
+				return parent::show_error('Error', $this->build_generic_error()['message'], 'error_general', $status_code);
+			}
+
 			return parent::show_error($heading, $message, $template, $status_code);
 		}
 
@@ -75,7 +80,8 @@ class MGR_Exceptions extends CI_Exceptions
 	}
 
 	/**
-	 * Renders an uncaught exception. Always HTTP 500.
+	 * Renders an uncaught exception. Always HTTP 500. A suppressed request
+	 * renders the generic envelope on the HTML branch too, not just JSON.
 	 *
 	 * @param  Throwable $exception
 	 * @return mixed Nothing once rendered; CI's value if handed to the HTML views.
@@ -83,6 +89,19 @@ class MGR_Exceptions extends CI_Exceptions
 	public function show_exception($exception)
 	{
 		if ($this->validate_html_accept()) {
+			if (!$this->should_disclose_details()) {
+				// show_error() returns its buffer rather than echoing it — nothing
+				// consumes show_exception()'s return, so this branch must echo.
+				echo parent::show_error('Error', $this->build_generic_error()['message'], 'error_general', 500);
+
+				return;
+			}
+
+			// CI's show_exception() never sets a status code (show_error() does) —
+			// a caller that hasn't already called set_status_header(500) itself
+			// (MGR_Rest_Controller's catch, not the top-level handler) would leak a 200.
+			is_cli() or set_status_header(500);
+
 			return parent::show_exception($exception);
 		}
 

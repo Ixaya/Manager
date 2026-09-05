@@ -10,7 +10,7 @@ class User extends APP_Model_Dyn
 		'email',
 		'first_name',
 		'last_name',
-		'last_activity_date',
+		'last_api_date',
 		'created_on'
 	];
 

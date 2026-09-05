@@ -102,6 +102,18 @@ This is also the only way to observe request-scoped state that exists only
 after real auth (`$logged_in_level`, timezone side effects of
 `process_api_user()`).
 
+## Testing a shipped-off seam
+
+Some switches (a class property like `$api_only`, not a config key) have no
+per-request toggle and default off in every shipped project. To test the
+"on" behavior: temporarily flip the property in the tracked subclass that
+carries it (e.g. `application/core/MY_Exceptions.php`), tag the edit with a
+comment marking it as temporary, run the probe, then revert and confirm
+the file shows no diff before closing (`git diff` — a leftover flip ships
+the wrong default to every project that copies the file). Same idea as a
+`?query_param=1`-driven runtime toggle for a config value, applied to a
+class property that has no per-request hook to condition on instead.
+
 ## Benchmark/comparison probes — provenance is part of the result
 
 A probe comparing implementations, drivers, or configurations (a benchmark, a

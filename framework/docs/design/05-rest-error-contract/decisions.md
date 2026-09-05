@@ -99,6 +99,39 @@ kept for traceability.
   the caller still gets a 500; what is lost is a parseable body on two rare
   paths. Documented instead in `mgr-rest-controller` and in the scaffold's
   Docker troubleshooting ladder, because the symptom names nothing on its own.
+- **2026-09-05 (24-web-frontend-scaffold): the same ruling now explicitly
+  covers web controllers, and is on record as non-negotiable, not just an
+  engineering tradeoff.** Shipping the framework's first web controller
+  (`Site_Controller`) made the equivalent gap reachable outside REST: an
+  uncaught exception from a plain web controller also answers a body-less
+  500 in production, because CI's own `_exception_handler()` gates the call
+  to `show_exception()` before `MGR_Exceptions` ever runs. A global
+  exception-handler override (a `pre_system` hook re-registering
+  `set_exception_handler()`) was proposed and rejected — the operator: this
+  framework has carried that shape before, it gave developers a false sense
+  of security and distorted downstream behavior, and this must not recur —
+  litigation-relevant, not a preference. Only a call-site guard on a leaf
+  controller (never `MGR_Controller`) is acceptable, mirroring
+  `_handle_dispatch_throwable()` above; parked as the proposal "A
+  web-controller exception still answers a body-less 500 in production",
+  not built here.
+- **2026-09-05: the parked proposal above shipped, same day.**
+  `MGR_Site_Controller` (`system/core/`) adds the call-site guard —
+  `_remap()`/`_dispatchable()`, modeled on
+  `_handle_dispatch_throwable()` — and is opt-in: a project extends it (or
+  the shipped shim, `APP_Site_Controller`) instead of `MY_Controller`
+  directly. `MGR_Controller` is untouched. Live-verified: the suppressed
+  500 now renders the same generic envelope a suppressed `show_error()`
+  already does, in both the JSON and HTML branches, instead of an empty
+  body.
+- **2026-09-05 (24-web-frontend-scaffold): `show_exception()`'s HTML branch
+  could answer a disclosed exception with HTTP 200.** CI's own
+  `show_exception()` never sets a status code (unlike `show_error()`), and
+  `MGR_Rest_Controller::_handle_dispatch_throwable()` never did either —
+  live-verified reachable. Fixed inside `MGR_Exceptions::show_exception()`
+  itself so every caller is covered. Same defect class as the envelope rule
+  above ("a 500-worthy failure returning 200 is invisible to all of them"),
+  on the exception path specifically.
 
 ## The model layer's failure signal
 
