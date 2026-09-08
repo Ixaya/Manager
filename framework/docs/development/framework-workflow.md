@@ -163,6 +163,17 @@ yours.
 
 ### Optional (suggest-only) framework dependencies
 
+Whether a new integration needs a vendor SDK at all — versus a hand-rolled
+client — is the general call `sample/docs/development/libraries.md` covers.
+Once one does, it belongs in `ixaya/manager`'s own `composer.json` as
+`require-dev` plus `suggest`, never a hard `require`: most consuming
+projects use only a handful of the framework's integrations, and a project
+that never touches WebSockets or S3 should not be forced to install
+`amphp/*` or `aws/aws-sdk-php`. The library class `use`s the SDK's classes
+normally; PHP only resolves them when the class is actually instantiated, so
+the dependency's absence stays silent until a project that needs the
+integration installs the suggested package.
+
 Some framework features — the WebSocket server (`amphp/websocket-server`,
 `amphp/log`, `amphp/redis`, `adhocore/jwt`), the AWS integration
 (`aws/aws-sdk-php`), spreadsheet import/export (`phpoffice/phpspreadsheet`)

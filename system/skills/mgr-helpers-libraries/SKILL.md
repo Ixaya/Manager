@@ -49,9 +49,23 @@ Load by the **unprefixed name**: `$this->load->library('async_exec_lib')` →
 `vendor/ixaya/manager/system/package/libraries/`; implementations are the
 `MGR_*` classes in `vendor/ixaya/manager/system/libraries/` (read those for
 signatures). To customize one for this app, create
-`application/libraries/{Name}.php` extending the `MGR_*` class — same pattern
-the aliases use. Load in the method that uses the library, not the constructor
-(see mgr-rest-controller).
+`application/libraries/{Name}.php` extending the `MGR_*` class, with a name
+of your own choosing — load it by that name, not by the alias's. That's the
+default placement for most customizations (a single app-wide instance). Use
+`application/modules/{module}/libraries/{Name}.php` instead only when the
+customization is inherently *per-module* — different modules each needing
+their own profile/template-set/config of the same base library, not just one
+shared override; qualify the load from outside that module:
+`$this->load->library('{module}/{name}')`. `mailing_lib` is the shipped
+example of the per-module case (`Frontend_mailing`, `Auth_mailing` — each
+module can declare its own templates and mailing profile). A file named to
+override the alias (CI3's `subclass_prefix`, e.g.
+`MY_Mailing_lib.php` for `mailing_lib`) is silently never loaded:
+`MX_Loader::library()` resolves a package-provided library via
+`Modules::find()` before CI3's core loader (the only one honoring
+`subclass_prefix`) ever runs. `Frontend_mailing extends MGR_Mailing_lib` is
+the shipped example of the working pattern. Load in the method that uses the
+library, not the constructor (see mgr-rest-controller).
 
 | Library | Purpose |
 |---|---|
@@ -60,7 +74,8 @@ the aliases use. Load in the method that uses the library, not the constructor
 | `attachment_lib` | Uploads tied to DB records: stores files AND rows in the `attachment` table keyed by `(model_name, model_hash)` — use when a file belongs to an entity |
 | `amazon_aws_lib` | S3: `upload_file`, `upload_data`, `get_file`, `save_file`, `get_presigned_url`, `list_files`; multiple configs via `set_config_key()` |
 | `jwt_lib` | `generate_token($user_id, $aud, $scopes, $extra)` / `decode_token($token, $aud)`; config-keyed secrets via `set_config_key()` |
-| `mailing_lib` | Themed email sending: `send_email($to, $data, $subject, $view)` renders a mailing view (module `mailing`); `set_theme()`, BCC support, `$view_only` for previewing |
+| `mailing_lib` | Themed email sending: `send_email($email, $data, $subject, $view)` renders a mailing view (module `mailing`); transport is picked by the active profile's `protocol` (`smtp`/`sendmail`/`sendgrid`); `send_template($email, $template_key, $data)` sends a SendGrid dynamic/legacy template directly (no view rendering, `sendgrid`-only, `$template_key` must be declared in the subclass's `$templates`); `set_theme()`, `set_config_key()`, BCC support, `$view_only` for previewing |
+| `sendgrid_lib` | Raw curl client for SendGrid's v3 Mail Send API: `send($to, $subject, $html_body, $from, $bcc, $attachments)`, `send_template($to, $template_id, $template_data, ...)` — both return `{success, status_code, headers, body, message_id}`; `get_template_id($key)`; config-keyed accounts via `set_config_key()`. Used directly, or through `mailing_lib` when its active profile's `protocol` is `sendgrid` |
 | `websocket_lib` | amphp-based WebSocket server (`serve()`) + `generateLink($user_identifier, $channel)` for signed client URLs (JWT-authed) (see mgr-cache-websockets) |
 | `env_lib` | Loads `.env` / `.env.priv` at boot — you interact via `mgr_env*()`, not this class |
 | `migration_module_lib` | Per-module migration plan/run/version API — used through `manager/tools` (see mgr-migrations) |
@@ -68,7 +83,7 @@ the aliases use. Load in the method that uses the library, not the constructor
 | `format`, `seeder` | REST output formatting (used internally by `response()`); DB seeding base class for `application/database/seeds/` |
 
 Library configuration lives in `vendor/ixaya/manager/system/package/config/`
-(`lib_mailing.php`, `lib_amazon_aws.php`, `lib_jwt.php`, `lib_websocket.php`,
+(`lib_mailing.php`, `lib_sendgrid.php`, `lib_amazon_aws.php`, `lib_jwt.php`, `lib_websocket.php`,
 `ion_auth.php`, `rest.php`, …) — all env-var driven; apps override values via
 environment variables (see the `.env` samples), or shadow a config file
 entirely by creating one of the same name in `application/config/`.

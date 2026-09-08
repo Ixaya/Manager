@@ -13,7 +13,7 @@ $email_base_config['charset']  = 'utf-8';
 $email_base_config['newline']  = '\r\n';
 
 // Config
-$email_config['default']['protocol']    = mgr_env('LIB_MAIL_CF_DEFAULT_PROTOCOL', 'smtp'); // 'smtp/sendmail'
+$email_config['default']['protocol']    = mgr_env('LIB_MAIL_CF_DEFAULT_PROTOCOL', 'smtp'); // 'smtp/sendmail/sendgrid'
 $email_config['default']['smtp_host']   = mgr_env('LIB_MAIL_CF_DEFAULT_SMTP_HOST', null); // '_host_'
 $email_config['default']['smtp_port']   = mgr_env_int('LIB_MAIL_CF_DEFAULT_SMTP_PORT', 587); // _port_
 $email_config['default']['smtp_crypto'] = mgr_env('LIB_MAIL_CF_DEFAULT_SMTP_CRYPTO', 'none'); // 'ssl/tls/none'

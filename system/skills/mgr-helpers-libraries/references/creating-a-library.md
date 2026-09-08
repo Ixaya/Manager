@@ -1,5 +1,9 @@
 # Creating a new library
 
+If the library talks to an external service, decide whether it needs a
+vendor SDK dependency or should be hand-rolled first —
+`docs/development/libraries.md` covers that call.
+
 Exemplars to copy from:
 `vendor/ixaya/manager/system/libraries/MGR_Amazon_aws_lib.php` +
 `system/package/config/lib_amazon_aws.php` (multi-profile config), and

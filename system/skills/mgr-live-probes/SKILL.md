@@ -134,7 +134,23 @@ Every probe controller extends a shared base pasted once per repo as
 `application/modules/probes/controllers/api/Test_probe.php` (gitignored). The
 full class (auth-safe REST base, E_ALL capture, DB helpers, assert utilities)
 is in `references/probe-base-class.md` beside this file — read it the first
-time you probe in a repo, or when the base is missing.
+time you probe in a repo, or when the base is missing. Every controller file
+that extends it also needs its own `require_once __DIR__ .
+'/Test_probe.php';` — MX modules don't share an autoload path across
+controller files in the same module, so a probe controller that only
+`extends Test_probe` without requiring the file first fails with `Class
+"Test_probe" not found`.
+
+## Mutating a loaded library's internal state
+
+A probe that needs to corrupt a library's internals for negative testing
+(a bad API key, a broken config value) must do it on a **fresh instance**
+(e.g. `new Sendgrid_lib()`), never on the loaded singleton
+(`$this->sendgrid_lib`). `$this->load->library()` returns the same shared
+object on every subsequent call in the request, so mutating it via
+reflection leaks into every other probe (or `all_get()` branch) that runs
+afterward in the same request — a later check can silently inherit the
+corruption meant for an earlier one.
 
 ## Running the stack
 

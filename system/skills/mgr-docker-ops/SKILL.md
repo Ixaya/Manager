@@ -37,7 +37,10 @@ that starts, stops, builds, execs into, or runs a command inside a
 compose-managed service (`up`, `down`, `build`, `exec`, `run`). The wrapper's
 checks (required env/secrets files, bind-dir existence) are exactly what
 catches a misconfigured instance before it does something confusing — never
-run bare `docker compose ...` by hand "to save typing".
+run bare `docker compose ...` by hand "to save typing". The one narrow
+exception — removing containers/volumes left behind by an instance the
+wrapper won't even let you run `down` against — is below ("A stray instance
+from another project name").
 
 **Direct `docker` command, fine as-is:** read-only inspection of an
 already-running container by name — `docker ps`, `docker inspect
@@ -63,6 +66,46 @@ wiring for a `grep`/`tail` adds nothing.
 Full treatment — verifying `CODE_BIND_PATH`/`MANAGER_BIND_PATH` are set
 correctly, what each mode actually mounts — is `docker.md`'s "Live-code dev
 modes" section; the bullets above are enough for routine use.
+
+## Never bring up the `sample` instance itself
+
+`sample` is the env-file template other instances are copied from
+(`sample.env` → `<instance>.env`, etc.) — it is never a valid `-e` target for
+`up`. Starting it invites editing real values (an API key, a password)
+directly into files that are still tracked in version control, one commit
+away from leaking a secret. If it's already running, that's a bug from a
+previous session, not a stack to build on — tear it down per the recovery
+procedure below and bring up a real instance (`local`, or whichever this
+project uses) instead.
+
+## A stray instance from another project name
+
+A Compose project's identity is the `-e <instance>` name itself
+(`docker_manage.sh` runs `docker compose ... -p <instance>`), so different
+instances are fully separate projects — containers, networks, and volumes
+never overlap between them, even against the identical compose file.
+`down`/`up`/`exec` under one instance name never touches another's
+containers, and a mismatched `down` exits 0 with no output — that is not
+evidence the target was empty. Before tearing down or debugging a stack you
+didn't just bring up yourself, confirm which instance actually owns it:
+
+```bash
+docker ps -a   # containers are named <instance>-*, e.g. local-php-1
+```
+
+**If the wrapper refuses to run `down` too:** missing or incomplete env/
+secrets files fail its validation on every subcommand, `down` included —
+exactly how a stray `sample` run (above) gets stuck with no sanctioned way
+to remove it. Remove the containers and volumes directly instead:
+
+```bash
+docker rm -f <instance>-*                              # from `docker ps -a`
+docker volume rm <instance>_*                          # from `docker volume ls`
+```
+
+This is the one case where bypassing `docker_manage.sh` is correct — its own
+checks are what's blocking the exact command needed to clean up a stack that
+was never validly configured. Never bypass it for routine operations.
 
 ## Running CLI/tools commands
 
