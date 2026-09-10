@@ -2,8 +2,8 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-$config['adapter']  = mgr_env('CACHE_ADAPTER', 'apc');
-$config['backup']   = mgr_env('CACHE_BACKUP', 'file');
+$config['adapter']  = mgr_env('CACHE_ADAPTER', 'file');
+$config['backup']   = mgr_env('CACHE_BACKUP', 'dummy');
 $config['key_prefix'] = mgr_env('CACHE_KEY_PREFIX', '');
 
 //Extended

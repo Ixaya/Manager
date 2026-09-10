@@ -55,8 +55,8 @@ RUN set -eux; \
         zip; \
     # Extension versions pinned for reproducible builds. To bump: install the
     # new version, rebuild, and confirm with `pecl list` in the built image.
-    pecl install apcu-5.1.28 redis-6.3.0 msgpack-3.0.1; \
-    docker-php-ext-enable apcu redis msgpack; \
+    pecl install redis-6.3.0 msgpack-3.0.1; \
+    docker-php-ext-enable redis msgpack; \
     rm -rf /tmp/pear; \
     apk del --no-network .build-deps; \
     # bin/cli_run.sh (and any tooling) hard-codes /usr/bin/php; the FPM image
