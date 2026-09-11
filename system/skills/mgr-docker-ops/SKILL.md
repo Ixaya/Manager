@@ -152,6 +152,23 @@ An absence is not evidence until the channel has produced a positive — a
 clean grep looks identical whether the bind took or the file was never
 touched.
 
+## An env file edit needs a container recreate, not a restart
+
+Any value Compose loads via `env_file:` (an instance's `.env`/`.docker.env`
+etc.) is fixed into the container's process environment at creation time.
+Editing the file and re-issuing a request tests the OLD value — `restart`
+reuses the existing container and doesn't re-read it either. Recreate the
+affected service:
+
+```bash
+./docker_manage.sh -e <instance> -b -m --profile <db> up -d --force-recreate <service>
+```
+
+Confirm the new value actually reached the process before trusting a
+result against it — `docker exec <instance>-php-1 printenv | grep <KEY>` —
+the same "don't trust absence of an error" discipline as the bind check
+above.
+
 ## Confirm which DB config a test run actually used
 
 Switching `DB_DRIVER` for a live check touches **two** files, not one: the

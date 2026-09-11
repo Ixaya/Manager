@@ -42,6 +42,12 @@ required by `public/index.php` at boot. The rest need
 | `manager_spreadsheet_helper` (load it) | `mgr_sheet_*` — cell refs, ranges, sum/avg rows, fills, fonts for PhpSpreadsheet exports |
 | `manager_assets_helper` (load it) | `add_css_fontawesome5/6($items)` |
 
+A new `mgr_env_*()` call in a `system/package/config/*.php` file also needs a
+matching placeholder in `sample/.env.sample`, in that file's existing
+`#<file>.php::<SECTION>` comment block — the template is the project-facing
+reference for what's actually configurable, and it doesn't stay accurate on
+its own.
+
 ## Libraries
 
 Load by the **unprefixed name**: `$this->load->library('async_exec_lib')` →
