@@ -90,6 +90,17 @@ class MX_Loader extends CI_Loader
 		return CI::$APP->config->load($file, $use_sections, $fail_gracefully, $this->_module);
 	}
 
+	/**
+	 * Non-module helper load, as a seam: MGR_Loader swaps CI3's
+	 * first-match-wins search for a cascade by overriding this alone.
+	 */
+	protected function helper_fallback(string $helper): static
+	{
+		parent::helper($helper);
+
+		return $this;
+	}
+
 	/** Load a module helper **/
 	public function helper($helper = [])
 	{
@@ -104,7 +115,7 @@ class MX_Loader extends CI_Loader
 		list($path, $_helper) = Modules::find($helper . '_helper', $this->_module, 'helpers/');
 
 		if ($path === false) {
-			return parent::helper($helper);
+			return $this->helper_fallback($helper);
 		}
 
 		Modules::load_file($_helper, $path);

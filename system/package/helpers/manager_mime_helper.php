@@ -2,66 +2,74 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-function mgr_file_kind_extension($file_path, &$mime_type = null, &$kind = null)
-{
-	$mime_type = mgr_detect_mime_from_file($file_path);
+if (!function_exists('mgr_file_kind_extension')) {
+	function mgr_file_kind_extension($file_path, &$mime_type = null, &$kind = null)
+	{
+		$mime_type = mgr_detect_mime_from_file($file_path);
 
-	if (strpos($mime_type, 'image/') === 0) {
-		$kind = 'image';
-	} else {
-		$kind = 'document';
-	}
-
-	return mgr_file_extension($file_path, $mime_type);
-}
-
-/** @deprecated Use mgr_file_kind_extension() instead. */
-function mgr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
-{
-	return mgr_file_kind_extension($file_path, $mime_type, $kind);
-}
-
-/**
- * Get file extension from MIME type with filename fallback
- *
- * @param string $mime_type MIME type to convert to extension
- * @param string $filepath Optional filename or file path for fallback extension extraction
- * @return string|false File extension (without dot) or false if not found
- */
-function mgr_file_extension($filepath = '', $mime_type = '')
-{
-	if (!empty($filepath)) {
-		$extension = pathinfo($filepath, PATHINFO_EXTENSION);
-		if ($extension) {
-			return strtolower($extension);
+		if (strpos($mime_type, 'image/') === 0) {
+			$kind = 'image';
+		} else {
+			$kind = 'document';
 		}
-	}
 
-	if ($mime_type == '') {
+		return mgr_file_extension($file_path, $mime_type);
+	}
+}
+
+if (!function_exists('mgr_file_kind_extention')) {
+	/** @deprecated Use mgr_file_kind_extension() instead. */
+	function mgr_file_kind_extention($file_path, &$mime_type = null, &$kind = null)
+	{
+		return mgr_file_kind_extension($file_path, $mime_type, $kind);
+	}
+}
+
+if (!function_exists('mgr_file_extension')) {
+	/**
+	 * Get file extension from MIME type with filename fallback
+	 *
+	 * @param string $mime_type MIME type to convert to extension
+	 * @param string $filepath Optional filename or file path for fallback extension extraction
+	 * @return string|false File extension (without dot) or false if not found
+	 */
+	function mgr_file_extension($filepath = '', $mime_type = '')
+	{
+		if (!empty($filepath)) {
+			$extension = pathinfo($filepath, PATHINFO_EXTENSION);
+			if ($extension) {
+				return strtolower($extension);
+			}
+		}
+
+		if ($mime_type == '') {
+			return false;
+		}
+
+		// Fallback: extract extension from filename/path
+		$mimes = mgr_mimes_config();
+		if (empty($mimes)) {
+			return false;
+		}
+
+		// Try to find extension by MIME type first
+		foreach ($mimes as $extension => $mime_values) {
+			$mime_values = (array) $mime_values;
+			if (in_array($mime_type, $mime_values)) {
+				return $extension;
+			}
+		}
+
 		return false;
 	}
-
-	// Fallback: extract extension from filename/path
-	$mimes = mgr_mimes_config();
-	if (empty($mimes)) {
-		return false;
-	}
-
-	// Try to find extension by MIME type first
-	foreach ($mimes as $extension => $mime_values) {
-		$mime_values = (array) $mime_values;
-		if (in_array($mime_type, $mime_values)) {
-			return $extension;
-		}
-	}
-
-	return false;
 }
 
-/** @deprecated Use mgr_file_extension() instead. */
-function mgr_file_extention($filepath = '', $mime_type = '')
-{
-	return mgr_file_extension($filepath, $mime_type);
+if (!function_exists('mgr_file_extention')) {
+	/** @deprecated Use mgr_file_extension() instead. */
+	function mgr_file_extention($filepath = '', $mime_type = '')
+	{
+		return mgr_file_extension($filepath, $mime_type);
+	}
 }
 
 if (!function_exists('mgr_mimes_config')) {

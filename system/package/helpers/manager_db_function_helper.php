@@ -376,33 +376,39 @@ final class MgrFunctionBuilder
 //
 // ---------------------------------------------------------------------------
 
-function mgr_build_function(
-	MgrFunctionType $function,
-	MgrDriver       $driver,
-	array           $args = []
-): string {
-	return (new MgrFunctionBuilder($function, $driver, $args))->build();
+if (!function_exists('mgr_build_function')) {
+	function mgr_build_function(
+		MgrFunctionType $function,
+		MgrDriver       $driver,
+		array           $args = []
+	): string {
+		return (new MgrFunctionBuilder($function, $driver, $args))->build();
+	}
 }
 
-function mgr_build_field_select(
-	string          $name,
-	MgrFunctionType $function,
-	MgrDriver       $driver,
-	array           $args = [],
-): string {
-	$sql = (new MgrFunctionBuilder($function, $driver, $args))->build();
-	return "{$sql} AS {$name}";
+if (!function_exists('mgr_build_field_select')) {
+	function mgr_build_field_select(
+		string          $name,
+		MgrFunctionType $function,
+		MgrDriver       $driver,
+		array           $args = [],
+	): string {
+		$sql = (new MgrFunctionBuilder($function, $driver, $args))->build();
+		return "{$sql} AS {$name}";
+	}
 }
 
-/**
- * Whether a string is a plain (optionally dotted) SQL identifier —
- * column, table.column or schema.table.column; nothing escapable.
- *
- * @param string $identifier Candidate column or table name.
- *
- * @return bool
- */
-function mgr_is_sql_identifier(string $identifier): bool
-{
-	return (bool)preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', $identifier);
+if (!function_exists('mgr_is_sql_identifier')) {
+	/**
+	 * Whether a string is a plain (optionally dotted) SQL identifier —
+	 * column, table.column or schema.table.column; nothing escapable.
+	 *
+	 * @param string $identifier Candidate column or table name.
+	 *
+	 * @return bool
+	 */
+	function mgr_is_sql_identifier(string $identifier): bool
+	{
+		return (bool)preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', $identifier);
+	}
 }

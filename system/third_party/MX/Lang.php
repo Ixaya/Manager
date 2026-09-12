@@ -37,6 +37,17 @@ defined('BASEPATH') or exit('No direct script access allowed');
  **/
 class MX_Lang extends CI_Lang
 {
+	/**
+	 * Non-module load, as a seam: MGR_Lang swaps CI3's break-on-first-hit
+	 * whole-file shadow for a per-key cascade by overriding this alone.
+	 *
+	 * @return array<string, string>|bool|null
+	 */
+	protected function load_fallback(string $langfile, string $idiom = '', bool $return = false, bool $add_suffix = true, string $alt_path = ''): array|bool|null
+	{
+		return parent::load($langfile, $idiom, $return, $add_suffix, $alt_path);
+	}
+
 	public function load($langfile, $lang = '', $return = false, $add_suffix = true, $alt_path = '', $_module = '')
 	{
 		if (is_array($langfile)) {
@@ -57,7 +68,7 @@ class MX_Lang extends CI_Lang
 		list($path, $_langfile) = Modules::find($langfile . '_lang', $_module, 'language/' . $idiom . '/');
 
 		if ($path === false) {
-			if ($lang = parent::load($langfile, $lang, $return, $add_suffix, $alt_path)) {
+			if ($lang = $this->load_fallback($langfile, $lang, $return, $add_suffix, $alt_path)) {
 				return $lang;
 			}
 		} else {

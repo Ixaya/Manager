@@ -93,17 +93,26 @@ class MX_Config extends CI_Config
 		return $config;
 	}
 
+	/**
+	 * Non-module load, as a seam: MGR_Config swaps CI3's package-last-wins
+	 * cascade for an application-last one by overriding this alone.
+	 */
+	protected function load_fallback(string $file = '', bool $use_sections = false, bool $fail_gracefully = false): bool
+	{
+		return parent::load($file, $use_sections, $fail_gracefully);
+	}
+
 	public function load($file = '', $use_sections = false, $fail_gracefully = false, $_module = '')
 	{
 		if ($_module == '') {
-			return parent::load($file, $use_sections, $fail_gracefully);
+			return $this->load_fallback($file, $use_sections, $fail_gracefully);
 		}
 
 		$file =  str_replace('.php', '', $file);
 		$file_path = $this->path_module($file, $_module, false);
 
 		if ($file_path === null) {
-			return parent::load($file, $use_sections, $fail_gracefully);
+			return $this->load_fallback($file, $use_sections, $fail_gracefully);
 		}
 
 		if (in_array($file_path, $this->is_loaded, true)) {
@@ -130,34 +139,5 @@ class MX_Config extends CI_Config
 		log_message('debug', 'Config file loaded: ' . $file_path);
 
 		return true;
-	}
-	/**
-	 * Image URL
-	 *
-	 * Returns image_url [. uri_string]
-	 *
-	 * @uses	CI_Config::_uri_string()
-	 *
-	 * @param	string|string[]	$uri	URI string or an array of segments
-	 * @param	string	$protocol
-	 * @return	string
-	 */
-	public function image_url($uri = '', $protocol = null)
-	{
-		$image_url = $this->slash_item('image_url');
-		if (empty($image_url)) {
-			$image_url = $this->slash_item('base_url');
-		}
-
-		if (isset($protocol)) {
-			// For protocol-relative links
-			if ($protocol === '') {
-				$image_url = substr($image_url, strpos($image_url, '//'));
-			} else {
-				$image_url = $protocol . substr($image_url, strpos($image_url, '://'));
-			}
-		}
-
-		return $image_url . $this->_uri_string($uri);
 	}
 }
