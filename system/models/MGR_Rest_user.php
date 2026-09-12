@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Rest_user extends MY_Model
+class MGR_Rest_user extends MY_Model
 {
 	/**
 	 * Points the model at the `user` table before the parent connects.

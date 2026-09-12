@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Rest_user_group extends MY_Model
+class MGR_Rest_user_group extends MY_Model
 {
 	/** @var array<int|string, array<int, string>> Group names cache, keyed by user_id. */
 	protected array $user_groups = [];
