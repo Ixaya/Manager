@@ -48,6 +48,16 @@ matching placeholder in `sample/.env.sample`, in that file's existing
 reference for what's actually configurable, and it doesn't stay accurate on
 its own.
 
+Every package helper function is wrapped in `if (! function_exists(...))`.
+To override just one function, declare it — same filename — under
+`application/helpers/manager_{name}_helper.php`; the rest of the package's
+functions in that file still load. This is why the guard exists: without
+it, a project file declaring even one function would fatal with
+`Cannot redeclare` the moment both layers loaded. Do **not** reach for a
+`MY_manager_{name}_helper.php` — that extension path is CI3's own and
+hardcodes a `BASEPATH`-relative file, so it hard-errors on a package
+helper rather than silently losing; it's deliberately unsupported here.
+
 ## Libraries
 
 Load by the **unprefixed name**: `$this->load->library('async_exec_lib')` →
@@ -91,11 +101,15 @@ library, not the constructor (see mgr-rest-controller).
 Library configuration lives in `vendor/ixaya/manager/system/package/config/`
 (`lib_mailing.php`, `lib_sendgrid.php`, `lib_amazon_aws.php`, `lib_jwt.php`, `lib_websocket.php`,
 `ion_auth.php`, `rest.php`, …) — all env-var driven; apps override values via
-environment variables (see the `.env` samples), or shadow a config file
-entirely by creating one of the same name in `application/config/`.
-Framework-level toggles (`migration_db`, `languages`, `rest_time_zone`,
-`cache_enable`) are in `package/config/manager.php`. Reference these, don't
-edit vendor copies.
+environment variables (see the `.env` samples), or a same-named
+`application/config/<file>.php` that sets only the keys it changes — every
+layer loads and the project wins per key, so a project file does NOT need
+to restate the rest of the package's file (see
+`framework/docs/architecture/framework-wiring.md`'s "Package resource
+override precedence" for the full six-kind route table). Framework-level
+toggles (`migration_db`, `languages`, `rest_time_zone`, `cache_enable`) are
+in `package/config/manager.php`. Reference these, don't edit vendor
+copies.
 
 Caching is CI3's cache **driver**, not a library:
 `$this->load->driver('cache')` → `$this->cache->get/save($key, $value, $ttl)`.
@@ -118,6 +132,11 @@ The package ships ready-made models in
 | `attachment` | Rows behind `attachment_lib` |
 | `domain` / `theme` | Per-domain theming/redirects, web layer (see mgr-web-controllers) |
 | `ion_auth_model` | Ion Auth internals — prefer the `ion_auth` library API |
+
+Every one of these is a shim over an `MGR_<Name>` base (`system/models/MGR_<Name>.php`),
+the same shape as the library shims above. To customize one, create
+`application/models/<Name>.php extends MGR_<Name>` — a subclass, not a
+copy, so it keeps inheriting framework fixes.
 
 ## Creating a new library
 

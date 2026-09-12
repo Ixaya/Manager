@@ -97,17 +97,60 @@ project-side files live in `application/core/`.
 `system/package/libraries/` — a thin shim (`class Jwt_lib extends
 MGR_Jwt_lib {}`) that autoloads via the package path
 (`$autoload['packages'] = [MGRPATH . 'package']`) so CI resolves `X_lib` by
-its bare name. A project that needs to customize further extends that
-unprefixed alias with its own `MY_X_lib`, the same `subclass_prefix`
-mechanism as the core classes. The auth stack is the fullest instance of
-this shape: `BE_Ion_auth` (upstream-tracked fork) → `MGR_Ion_auth` (library
-subclass, the code) → `Ion_auth` (unprefixed package alias) → a project's
-own subclass, if it has one.
+its bare name. A project that needs to customize further subclasses that
+unprefixed alias under a name of its own choosing —
+`Frontend_mailing extends MGR_Mailing_lib` is the shipped example — and
+loads it by that name, not the alias's. **Not** via `MY_`-prefixing:
+`MX_Loader::library()` resolves a package-provided library through
+`Modules::find()`/`_ci_library_paths` before CI3's `subclass_prefix`
+handling is ever reached (that handling lives only inside
+`_ci_load_stock_library()`, gated on the class existing under `BASEPATH`),
+so a `MY_X_lib.php` for a package library is silently never loaded.
+`MY_`-prefixed subclassing (`MY_Migration`, `MY_Cache`) is that separate,
+CI3-*stock*-library-only mechanism — nothing to do with package overrides;
+see "Package resource override precedence" below. The auth stack is the
+fullest instance of the package-library shape: `BE_Ion_auth`
+(upstream-tracked fork) → `MGR_Ion_auth` (library subclass, the code) →
+`Ion_auth` (unprefixed package alias) → a project's own subclass, if it
+has one.
 
 Either way, the chain is why `AGENTS.md`'s "never break the alias chain"
 rule exists: renaming a public method or changing a signature on any
 `MGR_*` class breaks every project subclass sitting on top of it, and
 nothing in the resolution mechanism itself would catch that at build time.
+
+## Package resource override precedence
+
+`$autoload['packages'] = [MGRPATH . 'package']` autoloads six resource
+types from `system/package/`: config, libraries, models, helpers, views,
+language. `MGR_Loader::add_package_path()` registers the package as a
+**fallback** location for all six, not a higher-priority overlay — so a
+project's own file always wins when both exist. The override *route*
+differs by kind, and `MY_` is narrower than it looks:
+
+| kind | route |
+|---|---|
+| core classes (`system/core/`) | `MY_` prefix in `application/core/`, via `subclass_prefix` / `load_class()` — `APPPATH`-only, unrelated to package resources. |
+| CI3 *stock* libraries (`Migration`, `Cache`) | `MY_` prefix in `application/libraries/`, via `_ci_load_stock_library()` — this is why `MY_Migration`/`MY_Cache` carry the prefix; nothing to do with package override. |
+| package libraries | same-named unprefixed class in `application/libraries/` under a name of your own choosing, `extends MGR_<Name>` — a subclass, not a copy, so it keeps inheriting framework updates. `Frontend_mailing extends MGR_Mailing_lib` is this pattern in use. **Not** `MY_`-prefixed — see "Class resolution" above. |
+| package models | same shape as package libraries: `application/models/<Name>.php extends MGR_<Name>`. Every package model is shimmed this way (`system/models/MGR_<Name>.php` + a package alias), including the three vendored third-party ones (`Format`, `Seeder`, `Rest_key_model`, under `system/third_party/`). |
+| views | whole-file replacement — a single template is not a collection of items to override piecemeal. |
+| config, helpers, language | **per item**, not whole-file: a project file declares only what it changes, and every layer still loads. Config and language are last-wins (later assignment overwrites); helpers are first-wins (`function_exists()` guards, so `APPPATH` must load *before* the package). |
+
+**Package helper functions must be `function_exists()`-guarded** (all 63
+across `system/package/helpers/` are) — without that, loading both the
+package's and a project's copy of the same helper file fatals with
+`Cannot redeclare`. The `MY_<helper>` extension branch is deliberately
+**not** the override route for a package helper: it hardcodes a
+`BASEPATH`-relative path and hard-errors when a package helper doesn't
+live there, which is correct — a project overriding one function of a
+package helper just declares that one function, same filename, under
+`application/helpers/`.
+
+Full rationale, the rejected alternatives (a unified locations-based
+resolver, config-file shims, `MY_`-for-package-libraries), and the
+resource-name-collision hazard this creates are in
+`framework/docs/design/09-package-resource-overrides/decisions.md`.
 
 ## How MGR_Model composes optional capabilities via traits
 

@@ -41,6 +41,13 @@ Item numbers (#1-#18) are the workspace numbering, kept for traceability.
   read `CACHE_DEFAULT_TTL` with the same 600 default. Gives consuming
   projects the standard CI3 config-copy override path instead of requiring
   a subclass.
+  **Correction (2026-09-12):** this premise did not actually hold at the
+  time it was written — `09-package-resource-overrides`'s opening finding
+  found the package's config always won over a project's, for every
+  package config file including `redis.php`, so a project override placed
+  here would have been silently clobbered. That campaign's fix restored the
+  override path this decision assumed; see
+  `framework/docs/design/09-package-resource-overrides/`.
 - **2026-07-12 (#8): `NOT` is not portable — driver match, and SQL Server
   deliberately unhandled.** T-SQL rejects `NOT <col>` as a scalar; no
   evidence the sync method runs against SQL Server, so that branch was left
