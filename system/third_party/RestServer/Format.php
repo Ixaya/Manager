@@ -11,7 +11,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  */
 
 /** @phpstan-consistent-constructor */
-class Format
+class RS_Format
 {
 	/**
 	 * Array output format

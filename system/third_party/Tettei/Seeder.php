@@ -11,7 +11,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @link	   https://github.com/kenjis/codeigniter-tettei-apps
  */
 
-class Seeder
+class TE_Seeder
 {
 	protected $CI;
 	protected $db;

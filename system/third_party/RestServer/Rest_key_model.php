@@ -15,7 +15,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @link			https://github.com/chriskacerguis/codeigniter-restserver
 
  */
-class MGR_Rest_key_model extends MY_Model
+class RS_Rest_key_model extends MY_Model
 {
 	protected bool $lazy_connect = true;
 
