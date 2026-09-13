@@ -24,22 +24,27 @@ directory doesn't resolve:
   MX's module and hook loaders take paths relative to `APPPATH`/
   `APPPATH/controllers/`, not absolute ones.
 
-Three project config files pull the package in from there:
+`application/config/autoload.php` pulls the package in:
+`$autoload['packages'] = [MGRPATH . 'package']`, so everything under
+`system/package/` (helpers, libraries, models, config) autoloads exactly
+like a project's own `application/` tree. `application/config/config.php`
+additionally sets `$config['modules_locations']` to add
+`MGRPATH . 'package/modules/' => '../' . APPMGRPATH . 'package/modules/'`,
+so MX's `Modules::autoload()`/`Modules::find()` resolve `manager/*` module
+controllers (`system/package/modules/manager/`) the same way they resolve
+`application/modules/*`.
 
-- `application/config/autoload.php` — `$autoload['packages'] =
-  [MGRPATH . 'package']`, so everything under `system/package/` (helpers,
-  libraries, models, config) autoloads exactly like a project's own
-  `application/` tree.
-- `application/config/config.php` — `$config['modules_locations']` adds
-  `MGRPATH . 'package/modules/' => '../' . APPMGRPATH . 'package/modules/'`,
-  so MX's `Modules::autoload()`/`Modules::find()` resolve `manager/*` module
-  controllers (`system/package/modules/manager/`) the same way they resolve
-  `application/modules/*`.
-- `application/config/constants.php` and `application/config/hooks.php` —
-  each `include`s the framework's own copy (`MGRPATH . 'config/constants.php'`
-  / `.../hooks.php`) if it exists, folding framework-defined constants
-  (`EXIT_*` codes) and any hook registrations the framework ships in
-  alongside the project's own.
+Eight of the project's own config files pull in a framework-owned base the
+same way: each `include`s (or, for `config.php`/`database.php`, is
+scaffolded starting with an `include`) the framework's own copy under
+`MGRPATH . 'config/'` first, then adds or overrides only what the project
+owns — `constants.php` and `hooks.php` (framework-defined constants,
+`EXIT_*` codes, and any hook registrations the framework ships), `config.php`
+(`modules_locations`+`BRANDPATH`, `enable_hooks`, `subclass_prefix`, the
+log-path unification), `database.php` (`mgr_apply_pdo_dsn()`), and the five
+`path()`-only library configs — `lib_mailing.php`, `lib_jwt.php`,
+`lib_sendgrid.php`, `lib_amazon_aws.php`, `mimes.php` (see mgr-helpers-libraries
+for why these five have no per-key merge and must be include-first instead).
 
 Optional: `MGR_Bootstrap` (`system/hooks/MGR_Bootstrap.php`) is a
 `pre_controller` hook, shipped commented out in `hooks.php`, that

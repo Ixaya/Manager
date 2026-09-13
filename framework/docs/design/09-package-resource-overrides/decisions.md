@@ -77,10 +77,15 @@ replacement (views) — see framework-wiring.md's route table.
 include-then-override code. Both rest on whole-file shadowing, which fails
 open for a from-scratch one-key project file (every other key vanishes)
 and freezes a legacy full copy from ever receiving new package keys. Spun
-out as its own proposal instead — see `00-shared/proposals.md`,
-`config-include-bases` — since it's the right shape for the five
+out as its own proposal instead, since it's the right shape for the five
 `config->path()`-read files (`lib_*`, `mimes`) the loader's merge
-structurally can't reach, not for the 19 merged array files.
+structurally can't reach, not for the 19 merged array files — resolved
+2026-09-13 (`framework/docs/workspace/archive/00-proposals/
+config-include-bases.tar.xz`); permanent record split across
+`framework/docs/architecture/framework-wiring.md`,
+`framework/docs/design/07-database-drivers/decisions.md`,
+`framework/docs/development/mx-upstream.md`, and
+`system/docs/upgrading/next.md`.
 
 **Rejected direction** (mechanism, campaign-wide): a unified
 locations-based resolver modeled on `Modules::find()`. Would mean

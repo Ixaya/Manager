@@ -29,7 +29,9 @@ verify its own subclass still drives the framework correctly.
 
 ```
 system/
-├── config/             # constants.php, hooks.php
+├── config/             # constants.php, hooks.php, config.php, database.php,
+│                       #   lib_*.php, mimes.php — framework bases, included
+│                       #   by the project's own copy of each
 ├── core/               # MGR classes: Model, Controller, Loader, Router, Exceptions,
 │   │                   #   MGR_Model_Dyn, MGR_Api_Model, MGR_Rest_Controller
 │   └── MGR/

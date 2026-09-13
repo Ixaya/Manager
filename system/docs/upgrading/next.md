@@ -41,3 +41,25 @@ failure surfaces from inside package code. **Audit your
 upgrading**; renaming the package's own resources to avoid this was
 considered and rejected (existing projects have long depended on the
 unprefixed names).
+
+### An environment-specific config copy for the five `path()`-only library configs is now read alone, not layered onto the base
+
+`lib_mailing.php`, `lib_jwt.php`, `lib_sendgrid.php`, `lib_amazon_aws.php`,
+and `mimes.php` are resolved through `config->path()`, which returns exactly
+one file. Previously, per-path resolution checked the base file before the
+`ENVIRONMENT/` copy, so an environment-specific copy of any of these five
+was **silently never read** — only the base ever loaded. That order is now
+reversed to match every other CI3 config consumer (`CI_Config::load()`,
+`CI_Loader::_ci_init_library()`, `DB()`): the environment copy wins when
+both exist.
+
+**If your project ships a `production/` (or other environment) copy of any
+of these five files today, it was never being read — audit it before
+upgrading.** If it's a partial overlay (only some keys set, written on the
+assumption the base filled in the rest), it now *is* read, alone, and any
+variable it didn't set is simply undefined. Make it complete —
+`include MGRPATH . 'config/<file>.php';` at the top, same shape the
+base-level override already uses — or delete it if it was dead weight.
+
+`database.php` and `config.php` are unaffected: `DB()` and `get_config()`
+already preferred the `ENVIRONMENT/` copy outright, and that did not change.

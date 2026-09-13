@@ -54,7 +54,11 @@ use it.
 - The `path()`-only config consumers (`lib_mailing`, `lib_jwt`,
   `lib_sendgrid`, `lib_amazon_aws`, `mimes`), `database.php`/`config.php`
   slimming, and the `path_env()` environment-copy defect — spun out as the
-  `config-include-bases` proposal (`framework/docs/workspace/00-proposals/`),
-  self-contained there.
+  `config-include-bases` proposal, resolved and archived 2026-09-13
+  (`framework/docs/workspace/archive/00-proposals/config-include-bases.tar.xz`);
+  permanent record split across `framework/docs/architecture/framework-wiring.md`,
+  `framework/docs/design/07-database-drivers/decisions.md`,
+  `framework/docs/development/mx-upstream.md`, and
+  `system/docs/upgrading/next.md`.
 - Package resource name collisions — considered, rejected; see
   decisions.md.

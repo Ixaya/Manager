@@ -15,6 +15,23 @@ one, so the reasoning that held at the time stays readable.
   shape, not a cross-cutting convention other code needs to follow — a
   project that doesn't want it can set the `dsn` directly instead. Re-ships
   with every scaffold refresh same as the rest of `database.php`.
+- **2026-09-13 (supersedes the ruling above, on where the code lives, not
+  on documentation): `mgr_apply_pdo_dsn()` moved to the framework's own
+  `system/config/database.php`, included by the project's `database.php`.**
+  The 2026-08-04 ruling was about not generalizing it — not a skill, not
+  an architecture note, not a `manager_*_helper.php`-style helper callable
+  from anywhere — never about which file holds its bytes; a later session's
+  baseline check misread it as a conflict, confirmed live with the operator
+  to be the opposite of the actual intent. It still isn't a general helper
+  today: it stays config-file-scoped, defined inside `system/config/
+  database.php` itself rather than autoloaded, callable only once that file
+  is included. What moved is only which file holds that scoped definition —
+  the function now flows through `composer update`, guarded by
+  `function_exists()` so a project still defining its own copy doesn't
+  fatal. The `$db['default']` group construction around it is untouched by
+  this and stays exactly where the original ruling put it: project-owned,
+  re-shipped only via scaffold refresh, never dictated by the framework — a
+  group's name and shape are too project-specific to standardize.
 - **2026-08-05 (closing review): `mgr_apply_pdo_dsn()` sets
   `PDO::ATTR_EMULATE_PREPARES => true`, scoped to the `pgsql` subdriver.**
   Without it, `pdo_pgsql` prepares every statement server-side — the entire

@@ -75,17 +75,18 @@ The two paths differ in kind, not in speed:
   the other type.
 
 **Moving an existing project onto PDO without changing its API contract:**
-uncomment the `PDO::ATTR_STRINGIFY_FETCHES` line in
-`application/config/database.php`'s `mgr_apply_pdo_dsn()`. Every column
-that would otherwise convert comes back a string again, on all three
+uncomment the `'options' => [PDO::ATTR_STRINGIFY_FETCHES => true]` line in
+your own `application/config/database.php`'s `$db['default']` array. Every
+column that would otherwise convert comes back a string again, on all three
 engines. One value — not type — still differs: a Postgres `Bool` reads
 `'1'` where the native driver said `'t'`. Treat the flag as temporary and
 delete it once your clients accept native types.
 
 The image ships `pdo_mysql` and `pdo_pgsql`, so nothing needs building for
 MySQL, MariaDB or PostgreSQL — set `DB_DRIVER` and go.
-`mgr_apply_pdo_dsn()` in `application/config/database.php` builds the `dsn`
-from the same `DB_HOST`/`DB_PORT`/`DB_NAME`. Other engines are a different
+`mgr_apply_pdo_dsn()`, included into `application/config/database.php` from
+the framework's own `config/database.php` base, builds the `dsn` from the
+same `DB_HOST`/`DB_PORT`/`DB_NAME`. Other engines are a different
 story: SQLite works over `pdo/sqlite` (`DB_NAME` is the file path), and SQL
 Server has a compose profile but no driver in the image — the available
 Alpine subdriver has unresolved problems severe enough that shipping it

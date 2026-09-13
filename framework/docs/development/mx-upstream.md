@@ -26,6 +26,14 @@ style, `array()` → `[]`, PHP-version-compat syntax swaps) are omitted.
   `path()`/`read()` split above: it gives `MGR_Config` one method to
   override for its own cascade logic, without deleting MX's module-scoped
   lookup by becoming the most-derived `load()`.
+- **`path_env()` check order reversed** (2026-09-12, `Config.php:43`) — the
+  per-path `[$file, ENVIRONMENT . '/' . $file]` probe became
+  `[ENVIRONMENT . '/' . $file, $file]`, so an environment-specific copy wins
+  over the base at the same path, matching every other CI3 config consumer
+  (`CI_Config::load()`, `CI_Loader::_ci_init_library()`, `DB()`). Previously
+  the base always won, so an environment copy of any file resolved only
+  through `path()` (`lib_mailing.php`, `lib_jwt.php`, `lib_sendgrid.php`,
+  `lib_amazon_aws.php`, `mimes.php`) was silently never read.
 
 ## `Loader.php`
 
@@ -77,7 +85,8 @@ order:
    merged upstream already resolves module lookups compatibly); the
    `path()`/`read()` split with `path_env()`/`path_module()`/`read_path()`
    staying `protected`; then `load_fallback()`, redirecting `load()`'s
-   `parent::load(...)` call sites to it.
+   `parent::load(...)` call sites to it; then `path_env()`'s reversed check
+   order (environment copy before base).
 2. `Loader.php`: confirm whether `database()`, `_ci_get_component()`, and
    `_ci_load()` still need their MX overrides removed (the merged upstream
    may have changed them too — diff before assuming); then
