@@ -37,9 +37,12 @@ change values through the environment rather than editing the files:
 - `lib_jwt.php` — secret, algorithm and expiry for the tokens `generateLink()`
   signs
 
-All four are in `vendor/ixaya/manager/system/package/config/`.
-`CACHE_BYPASS_IPS` is the exception — the driver reads it straight from the
-environment; it is not in any config file.
+`cache.php`, `redis.php` and `lib_websocket.php` are in
+`vendor/ixaya/manager/system/package/config/`. `lib_jwt.php`'s definition
+lives at `vendor/ixaya/manager/system/config/lib_jwt.php` instead — the
+`system/package/config/` copy is a thin shim (see mgr-helpers-libraries for
+the override shape). `CACHE_BYPASS_IPS` is the exception — the driver reads
+it straight from the environment; it is not in any config file.
 
 ## Cache usage
 

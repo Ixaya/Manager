@@ -6,9 +6,10 @@ vendor SDK dependency or should be hand-rolled first —
 
 Exemplars to copy from:
 `vendor/ixaya/manager/system/libraries/MGR_Amazon_aws_lib.php` +
-`system/package/config/lib_amazon_aws.php` (multi-profile config), and
-`system/libraries/MGR/Migration.php` + `system/package/config/migration.php`
-(plain config read).
+`system/config/lib_amazon_aws.php` (multi-profile config; the identically
+named file under `system/package/config/` is a thin shim, not the
+exemplar), and `system/libraries/MGR/Migration.php` +
+`system/package/config/migration.php` (plain config read).
 
 ### Framework mode — a framework library is three files
 

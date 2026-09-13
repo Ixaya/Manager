@@ -98,18 +98,33 @@ library, not the constructor (see mgr-rest-controller).
 | `ion_auth` | Authentication/groups (CI3 Ion Auth): `logged_in()`, `login()`, `register()`, `user()`, `in_group()`, `is_admin()`, `activate()/deactivate()`, `add_to_group()/remove_from_group()`, `delete_user()`, `clear_login_attempts()` (see mgr-auth) |
 | `format`, `seeder` | REST output formatting (used internally by `response()`); DB seeding base class for `application/database/seeds/` |
 
-Library configuration lives in `vendor/ixaya/manager/system/package/config/`
-(`lib_mailing.php`, `lib_sendgrid.php`, `lib_amazon_aws.php`, `lib_jwt.php`, `lib_websocket.php`,
-`ion_auth.php`, `rest.php`, …) — all env-var driven; apps override values via
-environment variables (see the `.env` samples), or a same-named
-`application/config/<file>.php` that sets only the keys it changes — every
-layer loads and the project wins per key, so a project file does NOT need
-to restate the rest of the package's file (see
-`framework/docs/architecture/framework-wiring.md`'s "Package resource
-override precedence" for the full six-kind route table). Framework-level
-toggles (`migration_db`, `languages`, `rest_time_zone`, `cache_enable`) are
-in `package/config/manager.php`. Reference these, don't edit vendor
-copies.
+Library configuration lives in `vendor/ixaya/manager/system/package/config/`,
+in two different shapes:
+
+- **`$config[]` array files** (`lib_websocket.php`, `ion_auth.php`,
+  `rest.php`, …) — all env-var driven; apps override values via environment
+  variables (see the `.env` samples), or a same-named
+  `application/config/<file>.php` that sets only the keys it changes — every
+  layer loads and the project wins per key, so a project file does NOT need
+  to restate the rest of the package's file (see
+  `framework/docs/architecture/framework-wiring.md`'s "Package resource
+  override precedence" for the full six-kind route table — framework repo
+  only, not shipped).
+- **Loose-variable/return-shape files** (`lib_mailing.php`, `lib_jwt.php`,
+  `lib_sendgrid.php`, `lib_amazon_aws.php`, `mimes.php`) — resolved via
+  `config->path()` and `include()`d whole by the consuming constructor/
+  helper, so there is no per-key merge: `path()` returns one file. The
+  framework's own copy lives at `vendor/ixaya/manager/system/config/<file>.php`;
+  `system/package/config/<file>.php` is a thin `require
+  dirname(__FILE__) . '/../../config/<file>.php';` shim so `path()` still
+  resolves it for a project shipping no copy of its own. A project overrides
+  by giving its own `application/config/<file>.php` that starts with
+  `include MGRPATH . 'config/<file>.php';` then sets only the fields it
+  wants to change — the include makes that one file complete, not a diff.
+
+Framework-level toggles (`migration_db`, `languages`, `rest_time_zone`,
+`cache_enable`) are in `package/config/manager.php`. Reference these, don't
+edit vendor copies.
 
 Caching is CI3's cache **driver**, not a library:
 `$this->load->driver('cache')` → `$this->cache->get/save($key, $value, $ttl)`.

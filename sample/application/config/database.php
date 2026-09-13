@@ -3,6 +3,15 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
+|--------------------------------------------------------------------------
+| Pull in the Global Framework Configuration
+|--------------------------------------------------------------------------
+| Required base: mgr_apply_pdo_dsn() lives there, guarded by function_exists
+| so a legacy project defining it locally still doesn't fatal.
+*/
+include MGRPATH . 'config/database.php';
+
+/*
 | -------------------------------------------------------------------
 | DATABASE CONNECTIVITY SETTINGS
 | -------------------------------------------------------------------
@@ -13,8 +22,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 | would be worse than a missing one.
 |
 |	['dsn'] (string) Full connection string. Empty unless you connect by
-|	    dsn directly; mgr_apply_pdo_dsn() below fills it in for a compound
-|	    'pdo/<engine>' driver.
+|	    dsn directly; mgr_apply_pdo_dsn(), included above, fills it in for
+|	    a compound 'pdo/<engine>' driver.
 |	['hostname'] (string) Database host.
 |	['port'] (int|null) Null leaves the driver's own default.
 |	['username'] (string) Required, no fallback: a silent 'root' either
@@ -54,63 +63,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
 $active_group = 'default';
 $query_builder = true;
 
-if (!function_exists('mgr_apply_pdo_dsn')) {
-	/**
-	 * Rewrites a CI DB config's dbdriver/dsn when dbdriver is a compound
-	 * 'pdo/<engine>' value (e.g. 'pdo/pgsql'), building the DSN CI's pdo
-	 * driver requires from the config's own hostname/port/database. Any
-	 * other dbdriver passes through unchanged.
-	 *
-	 * @param  array<string, mixed> $config
-	 * @return array<string, mixed>
-	 */
-	function mgr_apply_pdo_dsn(array $config): array
-	{
-		if (!str_contains($config['dbdriver'], '/')) {
-			return $config;
-		}
-
-		[$dbdriver, $subdriver] = explode('/', $config['dbdriver'], 2);
-
-		$dsn_body = match ($subdriver) {
-			'sqlite' => $config['database'],
-			'dblib' => "host={$config['hostname']}"
-				. (empty($config['port']) ? '' : ":{$config['port']}")
-				. ";dbname={$config['database']}",
-			'sqlsrv' => "Server={$config['hostname']}"
-				. (empty($config['port']) ? '' : ",{$config['port']}")
-				. ";database={$config['database']}",
-			default => "host={$config['hostname']}"
-				. (empty($config['port']) ? '' : ";port={$config['port']}")
-				. ";dbname={$config['database']}",
-		};
-		$dsn = "{$subdriver}:{$dsn_body}";
-
-		$overrides = ['dbdriver' => $dbdriver, 'dsn' => $dsn];
-		$options = $config['options'] ?? [];
-
-		if ($subdriver === 'pgsql') {
-			// avoids server-side prepares — they slow queries with no benefit here, since CI binds no parameters.
-			$options += [PDO::ATTR_EMULATE_PREPARES => true];
-
-			// pdo_pgsql has no _db_set_charset(); the DSN's `options` keyword is
-			// the only way libpq accepts a client_encoding.
-			if (!empty($config['char_set'])) {
-				$overrides['dsn'] = $dsn . ";options='-c client_encoding={$config['char_set']}'";
-			}
-		}
-
-		// keeps mysqli/postgre's stringified fetch contract when moving to PDO
-		// $options += [PDO::ATTR_STRINGIFY_FETCHES => true];
-
-		if ($options !== []) {
-			$overrides['options'] = $options;
-		}
-
-		return array_merge($config, $overrides);
-	}
-}
-
 $db['default'] = mgr_apply_pdo_dsn([
 	'dsn'	=> '',
 	'hostname' => mgr_env('DB_HOST', 'localhost'),
@@ -119,6 +71,8 @@ $db['default'] = mgr_apply_pdo_dsn([
 	'password' => mgr_env('DB_PASS', ''),
 	'database' => mgr_env_required('DB_NAME'),
 	'dbdriver' => mgr_env('DB_DRIVER', 'pdo/mysql'),
+	// bridges native's stringify-everything contract on pdo driver
+	// 'options' => [PDO::ATTR_STRINGIFY_FETCHES => true],
 	'dbprefix' => '',
 	'pconnect' => false,
 	'db_debug' => (ENVIRONMENT !== 'production'),

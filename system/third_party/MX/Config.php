@@ -40,7 +40,7 @@ class MX_Config extends CI_Config
 	protected function path_env(string $file = ''): ?string
 	{
 		foreach ($this->_config_paths as $path) {
-			foreach ([$file, ENVIRONMENT . DIRECTORY_SEPARATOR . $file] as $location) {
+			foreach ([ENVIRONMENT . DIRECTORY_SEPARATOR . $file, $file] as $location) {
 				$file_path = $path . 'config/' . $location . '.php';
 				if (in_array($file_path, $this->is_loaded, true)) {
 					return $file_path;

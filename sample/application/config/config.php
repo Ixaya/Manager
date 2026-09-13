@@ -4,6 +4,15 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
 |--------------------------------------------------------------------------
+| Pull in the Global Framework Configuration
+|--------------------------------------------------------------------------
+| Required base: enable_hooks, subclass_prefix, log_path unification, and
+| modules_locations (with the BRANDPATH branch) all live there.
+*/
+include MGRPATH . 'config/config.php';
+
+/*
+|--------------------------------------------------------------------------
 | Base Site URL
 |--------------------------------------------------------------------------
 |
@@ -100,31 +109,6 @@ $config['language']	= 'english';
 |
 */
 $config['charset'] = 'UTF-8';
-
-/*
-|--------------------------------------------------------------------------
-| Enable/Disable System Hooks
-|--------------------------------------------------------------------------
-|
-| If you would like to use the 'hooks' feature you must enable it by
-| setting this variable to TRUE (boolean).  See the user guide for details.
-|
-*/
-$config['enable_hooks'] = true;
-
-/*
-|--------------------------------------------------------------------------
-| Class Extension Prefix
-|--------------------------------------------------------------------------
-|
-| This item allows you to set the filename/classname prefix when extending
-| native libraries.  For more information please see the user guide:
-|
-| https://codeigniter.com/user_guide/general/core_classes.html
-| https://codeigniter.com/user_guide/general/creating_libraries.html
-|
-*/
-$config['subclass_prefix'] = 'MY_';
 
 /*
 |--------------------------------------------------------------------------
@@ -228,25 +212,6 @@ $config['directory_trigger'] = 'd';
 */
 
 $config['log_threshold'] = mgr_env_int('CF_LOG_THRESHOLD', 1);
-
-/*
-|--------------------------------------------------------------------------
-| Error Logging Directory Path
-|--------------------------------------------------------------------------
-|
-| Leave this BLANK unless you would like to set something other than the default
-| application/logs/ directory. Use a full server path with trailing slash.
-|
-*/
-$cf_log_path  = mgr_env('CF_LOG_PATH');   // legacy override, verbatim; null when unset/empty
-$mgr_log_path = mgr_env('MGR_LOG_PATH');  // unified log root; null when unset/empty
-if ($cf_log_path !== null) {
-	$config['log_path'] = $cf_log_path;
-} elseif ($mgr_log_path !== null) {
-	$config['log_path'] = rtrim($mgr_log_path, '/') . '/app/';
-} else {
-	$config['log_path'] = '';
-}
 
 /*
 |--------------------------------------------------------------------------
@@ -545,35 +510,3 @@ $config['rewrite_short_tags'] = false;
 | Array:		array('10.0.1.200', '192.168.5.0/24')
 */
 $config['proxy_ips'] = '';
-
-/*
-|--------------------------------------------------------------------------
-| Module Locations
-|--------------------------------------------------------------------------
-| Defines the paths where CodeIgniter will look for HMVC modules.
-| Multiple locations may be defined and will be checked in order.
-|
-| The first matching module found will be loaded, allowing later
-| locations to act as fallbacks.
-|
-| In this setup:
-| - Brand modules are checked first, allowing customer-specific
-|   overrides and extensions.
-| - Core modules are checked next, providing the shared default
-|   implementation.
-| - Vendor modules are checked next, providing the base default
-|   implementation.
-|
-| NOTE: The relative path origin is APPPATH/controllers/
-*/
-
-$config['modules_locations'] = [
-	APPPATH . 'modules/'  => '../modules/',
-	MGRPATH . 'package/modules/' => '../' . APPMGRPATH . 'package/modules/'
-];
-
-if (defined('BRANDPATH') && defined('BRANDPATH_MODULES_OFFSET')) {
-	$config['modules_locations'] = [
-		BRANDPATH . 'modules/' => BRANDPATH_MODULES_OFFSET . 'modules/',
-	] + $config['modules_locations'];
-}
