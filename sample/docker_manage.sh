@@ -46,9 +46,10 @@
 # MANAGER_BIND_PATH=<path> set in the instance's DOCKER env-file; without it,
 # this aborts rather than silently falling back to baked vendor code.
 #
-# `exec`/`run` into php/ws/cron/cli default to -u www-data (below) unless
-# the caller already passed -u/--user — a command run as root there creates
-# root-owned files the app's own www-data process can't read/write
+# `exec`/`run` into php/ws/cron/cli default to -u <APP_USER>:<APP_GROUP>
+# (below, from the instance's docker.env; www-data:www-data when unset)
+# unless the caller already passed -u/--user — a command run as root there
+# creates root-owned files the app's own worker identity can't read/write
 # afterward, silently. Override with an explicit -u/--user when root is
 # actually needed.
 #
@@ -130,7 +131,7 @@ require_file() { [[ -f "${DOCKER_DIR}/$1" ]] || die "required file missing: dock
 require_file "$APP_SECRETS_MOUNT"
 require_file "$VALKEY_SECRET_FILE"
 
-# ── Default `exec`/`run` into an app-image service to www-data ───────────────
+# ── Default `exec`/`run` into an app-image service to the instance's identity ─
 if [[ "${1:-}" == "exec" || "${1:-}" == "run" ]]; then
     has_user=false
     service=""
@@ -146,7 +147,12 @@ if [[ "${1:-}" == "exec" || "${1:-}" == "run" ]]; then
         ((i++))
     done
     if [[ "$has_user" == false && "$service" =~ ^(php|ws|cron|cli)$ ]]; then
-        set -- "$1" -u www-data "${@:2}"
+        app_user="$(grep -E '^APP_USER='  "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)"
+        app_group="$(grep -E '^APP_GROUP=' "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)"
+        # Both explicit, not just APP_USER — relying on the named user's own
+        # /etc/passwd primary group to already equal APP_GROUP would silently
+        # diverge from the pool if a project ever set that user up otherwise.
+        set -- "$1" -u "${app_user:-www-data}:${app_group:-www-data}" "${@:2}"
     fi
 fi
 

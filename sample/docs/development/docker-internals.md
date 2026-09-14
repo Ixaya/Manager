@@ -86,11 +86,19 @@ like it needs that pointer, the content belongs here instead.
   working.
 - **`RUN_MIGRATIONS=true`'s boot-time migrate runs as root — there's no user
   to default there, since it happens before the container execs into
-  `php-fpm` — but `entrypoint.sh` `chown -R www-data:www-data`s
-  `MGR_LOG_PATH` immediately afterward.** This is the one root-owned-file
-  path that no `exec`/`run` user default (see `mgr-docker-ops`) can cover,
-  so it self-heals every boot instead: any log file the migrate step just
-  created comes out `www-data`-owned before `php-fpm` workers ever touch it.
+  `php-fpm` — but `entrypoint.sh` `chown -R "$APP_USER":"$APP_GROUP"`s
+  `MGR_LOG_PATH` immediately afterward** (`www-data:www-data` unless the
+  image was built with `APP_USER`/`APP_GROUP` overridden). This is the one
+  root-owned-file path that no `exec`/`run` user default (see
+  `mgr-docker-ops`) can cover, so it self-heals every boot instead: any log
+  file the migrate step just created comes out correctly owned before
+  `php-fpm` workers ever touch it.
+- **`APP_USER`/`APP_GROUP` are build args, not runtime env vars, even though
+  `entrypoint.sh` reads them.** They're baked as an image `ENV` default in
+  the Dockerfile specifically so `entrypoint.sh` sees the same identity the
+  FPM pool was rendered with, without needing a matching `environment:`
+  block in `docker-compose.yml` (unlike `RUN_MIGRATIONS`/`WAIT_FOR_DB`
+  above). Changing them needs a rebuild, same as `PHP_PM_MAX_CHILDREN`.
 - **`WEBSOCKET_PORT` is dual-consumer and must stay in `<instance>.env`, never
   `<instance>.docker.env`.** It's read by the PHP app itself (the ws server's
   actual bind port) *and* by compose at render time for the `ws`

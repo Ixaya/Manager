@@ -208,7 +208,8 @@ immutable image; the bind modes exist only to shorten the dev loop.
 ### Multi-dev shared checkout
 
 For a shared integration box, the expected host tree is a git checkout owned
-by one deploy user, group-readable (Alpine's `www-data`, uid 82, only needs
+by one deploy user, group-readable (the pool identity — `www-data`, uid 82
+on Alpine, unless overridden via `APP_USER`/`APP_GROUP` — only needs
 **read**), updated only via `git pull` on a shared integration branch — no
 sftp, no manual copies. Give each developer (or each integration checkout)
 its own instance so `-b` sessions never collide: unique
@@ -381,6 +382,43 @@ on the HOST (not container-settable) and Valkey warns at startup if missing:
 `vm.overcommit_memory = 1` (via `/etc/sysctl.conf` + `sysctl`) and
 transparent huge pages disabled.
 
+## Runtime identity (APP_USER/APP_GROUP)
+
+Every write path — the FPM pool's workers, `ws`, `cron`, `cli`, and
+`exec`/`run` through `docker_manage.sh` — runs as `APP_USER:APP_GROUP`, a
+**build arg** baked into the image (default `www-data:www-data`, uid/gid 82
+on this Alpine base). `php` itself never gets a compose-level `user:`
+override — it stays root-started so FPM can drop privilege internally per
+its own pool config; `ws`/`cron`/`cli` have no such mechanism and carry an
+explicit `user:` set to the same identity instead.
+
+Override this only when your storage is shared with something outside this
+stack that already owns files under a different, fixed uid/gid — an
+NFS/EFS mount also written by non-container processes, for example — where
+reowning that storage isn't an option and the container's own identity has
+to match instead. To use a non-default identity:
+
+1. Add the matching user/group in your project's own Dockerfile, in a stage
+   before `php-app` — the framework build never creates one for you:
+   ```dockerfile
+   FROM php-base AS php-app
+   RUN addgroup -g 1001 app1001 && adduser -D -H -u 1001 -G app1001 app1001
+   ```
+2. Set `APP_USER=app1001` / `APP_GROUP=app1001` in the instance's
+   `docker.env`.
+3. Rebuild — like `PHP_PM_MAX_CHILDREN` above, this is baked at build time,
+   not read at container start.
+
+Everything else follows without further wiring: the pool renders with that
+identity, `entrypoint.sh` chowns `MGR_LOG_PATH` to it on boot, `ws`/`cron`/
+`cli` start as it, and `docker_manage.sh exec`/`run` defaults `-u` to
+`<APP_USER>:<APP_GROUP>` automatically.
+
+The build fails loud, before any container starts, if the named user/group
+doesn't already exist in the image — there is no numeric-uid shortcut: this
+stack's FPM rejects a bare `user = #1001`-style identity outright, so it
+must be a real, named `/etc/passwd`/`/etc/group` entry.
+
 ## Logging
 
 `CF_LOG_THRESHOLD` (see `docs/architecture/environment.md` for how env vars
@@ -469,12 +507,14 @@ If it reports the log cannot be appended to, logging itself is broken and
 every channel above is meaningless: CI opens the file with a silenced
 `fopen()` and `log_message()` discards the result, so nothing reports it. The
 usual cause is a CLI command run as root creating a root-owned
-`log-<date>.log` that php-fpm (`www-data`) then cannot write — fix with
-`chown -R www-data:www-data /var/log/manager`. Run `log_check` itself as the
-web-server user — `exec` into `php`/`ws`/`cron`/`cli` defaults to `www-data`
-automatically, so this only bites if you overrode that with an explicit
-`-u root` (see `mgr-docker-ops`): root appends to anything and will report
-success on the exact state that is failing.
+`log-<date>.log` that php-fpm (running as `APP_USER`/`APP_GROUP` — `www-data`
+by default) then cannot write — fix with
+`chown -R <instance's APP_USER>:<APP_GROUP> /var/log/manager` (`www-data:www-data`
+unless overridden). Run `log_check` itself as the web-server identity —
+`exec` into `php`/`ws`/`cron`/`cli` defaults to it automatically, so this
+only bites if you overrode that with an explicit `-u root` (see
+`mgr-docker-ops`): root appends to anything and will report success on the
+exact state that is failing.
 
 If it reports the writes land, the failure happens *before* the app's logging
 subsystem initializes, so nothing can record it. Don't keep re-checking the

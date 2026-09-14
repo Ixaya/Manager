@@ -446,3 +446,35 @@ Cost: none — `-u root`/`--user root` still overrides the default on either
 subcommand when root is genuinely needed.
 Revisit when: never, unless a new one-off subcommand pattern (beyond
 `exec`/`run`) is added for these four services and needs the same default.
+
+**Runtime identity (`APP_USER`/`APP_GROUP`) is a configurable knob defaulting
+to `www-data`, not a second hardcoded name.**
+Decision: the FPM pool's `user`/`group`, `entrypoint.sh`'s chown target, and
+`docker-compose.yml`'s `user:` on `ws`/`cron`/`cli` all resolve from
+`APP_USER`/`APP_GROUP` (build arg + `docker.env`, default `www-data`)
+instead of the literal string. The FPM pool build step fails loud if the
+named user/group doesn't already exist in the image. `php` itself gets no
+compose-level `user:` — it must stay root-started so FPM can drop privilege
+internally per the pool's own `user=`/`group=`; `ws`/`cron`/`cli` have no
+such mechanism and need the identity set directly.
+Why: a project whose media/log storage is a pre-existing mount (NFS, EFS)
+shared with processes outside this stack — each with its own fixed,
+already-assigned uid/gid — cannot retroactively reown that data without
+breaking those other owners, so the container's own writer identity has to
+match instead. This is a generic Docker-identity knob with a safe default;
+which uid a specific project needs, and how it gets a matching user into
+the image, stays entirely project-owned.
+Evidence: live-verified — `#1001`-style numeric UIDs are rejected by this
+image's FPM (`cannot get uid for user '#1001'`), so the knob takes a name,
+not a number; built `php-app` with `APP_USER=APP_GROUP=app1001` (a shadow
+uid 1001 user added in a simulated project stage before `php-base`),
+confirmed the pool renders and validates, and confirmed at runtime the FPM
+master stays root while every pool worker runs as uid 1001. A build with a
+nonexistent `APP_USER` fails during the image build, before any container
+starts.
+Cost: none to the default path (identical `www-data` behavior). A project
+overriding it must create the matching user/group in its own Dockerfile
+stage before `php-base` — this framework never bakes a project-specific
+identity itself.
+Revisit when: never, unless FPM in a future base image gains real numeric
+`#UID` support, which would let a project skip the named-user step entirely.

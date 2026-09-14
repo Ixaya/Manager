@@ -120,18 +120,24 @@ against this checkout instead of a lagging vendor mirror needs an extra
 bind not covered here — see `framework/docs/development/framework-workflow.md`
 (not shipped; no project-side equivalent).
 
-## `exec`/`run` into php/ws/cron/cli run as `www-data` — enforced, not a habit to remember
+## `exec`/`run` into php/ws/cron/cli run as the instance's app identity — enforced, not a habit to remember
 
 `docker_manage.sh` defaults both `exec` and `run` into these four services
-to `-u www-data` automatically; you don't need to type it, for either
-subcommand — `run --rm cli -c "..."` (the standard one-off pattern for
-migrate/claim_admin) gets the same default as `exec php ...`. This exists
-because a command run as root creates root-owned files (a log file, an app
-file) that the app's own `www-data` process then can't write to or read —
-**silently**, no error at the time, just a dropped log write or a `500
-Permission denied` the next time anyone hits that path. This has bitten
-this codebase's own history more than once — that repeat is why the default
-moved into the script instead of staying a line in a skill.
+to `-u <APP_USER>:<APP_GROUP>` automatically (read from the instance's
+`docker.env`; `www-data:www-data` when unset — the stock identity almost
+every instance uses); you don't need to type it, for either subcommand —
+`run --rm cli -c "..."` (the standard one-off pattern for migrate/
+claim_admin) gets the same default as `exec php ...`. `ws`/`cron`/`cli`
+also carry a matching `user:` in `docker-compose.yml` itself, since only
+`php` runs FPM (which drops privilege internally). This exists because a
+command run as root creates root-owned files (a log file, an app file) the
+app's own worker identity then can't write to or read — **silently**: no
+error at the time, just a dropped log write or a `500 Permission denied`
+the next time anyone hits that path.
+
+Override only via `APP_USER`/`APP_GROUP` in `docker.env` when the project's
+own storage needs it — see `docker.md`'s "Runtime identity
+(APP_USER/APP_GROUP)" section for when and how.
 
 Override the default only when root is actually needed (installing a
 package, inspecting a file only root can read): `exec -u root php ...` /

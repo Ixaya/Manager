@@ -125,7 +125,13 @@ RUN --mount=type=bind,source=docker/php/smoke,target=/mnt/smoke \
 
 # FPM pool: {{PM_*}} placeholders rendered here at build time from
 # PHP_PM_MAX_CHILDREN, baking an immutable pool for the read-only rootfs.
+# APP_USER/APP_GROUP default to www-data; a project overriding them (e.g.
+# to match a pre-existing identity on shared storage) must have already
+# created that user/group earlier in its own build — this stage only
+# renders the pool, it never creates one.
 ARG PHP_PM_MAX_CHILDREN=20
+ARG APP_USER=www-data
+ARG APP_GROUP=www-data
 COPY docker/php/fpm.d/www.conf.template /tmp/www.conf.template
 COPY docker/php/fpm.d/zz-global.conf    /usr/local/etc/php-fpm.d/zz-global.conf
 RUN set -eux; \
@@ -135,17 +141,27 @@ RUN set -eux; \
     min=$(( mc / 4 )); if [ "$min" -lt 1 ]; then min=1; fi; \
     max=$(( mc / 2 )); if [ "$max" -lt "$min" ]; then max="$min"; fi; \
     start=$(( min + (max - min) / 2 )); if [ "$start" -lt 1 ]; then start=1; fi; \
+    au="${APP_USER}"; ag="${APP_GROUP}"; \
+    id -u "$au" >/dev/null 2>&1 || { echo "APP_USER '$au' has no /etc/passwd entry in this image — add it in a project Dockerfile stage before php-app"; exit 1; }; \
+    getent group "$ag" >/dev/null 2>&1 || { echo "APP_GROUP '$ag' has no /etc/group entry in this image — add it in a project Dockerfile stage before php-app"; exit 1; }; \
     sed \
       -e "s/{{PM_MAX_CHILDREN}}/$mc/g" \
       -e "s/{{PM_START_SERVERS}}/$start/g" \
       -e "s/{{PM_MIN_SPARE}}/$min/g" \
       -e "s/{{PM_MAX_SPARE}}/$max/g" \
+      -e "s/{{APP_USER}}/$au/g" \
+      -e "s/{{APP_GROUP}}/$ag/g" \
       /tmp/www.conf.template > /usr/local/etc/php-fpm.d/www.conf; \
     rm -f /tmp/www.conf.template \
           /usr/local/etc/php-fpm.d/www.conf.default \
           /usr/local/etc/php-fpm.d/zz-docker.conf; \
-    echo "Baked FPM pool: pm.max_children=$mc start=$start spare=$min-$max"; \
+    echo "Baked FPM pool: pm.max_children=$mc start=$start spare=$min-$max, user=$au group=$ag"; \
     php-fpm -t
+
+# Runtime default so entrypoint.sh's chown targets match the identity baked
+# into the pool above without needing it re-passed via compose environment:.
+ENV APP_USER=${APP_USER} \
+    APP_GROUP=${APP_GROUP}
 
 COPY --chmod=755 docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
 

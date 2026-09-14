@@ -46,6 +46,10 @@ services:
         PHP_PM_MAX_CHILDREN: ${PHP_PM_MAX_CHILDREN:-20}
         # Bakes the opt-in smoke-test module into the image; false by default.
         INCLUDE_SMOKE_MODULE: ${INCLUDE_SMOKE_MODULE:-false}
+        # Identity the FPM pool workers run as; must already exist in the
+        # image (add it in a project Dockerfile stage). Defaults to www-data.
+        APP_USER:  ${APP_USER:-www-data}
+        APP_GROUP: ${APP_GROUP:-www-data}
     restart: unless-stopped
     working_dir: /var/www/html
     environment:
@@ -172,6 +176,10 @@ services:
     <<: *app-image
     restart: unless-stopped
     working_dir: /var/www/html
+    # php-fpm drops privilege internally per its pool config; this service
+    # has no such mechanism, so it needs the identity set directly. Same
+    # default/override as the pool's APP_USER/APP_GROUP above — keep in sync.
+    user: "${APP_USER:-www-data}:${APP_GROUP:-www-data}"
     command: ["bash", "/var/www/html/bin/cli_run.sh", "manager", "websockets", "serve"]
     environment:
       RUN_MIGRATIONS: "false"
@@ -202,6 +210,8 @@ services:
     <<: *app-image
     restart: unless-stopped
     working_dir: /var/www/html
+    # See the ws service above — same identity, kept in sync deliberately.
+    user: "${APP_USER:-www-data}:${APP_GROUP:-www-data}"
     entrypoint: ["/usr/local/bin/supercronic"]
     command: ["/etc/supercronic/crontab"]
     environment:
@@ -230,6 +240,10 @@ services:
   cli:
     <<: *app-image
     working_dir: /var/www/html
+    # Fallback for a direct `docker compose run cli` (the wrapper's own
+    # exec/run default already passes -u explicitly). Override with
+    # -u/--user for a root shell.
+    user: "${APP_USER:-www-data}:${APP_GROUP:-www-data}"
     entrypoint: ["bash"]
     stdin_open: true
     tty: true

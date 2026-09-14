@@ -1,10 +1,11 @@
 ; PHP-FPM pool — {{PM_*}} placeholders rendered at build time from
-; PHP_PM_MAX_CHILDREN. Listens on TCP 9000 (not a unix socket) so nginx,
-; in a separate container, can reach it. Workers run as www-data.
+; PHP_PM_MAX_CHILDREN, {{APP_USER}}/{{APP_GROUP}} from APP_USER/APP_GROUP
+; (default www-data). Listens on TCP 9000 (not a unix socket) so nginx, in a
+; separate container, can reach it.
 
 [www]
-user  = www-data
-group = www-data
+user  = {{APP_USER}}
+group = {{APP_GROUP}}
 
 listen       = 0.0.0.0:9000
 

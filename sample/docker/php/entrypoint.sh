@@ -15,7 +15,7 @@ for stream in app cli cron; do
     if ! mkdir -p "$dir" 2>/dev/null; then
         die "cannot create '$dir' (is the manager-logs volume mounted?)"
     fi
-    chown www-data:www-data "$dir" 2>/dev/null || true
+    chown "${APP_USER:-www-data}:${APP_GROUP:-www-data}" "$dir" 2>/dev/null || true
 done
 
 # 2. Wait for a TCP dependency (bounded)
@@ -41,7 +41,7 @@ fi
 if [[ "${RUN_MIGRATIONS:-false}" == "true" ]]; then
     log "Running database migrations..."
     php /var/www/html/public/index.php manager/tools/migrate
-    chown -R www-data:www-data "${MGR_LOG_PATH%/}" 2>/dev/null || true
+    chown -R "${APP_USER:-www-data}:${APP_GROUP:-www-data}" "${MGR_LOG_PATH%/}" 2>/dev/null || true
     log "Migrations complete."
 fi
 
