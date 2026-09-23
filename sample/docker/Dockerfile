@@ -124,12 +124,13 @@ RUN --mount=type=bind,source=docker/php/smoke,target=/mnt/smoke \
     fi
 
 # FPM pool: {{PM_*}} placeholders rendered here at build time from
-# PHP_PM_MAX_CHILDREN, baking an immutable pool for the read-only rootfs.
+# PHP_PM_MAX_CHILDREN/PHP_PM_MODE, baking an immutable pool for the read-only rootfs.
 # APP_USER/APP_GROUP default to www-data; a project overriding them (e.g.
 # to match a pre-existing identity on shared storage) must have already
 # created that user/group earlier in its own build — this stage only
 # renders the pool, it never creates one.
 ARG PHP_PM_MAX_CHILDREN=20
+ARG PHP_PM_MODE=dynamic
 ARG APP_USER=www-data
 ARG APP_GROUP=www-data
 COPY docker/php/fpm.d/www.conf.template /tmp/www.conf.template
@@ -138,6 +139,8 @@ RUN set -eux; \
     mc="${PHP_PM_MAX_CHILDREN}"; \
     case "$mc" in ''|*[!0-9]*) echo "PHP_PM_MAX_CHILDREN must be a positive integer (got '$mc')"; exit 1;; esac; \
     [ "$mc" -ge 1 ] || { echo "PHP_PM_MAX_CHILDREN must be >= 1"; exit 1; }; \
+    mode="${PHP_PM_MODE}"; \
+    case "$mode" in dynamic|ondemand) ;; *) echo "PHP_PM_MODE must be dynamic or ondemand (got '$mode')"; exit 1;; esac; \
     min=$(( mc / 4 )); if [ "$min" -lt 1 ]; then min=1; fi; \
     max=$(( mc / 2 )); if [ "$max" -lt "$min" ]; then max="$min"; fi; \
     start=$(( min + (max - min) / 2 )); if [ "$start" -lt 1 ]; then start=1; fi; \
@@ -145,6 +148,7 @@ RUN set -eux; \
     id -u "$au" >/dev/null 2>&1 || { echo "APP_USER '$au' has no /etc/passwd entry in this image — add it in a project Dockerfile stage before php-app"; exit 1; }; \
     getent group "$ag" >/dev/null 2>&1 || { echo "APP_GROUP '$ag' has no /etc/group entry in this image — add it in a project Dockerfile stage before php-app"; exit 1; }; \
     sed \
+      -e "s/{{PM_MODE}}/$mode/g" \
       -e "s/{{PM_MAX_CHILDREN}}/$mc/g" \
       -e "s/{{PM_START_SERVERS}}/$start/g" \
       -e "s/{{PM_MIN_SPARE}}/$min/g" \
@@ -155,7 +159,7 @@ RUN set -eux; \
     rm -f /tmp/www.conf.template \
           /usr/local/etc/php-fpm.d/www.conf.default \
           /usr/local/etc/php-fpm.d/zz-docker.conf; \
-    echo "Baked FPM pool: pm.max_children=$mc start=$start spare=$min-$max, user=$au group=$ag"; \
+    echo "Baked FPM pool: pm=$mode pm.max_children=$mc start=$start spare=$min-$max, user=$au group=$ag"; \
     php-fpm -t
 
 # Runtime default so entrypoint.sh's chown targets match the identity baked

@@ -20,6 +20,11 @@ x-security: &security
   security_opt:
     - no-new-privileges:true
 
+# Optional parent cgroup shared by every container of every instance, so one
+# host-level memory cap bounds the whole fleet. Empty = Docker's default.
+x-fleet: &fleet
+  cgroup_parent: ${CGROUP_PARENT:-}
+
 # Common wiring for the four services that run the php-app image.
 x-app-image: &app-image
   image: ${IMAGE_REPO:-manager/app}:${IMAGE_TAG:-latest}
@@ -30,7 +35,7 @@ x-app-image: &app-image
     - ${APP_ENV_FILE:-env/dev.env}
   networks: [appnet]
   logging: *logging
-  <<: *security
+  <<: [*security, *fleet]
 
 services:
 
@@ -44,6 +49,7 @@ services:
       args:
         # Baked in at build time — changing this value rebuilds the image.
         PHP_PM_MAX_CHILDREN: ${PHP_PM_MAX_CHILDREN:-20}
+        PHP_PM_MODE: ${PHP_PM_MODE:-dynamic}
         # Bakes the opt-in smoke-test module into the image; false by default.
         INCLUDE_SMOKE_MODULE: ${INCLUDE_SMOKE_MODULE:-false}
         # Identity the FPM pool workers run as; must already exist in the
@@ -65,15 +71,16 @@ services:
     tmpfs:
       - /tmp
     mem_limit: ${PHP_MEM_LIMIT:-1024m}
+    memswap_limit: ${PHP_MEM_LIMIT:-1024m}
     cpus: ${PHP_CPUS:-2.0}
     depends_on:
       valkey-state: { condition: service_healthy }
       valkey-cache: { condition: service_healthy }
-    # Overrides the baked-in HEALTHCHECK interval so it's configurable per
-    # instance without a rebuild.
+    # Overrides the baked-in HEALTHCHECK so the interval follows
+    # HEALTHCHECK_INTERVAL like every other service, without a rebuild.
     healthcheck:
       test: ["CMD-SHELL", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 2>&1 | grep -q pong || exit 1"]
-      interval: ${PHP_HEALTHCHECK_INTERVAL:-30s}
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -88,10 +95,11 @@ services:
     restart: unless-stopped
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
+    # Published ports bypass host firewall INPUT rules; PUBLISH_IP narrows them.
     ports:
-      - "${HTTP_PORT:?HTTP_PORT is required}:80"
-      - "${WS_PORT:?WS_PORT is required}:8080"
+      - "${PUBLISH_IP:+${PUBLISH_IP}:}${HTTP_PORT:?HTTP_PORT is required}:80"
+      - "${PUBLISH_IP:+${PUBLISH_IP}:}${WS_PORT:?WS_PORT is required}:8080"
     volumes:
       # Serve uploaded media directly (read-only is enough for nginx).
       - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media:ro
@@ -101,6 +109,7 @@ services:
       - /var/run
       - /tmp
     mem_limit: ${NGINX_MEM_LIMIT:-128m}
+    memswap_limit: ${NGINX_MEM_LIMIT:-128m}
     cpus: ${NGINX_CPUS:-1.0}
     # Container FD ceiling — must stay ≥ nginx.conf `worker_rlimit_nofile`
     # (4096) so nginx can actually apply it; raise both together. Set explicitly
@@ -113,7 +122,7 @@ services:
       php: { condition: service_healthy }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health >/dev/null 2>&1 || exit 1"]
-      interval: 30s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
       retries: 3
       start_period: 15s
@@ -126,7 +135,7 @@ services:
     command: ["/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_STATE_MAXMEMORY:-256mb}"]
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
     volumes:
       - ./valkey/entrypoint.sh:/usr/local/bin/valkey-entrypoint.sh:ro
       - ./valkey/valkey-state.conf:/etc/valkey/valkey.conf:ro
@@ -137,12 +146,13 @@ services:
     tmpfs:
       - /tmp
     mem_limit: ${VALKEY_STATE_MEM_LIMIT:-384m}
+    memswap_limit: ${VALKEY_STATE_MEM_LIMIT:-384m}
     cpus: ${VALKEY_STATE_CPUS:-0.5}
     healthcheck:
       test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/valkey_password) valkey-cli ping | grep -q PONG"]
-      interval: 10s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 10s
 
   # ── Valkey: ephemeral cache/queues/pub-sub (core) ──────────────────────────
@@ -153,7 +163,7 @@ services:
     command: ["/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_CACHE_MAXMEMORY:-128mb}"]
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
     volumes:
       - ./valkey/entrypoint.sh:/usr/local/bin/valkey-entrypoint.sh:ro
       - ./valkey/valkey-cache.conf:/etc/valkey/valkey.conf:ro
@@ -163,12 +173,13 @@ services:
     tmpfs:
       - /tmp
     mem_limit: ${VALKEY_CACHE_MEM_LIMIT:-256m}
+    memswap_limit: ${VALKEY_CACHE_MEM_LIMIT:-256m}
     cpus: ${VALKEY_CACHE_CPUS:-0.5}
     healthcheck:
       test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/valkey_password) valkey-cli ping | grep -q PONG"]
-      interval: 10s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 10s
 
   # ── WebSocket server (profile: ws) ─────────────────────────────────────────
@@ -191,6 +202,7 @@ services:
     tmpfs:
       - /tmp
     mem_limit: ${WS_MEM_LIMIT:-256m}
+    memswap_limit: ${WS_MEM_LIMIT:-256m}
     cpus: ${WS_CPUS:-1.0}
     depends_on:
       php:          { condition: service_healthy }
@@ -199,7 +211,7 @@ services:
       # /dev/tcp is a bash builtin; the image's /bin/sh is busybox ash, so run
       # the check explicitly under bash. Port is interpolated at compose time.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/${WEBSOCKET_PORT:-9008}"]
-      interval: 30s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
       retries: 3
       start_period: 20s
@@ -224,13 +236,14 @@ services:
     tmpfs:
       - /tmp
     mem_limit: ${CRON_MEM_LIMIT:-256m}
+    memswap_limit: ${CRON_MEM_LIMIT:-256m}
     cpus: ${CRON_CPUS:-0.5}
     depends_on:
       php:          { condition: service_healthy }
       valkey-cache: { condition: service_healthy }
     healthcheck:
       test: ["CMD-SHELL", "pgrep supercronic >/dev/null 2>&1 || exit 1"]
-      interval: 30s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
       retries: 3
       start_period: 10s
@@ -257,6 +270,7 @@ services:
     tmpfs:
       - /tmp
     mem_limit: ${CLI_MEM_LIMIT:-512m}
+    memswap_limit: ${CLI_MEM_LIMIT:-512m}
     cpus: ${CLI_CPUS:-1.0}
     healthcheck:
       disable: true
@@ -278,11 +292,12 @@ services:
     working_dir: /work
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
     volumes:
       - ${TOOLS_BIND_PATH:-..}:/work
       - composer-cache:/root/.composer/cache
     mem_limit: ${TOOLS_MEM_LIMIT:-2048m}
+    memswap_limit: ${TOOLS_MEM_LIMIT:-2048m}
     cpus: ${TOOLS_CPUS:-2.0}
     healthcheck:
       disable: true
@@ -297,28 +312,39 @@ services:
     restart: unless-stopped
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
     environment:
       MYSQL_DATABASE:           ${DB_NAME:?DB_NAME is required for the mysql profile}
       MYSQL_USER:               ${DB_USER:?DB_USER is required for the mysql profile}
       MYSQL_PASSWORD_FILE:      /run/secrets/db_password
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+    # Sized knobs come from docker.env and must fit inside MYSQL_MEM_LIMIT —
+    # mysqld never reads its cgroup limit, it only gets killed at it.
+    # temptable-max-ram is one server-wide pool; past it, temp tables spill to disk.
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
+      - --innodb-buffer-pool-size=${MYSQL_INNODB_BUFFER_POOL_SIZE:-128M}
+      - --max-connections=${MYSQL_MAX_CONNECTIONS:-30}
+      - --temptable-max-ram=${MYSQL_TEMPTABLE_MAX_RAM:-64M}
+      - --performance-schema=${MYSQL_PERFORMANCE_SCHEMA:-OFF}
+      - --innodb-log-buffer-size=16M
+      # Dev-only profile, no replicas: stock binlogs keep 30 days on disk.
+      - --disable-log-bin
     volumes:
       - mysql-data:/var/lib/mysql
     secrets:
       - db_password
       - db_root_password
-    mem_limit: ${MYSQL_MEM_LIMIT:-1024m}
+    mem_limit: ${MYSQL_MEM_LIMIT:-512m}
+    memswap_limit: ${MYSQL_MEM_LIMIT:-512m}
     cpus: ${MYSQL_CPUS:-1.0}
     healthcheck:
       # `mysqladmin ping` reports the server as alive without needing creds.
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
-      interval: 10s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 30s
     profiles: [mysql]
 
@@ -330,30 +356,43 @@ services:
     restart: unless-stopped
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
     environment:
       MARIADB_DATABASE:           ${DB_NAME:?DB_NAME is required for the mariadb profile}
       MARIADB_USER:               ${DB_USER:?DB_USER is required for the mariadb profile}
       MARIADB_PASSWORD_FILE:      /run/secrets/db_password
       MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      # The healthcheck below needs it: on a datadir created without the
+      # healthcheck user, only this flag makes the entrypoint create one. Also
+      # runs mariadb-upgrade (system tables backed up first) after a version bump.
+      MARIADB_AUTO_UPGRADE:       "1"
+    # Sized knobs come from docker.env and must fit inside MARIADB_MEM_LIMIT.
+    # tmp_table_size is PER SESSION (unlike MySQL's global temptable pool):
+    # concurrent sessions × it must fit too. key_buffer is MyISAM-only.
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=${MARIADB_INNODB_BUFFER_POOL_SIZE:-128M}
+      - --max-connections=${MARIADB_MAX_CONNECTIONS:-30}
+      - --tmp-table-size=${MARIADB_TMP_TABLE_SIZE:-4M}
+      - --max-heap-table-size=${MARIADB_TMP_TABLE_SIZE:-4M}
+      - --key-buffer-size=8M
+      - --aria-pagecache-buffer-size=16M
     volumes:
       - mariadb-data:/var/lib/mysql
     secrets:
       - db_password
       - db_root_password
-    mem_limit: ${MARIADB_MEM_LIMIT:-512m}
+    mem_limit: ${MARIADB_MEM_LIMIT:-640m}
+    memswap_limit: ${MARIADB_MEM_LIMIT:-640m}
     cpus: ${MARIADB_CPUS:-1.0}
     healthcheck:
-      # `mariadb-admin ping` reports the server as alive without needing
-      # creds. The mariadb:12.3.2 image no longer ships `mysqladmin` as a
-      # compatibility alias for it.
-      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 --silent"]
-      interval: 10s
+      # The image's own check, authenticating as its USAGE-only healthcheck
+      # user — a credential-less ping logs "Access denied" on every run.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 30s
     profiles: [mariadb]
 
@@ -366,24 +405,45 @@ services:
     restart: unless-stopped
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
     environment:
       POSTGRES_DB:            ${DB_NAME:?DB_NAME is required for the postgres profile}
       POSTGRES_USER:          ${DB_USER:?DB_USER is required for the postgres profile}
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
       TZ:   UTC
       PGTZ: UTC
+    # Sized knobs come from docker.env and must fit inside POSTGRES_MEM_LIMIT.
+    # work_mem is per sort/hash node per process, and each parallel worker is
+    # another process; effective_cache_size is a planner hint only.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-128MB}
+      - -c
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-256MB}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM:-4MB}
+      - -c
+      - maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-64MB}
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-30}
+      - -c
+      - max_parallel_workers_per_gather=${POSTGRES_MAX_PARALLEL_WORKERS_PER_GATHER:-0}
     volumes:
       - postgres-data:/var/lib/postgresql
     secrets:
       - db_password
-    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}
+    # /dev/shm backs parallel-query shared memory (Docker's stock 64m is too
+    # small for it); its pages count against mem_limit.
+    shm_size: ${POSTGRES_SHM_SIZE:-128m}
+    mem_limit: ${POSTGRES_MEM_LIMIT:-640m}
+    memswap_limit: ${POSTGRES_MEM_LIMIT:-640m}
     cpus: ${POSTGRES_CPUS:-1.0}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?DB_USER is required for the postgres profile} -d ${DB_NAME} || exit 1"]
-      interval: 10s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 30s
     profiles: [postgres]
 
@@ -399,21 +459,24 @@ services:
     restart: unless-stopped
     networks: [appnet]
     logging: *logging
-    <<: *security
+    <<: [*security, *fleet]
     environment:
       ACCEPT_EULA:            "Y"
       MSSQL_SA_PASSWORD_FILE: /run/secrets/db_password
+      # Engine memory ceiling; must stay below MSSQL_MEM_LIMIT.
+      MSSQL_MEMORY_LIMIT_MB:  ${MSSQL_MEMORY_LIMIT_MB:-1536}
     volumes:
       - mssql-data:/var/opt/mssql
     secrets:
       - db_password
     mem_limit: ${MSSQL_MEM_LIMIT:-2048m}
+    memswap_limit: ${MSSQL_MEM_LIMIT:-2048m}
     cpus: ${MSSQL_CPUS:-2.0}
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$(cat /run/secrets/db_password)\" -Q 'SELECT 1' || exit 1"]
-      interval: 10s
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 45s
     profiles: [mssql]
 

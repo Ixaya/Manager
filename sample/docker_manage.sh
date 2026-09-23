@@ -147,8 +147,10 @@ if [[ "${1:-}" == "exec" || "${1:-}" == "run" ]]; then
         ((i++))
     done
     if [[ "$has_user" == false && "$service" =~ ^(php|ws|cron|cli)$ ]]; then
-        app_user="$(grep -E '^APP_USER='  "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)"
-        app_group="$(grep -E '^APP_GROUP=' "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)"
+        # Unset is the common case: grep's no-match status would otherwise trip
+        # set -e/pipefail and exit silently.
+        app_user="$(grep -E '^APP_USER='  "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)" || true
+        app_group="$(grep -E '^APP_GROUP=' "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)" || true
         # Both explicit, not just APP_USER — relying on the named user's own
         # /etc/passwd primary group to already equal APP_GROUP would silently
         # diverge from the pool if a project ever set that user up otherwise.

@@ -1,5 +1,5 @@
 ; PHP-FPM pool — {{PM_*}} placeholders rendered at build time from
-; PHP_PM_MAX_CHILDREN, {{APP_USER}}/{{APP_GROUP}} from APP_USER/APP_GROUP
+; PHP_PM_MAX_CHILDREN/PHP_PM_MODE, {{APP_USER}}/{{APP_GROUP}} from APP_USER/APP_GROUP
 ; (default www-data). Listens on TCP 9000 (not a unix socket) so nginx, in a
 ; separate container, can reach it.
 
@@ -9,12 +9,14 @@ group = {{APP_GROUP}}
 
 listen       = 0.0.0.0:9000
 
-; ── Process manager (dynamic) ─────────────────────────────────────────────────
-pm                   = dynamic
+; ── Process manager ───────────────────────────────────────────────────────────
+; start/spare apply to dynamic only; process_idle_timeout to ondemand only.
+pm                   = {{PM_MODE}}
 pm.max_children      = {{PM_MAX_CHILDREN}}
 pm.start_servers     = {{PM_START_SERVERS}}
 pm.min_spare_servers = {{PM_MIN_SPARE}}
 pm.max_spare_servers = {{PM_MAX_SPARE}}
+pm.process_idle_timeout = 10s
 pm.max_requests      = 500
 
 ; Backstop for workers stuck on a slow query (max_execution_time only counts
@@ -29,6 +31,11 @@ pm.status_path = /status
 
 ; ── Logging → container stdout/stderr (captured by the json-file driver) ───────
 access.log              = /proc/self/fd/2
+; nginx rewrites every URL to /index.php?/<path>, which leaves FPM's own %r
+; empty; REQUEST_URI/REMOTE_ADDR are the client's, as nginx passes them.
+access.format           = "%{REMOTE_ADDR}e - %u %t \"%m %{REQUEST_URI}e\" %s %{milli}dms %{kilo}MKB %C%%"
+; The healthcheck hits /ping every interval; keep it out of the access log.
+access.suppress_path[]  = /ping
 catch_workers_output    = yes
 decorate_workers_output = no
 
