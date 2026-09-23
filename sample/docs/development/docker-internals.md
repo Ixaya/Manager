@@ -105,6 +105,20 @@ like it needs that pointer, the content belongs here instead.
   healthcheck. Moving it to `.docker.env` silently breaks the app's bind
   port while the healthcheck still renders fine — the app-level breakage
   goes unnoticed until the ws service fails to bind.
+- **Every service merges `<<: [*security, *fleet]`, and `memswap_limit`
+  repeats its own `mem_limit` expression exactly** (same variable, same
+  default). A new service that only merges `*security` silently escapes the
+  `CGROUP_PARENT` fleet cap; a `memswap_limit` that drifts from `mem_limit`
+  either lets swap extend the cap or makes compose reject the service
+  (`memswap_limit` below `mem_limit`).
+- **Database tuning lives in the service's `command:` flags, sized from
+  `docker.env`** — the same idiom as Valkey's `--maxmemory`. The engines
+  never read their cgroup limit, so every sized flag must still fit inside
+  that service's `*_MEM_LIMIT`; change the two together.
+  `docker-tuning.md` has the sizing model and the measured defaults.
+  The postgres `command:` must start with `postgres` (or a `-` flag): any
+  other first word replaces the server, and the image's entrypoint skips
+  its init logic.
 - **Never set `CF_LOG_PATH` in any `docker/env/*.env` file.** Docker uses
   `MGR_LOG_PATH` exclusively (unified root, `manager-logs` volume at
   `/var/log/manager`); `CF_LOG_PATH` is legacy/on-prem-only. `config.php`
@@ -132,6 +146,16 @@ Layer B is not optional and easy to forget: an inspect-only audit passes
 while a password sits in plain `ps` output — exactly how a Valkey
 `--requirepass <pw>` argv leak once survived several audits. "Both layers,
 values not names" is the definition of a passing secrets audit.
+
+**A check that errors reads as clean.** `docker top <c> -eo args` fails
+("Couldn't find PID field") — piped into `grep -q`, every value "passes".
+Use plain `docker top <c>` or `-eo pid,args`, and make each layer prove it
+can see something first: grep a string that must be there (the server's own
+process name) before trusting an empty result for the secret values. Count
+the values you audit, too — a count lower than the secrets you meant to check
+is how a skipped one shows up. Secrets generated inside a container (the
+MariaDB image's healthcheck password in `/var/lib/mysql/.my-healthcheck.cnf`)
+belong in the value list alongside the files.
 
 ## Env var placement — check before adding any new var
 
@@ -195,9 +219,9 @@ when docker's value must differ from that base.
 - `MGR_LOG_PATH` — unified root for all Manager log streams; the app
   derives `app/` and `cli/` subdirs from it; the entrypoint creates both on
   boot. Trailing slash required.
-- `DB_DRIVER` — `mysqli` (also for MariaDB) or `postgre`. A `pdo/<engine>`
-  value needs its extension added to the image first — see database.md's
-  "Running over PDO instead of the native driver".
+- `DB_DRIVER` — `pdo/mysql` (also for MariaDB) or `pdo/pgsql` by default;
+  the native `mysqli`/`postgre` stay supported. The image ships both
+  extension sets — see database.md for choosing between them.
 - `DB_COLLATION` — `utf8mb4_0900_ai_ci` is MySQL-8-only; MariaDB needs a
   MariaDB collation; see the matrix comment in the root `.env.sample`.
 - `CACHE_ADAPTER` — MUST stay `redis` so cache/queues/pub-sub all use the
@@ -211,11 +235,27 @@ when docker's value must differ from that base.
 - `PHP_PM_MAX_CHILDREN` — BUILD arg (rebuild to change); 20 dev / 50 prod
   reference. Size `PHP_MEM_LIMIT` from MEASURED worker RSS (`docker.md`
   tuning section).
-- `PHP_HEALTHCHECK_INTERVAL` — compose healthcheck override; takes effect on
-  recreate, no rebuild.
+- `HEALTHCHECK_INTERVAL` — steady-state interval for every service's
+  healthcheck; takes effect on recreate, no rebuild. Docker probes every 5s
+  during each `start_period` regardless, so `depends_on: service_healthy`
+  ordering doesn't slow down with a longer interval, and outside Swarm
+  nothing restarts an unhealthy container — the status only feeds
+  `docker ps` and any external monitor. FPM keeps `/ping` out of its access
+  log (`access.suppress_path`), so the interval carries no log cost.
+- `PHP_PM_MODE` — BUILD arg, `dynamic` or `ondemand`; anything else fails
+  the build. The start/spare values rendered into the pool apply to
+  `dynamic` only.
 - `NGINX_NOFILE` — container FD ceiling; must stay ≥ nginx.conf
   `worker_rlimit_nofile`, raise both together.
-- `MYSQL_*`/`MARIADB_*`/`POSTGRES_*` limits — dev/local db profiles only.
+- `PUBLISH_IP` — empty binds the published ports on every interface; the
+  compose `${PUBLISH_IP:+${PUBLISH_IP}:}` form drops the prefix entirely
+  when empty, which is what keeps today's all-interfaces default.
+- `CGROUP_PARENT` — empty = Docker's default placement. A slice name under
+  the `systemd` cgroup driver, a path under `cgroupfs`.
+- `MYSQL_*`/`MARIADB_*`/`POSTGRES_*`/`MSSQL_*` limits and engine knobs —
+  dev/local db profiles only; sized together, see `docker-tuning.md`.
+  `MARIADB_TMP_TABLE_SIZE` feeds both `tmp_table_size` and
+  `max_heap_table_size`.
 - `VALKEY_*_MAXMEMORY` — passed as a `command:` argument, not env.
 - `MEDIA_PATH`/`PRIVATE_PATH` — host bind-mount SOURCE paths; the container
   only ever sees the fixed TARGET.
@@ -260,9 +300,9 @@ other secret-bearing file here.
   paste its printed `case` block over the pins. The script is a
   host/maintenance tool — NOT part of the image build; the repo-root `bin/`
   is never copied into any image.
-- **PECL extension versions (`apcu`, `redis`, `msgpack`) are pinned, not
+- **PECL extension versions (`redis`, `msgpack`) are pinned, not
   latest.** Read running versions empirically from a built image
-  (`php -r 'echo phpversion("apcu");'`) before bumping — never guess.
+  (`php -r 'echo phpversion("redis");'`) before bumping — never guess.
 - **Composer runs only in the `vendor-builder` stage; the runtime `php-app`
   stage has no composer.** Both descend from `php-base`. Never collapse
   this back into a single stage — that reintroduces the composer binary and
@@ -316,6 +356,12 @@ other secret-bearing file here.
   up to 3600s; without this, a reload leaves the old worker generation
   alive for the longest connection's lifetime — up to an hour of doubled
   workers.
+- **`docker/php/fpm.d/www.conf.template`'s `access.format` reads
+  `%{REQUEST_URI}e`/`%{REMOTE_ADDR}e`, never `%r`/`%R`.** nginx rewrites
+  every URL to `/index.php?/<path>`, which leaves FPM's own `%r` empty for
+  every request, and `%R` is always the nginx container. Both env values
+  come from `fastcgi_params` — keep that include in `app.conf`'s PHP
+  location or the log goes blank again.
 - **Dev-only PHP conf.d overrides live in `docker/php/conf.d.dev/`, never
   `docker/php/conf.d/`.** The Dockerfile bakes `conf.d/` wholesale into
   every image; a dev-only ini placed there once got baked into prod-shaped

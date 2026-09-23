@@ -419,6 +419,18 @@ Evidence: live-verified 2026-08-24 on a throwaway instance — confirmed
 the container reports `healthy` with the new command.
 Revisit when: never, unless the pinned `mariadb` image tag changes and
 needs re-verifying.
+Superseded 2026-09-23: the check is now the image's own
+`healthcheck.sh --connect --innodb_initialized`, with
+`MARIADB_AUTO_UPGRADE=1`. A credential-less `mariadb-admin ping` reports
+alive but logs `Access denied for user 'root'@'127.0.0.1'` on every run —
+~8.6k warning lines/day per instance at the 10s interval, burying real
+warnings. `healthcheck.sh` authenticates as the image's USAGE-only
+`healthcheck` user, which the entrypoint creates only at init or, on an
+older datadir, when `MARIADB_AUTO_UPGRADE` is set — without it, a volume
+from before the user existed would stay unhealthy. Verified live: zero
+`Access denied` lines; with the user and `.my-healthcheck.cnf` removed, a
+restart recreated both and came back healthy. Cost of the flag: a version
+bump now runs `mariadb-upgrade` on start (system tables backed up first).
 
 **`exec`/`run` into php/ws/cron/cli both default to `-u www-data`; the
 boot-time migrate self-heals log ownership.**
@@ -478,3 +490,97 @@ stage before `php-base` — this framework never bakes a project-specific
 identity itself.
 Revisit when: never, unless FPM in a future base image gains real numeric
 `#UID` support, which would let a project skip the named-user step entirely.
+
+**One database container per instance, never a shared server.**
+Decision: each instance keeps its own bundled DB container, credentials, and
+volume; the tuning work sizes that model rather than consolidating it.
+Why: an instance is initialized with its own database and password by
+design, so its data and config move with it as one unit; and a misbehaving
+site (a query that blows its memory budget) takes down only its own
+database — the kernel OOM-kills inside the container that hit its cap.
+Evidence: live OOM tests confined every kill to the container under load;
+neighbours were untouched. The guarantee is conditional: it holds only
+while the sum of caps fits the host (otherwise the host-wide OOM killer
+picks any container), and it covers memory only — disk I/O and CPU credits
+stay shared (a capped MySQL spilled 2.6 GB of temp tables to disk).
+Cost: every instance pays its engine's fixed floor — measured idle, tuned:
+MySQL ~155 MiB, MariaDB ~70, Postgres ~20–30. MySQL's floor barely moves
+with its buffer pool, which makes it the expensive engine to multiply.
+Revisit when: an engine's fixed floor times the instance count stops
+fitting the hosts projects actually run on.
+
+**Database engines are sized from `docker.env` flags, fitting inside their
+cap — not left at stock defaults under a cap.**
+Decision: each DB service's `command:` carries its sized knobs from
+`docker.env` (buffer pool/shared buffers, `max_connections`, per-session
+temp memory, `performance_schema`), next to its `mem_limit`; `memswap_limit`
+equals `mem_limit` on every service. Defaults: MySQL 512m, MariaDB and
+Postgres 640m, `max_connections` 30; MySQL `performance_schema` off and
+binlog disabled; MariaDB `tmp_table_size` 4M; Postgres parallel query off,
+`shm_size` 128m.
+Why: no engine reads its cgroup limit, so a cap over stock settings is a
+kill threshold, not a tuning — stock MySQL (`temptable_max_ram` 1G) can
+outgrow its whole cap by itself. `max_connections` is the lever that makes
+"concurrent sessions × per-session peak" finite, and past it clients get a
+refused connection instead of the server being killed.
+Evidence: 30 concurrent GROUP BY + ORDER BY sessions over ~450 MB: MariaDB
+and Postgres were OOM-killed at 384m and 512m (stock per-session settings
+and tuned ones alike), clean at 640m; MySQL peaked at 457 MiB inside 512m.
+Temp-table spills produced dirty page-cache bursts up to ~90 MiB charged to
+the container, which is why a cap sized from anonymous memory alone failed
+by timing. Stock MySQL idled at 453 MiB, 224 of it `performance_schema`;
+tuned, 162. Details and the small-host tier in the shipped
+`docker-tuning.md`.
+Cost: `performance_schema` diagnostics are off until re-enabled; MySQL
+point-in-time recovery from binlogs is unavailable on the bundled profile
+(dev-only by design).
+Revisit when: a pinned database image tag changes (re-run the load test in
+the shipped `docker-tuning.md`), a project runs the bundled profile as
+anything other than dev/local, or MariaDB's cgroup memory-pressure feature (it logs "memory.pressure
+not writable" in a stock container) becomes usable and can replace static
+sizing.
+
+**Fleet cap via `cgroup_parent`, opt-in and empty by default.**
+Decision: every service merges an `x-fleet` fragment setting
+`cgroup_parent: ${CGROUP_PARENT:-}`; the host owns the parent (a systemd
+slice with `MemoryMax`) and its size.
+Why: on a host shared with unrelated services, per-container caps only
+protect those services if every cap on the box sums below available RAM.
+One parent limit bounds the whole fleet however many instances it holds.
+Evidence: empty value verified as Docker's default placement; a set value
+applied to every service (`docker inspect` → `HostConfig.CgroupParent`).
+The systemd-slice path is not exercised here — the dev sandbox runs the
+`cgroupfs` driver.
+Revisit when: verified on a systemd-driver host; record the result here.
+
+**One healthcheck interval for every service, no dev/prod split.**
+Decision: every healthcheck uses `interval: ${HEALTHCHECK_INTERVAL:-30s}`
+and `retries: 3` (previously 10s for Valkey and the databases, 30s
+elsewhere, databases at 10 retries; `PHP_HEALTHCHECK_INTERVAL` renamed).
+FPM excludes `/ping` from its access log (`access.suppress_path`).
+Why: outside Swarm nothing restarts an unhealthy container, so the
+steady-state interval only decides how soon `docker ps` or an external
+monitor sees trouble — 30s × 3 retries ≈ 90s. Startup ordering doesn't
+depend on it: Docker probes every 5s during `start_period` regardless. The
+one real dev/prod difference was log noise (an FPM access line per `/ping`,
+~2.9k/day at 30s), fixed at the source instead of by stretching the
+interval.
+Evidence: probes measured at 20–65 ms wall each; ws/cron healthy 6s after
+start on a 30s interval, php 5s after start on 300s. With
+`HEALTHCHECK_INTERVAL=5s`, five php probes produced zero `/ping` log lines
+while normal requests still logged. Host-side exec CPU not measured (daemon
+runs outside the dev sandbox).
+Revisit when: a deployment runs a monitor that acts on health status and
+needs faster detection — shorten that host's `HEALTHCHECK_INTERVAL`, don't
+fork the defaults.
+
+**Valkey is part of the core set, not a profile.**
+Decision: `valkey-state` and `valkey-cache` stay core services that `php`
+waits on; the framework does not ship a Valkey-less shape.
+Why: removing them is not a compose-only change — the cache must move to
+`CACHE_ADAPTER=file` and sessions to the database driver, which is an app
+configuration decision a project makes for itself. Projects on a tight
+memory budget do exactly that, editing their own compose; `docker-tuning.md`
+names it as one of the levers for fitting several instances on one host.
+Revisit when: several projects carry the same Valkey-less edit, making a
+supported profile cheaper than the drift.

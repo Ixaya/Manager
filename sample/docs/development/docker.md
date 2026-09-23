@@ -2,8 +2,9 @@
 
 > Scope: running and operating this stack — setup, deploy, rotation, tuning,
 > troubleshooting. For editing the files under `docker/` themselves, see
-> `docker-internals.md`. For picking a database engine/driver, see
-> `database.md` (beside this file).
+> `docker-internals.md`. For sizing memory/CPU on a real host and tuning the
+> bundled databases, see `docker-tuning.md`. For picking a database
+> engine/driver, see `database.md` (all beside this file).
 
 All operations that start, stop, build, or exec into a service go through
 the wrapper — never `docker compose` directly. Read-only inspection of an
@@ -83,9 +84,9 @@ placement" decision tree in `docker-internals.md`.
 | _(core)_ | `php`, `nginx`, `valkey-state`, `valkey-cache` | Always on | Yes |
 | `ws` | `ws` | WebSocket server (internal :9008, published via nginx :8080) | Yes |
 | `cron` | `cron` | supercronic runs `docker/cron/crontab` | Yes |
-| `mysql` | `mysql` | MySQL 8.4 — Aurora-compatible, use when parity with the server matters | No — dev/local only |
+| `mysql` | `mysql` | MySQL — Aurora-compatible, use when parity with the server matters | No — dev/local only |
 | `mariadb` | `mariadb` | MariaDB — lighter local alternative, NOT Aurora-compatible | No — dev/local only |
-| `postgres` | `postgres` | PostgreSQL 16 | No — dev/local only |
+| `postgres` | `postgres` | PostgreSQL | No — dev/local only |
 | `cli` | `cli` | Interactive shell / one-off commands | As needed |
 | `tools` | `tools` | composer / PHPStan / PHPUnit — the only supported way to run them, host tree bind-mounted in | No — dev only |
 
@@ -357,10 +358,16 @@ No secret is ever in an image layer, a compose env-file, or `docker inspect`.
 ## Resource limits & tuning
 
 Every service has `mem_limit` + `cpus` (env-overridable in
-`<instance>.docker.env`). FPM is `pm=dynamic` with `pm.max_children` from
-`PHP_PM_MAX_CHILDREN` (20 dev / 50 prod reference). It is a **build arg** —
-baked into the pool at image build time — so changing it requires a rebuild,
-not a restart.
+`<instance>.docker.env`), and `memswap_limit` equal to `mem_limit`, so a cap is
+hard even on a host with swap. Budgeting several instances on one host, how
+each database engine is sized to fit its cap, the fleet-wide cap, and
+server-readiness items are in `docker-tuning.md`; this section covers the
+PHP and nginx side.
+
+FPM defaults to `pm=dynamic` (`PHP_PM_MODE=ondemand` frees idle workers)
+with `pm.max_children` from `PHP_PM_MAX_CHILDREN` (20 dev / 50 prod
+reference). Both are **build args** — baked into the pool at image build
+time — so changing them requires a rebuild, not a restart.
 
 Size `PHP_MEM_LIMIT` from **measured** average worker RSS, not from PHP's
 `memory_limit` (256M is a per-request ceiling, not a sizing input):

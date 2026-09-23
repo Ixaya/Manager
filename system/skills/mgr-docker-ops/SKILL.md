@@ -29,6 +29,8 @@ Source of truth (only read if something here is insufficient):
   repo, `sample/docs/development/docker-internals.md`) — env var placement
   decision tree, for anyone editing files under `docker/`, not for
   operating the stack
+- `docs/development/docker-tuning.md` (same two locations) — memory caps,
+  per-engine database sizing, and the OOM-diagnosis commands
 
 ## When to use the script vs. a raw `docker` command
 
@@ -184,6 +186,21 @@ sync with the other automatically. A suite that "still passes" after only
 one was switched is not evidence of anything; it may have quietly run on
 the old driver. Confirm the actual driver a run used from the run's own
 output, not from which env file you remember editing.
+
+## A container that restarts or drops every connection: check for an OOM kill first
+
+Every service has a hard memory cap, and reaching it kills a process inside
+that container with nothing in the app log: MySQL/MariaDB restart and run
+crash recovery, Postgres resets every session, an FPM worker returns a 502.
+Rule it in or out before debugging the app:
+
+```bash
+docker events --since 1h --filter event=oom          # which containers were OOM-killed
+docker exec <c> cat /sys/fs/cgroup/memory.events     # oom_kill counter for this container
+```
+
+Sizing a cap and its engine settings together is `docker-tuning.md`'s
+subject — never raise a database knob without raising its cap with it.
 
 ## Logs — three channels, and the `log_check` trap
 
