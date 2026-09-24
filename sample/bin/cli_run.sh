@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Path to php binary
 php_bin=/usr/bin/php
@@ -10,4 +10,4 @@ public_path=/home/example/app/public
 all_args=("$@")
 
 # Replace this shell with nice + php (saves a process)
-exec /usr/bin/nice -n 10 $php_bin -f $public_path/index.php ${all_args[@]}
+exec /usr/bin/nice -n 10 $php_bin -f $public_path/index.php "${all_args[@]}"

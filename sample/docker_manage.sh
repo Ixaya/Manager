@@ -46,13 +46,6 @@
 # MANAGER_BIND_PATH=<path> set in the instance's DOCKER env-file; without it,
 # this aborts rather than silently falling back to baked vendor code.
 #
-# `exec`/`run` into php/ws/cron/cli default to -u <APP_USER>:<APP_GROUP>
-# (below, from the instance's docker.env; www-data:www-data when unset)
-# unless the caller already passed -u/--user — a command run as root there
-# creates root-owned files the app's own worker identity can't read/write
-# afterward, silently. Override with an explicit -u/--user when root is
-# actually needed.
-#
 # Fail loud: a missing instance name or required file aborts immediately.
 set -euo pipefail
 
@@ -130,33 +123,6 @@ export DB_ROOT_PASSWORD_FILE="secrets/${INSTANCE}.db_root_password"
 require_file() { [[ -f "${DOCKER_DIR}/$1" ]] || die "required file missing: docker/$1  (copy from docker/env/sample.priv.env)"; }
 require_file "$APP_SECRETS_MOUNT"
 require_file "$VALKEY_SECRET_FILE"
-
-# ── Default `exec`/`run` into an app-image service to the instance's identity ─
-if [[ "${1:-}" == "exec" || "${1:-}" == "run" ]]; then
-    has_user=false
-    service=""
-    i=2
-    while (( i <= $# )); do
-        arg="${!i}"
-        case "$arg" in
-            -u|--user)   has_user=true; ((i++)) ;;
-            --user=*)    has_user=true ;;
-            -*)          : ;;
-            *)           service="$arg"; break ;;
-        esac
-        ((i++))
-    done
-    if [[ "$has_user" == false && "$service" =~ ^(php|ws|cron|cli)$ ]]; then
-        # Unset is the common case: grep's no-match status would otherwise trip
-        # set -e/pipefail and exit silently.
-        app_user="$(grep -E '^APP_USER='  "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)" || true
-        app_group="$(grep -E '^APP_GROUP=' "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)" || true
-        # Both explicit, not just APP_USER — relying on the named user's own
-        # /etc/passwd primary group to already equal APP_GROUP would silently
-        # diverge from the pool if a project ever set that user up otherwise.
-        set -- "$1" -u "${app_user:-www-data}:${app_group:-www-data}" "${@:2}"
-    fi
-fi
 
 exec docker compose \
     "${COMPOSE_FILE_ARGS[@]}" \

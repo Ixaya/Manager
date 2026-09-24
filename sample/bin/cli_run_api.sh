@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Path to php binary
 php_bin=/usr/bin/php

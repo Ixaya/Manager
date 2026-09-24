@@ -124,24 +124,30 @@ bind not covered here — see `framework/docs/development/framework-workflow.md`
 
 ## `exec`/`run` into php/ws/cron/cli run as the instance's app identity — enforced, not a habit to remember
 
-`docker_manage.sh` defaults both `exec` and `run` into these four services
-to `-u <APP_USER>:<APP_GROUP>` automatically (read from the instance's
-`docker.env`; `www-data:www-data` when unset — the stock identity almost
-every instance uses); you don't need to type it, for either subcommand —
-`run --rm cli -c "..."` (the standard one-off pattern for migrate/
-claim_admin) gets the same default as `exec php ...`. `ws`/`cron`/`cli`
-also carry a matching `user:` in `docker-compose.yml` itself, since only
-`php` runs FPM (which drops privilege internally). This exists because a
-command run as root creates root-owned files (a log file, an app file) the
-app's own worker identity then can't write to or read — **silently**: no
-error at the time, just a dropped log write or a `500 Permission denied`
-the next time anyone hits that path.
+All four services start as `APP_USER:APP_GROUP` from the instance's
+`docker.env` (`www-data:www-data` when unset — the stock identity almost
+every instance uses) through one `user:` in `docker-compose.yml`, so every
+`exec` and `run` inherits it with no flag: `run --rm cli -c "..."` (the
+standard one-off pattern for migrate/claim_admin) runs as the same identity
+as `exec php ...`. Nothing in these containers runs as
+root, FPM's master included. This matters because a command run as root
+creates root-owned files (a log file, an app file) the app's own identity
+then can't write to or read — **silently**: no error at the time, just a
+dropped log write or a `500 Permission denied` the next time anyone hits
+that path.
+
+The one root step is the one-shot `init` service, which sets ownership of
+the `manager-logs` volume to that identity before the other four start and
+touches nothing else — never a bind mount (`MEDIA_PATH`, `PRIVATE_PATH`),
+whose ownership is the host's job. A failing `init` (for example a named
+`APP_USER` that doesn't exist in the image) leaves the four services
+created but not started; `docker logs <instance>-init-1` says why.
 
 Override only via `APP_USER`/`APP_GROUP` in `docker.env` when the project's
-own storage needs it — see `docker.md`'s "Runtime identity
-(APP_USER/APP_GROUP)" section for when and how.
+own storage needs it — numeric or named, no rebuild, applied on recreate;
+see `docker.md`'s "Runtime identity (APP_USER/APP_GROUP)" section for when.
 
-Override the default only when root is actually needed (installing a
+Override per command only when root is actually needed (installing a
 package, inspecting a file only root can read): `exec -u root php ...` /
 `run --rm -u root cli ...`. If you do, and you touched `/var/log/manager` or
 the app tree, run the repair below before trusting any subsequent result.
@@ -213,19 +219,20 @@ channels, they don't overlap:
 - **Container stderr** — `docker logs <instance>-php-1` (PHP `error_log`).
 - **CI app log** — `/var/log/manager/app/` in-container. Empty can mean
   "nothing happened" **or** "writes are being silently dropped" — CI opens
-  the log with a silenced `fopen()`, so a file `www-data` can't append to
-  (typically root-owned, left behind by a root-run command) drops every
-  entry with no symptom anywhere. Verify writes actually land, as
-  `www-data`, before trusting an empty log:
+  the log with a silenced `fopen()`, so a file the app identity can't
+  append to (typically root-owned, left behind by a root-run command) drops
+  every entry with no symptom anywhere. Verify writes actually land, as the
+  app identity, before trusting an empty log:
 
   ```bash
   ./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/log_check
   ```
 
-  If it reports a failing append test:
+  If it reports a failing append test, re-run `init`, which re-owns the
+  volume without restarting anything else:
 
   ```bash
-  docker exec <instance>-php-1 chown -R www-data:www-data /var/log/manager
+  ./docker_manage.sh -e <instance> up -d init
   ```
 
 **All channels empty but the request still 500s?** The failure precedes
@@ -246,7 +253,7 @@ source won per key, without printing values.
 docker compose -f docker/docker-compose.yml exec php bash
 
 # WRONG — running a CLI command as root without a reason; leaves behind
-# root-owned files www-data can't read/write afterward
+# root-owned files the app identity can't read/write afterward
 ./docker_manage.sh -e local exec -u root php bash /var/www/html/bin/cli_run.sh manager/tools/migrate
 
 # RIGHT — default user, no flag needed, either subcommand

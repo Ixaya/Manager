@@ -598,12 +598,14 @@ $table_property
 	 */
 	protected function describe_user(): string
 	{
+		// get_current_user() is the script file's owner, not this process.
 		if (!function_exists('posix_geteuid')) {
-			return get_current_user();
+			return 'unknown (no posix extension)';
 		}
 
-		$user = posix_getpwuid(posix_geteuid());
+		$uid = posix_geteuid();
+		$user = posix_getpwuid($uid);
 
-		return ($user['name'] ?? get_current_user()) . ' (uid ' . posix_geteuid() . ')';
+		return ($user['name'] ?? 'no passwd entry') . ' (uid ' . $uid . ')';
 	}
 }

@@ -7,15 +7,15 @@ set -euo pipefail
 log() { echo "[entrypoint] $*"; }
 die() { echo "[entrypoint] FATAL: $*" >&2; exit 1; }
 
-# 1. Log dirs (MGR_LOG_PATH: app/cli/cron) — created here since neither the
-#    framework nor the async CLI lib creates its own.
+# 1. Log dirs (MGR_LOG_PATH: app/cli/cron) — neither the framework nor the
+#    async CLI lib creates its own. Runs unprivileged: the compose `init`
+#    service chowns the volume to this identity first.
 : "${MGR_LOG_PATH:?MGR_LOG_PATH must be set (unified log root, e.g. /var/log/manager/)}"
 for stream in app cli cron; do
     dir="${MGR_LOG_PATH%/}/${stream}/"
-    if ! mkdir -p "$dir" 2>/dev/null; then
-        die "cannot create '$dir' (is the manager-logs volume mounted?)"
+    if ! mkdir -p "$dir" 2>/dev/null || [[ ! -w "$dir" ]]; then
+        die "'$dir' is not writable as uid $(id -u) (did the init service run?)"
     fi
-    chown "${APP_USER:-www-data}:${APP_GROUP:-www-data}" "$dir" 2>/dev/null || true
 done
 
 # 2. Wait for a TCP dependency (bounded)
@@ -35,13 +35,10 @@ if [[ "${WAIT_FOR_DB:-false}" == "true" ]]; then
     wait_for_tcp "${DB_HOST}" "${DB_PORT:-3306}"
 fi
 
-# 3. Migrations — opt-in, and only ever from the php service. Runs as root
-#    (no user drop before this point), so any log file it creates would
-#    otherwise be unwritable by the www-data workers started below.
+# 3. Migrations — opt-in, and only ever from the php service.
 if [[ "${RUN_MIGRATIONS:-false}" == "true" ]]; then
     log "Running database migrations..."
     php /var/www/html/public/index.php manager/tools/migrate
-    chown -R "${APP_USER:-www-data}:${APP_GROUP:-www-data}" "${MGR_LOG_PATH%/}" 2>/dev/null || true
     log "Migrations complete."
 fi
 

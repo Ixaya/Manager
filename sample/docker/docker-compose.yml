@@ -5,7 +5,8 @@
 #   ./docker_manage.sh -e <instance> up -d
 #   ./docker_manage.sh -e <instance> --profile ws --profile cron up -d
 #
-# Core services (always on): php, nginx, valkey-state, valkey-cache.
+# Core services (always on): php, nginx, valkey-state, valkey-cache, plus
+# the one-shot init.
 # Profiles: ws | cron | mysql | mariadb | postgres | mssql | cli.
 # Only nginx publishes ports; Valkey is never exposed to the host.
 
@@ -36,8 +37,34 @@ x-app-image: &app-image
   networks: [appnet]
   logging: *logging
   <<: [*security, *fleet]
+  # Numeric or named; a name must exist in the image, a number needn't.
+  user: "${APP_USER:-www-data}:${APP_GROUP:-www-data}"
 
 services:
+
+  # ── Init: log-volume ownership (core, one-shot) ───────────────────────────
+  # The stack's only root step. Mounts nothing but manager-logs, so bind
+  # mounts, secrets and .env.priv stay out of its reach.
+  init:
+    image: ${IMAGE_REPO:-manager/app}:${IMAGE_TAG:-latest}
+    user: "0:0"
+    restart: "no"
+    network_mode: none
+    logging: *logging
+    <<: [*security, *fleet]
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        mkdir -p /var/log/manager/app /var/log/manager/cli /var/log/manager/cron &&
+        find /var/log/manager \( \! -user "${APP_USER:-www-data}" -o \! -group "${APP_GROUP:-www-data}" \)
+        -exec chown "${APP_USER:-www-data}:${APP_GROUP:-www-data}" {} +
+    volumes:
+      - manager-logs:/var/log/manager
+    read_only: true
+    mem_limit: 64m
+    memswap_limit: 64m
+    healthcheck:
+      disable: true
 
   # ── PHP-FPM (core) ────────────────────────────────────────────────────────
   php:
@@ -52,10 +79,6 @@ services:
         PHP_PM_MODE: ${PHP_PM_MODE:-dynamic}
         # Bakes the opt-in smoke-test module into the image; false by default.
         INCLUDE_SMOKE_MODULE: ${INCLUDE_SMOKE_MODULE:-false}
-        # Identity the FPM pool workers run as; must already exist in the
-        # image (add it in a project Dockerfile stage). Defaults to www-data.
-        APP_USER:  ${APP_USER:-www-data}
-        APP_GROUP: ${APP_GROUP:-www-data}
     restart: unless-stopped
     working_dir: /var/www/html
     environment:
@@ -74,6 +97,7 @@ services:
     memswap_limit: ${PHP_MEM_LIMIT:-1024m}
     cpus: ${PHP_CPUS:-2.0}
     depends_on:
+      init:         { condition: service_completed_successfully }
       valkey-state: { condition: service_healthy }
       valkey-cache: { condition: service_healthy }
     # Overrides the baked-in HEALTHCHECK so the interval follows
@@ -187,10 +211,6 @@ services:
     <<: *app-image
     restart: unless-stopped
     working_dir: /var/www/html
-    # php-fpm drops privilege internally per its pool config; this service
-    # has no such mechanism, so it needs the identity set directly. Same
-    # default/override as the pool's APP_USER/APP_GROUP above — keep in sync.
-    user: "${APP_USER:-www-data}:${APP_GROUP:-www-data}"
     command: ["bash", "/var/www/html/bin/cli_run.sh", "manager", "websockets", "serve"]
     environment:
       RUN_MIGRATIONS: "false"
@@ -205,6 +225,7 @@ services:
     memswap_limit: ${WS_MEM_LIMIT:-256m}
     cpus: ${WS_CPUS:-1.0}
     depends_on:
+      init:         { condition: service_completed_successfully }
       php:          { condition: service_healthy }
       valkey-cache: { condition: service_healthy }
     healthcheck:
@@ -222,8 +243,6 @@ services:
     <<: *app-image
     restart: unless-stopped
     working_dir: /var/www/html
-    # See the ws service above — same identity, kept in sync deliberately.
-    user: "${APP_USER:-www-data}:${APP_GROUP:-www-data}"
     entrypoint: ["/usr/local/bin/supercronic"]
     command: ["/etc/supercronic/crontab"]
     environment:
@@ -239,6 +258,7 @@ services:
     memswap_limit: ${CRON_MEM_LIMIT:-256m}
     cpus: ${CRON_CPUS:-0.5}
     depends_on:
+      init:         { condition: service_completed_successfully }
       php:          { condition: service_healthy }
       valkey-cache: { condition: service_healthy }
     healthcheck:
@@ -253,10 +273,6 @@ services:
   cli:
     <<: *app-image
     working_dir: /var/www/html
-    # Fallback for a direct `docker compose run cli` (the wrapper's own
-    # exec/run default already passes -u explicitly). Override with
-    # -u/--user for a root shell.
-    user: "${APP_USER:-www-data}:${APP_GROUP:-www-data}"
     entrypoint: ["bash"]
     stdin_open: true
     tty: true
@@ -272,6 +288,8 @@ services:
     mem_limit: ${CLI_MEM_LIMIT:-512m}
     memswap_limit: ${CLI_MEM_LIMIT:-512m}
     cpus: ${CLI_CPUS:-1.0}
+    depends_on:
+      init: { condition: service_completed_successfully }
     healthcheck:
       disable: true
     profiles: [cli]

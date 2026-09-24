@@ -1,12 +1,9 @@
 ; PHP-FPM pool — {{PM_*}} placeholders rendered at build time from
-; PHP_PM_MAX_CHILDREN/PHP_PM_MODE, {{APP_USER}}/{{APP_GROUP}} from APP_USER/APP_GROUP
-; (default www-data). Listens on TCP 9000 (not a unix socket) so nginx, in a
-; separate container, can reach it.
+; PHP_PM_MAX_CHILDREN/PHP_PM_MODE. No user/group: FPM runs as the container's
+; own user (compose `user:`). Listens on TCP 9000 (not a unix socket) so
+; nginx, in a separate container, can reach it.
 
 [www]
-user  = {{APP_USER}}
-group = {{APP_GROUP}}
-
 listen       = 0.0.0.0:9000
 
 ; ── Process manager ───────────────────────────────────────────────────────────
