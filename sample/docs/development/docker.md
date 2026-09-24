@@ -458,6 +458,45 @@ resolve):
 | 2 | Dev default — errors + debug, skips per-request INFO/ALL boilerplate |
 | 4 | Temporary — bump while chasing a bug, revert after |
 
+### Retention — `manager/tools/log_prune`
+
+Nothing rotates `/var/log/manager/{app,cli}` on its own: `app/` grows one
+dated file per day forever, `cli/` appends to one file per async job
+forever. `manager/tools/log_prune [streams=all] [dry_run=0]` gzips aged
+`app/` files, deletes aged gz archives, and copytruncates oversized `cli/`
+job logs (`dry_run=1` prints the plan and changes nothing). `cron/` is
+never touched — supercronic writes to stdout, which the compose `json-file`
+driver already bounds.
+
+Defaults (`system/package/config/lib_log_prune.php`, overridable via `mgr_env`):
+`app/` compress after 7 days, `cli/` rotate at 50 MB — both non-destructive
+(gzip in place / archive-then-truncate), so both default on. The two stages
+that actually **delete** data — `app/` gz delete-after and `cli/` archive
+`keep` — default to **0 (off)** in the package itself, so a bare `composer
+update` with no env changes never starts deleting an existing project's
+logs; `sample/.env.sample` ships the recommended values (delete after 30,
+keep 3) for a project that's copied it. Any threshold at `0` turns that
+stage off — e.g. `MGR_LOG_PRUNE_CLI_MAX_SIZE_MB=0` if a project runs its own
+`cli/` archive pipeline and only wants `log_prune` handling `app/`
+(`streams=app` does the same from the command line, and leaves `cli/`
+untouched).
+
+Scheduling — same command everywhere, only the scheduler differs:
+
+| Install | Line |
+|---|---|
+| Docker, `--profile cron` | already in `docker/cron/crontab` |
+| Docker, no cron profile (small servers) | host crontab: `15 3 * * * /srv/<site>/docker_manage.sh -e <instance> exec -T php bash /var/www/html/bin/cli_run.sh manager/tools/log_prune` |
+| Bare host | crontab as the app user: `15 3 * * * /home/<user>/app/bin/cli_run.sh manager/tools/log_prune` |
+
+The bare-host `bin/linux/logrotate.conf` template still covers `cli/`
+(`copytruncate`, since a detached job holds the file open) and `cron/`
+(`create`, since each cron invocation opens the file fresh) — it never
+covered `app/`, which `log_prune` fits better anyway (dated files need
+age-based pruning, not size-based rotation). Never run both `log_prune`
+and logrotate against `cli/` on the same install — either `log_prune`
+(`streams=all`) alone, or logrotate for `cli/` plus `log_prune app`.
+
 ## Agent access & smoke-test module
 
 Procedure only — credential values live in `docker/env/<instance>.agent.env`
@@ -618,6 +657,25 @@ Before trusting a negative test result, check: was this container running
 before the edit, and is the relevant bind mode active? Under `-b`/`-m` the
 dev ini enables timestamp validation, so edits apply on the next request and
 this confusion can't happen.
+
+### Host cron calling into a Docker instance
+
+For an instance that doesn't run the `cron` profile (see "Retention" above
+for the worked example, `manager/tools/log_prune`), scheduling from the
+host's own crontab:
+
+- Use `exec -T php`, not `run cli` — `php` is already up and
+  `compose exec` respects the service's `user:` (the app identity, never
+  root); `run cli` starts a fresh container on every tick, re-runs `init`
+  via `depends_on`, and fights the `cli` service's hard-coded `tty: true`.
+- Pass `-T` — cron has no TTY to allocate.
+- Absolute paths everywhere, and set `PATH=` in the crontab if `docker` is
+  not on cron's default path.
+- The crontab's owner needs Docker socket access — root-equivalent on this
+  host, same as running `docker` directly.
+- Unlike routing the job through host logrotate/cron against the volume
+  path on disk, this runs the command in-container as the app identity
+  through the normal volume mount — no host-side ownership to reconcile.
 
 ### Testing a profile service with different config — favor the whole stack
 

@@ -53,6 +53,8 @@ style from those files.
     caller — a generic error response, a swallowed exception, a discarded
     return — writes a log entry in the same change. An error path that leaves
     no trace is a worse defect than the disclosure it prevents.
+    `log_message()` accepts only `error`, `debug`, `info` and `all` —
+    `'warning'` raises an undefined-key warning and the entry is dropped.
 
 ## Formatting & tooling
 

@@ -241,6 +241,12 @@ ladder (flip `display_errors`, then `db_debug`, then the silent-fatal
 wrapper) is `docker.md`'s "Silent 500 with empty logs" section; the wrapper
 itself is in the mgr-live-probes skill's `references/silent-fatal-probe.md`.
 
+**Nothing rotates `/var/log/manager/{app,cli}` on its own** —
+`manager/tools/log_prune` does; defaults and scheduling are `docker.md`'s
+"Retention". Without the `cron` profile, schedule it from the host with
+`exec -T php`, never `run cli` — `docker.md`'s "Host cron calling into a
+Docker instance".
+
 **Config behaves as if a value never loaded?** Don't trust `printenv` —
 `.priv.env` values are invisible to it by design. Run
 `manager/tools/env_check` (same `exec` pattern as above) — it reports which

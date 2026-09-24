@@ -103,6 +103,27 @@ Reaches a project only when it reconciles the Docker files from the sample:
   `no passwd entry (uid N)`; it previously printed the script file's owner,
   usually `root`.
 
+### Clear the project's built images before reconciling the changes above
+
+The `HEALTHCHECK_INTERVAL` merge, the FPM access-log fix, and the
+`APP_USER`/`APP_GROUP` runtime change all bake into the image at build time
+(`docker/Dockerfile`, `docker/php/entrypoint.sh`,
+`docker/php/fpm.d/www.conf.template`). None of them carry a version marker, so
+a plain `up -d`/`--force-recreate` silently keeps serving whatever image was
+already built — no error, nothing in the logs — and the fix looks adopted when
+it isn't. Remove the project's own images before the next `up` so it has to
+rebuild:
+
+```bash
+docker image rm "${IMAGE_REPO:-manager/app}:${IMAGE_TAG:-latest}" \
+  "${IMAGE_REPO_NGINX:-manager/app-nginx}:${IMAGE_TAG:-latest}" \
+  "${IMAGE_REPO:-manager/app}-tools:${IMAGE_TAG:-latest}"
+```
+
+That only removes the three images this project builds — substitute your
+instance's actual `IMAGE_REPO`/`IMAGE_REPO_NGINX`/`IMAGE_TAG` first if
+`docker.env` overrides the defaults, and nothing else on the host is touched.
+
 ### The host-side `bin/cli_run.sh` and `bin/cli_run_api.sh` now run under bash
 
 Reaches a project only when it reconciles `bin/` from the sample. Both
@@ -110,3 +131,26 @@ scripts use bash arrays but declared `#!/bin/sh`, so on a host where `sh` is
 dash (Debian, Ubuntu) they failed with `Syntax error: "(" unexpected`.
 They now declare `#!/bin/bash`, and `cli_run.sh` quotes its arguments, so an
 argument containing a space reaches PHP as one argument.
+
+### New: `manager/tools/log_prune` — nothing rotated `app/`/`cli/` before this
+
+Additive — `composer update` alone brings the command, but nothing schedules
+it automatically. `app/` (dated daily files) and `cli/` (one file per async
+job, appended forever) previously grew without bound; `cron/` is unaffected
+(supercronic writes to stdout). Add the scheduling line for your install —
+`docs/development/docker.md`'s "Retention" section has the three variants
+(Docker `cron` profile, host crontab calling into Docker, bare host).
+
+Safe by default even if you schedule it before configuring it: the two
+stages that delete data (`app/` gz delete-after, `cli/` archive `keep`)
+default to off (`0`) until you set `MGR_LOG_PRUNE_APP_DELETE_AFTER_DAYS` /
+`MGR_LOG_PRUNE_CLI_KEEP` — compress and truncate still run at their real
+defaults (non-destructive: gzip in place / archive-then-truncate). Set
+those two once you've reviewed the retention periods; `.env.sample` has the
+recommended values (30 / 3).
+
+If your project copied `bin/linux/logrotate.conf`, reconcile it from the
+sample: its combined `cli/`+`cron/` stanza is now two stanzas, and `cli/`
+switched from `create 0640` to `copytruncate` — a job still writing across a
+rename-based rotation kept appending to the renamed `.1` file, which
+`delaycompress` then compressed out from under it on the next run.

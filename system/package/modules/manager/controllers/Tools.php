@@ -35,6 +35,7 @@ class Tools extends CI_Controller
 			['claim_admin', 'One-shot: rotate the seeded admin\'s factory password and print the new one.'],
 			['env_check [key]', 'Per-key env source report (values never printed). No key = framework must-haves.'],
 			['log_check', 'Log destination report: path, ownership and whether appends actually succeed.'],
+			['log_prune [streams=all] [dry_run=0]', 'Retention for the app\'s own logs: gzip aged app/ files, delete aged gz archives, copytruncate oversized cli/ job logs. streams: all (default) | app | cli. dry_run=1 prints the plan and changes nothing.'],
 			['cli_exec <module> <library> <function> [identifier]', 'Run a library call in-process (async_exec_lib dispatch target).'],
 			['message [name]', 'Smoke-test echo.'],
 			['help', 'This list.'],
@@ -574,6 +575,86 @@ $table_property
 			echo '[WARN] ' . $problem . '.' . PHP_EOL;
 		}
 		echo 'Logging fails silently, so nothing else will report this.' . PHP_EOL;
+	}
+
+	/**
+	 * Retention for the app's own logs: gzips/deletes aged `app/` files and
+	 * copytruncates oversized `cli/` job logs. Never touches `cron/` or logrotate output.
+	 *
+	 * @param string $streams 'all' | 'app' | 'cli' — 'app' leaves cli/ to logrotate.
+	 * @param string $dry_run Truthy to print the plan without changing anything.
+	 */
+	public function log_prune(string $streams = 'all', string $dry_run = '0')
+	{
+		if (!in_array($streams, ['all', 'app', 'cli'], true)) {
+			throw new InvalidArgumentException("Tools::log_prune: unknown streams '{$streams}' — expected all, app, or cli.");
+		}
+
+		$dry = (bool) $dry_run;
+
+		if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+			echo '[WARN] running as root: an archive or truncated file this creates would be'
+				. ' owned by root, not the app identity — re-run as that user.' . PHP_EOL;
+		}
+
+		$this->load->library('log_prune_lib');
+
+		if ($streams === 'all' || $streams === 'app') {
+			$this->_log_prune_app($dry);
+		}
+
+		if ($streams === 'all' || $streams === 'cli') {
+			$this->_log_prune_cli($dry);
+		}
+	}
+
+	protected function _log_prune_app(bool $dry_run): void
+	{
+		$log_path = (string) config_item('log_path');
+		if ($log_path === '') {
+			$log_path = APPPATH . 'logs/';
+		}
+		$log_path = rtrim($log_path, '/\\') . DIRECTORY_SEPARATOR;
+
+		$extension = (string) config_item('log_file_extension');
+		$extension = $extension === '' ? 'php' : $extension;
+
+		$result = $this->log_prune_lib->prune_app(log_dir: $log_path, extension: $extension, dry_run: $dry_run);
+
+		echo sprintf(
+			'app/    compressed=%-4d (%-8s) deleted=%-4d (%-8s)%s' . PHP_EOL,
+			count($result['compressed']),
+			$this->_format_bytes($result['compressed_bytes']),
+			count($result['deleted']),
+			$this->_format_bytes($result['deleted_bytes']),
+			$dry_run ? '  [dry-run]' : ''
+		);
+	}
+
+	protected function _log_prune_cli(bool $dry_run): void
+	{
+		$result = $this->log_prune_lib->prune_cli(log_dir: mgr_log_path('cli'), dry_run: $dry_run);
+
+		echo sprintf(
+			'cli/    truncated=%-4d (%-8s) archives deleted=%-4d (%-8s)%s' . PHP_EOL,
+			count($result['truncated']),
+			$this->_format_bytes($result['truncated_bytes']),
+			count($result['deleted']),
+			$this->_format_bytes($result['deleted_bytes']),
+			$dry_run ? '  [dry-run]' : ''
+		);
+	}
+
+	protected function _format_bytes(int $bytes): string
+	{
+		if ($bytes < 1024) {
+			return $bytes . 'B';
+		}
+		if ($bytes < 1024 * 1024) {
+			return round($bytes / 1024, 1) . 'KB';
+		}
+
+		return round($bytes / 1024 / 1024, 1) . 'MB';
 	}
 
 	/**

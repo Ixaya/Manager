@@ -592,3 +592,42 @@ memory budget do exactly that, editing their own compose; `docker-tuning.md`
 names it as one of the levers for fitting several instances on one host.
 Revisit when: several projects carry the same Valkey-less edit, making a
 supported profile cheaper than the drift.
+
+**App log retention — a `manager/tools` command, not logrotate.**
+Decision: `manager/tools/log_prune` owns retention for `app/` (gzip aged
+daily files, delete aged archives) and `cli/` (copytruncate oversized job
+logs) by default; `streams=app` opts a project out of the `cli/` half for
+one that prefers logrotate there instead.
+Why: `app/` files are dated, so they need age-based pruning, which
+logrotate fits poorly; a `manager/tools` command reaches every project on
+`composer update` with no shim, runs on bare hosts too, and the sample's
+PHPUnit suite can cover it. Rejected: a dedicated sidecar container (one
+more container per instance on the hosts least able to afford it); host
+logrotate against the Docker volume path (couples to
+`/var/lib/docker/volumes/…`, root on the host, unshippable — host cron
+*triggering the command through compose* is a different thing and is the
+shipped Docker-no-cron-profile path); retention inside `MGR_Log` itself
+(blocked on the same core-override adoption gap the `correlation-id`
+proposal names, and the `cli/` cap would only fire at job spawn anyway); a
+log driver instead of files (trades disk for retention and breaks
+`log_check`).
+Cost: a second retention mechanism to know about alongside the bare-host
+logrotate template, which still exists for `cli/`/`cron/` (never both on
+`cli/`) — `docker.md`'s "Retention" section covers the split.
+Revisit when: `MGR_Log` gets a subclass seam — then reconsider (D) as a
+cheaper, framework-layer alternative to a separate CLI command.
+Refined 2026-09-23: the two stages that **delete** data (`app/` gz
+delete-after, `cli/` archive `keep`) default to `0` (off) in
+`system/package/config/lib_log_prune.php`'s own fallback; compress-after and
+max-size stay real defaults since they're non-destructive. Why: this
+fallback is the only layer that reaches an *existing* project on a bare
+`composer update` with no file reconciliation and no doc read — unlike the
+Docker files, the sample crontab line, or `sample/.env.sample`, all of
+which need a deliberate copy step first. `sample/.env.sample` still ships
+the recommended 30/3 for a project that's copied it. Considered and
+rejected: defaulting every stage to `0` (makes the nightly job an inert
+no-op until configured, defeating its purpose, and non-destructive stages
+don't need the same caution); defaulting `dry_run` to `1` instead (protects
+a curious manual invocation but not an unattended cron line copied verbatim
+from the docs, which passes no arguments — the two delete stages needed
+their own off-switch regardless).
