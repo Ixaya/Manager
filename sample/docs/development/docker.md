@@ -82,6 +82,7 @@ placement" decision tree in `docker-internals.md`.
 | Profile | Service | Purpose | Prod? |
 |---|---|---|---|
 | _(core)_ | `php`, `nginx`, `valkey-state`, `valkey-cache` | Always on | Yes |
+| _(core)_ | `init` | One-shot: owns the log volume to `APP_USER`, then exits | Yes |
 | `ws` | `ws` | WebSocket server (internal :9008, published via nginx :8080) | Yes |
 | `cron` | `cron` | supercronic runs `docker/cron/crontab` | Yes |
 | `mysql` | `mysql` | MySQL — Aurora-compatible, use when parity with the server matters | No — dev/local only |
@@ -149,7 +150,7 @@ always deploy the pair.
 # 1. Build both targets (php-app + nginx-app) at IMAGE_TAG (from the env-file).
 ./docker_manage.sh -e <instance> build
 
-# 2. Bring up core (php, nginx, valkey-state, valkey-cache) + server profiles.
+# 2. Bring up core (init, php, nginx, valkey-state, valkey-cache) + server profiles.
 ./docker_manage.sh -e <instance> --profile ws --profile cron up -d
 
 # 3. First run only: migrate (or set RUN_MIGRATIONS=true on ONE instance).
@@ -209,7 +210,7 @@ immutable image; the bind modes exist only to shorten the dev loop.
 ### Multi-dev shared checkout
 
 For a shared integration box, the expected host tree is a git checkout owned
-by one deploy user, group-readable (the pool identity — `www-data`, uid 82
+by one deploy user, group-readable (the app identity — `www-data`, uid 82
 on Alpine, unless overridden via `APP_USER`/`APP_GROUP` — only needs
 **read**), updated only via `git pull` on a shared integration branch — no
 sftp, no manual copies. Give each developer (or each integration checkout)
@@ -391,40 +392,60 @@ transparent huge pages disabled.
 
 ## Runtime identity (APP_USER/APP_GROUP)
 
-Every write path — the FPM pool's workers, `ws`, `cron`, `cli`, and
-`exec`/`run` through `docker_manage.sh` — runs as `APP_USER:APP_GROUP`, a
-**build arg** baked into the image (default `www-data:www-data`, uid/gid 82
-on this Alpine base). `php` itself never gets a compose-level `user:`
-override — it stays root-started so FPM can drop privilege internally per
-its own pool config; `ws`/`cron`/`cli` have no such mechanism and carry an
-explicit `user:` set to the same identity instead.
+`php`, `ws`, `cron` and `cli` all run as `APP_USER:APP_GROUP` from the
+instance's `docker.env` (default `www-data:www-data`, uid/gid 82 on this
+Alpine base), set once as a compose `user:`. It is read at container
+start, not build time: changing it needs no rebuild, just `up -d`, which
+recreates the affected services. Nothing in these containers runs as root —
+the FPM pool has no `user`/`group` of its own, so its master runs as the
+identity too — and every `exec`/`run` inherits it without a `-u` flag.
 
-Override this only when your storage is shared with something outside this
+Override it only when your storage is shared with something outside this
 stack that already owns files under a different, fixed uid/gid — an
 NFS/EFS mount also written by non-container processes, for example — where
-reowning that storage isn't an option and the container's own identity has
-to match instead. To use a non-default identity:
+reowning that storage isn't an option and the container's identity has to
+match instead. Either form works:
 
-1. Add the matching user/group in your project's own Dockerfile, in a stage
-   before `php-app` — the framework build never creates one for you:
-   ```dockerfile
-   FROM php-base AS php-app
-   RUN addgroup -g 1001 app1001 && adduser -D -H -u 1001 -G app1001 app1001
-   ```
-2. Set `APP_USER=app1001` / `APP_GROUP=app1001` in the instance's
-   `docker.env`.
-3. Rebuild — like `PHP_PM_MAX_CHILDREN` above, this is baked at build time,
-   not read at container start.
+- **Numeric** (`APP_USER=1001`, `APP_GROUP=1001`) — needs no user entry in
+  the image. `HOME` is `/` and `log_check` reports `no passwd entry
+  (uid 1001)` — cosmetic only.
+- **Named** — the name must already exist in the image, so a custom one
+  means adding it in your own Dockerfile, before the `php-app` stage.
 
-Everything else follows without further wiring: the pool renders with that
-identity, `entrypoint.sh` chowns `MGR_LOG_PATH` to it on boot, `ws`/`cron`/
-`cli` start as it, and `docker_manage.sh exec`/`run` defaults `-u` to
-`<APP_USER>:<APP_GROUP>` automatically.
+**The `init` service** is the stack's only root step. It runs before the
+four services on every `up` (and before every `run --rm cli`), creates the
+log subdirectories on the `manager-logs` volume and chowns any entry not
+already owned by the identity, then exits. It mounts nothing else, so it
+never touches bind mounts, secrets or `.env.priv`. If it fails — typically a
+named `APP_USER` the image doesn't know — the four services are created but
+never started; `docker logs <instance>-init-1` says why.
 
-The build fails loud, before any container starts, if the named user/group
-doesn't already exist in the image — there is no numeric-uid shortcut: this
-stack's FPM rejects a bare `user = #1001`-style identity outright, so it
-must be a real, named `/etc/passwd`/`/etc/group` entry.
+**Bind mounts are yours to own.** `MEDIA_PATH` and `PRIVATE_PATH` (and any
+other host directory you mount) must already be owned by — or writable for —
+that uid/gid on the host; nothing in the stack chowns host storage, since
+doing so is exactly what breaks a shared legacy mount.
+
+**nginx reads media as "other".** Its workers run as the image's own `nginx`
+user (uid 101), not `APP_USER`. Uploads the app writes are world-readable
+(`0644` files, `0755` directories), so this normally just works; a media
+tree kept owner-only (`0750`, say) returns 403 for every static file.
+
+**`docker exec` takes the daemon's umask, not the container's.** Services
+and `run` get `0022`, but an `exec`'d process inherits whatever umask
+`dockerd` was started with. The image's `bin/cli_run.sh` sets `022` itself,
+so framework CLI commands are covered; an ad-hoc `exec … sh` is not. Check
+once per host — expect `0022`, and fix it where `dockerd` is started if
+not:
+
+```bash
+./docker_manage.sh -e <instance> exec php sh -c umask
+```
+
+**User-namespace remapping** (`userns-remap`, rootless Docker) is host-level
+hardening against a container escape, not a substitute for `APP_USER`:
+every container on the daemon shifts by one fixed offset, so it cannot map
+an instance onto a specific legacy host uid, and every bind-mounted
+directory must be reowned into the remapped range.
 
 ## Logging
 
@@ -513,15 +534,15 @@ need opposite responses — separate them first:
 If it reports the log cannot be appended to, logging itself is broken and
 every channel above is meaningless: CI opens the file with a silenced
 `fopen()` and `log_message()` discards the result, so nothing reports it. The
-usual cause is a CLI command run as root creating a root-owned
-`log-<date>.log` that php-fpm (running as `APP_USER`/`APP_GROUP` — `www-data`
-by default) then cannot write — fix with
-`chown -R <instance's APP_USER>:<APP_GROUP> /var/log/manager` (`www-data:www-data`
-unless overridden). Run `log_check` itself as the web-server identity —
-`exec` into `php`/`ws`/`cron`/`cli` defaults to it automatically, so this
-only bites if you overrode that with an explicit `-u root` (see
-`mgr-docker-ops`): root appends to anything and will report success on the
-exact state that is failing.
+usual cause is a command run with an explicit `-u root` creating a
+root-owned `log-<date>.log` that php-fpm (running as `APP_USER`/`APP_GROUP`
+— `www-data` by default) then cannot write — fix it by re-running `init`,
+which reowns the volume without restarting anything else:
+`./docker_manage.sh -e <instance> up -d init`. Run `log_check` itself as the
+app identity — `exec` into `php`/`ws`/`cron`/`cli` does so automatically, so
+this only bites under an explicit `-u root` (see `mgr-docker-ops`): root
+appends to anything and will report success on the exact state that is
+failing.
 
 If it reports the writes land, the failure happens *before* the app's logging
 subsystem initializes, so nothing can record it. Don't keep re-checking the

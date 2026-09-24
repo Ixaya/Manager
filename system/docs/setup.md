@@ -337,13 +337,14 @@ the manifests (a moved base image, re-pulled OS packages).
   build. Migrate first, then judge whether something is actually wrong.
 - If a command in this section (or step 10) is ever run with an explicit
   `-u root` override, fix ownership immediately, at this step, before moving
-  on — don't wait for a later 500 to go troubleshooting it:
+  on — don't wait for a later 500 to go troubleshooting it. Re-running the
+  `init` service reowns the log volume:
   ```bash
-  ./docker_manage.sh -e local exec -u root php chown -R www-data:www-data /var/log/manager
+  ./docker_manage.sh -e local up -d init
   ```
-  (`exec`/`run` into `php`/`ws`/`cron`/`cli` default to `-u www-data`
-  automatically otherwise — see `mgr-docker-ops` — so this only bites an
-  explicit override.)
+  (`exec`/`run` into `php`/`ws`/`cron`/`cli` run as the app identity
+  otherwise — see `mgr-docker-ops` — so this only bites an explicit
+  override.)
 
 ## 10. Claim the seeded admin account
 

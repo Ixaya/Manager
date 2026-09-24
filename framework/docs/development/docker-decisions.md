@@ -432,64 +432,72 @@ from before the user existed would stay unhealthy. Verified live: zero
 restart recreated both and came back healthy. Cost of the flag: a version
 bump now runs `mariadb-upgrade` on start (system tables backed up first).
 
-**`exec`/`run` into php/ws/cron/cli both default to `-u www-data`; the
-boot-time migrate self-heals log ownership.**
-Decision: `docker_manage.sh`'s automatic `-u www-data` default (see
-`mgr-docker-ops`) applies to both the `exec` and `run` subcommands, not
-`exec` alone. `entrypoint.sh` additionally `chown -R www-data:www-data`s
-`MGR_LOG_PATH` immediately after its `RUN_MIGRATIONS=true` boot-time
-migrate step.
-Why: `run --rm cli -c "..."` is the documented, standard one-off command
-pattern (`system/docs/setup.md`, `docker.md`'s local-dev flow,
-`upgrading.md`) — but the wrapper originally only pattern-matched `exec`,
-so this sanctioned path ran as root with none of `exec`'s guardrails,
-leaving a root-owned `log-<date>.log` that `www-data` could never write to
-again. The boot-time migrate has no user to default (the container starts
-as root, before any privilege drop), so it needs its own repair step
-instead — one that runs unconditionally on every boot, not just when a
-prior root-run command happened to leave a mess.
-Evidence: live-verified 2026-08-24 on a throwaway instance — `run --rm cli
--c "id"` returned `uid=82(www-data)` after the fix; a root-owned log file
-was forced into the volume, `www-data` confirmed unable to append to it,
-then a `php` recreate with `RUN_MIGRATIONS=true` ran migrate and the
-subsequent `chown` restored `www-data` ownership and write access, with
-the API still returning `200`.
-Cost: none — `-u root`/`--user root` still overrides the default on either
-subcommand when root is genuinely needed.
-Revisit when: never, unless a new one-off subcommand pattern (beyond
-`exec`/`run`) is added for these four services and needs the same default.
+**Runtime identity is one compose `user:`; a one-shot `init` service is the
+only root step.**
+Decision: `php`, `ws`, `cron` and `cli` all start as
+`${APP_USER:-www-data}:${APP_GROUP:-www-data}` from `x-app-image`. The FPM
+pool carries no `user`/`group`, so its master runs unprivileged too (the
+build's `php-fpm -t -R` exists only because that build step is root). A core
+`init` service (php-app image, `user: "0:0"`, `network_mode: none`,
+`read_only`, mounting only `manager-logs`) creates `app/cli/cron` and
+`find … -exec chown`s entries not already owned by the identity; the four
+services `depends_on` it with `service_completed_successfully`. Bind mounts
+are never touched — their ownership is the host's. This replaces the 2.3.6
+design (identity as a build arg rendered into the pool, a root FPM master,
+`docker_manage.sh` injecting `-u` on `exec`/`run`, and `entrypoint.sh`
+chowning logs after a root migrate).
+Why: the case the knob exists for is storage shared with things outside the
+stack under a fixed, already-assigned uid (a legacy NFS/EFS tree), often
+with several instances per host needing different uids. A build arg meant
+one image per identity, a rebuild per change, and a named user added to the
+image — FPM rejects `user = #1001`. A runtime identity takes a number with
+no passwd entry, one image serves every instance, and no long-running
+process is root.
+Rejected: gid 0 via `group_add` plus a setgid `2775` log root (the
+arbitrary-uid pattern) — puts every service in group root to avoid one
+short root step. The wrapper's `-u` injection — it only fired when
+`exec`/`run` was the first argument, so any compose flag before it (e.g.
+`--profile ws exec php …`) silently ran as root; compose `user:` applies in
+every argument order. User-namespace remapping / rootless Docker —
+host-level, not shippable; `userns-remap` maps every container by one fixed
+offset, so it cannot land an instance on a specific legacy host uid, and
+rootless complicates the `mem_limit`/`cpus`/`cgroup_parent` sizing; worth a
+doc mention as host hardening only. `cap_drop: [ALL]` — non-root processes
+already hold `CapEff 0` and `no-new-privileges` blocks gaining any, so the
+gain is only the bounding set. A blanket `chown -R` in `init` — it rewrites
+every entry's ctime on every `up`; measured on 50k files: first run
+`chown -R` ~85 ms vs `find` ~118 ms, steady state ~78 ms vs ~47 ms with no
+writes.
+Evidence: live-verified 2026-09-23 on a throwaway instance. Default: FPM
+master, workers, `ws`, `cron` all `www-data`. `APP_USER=1234` with no passwd
+entry and no rebuild: all healthy, `GET /` 200, `log_check` passes,
+`RUN_MIGRATIONS=true` migrates as 1234. `nobody:nobody` (a name already in
+the image) works without rebuild. A log volume left by the 2.3.6 stack is
+reowned by `init`; a fresh one comes up `1234:1234`. `APP_USER=nosuchuser`:
+`init` exits 1 (`find: unknown user`) and `php` stays `Created`. `run --rm
+cli` runs `init` first. Not verifiable in that sandbox: host-side ownership
+of bind mounts.
+Cost: `init` runs on every `up` and shows as an exited container. A project
+upgrading from 2.3.6 ports the sample files once and rebuilds; a named user
+it added to its Dockerfile keeps working, and a leftover `ARG APP_USER` is
+inert.
+Revisit when: a service gains a mount that must be writable by the app
+identity but isn't a bind mount — it joins `init`'s mounts, not `group_add`.
 
-**Runtime identity (`APP_USER`/`APP_GROUP`) is a configurable knob defaulting
-to `www-data`, not a second hardcoded name.**
-Decision: the FPM pool's `user`/`group`, `entrypoint.sh`'s chown target, and
-`docker-compose.yml`'s `user:` on `ws`/`cron`/`cli` all resolve from
-`APP_USER`/`APP_GROUP` (build arg + `docker.env`, default `www-data`)
-instead of the literal string. The FPM pool build step fails loud if the
-named user/group doesn't already exist in the image. `php` itself gets no
-compose-level `user:` — it must stay root-started so FPM can drop privilege
-internally per the pool's own `user=`/`group=`; `ws`/`cron`/`cli` have no
-such mechanism and need the identity set directly.
-Why: a project whose media/log storage is a pre-existing mount (NFS, EFS)
-shared with processes outside this stack — each with its own fixed,
-already-assigned uid/gid — cannot retroactively reown that data without
-breaking those other owners, so the container's own writer identity has to
-match instead. This is a generic Docker-identity knob with a safe default;
-which uid a specific project needs, and how it gets a matching user into
-the image, stays entirely project-owned.
-Evidence: live-verified — `#1001`-style numeric UIDs are rejected by this
-image's FPM (`cannot get uid for user '#1001'`), so the knob takes a name,
-not a number; built `php-app` with `APP_USER=APP_GROUP=app1001` (a shadow
-uid 1001 user added in a simulated project stage before `php-base`),
-confirmed the pool renders and validates, and confirmed at runtime the FPM
-master stays root while every pool worker runs as uid 1001. A build with a
-nonexistent `APP_USER` fails during the image build, before any container
-starts.
-Cost: none to the default path (identical `www-data` behavior). A project
-overriding it must create the matching user/group in its own Dockerfile
-stage before `php-base` — this framework never bakes a project-specific
-identity itself.
-Revisit when: never, unless FPM in a future base image gains real numeric
-`#UID` support, which would let a project skip the named-user step entirely.
+**`cli_run.sh` sets `umask 022` itself.**
+Decision: `docker/php/bin/cli_run.sh` runs `umask 022` before exec'ing PHP.
+Why: `docker exec` processes inherit the Docker daemon's umask, not the
+container's. Where `dockerd` runs with umask 0, every file an exec'd CLI
+command writes — including into `private/`/`media/` bind mounts — comes out
+`0666`, writable by any host user. Neither compose nor the entrypoint reaches
+an `exec`'d process; the CLI runner is the one path every framework command
+takes. Ad-hoc `exec … sh` shells remain the daemon's.
+Evidence: live-verified 2026-09-24 on a daemon with umask 0 (services and
+`run` still `0022`): via `exec … cli_run.sh`, PHP's umask, a log file, a
+`private/` file and an async-style `>>` redirect went `0000`/`666` →
+`0022`/`644`. A systemd-managed host showed `0022` for `exec` already.
+Cost: none.
+Revisit when: never.
 
 **One database container per instance, never a shared server.**
 Decision: each instance keeps its own bundled DB container, credentials, and

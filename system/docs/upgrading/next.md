@@ -70,3 +70,43 @@ client IP (as nginx passes it), original URL with query string (the same one
 nginx's own access log already records), duration, peak memory (in 2 MB
 steps), and CPU. Anything parsing FPM's container log by field position
 needs updating.
+
+### `APP_USER`/`APP_GROUP` are read at runtime, and nothing in the app containers runs as root
+
+Reaches a project only when it reconciles the Docker files from the sample:
+`docker/Dockerfile`, `docker/docker-compose.yml`,
+`docker/php/fpm.d/www.conf.template`, `docker/php/entrypoint.sh`,
+`docker/php/bin/cli_run.sh`, `docker/env/sample.docker.env` and
+`docker_manage.sh`. Reconcile them together, then rebuild once.
+
+- **The identity is a compose `user:`, not a build arg.** `php`, `ws`, `cron`
+  and `cli` start as `APP_USER:APP_GROUP`; the FPM master is no longer root.
+  Changing the identity is an `up -d`, not a rebuild, and it may be numeric
+  (`1001`) with no user entry in the image. A user you added to your own
+  Dockerfile for the previous recipe keeps working; a leftover
+  `ARG APP_USER` there is inert.
+- **A new one-shot `init` service** owns the `manager-logs` volume to that
+  identity before the others start, on every `up`. An existing volume is
+  fixed on the first `up`. It never touches `MEDIA_PATH`/`PRIVATE_PATH`:
+  bind-mount sources must already be writable by the identity on the host.
+- **`docker_manage.sh` no longer adds `-u` to `exec`/`run`** — the compose
+  `user:` covers them. The old injection was skipped whenever a flag such as
+  `--profile` came before the subcommand, so those invocations ran as root.
+- **`RUN_MIGRATIONS=true` migrates as the app identity**, not root; the
+  entrypoint no longer chowns the log tree afterwards, and it now stops with
+  an error if a log directory isn't writable.
+- **`cli_run.sh` sets `umask 022`,** so files a `docker exec`'d CLI command
+  writes aren't world-writable on a host whose `dockerd` runs with umask 0.
+- **Fixing a root-owned log** is now `./docker_manage.sh -e <instance> up -d
+  init`, not a manual `chown`.
+- `manager/tools/log_check` reports a uid with no user entry as
+  `no passwd entry (uid N)`; it previously printed the script file's owner,
+  usually `root`.
+
+### The host-side `bin/cli_run.sh` and `bin/cli_run_api.sh` now run under bash
+
+Reaches a project only when it reconciles `bin/` from the sample. Both
+scripts use bash arrays but declared `#!/bin/sh`, so on a host where `sh` is
+dash (Debian, Ubuntu) they failed with `Syntax error: "(" unexpected`.
+They now declare `#!/bin/bash`, and `cli_run.sh` quotes its arguments, so an
+argument containing a space reaches PHP as one argument.
