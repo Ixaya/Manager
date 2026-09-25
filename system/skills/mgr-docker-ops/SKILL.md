@@ -97,6 +97,13 @@ against this checkout instead of a lagging vendor mirror needs an extra
 bind not covered here — see `framework/docs/development/framework-workflow.md`
 (not shipped; no project-side equivalent).
 
+## Bumping an image pin
+
+Never pick a version from memory or a browsed tag page — both lag. Run
+`bin/docker-pin-report.php` through the `tools` service and apply
+`docker.md`'s "Updating image pins" rules (hold window, LTS-only
+databases, one Alpine across images).
+
 ## `exec`/`run` into php/ws/cron/cli run as the instance's app identity — enforced, not a habit to remember
 
 All four services start as `APP_USER:APP_GROUP` from the instance's
@@ -174,8 +181,15 @@ docker events --since 1h --filter event=oom          # which containers were OOM
 docker exec <c> cat /sys/fs/cgroup/memory.events     # oom_kill counter for this container
 ```
 
+`OOM command not allowed when used memory > 'maxmemory'` in the app log is
+not a kill: `valkey-state` is full, and every request that starts a session
+500s. Raise `VALKEY_STATE_MAXMEMORY`, and its cap with it.
+
 Sizing a cap and its engine settings together is `docker-tuning.md`'s
 subject — never raise a database knob without raising its cap with it.
+`valkey-state` peaks at ~2× its dataset during an AOF rewrite; check a
+`maxmemory`/cap pairing with `bin/valkey-profile.sh -e <instance>` (host
+side, throwaway copy) rather than by eye.
 
 ## Logs — three channels, and the `log_check` trap
 

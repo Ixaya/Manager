@@ -153,10 +153,10 @@ services:
 
   # ── Valkey: durable state (core) ──────────────────────────────────────────
   valkey-state:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:8.1.10-alpine3.24
     restart: unless-stopped
     entrypoint: ["sh", "/usr/local/bin/valkey-entrypoint.sh"]
-    command: ["/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_STATE_MAXMEMORY:-256mb}"]
+    command: ["/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_STATE_MAXMEMORY:-128mb}"]
     networks: [appnet]
     logging: *logging
     <<: [*security, *fleet]
@@ -169,8 +169,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    mem_limit: ${VALKEY_STATE_MEM_LIMIT:-384m}
-    memswap_limit: ${VALKEY_STATE_MEM_LIMIT:-384m}
+    mem_limit: ${VALKEY_STATE_MEM_LIMIT:-320m}
+    memswap_limit: ${VALKEY_STATE_MEM_LIMIT:-320m}
     cpus: ${VALKEY_STATE_CPUS:-0.5}
     healthcheck:
       test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/valkey_password) valkey-cli ping | grep -q PONG"]
@@ -181,7 +181,7 @@ services:
 
   # ── Valkey: ephemeral cache/queues/pub-sub (core) ──────────────────────────
   valkey-cache:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:8.1.10-alpine3.24
     restart: unless-stopped
     entrypoint: ["sh", "/usr/local/bin/valkey-entrypoint.sh"]
     command: ["/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_CACHE_MAXMEMORY:-128mb}"]
@@ -321,7 +321,7 @@ services:
       disable: true
     profiles: [tools]
 
-  # ── MySQL 8.4 (profile: mysql — dev/local only) ────────────────────────────
+  # ── MySQL (profile: mysql — dev/local only) ────────────────────────────────
   # Aurora-compatible profile — use when parity with the Aurora MySQL
   # dev/prod server matters. DB_USER/DB_NAME must be set in the env-file
   # (no default) — passwords come from Docker secrets, never env.
@@ -366,7 +366,7 @@ services:
       start_period: 30s
     profiles: [mysql]
 
-  # ── MariaDB 12.3.2 (profile: mariadb — dev/local only) ─────────────────────
+  # ── MariaDB (profile: mariadb — dev/local only) ────────────────────────────
   # Lighter local alternative to mysql — NOT Aurora-compatible. Same
   # secrets pattern as mysql above.
   mariadb:
@@ -414,7 +414,7 @@ services:
       start_period: 30s
     profiles: [mariadb]
 
-  # ── PostgreSQL 18.4 (profile: postgres — dev/local only) ───────────────────
+  # ── PostgreSQL (profile: postgres — dev/local only) ────────────────────────
   # 18+ images require the volume mounted at the PARENT dir
   # (/var/lib/postgresql), not .../data — that's the pre-18 convention and
   # trips this image's startup guard.
@@ -465,7 +465,7 @@ services:
       start_period: 30s
     profiles: [postgres]
 
-  # ── SQL Server 2022 (profile: mssql — dev/local only, PDO path only) ──────
+  # ── SQL Server (profile: mssql — dev/local only, PDO path only) ───────────
   # amd64-only — Apple Silicon needs Rosetta/QEMU emulation.
   # The php image ships no SQL Server driver: add pdo_dblib to the Dockerfile
   # (or move to a glibc base for Microsoft's pdo_sqlsrv) before anything can

@@ -4,7 +4,7 @@
 # Always build and tag both together with the same IMAGE_TAG — mismatched
 # tags mean nginx serves static assets that don't match the running PHP code.
 
-FROM alpine:3.21 AS supercronic-bin
+FROM alpine:3.24.2 AS supercronic-bin
 # Cron daemon binary, safe to run as PID 1. Used by the cron service only.
 # TARGETARCH is populated automatically by BuildKit (amd64 or arm64). The
 # binary is verified against a SHA256 pin per arch. To bump: change the
@@ -21,7 +21,7 @@ RUN set -eux; \
     echo "${sha256}  /usr/local/bin/supercronic" | sha256sum -c -; \
     chmod +x /usr/local/bin/supercronic
 
-FROM php:8.4-fpm-alpine AS php-base
+FROM php:8.4.25-fpm-alpine3.24 AS php-base
 # php-base: PHP + every extension + production php.ini. Shared by
 # vendor-builder and php-app so the extension build runs once.
 
@@ -166,7 +166,7 @@ EXPOSE 9000
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm", "-F"]
 
-FROM nginx:1.27-alpine AS nginx-app
+FROM nginx:1.30.5-alpine3.24 AS nginx-app
 # nginx-app: serves static assets + reverse-proxies to php:9000. Static
 # files are baked in from php-app (no shared volume needed for code/assets).
 

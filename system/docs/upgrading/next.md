@@ -34,6 +34,35 @@ with the new `max_connections` of 30 was OOM-killed under 30 concurrent
 heavy queries. Raise those to 640m, or lower `*_MAX_CONNECTIONS` with them.
 Sizing guidance: `docs/development/docker-tuning.md`.
 
+### `valkey-state` now defaults to 128mb inside 320m — the previous 256mb inside 384m can be OOM-killed
+
+The previous template paired `VALKEY_STATE_MAXMEMORY=256mb` with
+`VALKEY_STATE_MEM_LIMIT=384m`. Every AOF rewrite forks, and under writes the
+fork copies up to the whole dataset, so a dataset near 256 MiB peaks around
+500 MiB and the kernel kills the server or the rewrite child. A 384m cap
+holds a dataset up to roughly 160 MiB; an instance holding a few MiB of
+sessions isn't exposed.
+
+The new defaults follow `cap ≥ 2 × maxmemory + 64m`. **An instance
+`docker.env` copied from the previous template still pins 256mb / 384m** —
+the compose default doesn't apply to a key it sets. Check what the dataset
+holds, then pick one:
+
+```bash
+docker exec <instance>-valkey-state-1 sh -c 'REDISCLI_AUTH="$(cat /run/secrets/valkey_password)" valkey-cli INFO memory' | grep -E '^(used_memory|maxmemory):'
+```
+
+- `VALKEY_STATE_MAXMEMORY=128mb` / `VALKEY_STATE_MEM_LIMIT=320m`, when
+  `used_memory` is well under 128 MiB — a dataset above the new `maxmemory`
+  makes every request that starts a session fail with a 500 at once.
+- Keep 256mb and raise the cap to 576m. 512m survived on the reference host,
+  with a 5% margin.
+
+Recreate with `./docker_manage.sh -e <instance> up -d valkey-state`, then
+verify the pairing on that host with `bin/valkey-profile.sh -e <instance>`
+(new — reconcile `bin/` from the sample to get it). Sizing guidance:
+`docs/development/docker-tuning.md`, "Valkey".
+
 ### The MariaDB healthcheck stops logging "Access denied" on every run
 
 Reaches a project only when it reconciles `docker/docker-compose.yml` from

@@ -631,3 +631,51 @@ don't need the same caution); defaulting `dry_run` to `1` instead (protects
 a curious manual invocation but not an unattended cron line copied verbatim
 from the docs, which passes no arguments — the two delete stages needed
 their own off-switch regardless).
+
+**Pin report: upstream release dates for the hold window, Docker Hub push only as fallback.**
+Decision: `bin/docker-pin-report.php` lists each repository's tags in one
+registry call and dates each shown version from endoflife.date when it is
+that cycle's latest patch, else from the upstream GitHub release, else from
+Docker Hub's `tag_last_pushed` (marked `HOLD?`). Release channels come from
+`docker-library/official-images`, support windows from endoflife.date.
+Runs in the `tools` service.
+Why: Docker Hub exposes no first-release date and every rebuild moves the
+push date — the first run showed PHP 8.5.11 as pushed 0 days ago.
+endoflife.date lags (it still listed PHP 8.4.25 as latest the day after
+8.4.26 shipped), hence the GitHub fallback. Series levels alone missed
+MySQL's `lts` (9.7.2) behind `innovation` (26.7.0); channels close that.
+The paginated Hub tag API would need ~19 pages for php's fpm-alpine variant
+alone.
+Cost: a per-image `UPSTREAM` map to maintain; for MySQL and PostgreSQL the
+endoflife.date date matches the git tag, which can precede general
+availability and under-hold.
+Revisit when: Docker Hub exposes a tag creation date, or a pin moves to a
+registry other than Docker Hub (the report skips those).
+
+**`valkey-state` sized `2 × maxmemory + 64m`, verified per host by a profiler; 128mb by default.**
+Decision: `VALKEY_STATE_MEM_LIMIT ≥ 2 × VALKEY_STATE_MAXMEMORY + 64m`, shipped
+as 128mb / 320m, with `bin/valkey-profile.sh` to verify a pairing — or a
+tighter one — on the host that runs it.
+Why: every AOF rewrite and RDB save forks; with writes running from the
+fork's start, the copy reached the whole dataset at 32, 128 and 256mb alike
+(reference host, `cpus: 0.5`), so the peak is ~2× the dataset plus 10–25 MiB
+whatever the host's speed. 256mb / 384m was OOM-killed on every run; 256mb /
+512m survived at a 5% margin. 256mb had no recorded rationale, and the
+service holds only sessions (default TTL 24 minutes). A script rather than
+a table because page size, THP, overcommit and cgroup accounting differ per
+host (the reference is an arm64 VM with 16 KiB pages), and a project short of
+RAM can prove a cap below the rule — 32mb passed at 96m against the rule's
+128m. An earlier `docker exec` sampler, every 0.3 s, missed the ~0.2 s spike
+and read about half the peak; the profiler samples every 50 ms from an
+uncapped sibling and cross-checks against `aof_last_cow_size`. Raising or
+disabling `auto-aof-rewrite-*` didn't lower the peak: one rewrite reaches it.
+Cost: the fixed 64m over-provisions small tiers; a bash + python3 host
+script that tracks the compose shape it reads. A project that outgrows
+128mb gets a 500 on every request that starts a session, not degraded
+sessions: CI3's redis driver takes its session lock with a `SET` that
+`noeviction` refuses, and phpredis throws uncaught. Watching `used_memory`
+is what prevents it.
+Revisit when: queues move to `valkey-state` — Path B's own revisit
+condition, a second Redis connection enabling Path A. Queue entries can't be
+evicted and can back up, so the dataset stops being bounded by the session
+TTL.

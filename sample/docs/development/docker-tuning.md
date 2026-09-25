@@ -75,15 +75,17 @@ A small tier per site, database knobs from the next section:
 |---|---|---|
 | php | 320m | `PHP_PM_MAX_CHILDREN=4`, `PHP_PM_MODE=ondemand` |
 | nginx | 64m | — |
-| valkey-state | 64m | `VALKEY_STATE_MAXMEMORY=32mb` |
+| valkey-state | 128m | `VALKEY_STATE_MAXMEMORY=32mb` |
 | valkey-cache | 64m | `VALKEY_CACHE_MAXMEMORY=32mb` |
 | postgres | 256m | small tier below |
 
-That is 768m per site, ~3.1 GB for four — over the 2.7 GB available. On a
+That is 832m per site, ~3.3 GB for four — over the 2.7 GB available. On a
 box this size the realistic choices are: drop Valkey on sites that don't use
-it (−128m each), pick the lighter engine (MySQL's small tier needs 384m
-against Postgres' 256m), and put the whole fleet under one parent cap so the
-unrelated services stay protected even if several sites peak at once.
+it (−192m each), profile `valkey-state` below its rule on this host (see
+"Valkey" below — 32mb passed at 96m on the reference host), pick the lighter
+engine (MySQL's small tier needs 384m against Postgres' 256m), and put the
+whole fleet under one parent cap so the unrelated services stay protected
+even if several sites peak at once.
 
 ## Databases
 
@@ -210,12 +212,73 @@ amd64-only.
   change them.
 - **nginx.** ~15 MiB idle; memory follows open connections. Long-lived
   WebSockets are the main driver.
-- **Valkey.** `VALKEY_*_MAXMEMORY` bounds the dataset, but a background
-  AOF rewrite or RDB save forks, and copy-on-write can briefly double the
-  resident size. Keep the container cap at 1.5–2× `maxmemory`, the ratio
-  the defaults ship with.
+- **Valkey.** `valkey-cache` needs its dataset plus a little overhead: it
+  never forks (`appendonly no`, `save ""`). `valkey-state` forks for every
+  AOF rewrite and RDB save, and the fork can double its memory — see
+  "Valkey" below.
 - **`tools`** (2048m) is a build/analysis sandbox. Don't run PHPStan or
   composer on a small shared server while the sites are live.
+
+### Valkey
+
+`valkey-state` holds the sessions and persists them (AOF plus RDB
+snapshots). Every AOF rewrite and RDB save forks a child that writes the
+snapshot; while it runs, each page the server modifies is copied, and both
+copies count against the cap. Under writes spread across the dataset the copy
+grows to the whole dataset, so:
+
+```
+peak ≈ 2 × dataset + ~10–25 MiB
+VALKEY_STATE_MEM_LIMIT ≥ 2 × VALKEY_STATE_MAXMEMORY + 64m
+```
+
+The rule assumes the full copy, so it holds whatever the host's speed; the
+shipped 128mb / 320m follows it. Size from `maxmemory`, not current use:
+`noeviction` lets the dataset reach it before writes start failing.
+
+Measured with `bin/valkey-profile.sh` (see "Load-testing a tier") at
+`cpus: 0.5` on the reference host — arm64 Linux VM, 16 KiB pages, no THP,
+Valkey 8.1.10:
+
+| `maxmemory` | Cap | Peak (MiB) | Verdict |
+|---|---|---|---|
+| 32mb | 64m | killed at 62 | FAIL |
+| 32mb | 96m | 74 | PASS, 22% margin |
+| 128mb | 320m | 249 | PASS, 22% margin |
+| 256mb | 384m | killed | FAIL |
+| 256mb | 512m | 484 | TIGHT, 5% margin |
+| 256mb | 576m | 486 | PASS, 15% margin |
+
+Every completed rewrite copied at least 95% of the dataset, 32mb included.
+
+- **What fills it.** Live session keys ≈ new sessions per second × TTL.
+  The default TTL is 24 minutes of inactivity: `CF_SESS_EXPIRATION=0` falls
+  back to PHP's `session.gc_maxlifetime` (1440 s). Every
+  `CF_SESS_TIME_TO_UPDATE` (300 s) a session gets a new ID and the old key
+  stays until its own TTL (`CF_SESS_REGENERATE_DESTROY=false`), so an active
+  user holds several keys. A page that loads the session creates a key for
+  every visit without a cookie — crawlers included. A longer
+  `CF_SESS_EXPIRATION` multiplies all of it.
+- **Watch the dataset**, and raise `maxmemory` (and the cap with it) before
+  it gets close:
+
+  ```bash
+  docker exec <instance>-valkey-state-1 sh -c 'REDISCLI_AUTH="$(cat /run/secrets/valkey_password)" valkey-cli INFO memory' | grep -E '^(used_memory|maxmemory):'
+  ```
+
+- **When it is full,** every request that starts a session fails with a
+  500, cookie or not: the session driver's lock write is refused and the
+  Redis client throws (`OOM command not allowed when used memory >
+  'maxmemory'` in the app log). Nothing is evicted.
+- **Below the rule** is fine where the profiler passes at that exact cap on
+  that host. Its load overwrites the whole dataset at full speed during the
+  rewrite, harder than session traffic ever does.
+- **Versions.** 8.1.10 and 9.1.2 measured identically: 278 bytes per key
+  holding a 200-byte value, same peak. 8.0.11 took 291 bytes, so the same
+  `maxmemory` holds ~5% fewer sessions; its peak against the cap is the
+  same, since `maxmemory` bounds the dataset either way. Profile a new
+  Valkey tag with `--image` before moving the pin — the table belongs to
+  8.1.10.
 
 ## Fleet cap
 
@@ -305,12 +368,12 @@ docker exec <c> psql -U <DB_USER> -d <DB_NAME> -c 'SHOW shared_buffers'
 
 ### Load-testing a tier
 
-Load-test a tier before trusting it, and again whenever a pinned database
-image changes — every number in this file belongs to the image versions it
-was measured on. Run it on a throwaway instance, never next to live sites:
-it saturates the disk it shares with them. The shape that validated the
-tables above, shown for PostgreSQL (MySQL/MariaDB: the same table built with
-a recursive CTE — raise `cte_max_recursion_depth` on MySQL,
+Load-test a tier before trusting it, and again whenever a pinned database or
+Valkey image changes — every number in this file belongs to the image
+versions it was measured on. Run it on a throwaway instance, never next to
+live sites: it saturates the disk it shares with them. The shape that
+validated the tables above, shown for PostgreSQL (MySQL/MariaDB: the same
+table built with a recursive CTE — raise `cte_max_recursion_depth` on MySQL,
 `max_recursive_iterations` on MariaDB — and the same two queries):
 
 ```bash
@@ -342,3 +405,53 @@ result:
   running it and holding the connection slot, so the next run can hit
   `Too many connections` against its own leftovers. Restart the database
   between runs.
+
+**Valkey** has its own profiler, run on the host — it needs `docker` and
+`python3`, and reads the instance's resolved compose config through
+`docker_manage.sh`:
+
+```bash
+bin/valkey-profile.sh -e <instance>                                  # the instance's own values
+bin/valkey-profile.sh -e <instance> --maxmemory 256mb --cap 576m     # try values before editing docker.env
+bin/valkey-profile.sh -e <instance> --image valkey/valkey:<new tag>  # try an image before moving the pin
+```
+
+It starts a throwaway copy of the instance's `valkey-state` — same image,
+command, conf, cap, and `cpus`, with an empty volume and a random password;
+never the live container or its data. Each run fills it to ~95% of
+`maxmemory` and forces an AOF rewrite while an uncapped client overwrites
+the whole dataset. Three runs by default (`--runs`); the worst one counts.
+It refuses to start on a cgroup v1 host, or when the host has less than the
+cap plus 256 MiB available. Output is `key=value` lines; the last one is the
+verdict:
+
+| `verdict` | Exit | Meaning |
+|---|---|---|
+| `PASS` | 0 | Nothing was killed and the peak left at least 10% of the cap. |
+| `TIGHT` | 1 | Nothing was killed, but the margin is under 10% — a busier moment away from a kill. Raise the cap. |
+| `FAIL` | 1 | The kernel killed the server (`server_oom_killed=true`) or the rewrite child (`oom_kills` above 0, `rewrite_status` not `ok`). Raise the cap or lower `maxmemory`. |
+| `INVALID` | 2 | The write load stopped before the rewrite finished (`writer_ran_through=false`), so the peak is understated. Re-run it. |
+
+Reading the rest:
+
+- **A killed rewrite child is the easy one to miss:** the server keeps
+  running, so its restart count doesn't move. The cgroup's `oom_kill`
+  counter records every kill inside the container, and the profiler reads
+  it.
+- **`run.N.cow_mib`** is how much the rewrite copied. Close to the dataset
+  (`fill_percent` of `maxmemory`) is the full copy the rule assumes.
+- **`run.N.sampled_peak_mib`** is the peak memory of the rewrite phase,
+  sampled every 50 ms; **`estimate_mib`** (memory before the fork plus
+  `cow_mib`) should land a few MiB under it. It stands in when the sampler
+  can't find the container's cgroup.
+- **`host.overcommit_memory`** other than 1 prints a warning: on a host
+  short of free memory the fork can fail outright ("Can't rewrite append
+  only file in background: fork: Cannot allocate memory" in
+  `docker logs`). **`host.thp`** other than `never` or `absent` is also
+  worth fixing. Both are host prerequisites in `docker.md`, "Resource limits
+  & tuning".
+- **`host.page_size`** is 4096 on most x86 and Graviton hosts; the table in
+  "Valkey" was measured at 16384.
+
+Run it while the host's sites are idle: each run keeps a CPU busy and writes
+the dataset to disk several times.

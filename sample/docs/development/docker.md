@@ -375,6 +375,64 @@ No secret is ever in an image layer, a compose env-file, or `docker inspect`.
 **and**
 `DB_PASS` in `.priv.env`, alter the DB user, then `up -d`.
 
+## Updating image pins
+
+Every base image, the database images, and the supercronic release are
+pinned to an exact version. Never pick a new one from memory or by browsing
+tag pages; run the pin report, which reads the pins from
+`docker/Dockerfile` and the compose files, queries Docker Hub and GitHub,
+and never edits a file:
+
+```bash
+./docker_manage.sh -e <instance> run --rm -T [-e GITHUB_TOKEN] tools php bin/docker-pin-report.php [--hold-days=7]
+```
+
+For each pin it prints the pin itself, the newest tag at every series level
+(`8.4.x`, `8.x`, `newest`) within the pin's own variant, and the newest tag
+of any other release channel an official image publishes (`lts`, `stable`,
+`innovation`…). Each line carries its release date and the series' support
+window (LTS, end of active support, EOL) from endoflife.date. Floating tags
+are listed but not compared. Exit code 1 means a lookup failed and that pin
+was not compared. GitHub allows 60 unauthenticated requests an hour; export
+a token as `GITHUB_TOKEN` on the host and pass `-e GITHUB_TOKEN` to lift it.
+A newly pinned image needs an entry in the script's `UPSTREAM` map, or its
+dates fall back to Docker Hub's push date.
+
+Acting on it:
+
+- **Wait out the hold window: no release younger than 7 days — the pin
+  included.** Critical regressions surface in the first days after a
+  release. `HOLD` is a confirmed upstream release date inside the window;
+  while the pin itself is on hold, `previous` names the fallback in its
+  series. `HOLD?` means no upstream date was found and Docker Hub's last
+  push stood in — official images are rebuilt on every base-image update,
+  so confirm the release date by hand. For MySQL and PostgreSQL the date
+  matches the git tag, which can precede general availability.
+- **Plan series moves by support window.** A series showing `active
+  support ENDED` gets security fixes only; move before its EOL.
+- **The series level sets the review.** Inside the pin's own series
+  (`8.4.x`) is routine; a newer minor or major needs its changelog read
+  first.
+- **Databases stay on an LTS series, never innovation/rolling** — a
+  rolling series stops getting fixes when the next one ships. The `lts`
+  alias names only the newest LTS, so an older still-supported LTS series
+  reports `channel: none`. When production runs a managed database, the
+  dev profile follows that server's engine version instead. A major bump
+  changes the on-disk data: PostgreSQL needs `pg_upgrade` or a
+  dump/restore; MariaDB runs `mariadb-upgrade` on start. After any
+  database tag change, re-run the load test in `docker-tuning.md`.
+- **nginx stays on `stable`** (even minor), not `mainline` (odd).
+- **Valkey:** profile the candidate before moving the pin —
+  `bin/valkey-profile.sh -e <instance> --image valkey/valkey:<tag>` (see
+  `docker-tuning.md`, "Load-testing a tier").
+- **One Alpine version across images.** The report's last line flags a
+  mismatch; bump them together.
+- **Supercronic:** change the version in the Dockerfile's download URL,
+  then regenerate the checksums per "Build gotchas" in
+  `docker-internals.md`.
+- `composer:2` floats deliberately — it only runs in the discarded
+  builder stage.
+
 ## Resource limits & tuning
 
 Every service has `mem_limit` + `cpus` (env-overridable in
