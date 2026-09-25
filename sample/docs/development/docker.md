@@ -174,6 +174,25 @@ clears OPcache. In a rebuild-and-replace deploy, recreating the `php`
 container achieves the same thing. (This is also a debugging trap — see
 Troubleshooting below.)
 
+### Crontab changes
+
+`docker/cron/crontab` is bind-mounted into the `cron` container, not baked
+into the image, so editing it on the server needs no rebuild. Supercronic
+doesn't watch the file, and a `SIGUSR2` reload isn't enough: most editors
+and `git pull` replace the file, and the container keeps reading the old
+one. Recreate the service after every edit:
+
+```bash
+./docker_manage.sh -e <instance> --profile cron up -d --force-recreate cron
+```
+
+### Crontab Time Zone
+Cron schedules are UTC: the image has no tzdata, so a TZ set on it is silently
+ignored. For jobs pinned to local business hours in a DST zone (UTC entries
+drift an hour twice a year): add tzdata to the php-app image, then
+`TZ: ${CRON_TZ:-UTC}` on the cron service only — never PHP, whose timezone
+also sets the DB session's. Jobs near the DST switch (~1–3am) can skip or repeat.
+
 ## Live-code dev modes (`-b`, `-m`)
 
 `-b` bind-mounts a host checkout's `application/` (read-only) over the baked

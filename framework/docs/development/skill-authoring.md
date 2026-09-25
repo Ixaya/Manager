@@ -1,6 +1,7 @@
 # Skill Authoring and Review
 
-> Scope: the `mgr-*` skills in `system/skills/`. Use it when writing a new
+> Scope: the `mgr-*` skills in `system/skills/`, plus a closing note on the
+> operator's local `.claude/skills/`. Use it when writing a new
 > skill, editing an existing one, or running a validation pass over skills
 > written by another agent. Read `framework/docs/documentation.md` and the shipped
 > standard `sample/docs/documentation.md` first — this file adds only what is
@@ -10,7 +11,7 @@
 
 ## The medium
 
-Five facts about how skills are consumed. Most rules below are consequences
+Six facts about how skills are consumed. Most rules below are consequences
 of one of them, and an author who does not hold them makes the same mistakes
 repeatedly.
 
@@ -29,6 +30,12 @@ repeatedly.
 5. **Skills are read by agents, not compiled.** Nothing validates them. A
    wrong parameter name survives indefinitely and fails at runtime in someone
    else's project.
+6. **Context is paid at two rates.** The `description` sits in the listing
+   of every session, loaded or not. The body, once loaded, stays for the
+   rest of the session and is re-read on every turn. After compaction,
+   Claude Code re-injects a body only up to a per-skill cap (5,000 tokens)
+   and keeps the start of the file, so an oversized skill loses its end.
+   `mgr-code-style` loads on every code task, so its bytes cost the most.
 
 ## Shape
 
@@ -40,6 +47,15 @@ paragraph, a `Source of truth` list, task sections, and a closing
 
 The H1 parenthetical names the governing class where there is one
 (`(MY_Model / APP_Model_Dyn)`); skills covering several subsystems omit it.
+
+**Size.** A principle, not a number to hit. Measured on these files, a
+token is 2.6–2.85 characters, so the re-injection cap (fact 6) is roughly
+13–14K characters; past it, a truncated re-injection drops the closing block
+first. Compaction is rare on a 1M-context session, though, so the cost that
+always applies is per-turn and proportional: trim duplication and extract
+situational content wherever it is cheap. Core API and silent-failure
+content stay in `SKILL.md` whatever the size — a skill over the cap that
+keeps them beats one under it that moved them out.
 
 ### When a missing section is correct
 
@@ -84,6 +100,12 @@ RIGHT counterpart. Two rules govern it:
   mechanism and the reason; the block carries the shape. Removing the prose
   leaves a block asserting things it never explains.
 
+**State each fact once.** That block is the one sanctioned repeat. Inside a
+skill, a `Rules` list or a later section never restates an earlier section;
+it points at it or drops the line. Across skills, one skill owns each fact
+and the others point at it. mgr-docker-ops owns the log channels, and
+mgr-live-probes adds only what is probe-specific.
+
 **Cross-references.** Backtick a skill name only in the Prerequisite
 blockquote, where it is the argument you pass to load it. Elsewhere it is
 bare: `(see mgr-models)` as a parenthetical, "the mgr-models skill" when the
@@ -106,7 +128,11 @@ it wrong fails silently and late, like the `.dockerignore` probes guard or
 the `BE_` fork warning. Before citing any path, confirm it resolves for the
 reader: check `.gitattributes` for `export-ignore` (`framework/` and
 `extras/` do not ship; `sample/` does) and check whether the scaffold
-supplies it.
+supplies it. Where a framework-only citation is not load-bearing, delete it
+rather than guard it. An instruction only the framework repo can act on
+(adding a `sample/.env.sample` placeholder) belongs in
+`framework/docs/development/`, not a shipped skill: a guard makes it honest,
+but it still costs every project's context.
 
 **Commands.** Name what must pass, not how to invoke it, unless the
 invocation is identical for both audiences. `php-cs-fixer fix` is correct
@@ -140,6 +166,16 @@ arrive unbidden, because the failure it prevents — reimplementing what the
 framework already provides — happens precisely when the agent does not know
 to look.
 
+Among situational content, extract by **failure mode**: what happens to an
+agent that never opens the reference?
+
+- **Loud** — an engine error, a fatal, a thrown exception. Extract it, and
+  word the `SKILL.md` pointer around the symptom, quoting the error text,
+  so the moment of need is what finds it.
+- **Silent** — a wrong result, a dropped write, a difference only
+  production shows. Keep it in `SKILL.md`, compressed. The agent never
+  learns it needed the reference.
+
 ## Review checklist
 
 For validating a skill, especially one written by a weaker model. Ordered by
@@ -162,7 +198,8 @@ where defects are actually found.
    may be a defect. Park those separately rather than papering over them in
    prose.
 7. **Structure:** orientation present and directive, sections in the standard
-   order, file ends on its closing block, no stray trailing prose.
+   order, file ends on its closing block, no stray trailing prose, size
+   checked against the Size principle (`wc -c`), no fact stated twice.
 8. **Vocabulary:** no workspace or campaign nouns. Words like item, finding,
    batch and phase mean nothing in a consuming project.
 
@@ -176,3 +213,19 @@ then need retracting.
 Measure before sweeping. A scan costs minutes and routinely shows a suspected
 corpus-wide pattern is four legitimate cases and one real one. Never launch a
 mechanical pass on an unmeasured hypothesis.
+
+Measure cost the same way. `/skill-doctor`'s per-skill figure tracks the
+sessions a skill was loaded in, not the skill's own weight. A skill's real
+cost is the input-token jump across the turn it loads, readable from the
+session transcripts. Never split a skill to save size: a narrower sibling
+loses the description race to the broader one, and `references/` already
+loads a subset on demand.
+
+## Local process skills
+
+The operator's skills under `.claude/skills/` (release notes, commit
+messages, subagent choice) do not ship, so the shape and naming rules above
+do not bind them. Facts 1, 4 and 6 do. They carry no provenance: where the
+content came from, or what file it replaced, is history. A skill the
+operator always starts by hand sets `disable-model-invocation: true`, which
+takes it out of the listing until it is invoked by name.

@@ -58,11 +58,9 @@ Load from controllers with the module prefix:
 `$this->load->model('admin/invoice');` then use as
 `$this->invoice->get_all()`.
 
-Don't name a model after a REST verb (`get`, `post`, `put`, `delete`). Loaded
-into a REST controller it collides visually with the input methods:
-`$this->post` is the `Post` model but `$this->post('title')` is
-`REST_Controller::post()` reading a body field. PHP tells property access from
-a method call so there's no runtime error, but it invites mistakes — name it
+Don't name a model after a REST verb (`get`, `post`, `put`, `delete`): in a
+REST controller `$this->post` would be the model while `$this->post('title')`
+reads a body field. No runtime error, but it invites mistakes — name it
 `article`/`blog_post` instead.
 
 ## Configuration properties
@@ -301,15 +299,13 @@ Gotchas:
 
 Paginated/searchable lists follow one shape: the controller passes
 `build_list_params()` output straight in, the model returns
-`['data' => rows, 'total' => count]`, and `$order_by` is validated against an
-allowed-columns list with `mgr_build_order_by()` before it reaches the query
-— an invalid value returns `null`, which `get_list()` must check and return
-`null` for rather than running a query with a broken `order_by`. A model that
-wants the controller to answer `400` (rather than the generic `500` a bare
-`null` return produces) exposes a `get_list_validate(array $params): ?string`
-the controller calls first, reusing the same allowed-columns list via
-`mgr_validate_order_by()`. The full model, ready to adapt, is in
-`references/list-endpoint.md` beside this file; its controller half is the
+`['data' => rows, 'total' => count]`, and `$order_by` is validated with
+`mgr_build_order_by()` against an allowed-columns list — its `null` for an
+invalid column makes `get_list()` return `null` instead of querying. For a
+`400` rather than a generic `500`, the model also exposes
+`get_list_validate(array $params): ?string`, which the controller calls
+first (`mgr_validate_order_by()` over the same list). The full model is in
+`references/list-endpoint.md`; its controller half is the
 mgr-rest-controller skill's `references/full-example.md`.
 
 ## Anti-patterns
@@ -325,10 +321,19 @@ $sql = "SELECT * FROM invoice WHERE 1=1" . ($status ? " AND status = $status" : 
 // this is true on one driver and false on another
 if ($this->invoice->insert($data) === '135') { ... }
 
+// WRONG — count_all() is ?int; null (query failed) > 0 is false, so a
+// failed query silently reads the same as "no matching rows"
+if ($this->invoice->count_all(['folio' => $folio]) > 0) { ... }
+
 // RIGHT
 $this->load->model('billing/invoice');
 $rows = $this->invoice->get_all(where: ['status' => $status]);
 
 $id = $this->invoice->insert($data);
 if ((string) $id === (string) $expected_id) { ... }
+
+$count = $this->invoice->count_all(['folio' => $folio]);
+if ($count === null) {
+    // a failed query — handle/log it, never let it silently mean "0 rows"
+}
 ```

@@ -35,6 +35,8 @@ Source of truth (only read if something here is insufficient):
   may predate current conventions)
 - Public-endpoint example (`auth_override`, login → API key):
   `references/public-endpoint.md`
+- Uncaught-error response shapes (development vs production, body-less
+  500s): `references/error-rendering.md`
 
 `REST_Controller` extends `MY_Controller`, so API controllers inherit
 the framework controller helpers too — `upload_image()`, `upload_file()`,
@@ -54,8 +56,11 @@ delete_post    POST /module/api/name/delete
 ```
 
 The codebase convention is GET for reads and POST for everything else (not
-PUT/DELETE verbs). Plural controller class names (`Examples`, `Cards`,
-`Suppliers`).
+PUT/DELETE verbs).
+
+**Controller class names are plural** (`Examples`, `Cards`, `Suppliers`) —
+never the model's own singular name: a `Card` model and a `Card` controller
+in the same module is a same-name class collision, not just a style miss.
 
 ## Authentication
 
@@ -200,11 +205,9 @@ payload.
 ## Responses
 
 `$this->response($data, $http_code)` serializes (JSON by default) and
-**exits** — code after it never runs, which is why guard clauses need no
-`return`, and no `else` either: `if (!$valid) { $this->response(...); }`
-followed by the rest of the method, unindented, is the whole pattern — an
-`else` wrapping everything after it is dead weight the exit already made
-unreachable from the `if` branch.
+**exits** — code after it never runs, so a guard clause needs neither
+`return` nor `else`: `if (!$valid) { $this->response(...); }`, then the rest
+of the method unindented.
 
 Envelope convention — `status` is binary and answers one question only: did the
 request do what was asked? `1` = yes, `0` = no, as **integers** (not JSON
@@ -237,110 +240,61 @@ reads the status line and is blind to the body, so a failure answered with
 HTTP 200 is invisible to all of them.
 
 A `-1` tier for framework/exception errors is **retired**; don't emit it or
-branch on it — including in the framework's own disclosed error envelope, see
-below.
+branch on it.
 
 **`error` — a controller's own space for production-safe failure detail.**
 Optional, an object, present only when a failure needs to hand the frontend
 more than free text can carry — which fields failed validation, which record
-conflicted, whatever that endpoint's caller needs to act on. Populate it only
-with data you deliberately chose to expose: it is exactly as safe in
-production as `message`, and has nothing to do with the framework's own
-disclosed diagnostics below — don't reach for those internals here, and don't
-invent shapes an endpoint doesn't need. `error` and `response` are mutually
-exclusive on one body: a failure has no success payload to carry, and vice
-versa.
+conflicted. Populate it only with data you deliberately chose to expose: it
+is exactly as safe in production as `message`. Never put framework internals
+(`class`/`file`/`line`) in it, and don't invent shapes an endpoint doesn't
+need. `error` and `response` are mutually exclusive on one body.
 
 ### Uncaught errors already return JSON
 
 `MGR_Exceptions` renders uncaught exceptions, PHP errors and 404s as JSON for
-API clients, with CORS headers. A **5xx** arrives in one of two shapes, chosen
-by `should_disclose_details()` — which is `is_cli() || display_errors`, **not**
-`ENVIRONMENT`:
-
-- **Disclosed** (CLI, or `display_errors` on — development): `status` and
-  `message` at the root, plus an `error` object carrying internals —
-  `{status: 0, message, error: {class, file, line}}` for an uncaught
-  exception. A query that fails while `db_debug` is on renders the parsed DB
-  envelope instead — `error: {heading, errno, file, line, query?}`, with the
-  driver's own text in `message`. A PHP warning/notice renders
-  `error: {severity, file, line}`.
-- **Suppressed** (otherwise — production): `{status: 0, message: 'An unexpected
-  error occurred.'}` and nothing else, so one failure mode cannot be told from
-  another by comparing responses.
-
-This is a different use of the same `error` key than the controller-level one
-above: this one is internals only (`class`/`file`/`line`/`severity`/`errno`),
-never data a controller chose to expose, and it renders only in the disclosed
-shape — never in production, and never something a controller hand-builds
-itself. Reaching it needs no code: don't catch the exception, and its
-propagation to the dispatch boundary renders whichever of the two shapes
-above `should_disclose_details()` selects, always as HTTP 500.
-
-**4xx is never suppressed** — it is deliberate and client-facing. **Detail is
-always logged**, under either shape, so a generic response costs the server
-nothing. Write clients against the suppressed shape: the framework's
-diagnostic `error` does not exist in production — a controller's own `error`
-(above) can still appear there, since it was safe to send from the start.
-
-**Two 5xx paths answer with no body at all**: an exception thrown in a
-controller *constructor*, and a true fatal (memory exhaustion). CI's global
-handlers own those and render only while `display_errors` is on, so production
-returns a body-less 500 — accepted, because taking those over means the
-framework owning the terminal error path. Both are still logged. A client must
-treat an empty 500 body as a failure to report, not a protocol error.
+API clients, always as HTTP 500 for a 5xx, with the detail always logged. In
+production (`should_disclose_details()` false — `display_errors` off, not
+`ENVIRONMENT`) the body is only `{status: 0, message: 'An unexpected error
+occurred.'}`; in development it adds an internals-only `error` object the
+framework builds, never the controller. 4xx is never suppressed. An exception
+thrown in a controller *constructor*, or a true fatal, returns a body-less
+500 in production. Full shapes, for debugging or writing a client:
+`references/error-rendering.md`.
 
 **Only catch a throwable you actually expect and want to recover from** — a
 friendlier message, cleanup, or a specific HTTP code. Trace the call chain
-first: if nothing in it can throw, a `try/catch` guards nothing, and it
-usually reimplements a worse version of what the dispatch boundary already
-gives for free — leaking a raw `$e->getMessage()`, skipping the disclosure
-gate, or silently folding a real business failure and a real exception into
-the same generic response. An endpoint with no try/catch still fails with
-structured JSON and still logs. When something
+first: if nothing in it can throw, a `try/catch` guards nothing and usually
+reimplements a worse version of the dispatch boundary — leaking a raw
+`$e->getMessage()`, skipping the disclosure gate, or folding a business
+failure and a real exception into one generic response. When something
 genuinely can throw, `try/catch (Exception $e)` is right — respond with the
 specific code (`HTTP_INTERNAL_SERVER_ERROR` for an unrecovered one) and log
 with `mgr_process_exception($e)`. CLI-visible logging inside API code:
 `$this->print_log($object)` (timestamped, class-tagged).
 
-**Tracing for `throw` is not the same as tracing for failure.** A model or
-library call that returns `?array`/`?int`/`bool` instead of throwing still
-signals failure through its return value — `null` from `count_all()`/`get_all*`
-means the query failed, `false` from an Ion Auth `update()`/`activate()` means
-the write failed. Deleting a try/catch because nothing throws does not excuse
-checking that return: skip it and a real failure answers `status: 1` HTTP 200,
-worse than the try/catch it replaced. Check the return explicitly and respond
-`status: 0` with the matching code — no exception is involved, so no
-try/catch either.
+**Tracing for `throw` is not the same as tracing for failure.** A call that
+returns `?array`/`?int`/`bool` signals failure through its return — `null`
+from `count_all()`/`get_all*` means the query failed, `false` from an Ion
+Auth `update()`/`activate()` means the write failed. Skip that check and a
+real failure answers `status: 1` HTTP 200, worse than the try/catch it
+replaced. Check the return and respond `status: 0` with the matching code —
+no exception, so no try/catch.
 
-Checking and failing the whole request is the default whenever the nullable
-value **is** the response. One case in this sample departs from it on
-purpose: a metric that is one of several independent values in the same
-payload (a dashboard aggregating several counts) may let a `null` flow
-through instead, so the frontend can still render whatever else loaded —
-document that choice with a comment at the call site rather than applying it
-just because failing the whole request feels inconvenient.
+Failing the whole request is the default whenever the nullable value **is**
+the response. The one deliberate departure: a metric that is one of several
+independent values in one payload (a dashboard aggregating counts) may let a
+`null` flow through so the frontend renders whatever else loaded — say so in
+a comment at the call site, and never apply it just because failing feels
+inconvenient.
 
 ### Response caching (expensive list endpoints)
 
-TTLs, serialization and the bypass-IP behaviour that governs these calls are
-in mgr-cache-websockets — in particular, the response must still be correct
+Key the cache on the `build_list_params()` output with `mgr_cache_key()`,
+answer a hit directly, and save the built response on a miss — the pattern is
+in `references/full-example.md`. TTLs, serialization and the bypass-IP
+behaviour are in mgr-cache-websockets; the response must still be correct
 when the cache misses.
-
-```php
-$params = $this->build_list_params();
-
-$this->load->driver('cache');
-$cache_key = mgr_cache_key('sysusersidx', $params);   // stable key from params
-$response = $this->cache->get($cache_key);
-if (!empty($response)) {
-    $this->response($response, REST_Controller::HTTP_OK);
-}
-
-// ...build $response from the model...
-$this->cache->save($cache_key, $response);
-$this->response($response, REST_Controller::HTTP_OK);
-```
 
 ## API models
 

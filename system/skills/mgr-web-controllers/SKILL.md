@@ -42,9 +42,14 @@ REST_Controller
     └── APP_Rest_Controller extends MGR_Rest_Controller   (see mgr-rest-controller)
 ```
 
-Web page controllers extend `MY_Controller` — or `APP_Site_Controller` (or a
-project's own subclass of `MGR_Site_Controller`) for the dispatch-guard
-behavior in "HTML error pages" below. API controllers extend
+Web page controllers extend `MY_Controller` — or `APP_Site_Controller` (or
+another `APP_Site_Controller` subclass in the project's own
+`application/core/`, whichever fits the controller being built) for the
+dispatch-guard behavior in "HTML error pages" below. Never extend
+`MGR_Site_Controller` directly: unlike
+`application/core/` files, it isn't autoloaded, so a controller doing that
+needs its own boilerplate `require` — the exact line `APP_Site_Controller`
+already carries for you. API controllers extend
 `APP_Rest_Controller` — different skill, different conventions.
 
 ## Controller-based theming
@@ -74,12 +79,10 @@ pattern for a project's own base controller(s); see
 for adding a real theme (assets, a `$_theme` value, header/footer content) on
 top of it. `Admin_Controller` and `Private_Controller` (session-based
 admin/private page controllers, gated on an Ion Auth group) have no shipped
-example — the `ixaya/manager` source repository's `extras/` tree
-(framework repo only, not shipped) has a shape to port, at
+example; the `ixaya/manager` source repository has a legacy shape to port
+(framework repo only, not shipped — a shape, not a style to copy) at
 `extras/backend/application/core/Admin_Controller.php` and
-`extras/site_cms/application/core/Private_Controller.php` respectively,
-keeping in mind `extras/` predates this framework's current conventions and
-is a shape to port, not a style to copy.
+`extras/site_cms/application/core/Private_Controller.php`.
 
 ## Loading views
 
@@ -113,37 +116,19 @@ model, follows `redirect_url` if set, stores `$_domain_id` /
 ## HTML error pages
 
 `MGR_Exceptions::$api_only` (default `true`) forces every error response to
-JSON, even for a browser request. Setting `$api_only = false` in a project's
-`MY_Exceptions` renders CI's HTML error views instead for a request whose
-`Accept` header contains `text/html`: `application/views/errors/html/`
-ships the templates (`error_404`, `error_general`, `error_exception`,
-`error_php`, `error_db`). Suppressed 5xx (`should_disclose_details()` false —
-production, `display_errors` off) still renders a generic `error_general`
-page, never the real detail; 404 is always shown, same as the JSON path.
+JSON, even for a browser. With `$api_only = false` in a project's
+`MY_Exceptions`, a `text/html` request gets CI's HTML error views
+(`application/views/errors/html/`) — generic `error_general` for a
+suppressed 5xx in production.
 
-**An uncaught exception thrown from a plain `MY_Controller` action still
-renders nothing at all in that same suppressed configuration** — neither
-the generic page above nor anything else, HTTP 500 with an empty body
-(still logged). CI3's own top-level exception handler gates the call to
-`show_exception()` on `display_errors` before `MGR_Exceptions` ever runs,
-and unlike a REST controller (whose dispatch catches the exception
-directly — see mgr-rest-controller), a plain web controller has no
-equivalent guard.
-
-`MGR_Site_Controller` is that guard, opt-in: extend `APP_Site_Controller`
-(or a project's own subclass of `MGR_Site_Controller`) instead of
-`MY_Controller` directly to get it. It wraps dispatch in `try`/`catch
-(\Throwable)` and calls `MGR_Exceptions::show_exception()` itself,
-bypassing CI3's gate the same way `MGR_Rest_Controller` does — a suppressed
-exception then renders the same generic `error_general` page a suppressed
-`show_error()` already does (requires `$api_only = false`, above), not an
-empty body. **Never on `MGR_Controller` or via any project-wide handler** —
-this stays scoped to controllers that opt in by extending
-`MGR_Site_Controller`. Two things that stay true regardless: a constructor
-exception (thrown before `_remap()` ever runs) still isn't covered, and a
-project controller that defines its own `_remap()` on top of
-`APP_Site_Controller` silently loses this guard — CI3 dispatches only the
-nearest `_remap()` in the chain.
+**An uncaught exception in a plain `MY_Controller` action renders an empty
+HTTP 500 in production** (still logged): CI3's own handler gates on
+`display_errors` before `MGR_Exceptions` runs, and unlike a REST controller
+nothing catches it. The fix is opt-in — extend `APP_Site_Controller` (or
+another subclass of it, per "Hierarchy" above), never a guard on
+`MGR_Controller` or a project-wide handler. A constructor exception is still
+not covered, and a controller defining its own `_remap()` silently loses the
+guard. Mechanics and templates: `references/html-error-pages.md`.
 
 ## Anti-patterns
 

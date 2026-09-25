@@ -19,17 +19,13 @@ style from those files.
 1. **Everything is typed.** Properties, parameters, and returns — union
    (`int|string|bool`) and nullable (`?array`) as needed. No untyped
    signatures in new code.
-2. **PHPDoc on every public-facing function** — and keep it SHORT. It's read
-   in IDE popups, not as documentation prose. One summary line,
-   `@param`/`@return` with array shapes (`array<string, mixed>`, `array{key:
-   ?string, path: string}`) where arrays are structured, `@throws` when it
-   throws. No essays. Skip `@param` for a plain scalar/nullable/union type
-   that adds nothing beyond its name (`bool $delete`, `?string $order_by`) —
-   tag a param only when it's an array needing a shape, or its role needs a
-   sentence the signature can't carry (e.g. a by-reference mutation). A
-   function whose name and signature are already fully self-explanatory
-   (`insert(array $data): int|string|bool`) needs only the one-line summary —
-   don't force empty `@param`/`@return` lines onto it.
+2. **PHPDoc on every public-facing function** — and keep it SHORT; it's read
+   in IDE popups. One summary line, `@throws` when it throws, and
+   `@param`/`@return` only where they add something: an array shape
+   (`array{key: ?string, path: string}`), or a role the signature can't
+   carry (a by-reference mutation). Never tag a plain scalar/nullable/union
+   that its name already explains (`bool $delete`); a self-explanatory
+   function (`insert(array $data): int|string|bool`) gets the summary alone.
 3. **Named parameters at call sites.** Mandatory for boolean arguments
    (`set_alter_keys(data: $data, delete: true)`) and when skipping defaults;
    standard for calls with 3+ arguments (`field(name: 'email', type:
@@ -164,13 +160,10 @@ Principle: **knowledge lives at the scope it applies to**, and documents the
 
 **Documentation never lives in the code tree** — no `README.md`, `AGENTS.md`,
 or notes file beside the code it describes, however local the knowledge feels.
-Two reasons, and the second is the one that surprises people: mixing prose
-into the source tree makes both harder to maintain, and the discoverability
-such files seem to buy is not needed here — work reaches the code through a
-planned pass that reads the relevant documentation first, not through a bare
-request to change some module. Optimizing for a file an agent trips over while
-already inside the directory optimizes for a workflow this project does not
-use.
+Prose in the source tree makes both harder to maintain, and the
+discoverability it seems to buy isn't needed: work here reaches code through
+a planned pass that reads the documentation first, not by tripping over a
+file inside the directory.
 
 **The Decisions rule:** when you make a non-obvious choice (algorithm,
 external API workaround, schema tradeoff), append ONE dated line to the

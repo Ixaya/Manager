@@ -1,6 +1,6 @@
 ---
 name: mgr-live-probes
-description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly — in this codebase. Teaches the gitignored probes-module pattern, the authenticated-not-bypassed rule, and the probe base class's error capture — instead of trusting a diff/read-through to confirm a fix works. Pair with the mgr-docker-ops skill for running or debugging the stack itself.
+description: Use when live-testing a code change end-to-end against the running Docker stack — writing a throwaway REST probe controller, verifying auth/DB/session behavior at runtime, or checking that a fix actually executes (not just reads) correctly — in this codebase. Teaches the gitignored probes-module pattern, the authenticated-not-bypassed rule, and the probe base class's error capture — instead of trusting a diff/read-through to confirm a fix works.
 ---
 
 # Manager Live Probes (runtime verification via the probes module)
@@ -34,14 +34,12 @@ Source of truth (only read if something here is insufficient):
 
 ## Pick your mode first
 
-- **Project mode** — you are in a consuming project, testing application code.
-  Bind the app tree only: `-b`/`--bind`. Framework code comes from the baked
-  `vendor/ixaya/manager` — you never edit it here.
-- **Framework mode** — you are in the `ixaya/manager` repo itself (the repo
-  whose `system/` you are editing), testing framework code through the bundled
-  `sample/`. Add `-m`/`--manager-bind` on top of `-b` so the stack reads the
-  live `system/` tree. **`-m` applies to the framework repo only** — in a consuming
-  project it has nothing to bind.
+- **Project mode** — testing application code in a consuming project: bind
+  the app tree only (`-b`); framework code is the baked
+  `vendor/ixaya/manager`, never edited here.
+- **Framework mode** — in the `ixaya/manager` repo itself, testing framework
+  code through the bundled `sample/`: add `-m` on top of `-b` so the stack
+  reads the live `system/` tree. `-m` has nothing to bind in a project.
 
 Everything else below is identical in both modes.
 
@@ -104,29 +102,22 @@ after real auth (`$logged_in_level`, timezone side effects of
 
 ## Testing a shipped-off seam
 
-Some switches (a class property like `$api_only`, not a config key) have no
-per-request toggle and default off in every shipped project. To test the
-"on" behavior: temporarily flip the property in the tracked subclass that
-carries it (e.g. `application/core/MY_Exceptions.php`), tag the edit with a
-comment marking it as temporary, run the probe, then revert and confirm
-the file shows no diff before closing (`git diff` — a leftover flip ships
-the wrong default to every project that copies the file). Same idea as a
-`?query_param=1`-driven runtime toggle for a config value, applied to a
-class property that has no per-request hook to condition on instead.
+A class-property switch (like `$api_only`) has no per-request toggle and
+defaults off in every shipped project. To test the "on" behavior, flip it
+temporarily in the tracked subclass that carries it (e.g.
+`application/core/MY_Exceptions.php`) with a comment marking it temporary,
+run the probe, then revert and confirm `git diff` shows nothing — a leftover
+flip ships the wrong default to every project that copies the file.
 
 ## Benchmark/comparison probes — provenance is part of the result
 
 A probe comparing implementations, drivers, or configurations (a benchmark, a
-type/behavior matrix) must drive the framework's own API — the Model layer, a
-REST endpoint, a CLI command — never a raw client call (`new PDO`,
-`pg_connect`, `mysqli_connect` and friends), if the number will be cited as a
-claim about the framework's behavior. A raw client call measures the client
-library, not this codebase; it's a legitimate tool for isolating *why* a
-framework-level number looks the way it does, but that's a different kind of
-evidence, and it belongs in its own clearly-labeled section — never the same
-table as the framework-level figures. State which layer produced every
-number; a reader must never have to guess whether a cited figure came from
-the app's actual usage or a bare client script.
+type/behavior matrix) whose numbers will be cited about the framework must
+drive the framework's own API — the Model layer, a REST endpoint, a CLI
+command — never a raw client call (`new PDO`, `pg_connect`, `mysqli_connect`),
+which measures the client library instead. A raw call is fine for isolating
+*why* a framework number looks the way it does, but in its own labeled
+section, never the same table. State which layer produced every number.
 
 ## Probe base class
 
@@ -143,14 +134,11 @@ controller files in the same module, so a probe controller that only
 
 ## Mutating a loaded library's internal state
 
-A probe that needs to corrupt a library's internals for negative testing
-(a bad API key, a broken config value) must do it on a **fresh instance**
-(e.g. `new Sendgrid_lib()`), never on the loaded singleton
-(`$this->sendgrid_lib`). `$this->load->library()` returns the same shared
-object on every subsequent call in the request, so mutating it via
-reflection leaks into every other probe (or `all_get()` branch) that runs
-afterward in the same request — a later check can silently inherit the
-corruption meant for an earlier one.
+A probe that corrupts a library's internals for negative testing (a bad API
+key, a broken config value) does it on a **fresh instance**
+(`new Sendgrid_lib()`), never the loaded singleton (`$this->sendgrid_lib`):
+`$this->load->library()` shares one object per request, so the corruption
+silently leaks into every later probe or `all_get()` branch.
 
 ## Running the stack
 
@@ -175,15 +163,10 @@ not after each one; the stack has real bring-up overhead. Keep the stack up
 while you work through them; tear down (`down -v`, every profile flag) at the
 end.
 
-The probe base's `capture_errors()` (`references/probe-base-class.md`) is
-the one log channel the mgr-docker-ops skill can't cover — the only one
-that sees what the app's `error_reporting` masks, notably `E_DEPRECATED`.
-The other two channels (container stderr, the CI app log) are covered
-there.
-
-**All channels empty but the request still 500s?** The failure precedes
-logger init — re-checking those channels won't show it. Use the
-silent-fatal wrapper in `references/silent-fatal-probe.md`; if the trace has
+Of the three log channels (mgr-docker-ops), the probe base's
+`capture_errors()` is the one only a probe has — it alone sees what
+`error_reporting` masks, notably `E_DEPRECATED`. For a 500 with every
+channel empty, use `references/silent-fatal-probe.md`; if its trace shows
 the `... on false` DB signature, run `manager/tools/env_check` first.
 
 ## If something unexpected surfaces mid-test

@@ -30,11 +30,11 @@ Source of truth (only read if something here is insufficient):
   commands below
 - Canonical examples:
   `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Manager_attachment.php`
-  (create table), `.../20260213175005_Manager_ion_auth_v2.php` (add/widen
-  columns) + `.../20260213175009_Manager_ion_auth_v3.php` (drop columns,
-  rename, unique index) — additive and destructive changes split into
-  separate files so a database still shared with an older deployment can
-  stop at the additive one and withhold the destructive one
+  (create table), `.../20260213175005_Manager_ion_auth_v2.php` (additive) +
+  `.../20260213175009_Manager_ion_auth_v3.php` (destructive) — split so a
+  database shared with an older deployment can stop at the additive one
+- Primary-key surgery on a populated table (composite key, restoring
+  AUTO_INCREMENT): `references/key-surgery.md`
 
 ## File placement and naming
 
@@ -49,36 +49,19 @@ module-qualified — `{Module}_{table}` (a `billing` module's
 same migration class name. If that exact qualified name already exists
 anywhere in the module's own migrations directories (any connection), append
 `_v{n}` — `_v2` for the second one, `_v3` for the third, and so on; never
-edit an applied migration in place (see "Rules" below). Check the module's
-existing filenames by hand — no tooling required.
+edit an applied migration in place (see "Rules" below).
 
 Class name is `Migration_{Name}` with only the first word capitalized (file
 `20260213175009_Manager_ion_auth_v3.php` → `class Migration_Manager_ion_auth_v3`).
 
-`manager/tools/migration_file <name> <module> [database]` (via
-`bin/cli_run.sh`, needs the Docker stack up — see "Running migrations"
-below) applies this rule and prints a ready-to-run `cat > ... <<'MGR_EOF'`
-command — paste its full output into your own host shell to write the
-file, since a container-side write to `application/` either can't persist
-(no bind) or is blocked outright (the `-b` live-code bind mounts it
-read-only; see `docs/development/docker.md`'s "Live-code dev modes" section
-— `sample/docs/development/docker.md` in the framework repo). It derives
-the qualified/versioned name and pre-fills `up()`/`down()` with a
-safe-to-run-unedited starting point (id + timestamps) on the first version,
-empty on a later one — a fabricated sample against an already-existing
-table would succeed silently if left un-edited, so nothing is pre-filled;
-write the real `add_column`/`modify_column`/`drop_column` calls per
-"Altering tables" below. `manager/tools/migration_path <name> <module>
-[database]` prints just the derived name and destination directory as
-JSON, for wiring into a migration authored by hand instead of using
-migration_file()'s template.
-
-Both commands take an optional 4th arg, `force_modification` (any truthy
-value, e.g. `1`). Use it on the first migration for a table that already
-exists but has no module-qualified migration history, such as tables from
-older projects or tables created manually. This forces the tool to generate
-a modification migration (`_v2`) instead of a create migration. You only need
-the flag once; subsequent modifications are detected normally.
+`manager/tools/migration_file <name> <module> [database]` applies this rule
+and prints a `cat > ... <<'MGR_EOF'` command — paste it into your host
+shell, since a container cannot persist a write to `application/`. A first
+version is pre-filled (id + timestamps); a later one is empty, because a
+fabricated sample would succeed silently against an existing table.
+`migration_path` prints just the derived name and directory as JSON. A 4th
+arg `1` (`force_modification`) makes the first migration on a table with no
+module-qualified history a modification (`_v2`) instead of a create.
 
 ## Creating a table
 
@@ -115,24 +98,18 @@ class Migration_Manager_attachment extends MGR_Migration_builder
 }
 ```
 
-On PostgreSQL, `modify_field_timestamp(..., on_update: true)` (the default)
-creates a trigger function — `drop_table()` alone does not clean it up.
-`DROP TABLE` cascades objects that depend on the table (the trigger), but
-the function is a separate, independently-owned object the trigger only
-references, so it survives as a permanently inert `set_<table>_<column>()`.
-Reverse the call first, as above, for every column `up()` left with
-`on_update: true`. A column called with `on_update: false` — `create_date`
-above — never created a function to begin with and needs no such call.
+**A `down()` that drops a table reverses every
+`modify_field_timestamp(..., on_update: true)` first**, as above. On
+PostgreSQL that call creates a trigger function, and `DROP TABLE` cascades the
+trigger but not the function, which survives as an inert
+`set_<table>_<column>()`. A column called with `on_update: false` created no
+function and needs no reversal.
 
-If the model sets `$soft_delete = true` (see mgr-models), the table needs a
-`deleted` + `enabled` pair — the model filters `WHERE deleted = 0` on reads
+If the model sets `$soft_delete = true` (see mgr-models), the table needs an
+`enabled` + `deleted` pair — the model filters `WHERE deleted = 0` on reads
 and sets `deleted = 1, enabled = 0` on delete. There is no shorthand; declare
-both explicitly as `0`/`1` flag columns:
-
-```php
-...$this->field(name: 'enabled', type: MgrFieldType::SmallInt, unsigned: true, default: 1),
-...$this->field(name: 'deleted', type: MgrFieldType::SmallInt, unsigned: true, default: 0),
-```
+both as `0`/`1` flag columns (`SmallInt`, `unsigned`, defaults `1` and `0`;
+see `Bool` below for why not `Bool`).
 
 `field()` returns `[name => spec]`, so specs are **spread (`...`)** into the
 dbforge array. Named parameters:
@@ -155,12 +132,11 @@ $this->field(
 `MgrFieldType` values: `TinyInt SmallInt Int BigInt Decimal Float Double Char
 VarChar Text MediumText LongText Blob MediumBlob LongBlob Bool Date Time
 DateTime Timestamp Year Json Uuid Enum`. Pick the semantic type and let the
-builder map it (e.g. `Json` → JSONB on Postgres, `Bool` → TINYINT(1) on MySQL
-/ BOOLEAN on Postgres, `Uuid` → CHAR(36) on MySQL / native UUID on Postgres,
-`Timestamp` → DATETIMEOFFSET on SQL Server, where the `TIMESTAMP` keyword means
-something else entirely — a `ROWVERSION` counter, one per table, not a
-datetime). Invalid combinations throw `InvalidArgumentException` at
-construction — no silent bad DDL.
+builder map it (`Json` → JSONB on Postgres, `Uuid` → native UUID on Postgres,
+`Timestamp` → DATETIMEOFFSET on SQL Server, whose `TIMESTAMP` keyword is a
+rowversion counter, not a datetime). The builder's DocBlock carries the full
+matrix. Invalid combinations throw `InvalidArgumentException` at construction
+— no silent bad DDL.
 
 Use `Bool` only for true boolean semantics (`true`/`false` values). For
 `0`/`1` flag columns (`enabled`, `deleted`, …) use `SmallInt`/`TinyInt`:
@@ -174,26 +150,13 @@ across all engines.
 ...$this->field(name: 'enabled', type: MgrFieldType::SmallInt, unsigned: true, default: 1), // 0/1 flag
 ```
 
-`Enum` is enforced on MySQL only. The builder emits a native `ENUM` there but
-`VARCHAR(max_len)` on PostgreSQL, `NVARCHAR(max_len)` on SQL Server and plain
-`TEXT` on SQLite — on three of the four engines the column accepts any value,
-so the constraint you think you declared does not exist. Use `VarChar` and
-validate in application code unless the table is MySQL-only by design.
+`Enum` is enforced on MySQL only; the other three engines get a plain
+string column that accepts any value, so the constraint silently does not
+exist. Use `VarChar` and validate in application code unless the table is
+MySQL-only by design.
 
-`Text` maps to `NVARCHAR(MAX)` on SQL Server — Microsoft's documented
-replacement for the deprecated `TEXT` type. MySQL/PostgreSQL/SQLite keep
-their own plain `TEXT`, already correct there.
-
-`Float` (4-byte, single precision) maps to MySQL/MariaDB `FLOAT`, PostgreSQL
-`REAL`, and SQL Server `FLOAT(24)` — three engine-specific spellings of the
-same width; a bare `FLOAT` on PostgreSQL/SQL Server otherwise defaults to
-8-byte double precision. SQLite has no true single-precision float — every
-value stores as 8-byte IEEE regardless of declared type.
-
-`TinyInt` is unsigned-only on SQL Server (0-255, no signed 1-byte type
-exists there) — a column meant to hold negative values fails to store what
-MySQL's signed `TINYINT` (-128..127) can. Use `SmallInt` instead if the
-column needs negative values and must stay portable to SQL Server.
+`TinyInt` is unsigned-only on SQL Server (0-255) — use `SmallInt` for a
+column that must hold negative values and stay portable.
 
 ## Altering tables
 
@@ -218,11 +181,10 @@ $this->drop_index(table: 'user', columns: ['email']);
 
 `add_index()`/`drop_index()` (and `add_foreign_key()`/`drop_foreign_key()`,
 below) take an optional `name` to override the derived one — needed for an
-index/FK this builder didn't create itself. All four are idempotent
-no-ops on a re-run and all four return `bool` — `true` if the
-call actually created/dropped something, `false` if a matching one already
-existed (`add_*`) or didn't exist (`drop_*`) — none of the four throw on an
-existing/missing match.
+index/FK this builder didn't create itself. All four are idempotent and
+return `bool`: `true` if the call created/dropped something, `false` if a
+match already existed (`add_*`) or didn't exist (`drop_*`). None throws on
+that.
 
 Tightening `nullable: true` to `false` fails while any row still holds
 `NULL` — a `default` in the same call sets the column default, it does not
@@ -233,35 +195,21 @@ example).
 
 ### Guarding a table's down()
 
-`has_data(string $table, int $min = 0): bool` is available for a `down()`
-that drops columns or narrows types on a table the operator has judged
-essential. Whether a table is essential enough to warrant this isn't a
-call to make unprompted — it depends on business criticality the schema
-alone doesn't show. Add it when asked, or flag the risk and ask first;
-don't add it on your own judgment. Once agreed, check it first and throw
-before the destructive calls run. Raise `$min` above 0 for a table a fresh
-install always seeds (e.g. `min: 1` for one seeded row), so the guard only
-fires once real usage exists:
-
-```php
-if ($this->has_data('invoice')) {
-    throw new RuntimeException('down() would drop invoice columns — remove this check only for an intentional destructive downgrade.');
-}
-```
-
-There is no config/env override — delete the check once the destructive
-downgrade is confirmed intentional.
+`has_data(string $table, int $min = 0): bool` guards a destructive `down()`
+on a table the operator has judged essential — business criticality the
+schema doesn't show, so add it when asked (or flag the risk and ask), never
+on your own. Check it first and throw before the destructive calls
+(`if ($this->has_data('invoice')) { throw new RuntimeException(...); }`);
+raise `$min` for a table a fresh install seeds. No config override exists —
+delete the check once a destructive downgrade is confirmed intentional.
 
 ### Cross-family type changes
 
-A type change with no automatic cast between the old and the new type —
-string to numeric is the common case — fails on PostgreSQL with *"column
-... cannot be cast automatically ... You might need to specify USING"*. Use
-`modify_column_cast()` there instead of `$this->dbforge->modify_column()`.
-It is safe to reach for on any engine: outside PostgreSQL it delegates to
-`$this->dbforge->modify_column()` unchanged, and it never converts a value
-the engine would otherwise reject — an overlong or out-of-range value fails
-the migration exactly as a plain `modify_column()` would.
+A type change with no automatic cast — string to numeric is the common case
+— fails on PostgreSQL with *"column ... cannot be cast automatically ... You
+might need to specify USING"*. Use `modify_column_cast()` instead of
+`$this->dbforge->modify_column()`; outside PostgreSQL it delegates to
+`modify_column()` unchanged, so it is safe on any engine:
 
 ```php
 $this->modify_column_cast('supplier_invoice', $this->field(
@@ -269,26 +217,11 @@ $this->modify_column_cast('supplier_invoice', $this->field(
 ));
 ```
 
-Pass one column's `field()` output directly — not spread, and not several
-columns at once; `null`, `default` and a rename on that column are applied
-for you.
-
-The cast assumes every stored value already parses as the new type — check
-the live data first. A `VarChar` column holding text labels (`'pending'`,
-`'paid'`) has to be normalized before the type change, with an ordinary
-`UPDATE`. There is no per-call cast override: an expression passed to
-PostgreSQL's `USING` clause would convert nothing on the other engines, and
-this is the form that behaves the same everywhere.
-
-```php
-$this->db->query(
-    "UPDATE supplier_invoice SET fiscal_status = "
-    . "CASE fiscal_status WHEN 'pending' THEN '1' WHEN 'paid' THEN '2' ELSE '0' END"
-);
-$this->modify_column_cast('supplier_invoice', $this->field(
-    name: 'fiscal_status', type: MgrFieldType::TinyInt, constraint: 4, nullable: false, default: 0,
-));
-```
+Pass one column's `field()` output directly — not spread, one column per
+call; its `null`, `default` and rename are applied for you. It converts
+nothing the engine would reject: every stored value must already parse as
+the new type, so normalize text labels (`'pending'`, `'paid'`) with an
+`UPDATE ... CASE` first. There is no per-call `USING` override.
 
 ## Key-prefix-length indexes, foreign keys, and primary keys
 
@@ -310,82 +243,20 @@ $this->add_primary_key(table: 'user_client', columns: ['user_id', 'client_identi
 $this->drop_primary_key('user_client');
 ```
 
-`add_index()`'s `prefix_lengths` throws on SQL Server. `add_foreign_key()`,
-`drop_foreign_key()`, `add_primary_key()`, and `drop_primary_key()` all throw
-on SQLite — retrofitting any of these onto an existing table needs SQLite's
-recreate-table procedure, which none of these helpers build. Engine
-mechanics for all: `docs/development/database.md`'s "Cross-engine quirks"
-section.
+`prefix_lengths` throws on SQL Server; the four FK/PK helpers throw on
+SQLite, which needs its recreate-table procedure (not built here). Engine
+mechanics: `docs/development/database.md`'s "Cross-engine quirks" section.
+The drop helpers return `bool` like `drop_index()`. `add_primary_key()`
+breaks the no-op convention: an existing primary key (on any columns) throws
+`RuntimeException` — drop it first to replace it.
 
-`add_foreign_key()` takes the same optional `name` as `add_index()` (see
-"Altering tables" above), and `drop_foreign_key()` returns `bool` the same
-way `drop_index()` does. `drop_primary_key()` is the same: `bool`, `false`
-if the table had no primary key to drop. `add_primary_key()` does NOT
-follow the add_index()/add_foreign_key() no-op convention — a table has
-only one primary key slot, so one already existing (on any columns) throws
-`RuntimeException` rather than silently skipping; drop it first if you mean
-to replace it.
-
-### Moving the primary key onto a composite key
-
-Keep the `id` column. Models address rows by a single scalar id
-(`get($id)`, `update($data, $id)`, `delete($id)`), so a table without one
-drops out of the model API entirely — the composite key goes *alongside*
-`id`, never instead of it.
-
-`id` still needs a key of its own once the primary key moves off it:
-MySQL/MariaDB refuse to leave an AUTO_INCREMENT column unkeyed even
-momentarily, failing with *"Incorrect table definition; there can be only
-one auto column and it must be defined as a key."* An index satisfies that
-without touching the column, so its values and counter are never disturbed.
-
-```php
-// up()
-$this->add_index(table: 'user_client', columns: ['id'], unique: true);
-$this->drop_primary_key('user_client');
-$this->add_primary_key(table: 'user_client', columns: ['user_id', 'client_identifier']);
-
-// down()
-$this->drop_primary_key('user_client');
-$this->add_primary_key(table: 'user_client', columns: ['id']);
-$this->drop_index(table: 'user_client', columns: ['id']);
-```
-
-The index is created first and dropped last — it stands in for the primary
-key for as long as `id` isn't one, so dropping it any earlier fails the same
-way. `unique: true` keeps the uniqueness the primary key used to enforce,
-which is also what guarantees `down()`'s `add_primary_key(['id'])` can't hit
-a duplicate.
-
-### Restoring an AUTO_INCREMENT column
-
-`add_column()` cannot add an AUTO_INCREMENT column to an existing table on
-MySQL/MariaDB — the engine rejects the column unless it is keyed in the same
-statement. Add it as a plain column, key it, then let `add_auto_increment()`
-number the rows. Reversing a migration that dropped the surrogate key
-entirely:
-
-```php
-$this->drop_primary_key('user_client');
-$this->dbforge->add_column('user_client', $this->field(
-    name: 'id', type: MgrFieldType::Int, unsigned: true, nullable: false, default: 0
-));
-$this->add_index(table: 'user_client', columns: ['id']);   // plain: every row still holds 0
-$this->add_auto_increment('user_client', 'id');
-$this->add_primary_key(table: 'user_client', columns: ['id']);
-$this->drop_index(table: 'user_client', columns: ['id']);
-```
-
-The index has to be plain and has to come first: `add_auto_increment()`
-needs the column keyed before it can number anything, and a unique key
-would reject the placeholder zeros it hasn't replaced yet.
-
-`add_auto_increment()` numbers every row holding `0` or `NULL` and leaves
-the rest alone, then positions the counter past the highest existing value —
-so it both fills a fresh column and resumes a populated one. On Postgres it
-builds the sequence under the name a `SERIAL` column would have gotten
-(`{table}_{column}_seq`). It throws on SQL Server and SQLite, which cannot
-add `IDENTITY`/`AUTOINCREMENT` to an existing column at all.
+Moving the primary key onto a composite key keeps the `id` column — models
+address rows by one scalar id, so the composite key goes *alongside* `id`,
+never instead of it. That move, and restoring an AUTO_INCREMENT column, need
+a specific call order; MySQL/MariaDB reject the wrong one with *"Incorrect
+table definition; there can be only one auto column and it must be defined
+as a key."* Both recipes, and `add_auto_increment()`, are in
+`references/key-surgery.md`.
 
 ## Running migrations
 
@@ -403,52 +274,34 @@ manager/tools/migrate latest {module_key}  # single target, forward to its own l
 manager/tools/migrate {version} {module_key}  # single target to an exact version — DOWNGRADES run down()!
 manager/tools/version_list   # list version_list commands per target
 manager/tools/version_set {version} {app|module:key} {conn}  # record version WITHOUT running (adopting existing DBs)
-manager/tools/migration_file {name} {module} {database}      # e.g. migration_file Invoice billing default — paste its printed command into your host shell
-manager/tools/migration_file {name} {module} {database} 1    # force_modification is positional, 4th arg — not a named flag
+manager/tools/migration_file {name} {module} {database} [1]  # scaffold; 4th arg = force_modification, positional
 ```
 
 `RUN_MIGRATIONS=true` on one instance migrates on startup.
 
 `migrate`/`migrate_database`/`version_set` force `db_debug` on for the
-connection they touch, regardless of the app's own setting — a failed DDL
-statement halts the CLI with the query/file/line instead of silently
-recording the migration as applied. `plan`/`version_list` stay read-only and
-don't force it.
+connection they touch, so a failed DDL statement halts with the
+query/file/line instead of being recorded as applied. `plan`/`version_list`
+are read-only and don't.
 
-Version tracking: the application sequence lives in the `migrations` table
-(single row); each module tracks independently in `migrations_path` (one row
-per module key). Module keys in CLI use `:` for `/` (e.g. `manager:tools` for
-a module under your own `application/modules/`). A module shipped inside
-`vendor/` — the framework's own `manager` module included — needs the full
-offset instead: `vendor:ixaya:manager:system:package:modules:manager`.
-`manager/tools/plan` and `version_list` both print the exact key for every
-discovered target as their label — including this one — so an app-level
-module and a vendor/package one sharing a name (e.g. `manager`) never
-collide in the output; each line's label is directly usable as the CLI's
-`module_key` argument. Targets are auto-discovered: the app dir plus every
-module with a `migrations/{conn}/` dir — including modules shipped inside
-the vendor package.
+Version tracking: the app sequence is one row in `migrations`; each module
+tracks its own row in `migrations_path`. Targets are auto-discovered (the app
+dir plus every module with a `migrations/{conn}/` dir, vendor ones
+included), and `plan`/`version_list` label each with the exact `module_key`
+to pass — `:` for `/`, full offset for a vendor module
+(`vendor:ixaya:manager:system:package:modules:manager`).
 
 ## Rules
 
 - One concern per migration; never edit an applied migration — add a new one.
-  Exceptions: a pure rename (filename + class together); a refactor that
-  provably produces byte-identical DDL (inlining a shared helper's current
-  expansion, say) — version tracking is keyed by timestamp number, not name
-  or content, so nothing changes for an environment that already applied it;
-  or a fix confined to `down()` alone — it only runs on an explicit
-  downgrade through that version, never as a side effect of being forward
-  of it, so an environment already past the migration sees no difference
-  and a future downgrade gets the corrected reversal instead of the bug.
-- A migration whose `down()` drops a table must first reverse any
-  `modify_field_timestamp(..., on_update: true)` call `up()` made against
-  it — see "Creating a table" above for why `drop_table()` alone leaks the
-  PostgreSQL trigger function.
+  Exceptions, since tracking is keyed by timestamp alone: a pure rename
+  (filename + class together), a refactor that provably emits byte-identical
+  DDL, or a fix confined to `down()` (it runs only on an explicit downgrade,
+  which then gets the corrected reversal).
 - Migrations run through dbforge/`$this->db` on the connection being migrated
   — don't load models inside migrations.
 - Legacy files under the root `application/database/migrations/` folder are
-  frozen history: never imitate them, never renumber them. New migrations live
-  in their module (`application/modules/{module}/migrations/{connection}/`).
+  frozen history: never renumber them.
 - Write engine-neutral DDL: no raw `ENUM(...)` strings, no MySQL-only column
   clauses — that's what `MgrFieldType` and the index helpers are for. Raw
   `$this->db->query()` DDL is a last resort and must handle each `MgrDriver`

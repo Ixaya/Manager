@@ -42,12 +42,6 @@ required by `public/index.php` at boot. The rest need
 | `manager_spreadsheet_helper` (load it) | `mgr_sheet_*` — cell refs, ranges, sum/avg rows, fills, fonts for PhpSpreadsheet exports |
 | `manager_assets_helper` (load it) | `add_css_fontawesome5/6($items)` |
 
-A new `mgr_env_*()` call in a `system/package/config/*.php` file also needs a
-matching placeholder in `sample/.env.sample`, in that file's existing
-`#<file>.php::<SECTION>` comment block — the template is the project-facing
-reference for what's actually configurable, and it doesn't stay accurate on
-its own.
-
 Every package helper function is wrapped in `if (! function_exists(...))`.
 To override just one function, declare it — same filename — under
 `application/helpers/manager_{name}_helper.php`; the rest of the package's
@@ -64,24 +58,23 @@ Load by the **unprefixed name**: `$this->load->library('async_exec_lib')` →
 `$this->async_exec_lib`. The unprefixed classes are thin aliases in
 `vendor/ixaya/manager/system/package/libraries/`; implementations are the
 `MGR_*` classes in `vendor/ixaya/manager/system/libraries/` (read those for
-signatures). To customize one for this app, create
-`application/libraries/{Name}.php` extending the `MGR_*` class, with a name
-of your own choosing — load it by that name, not by the alias's. That's the
-default placement for most customizations (a single app-wide instance). Use
-`application/modules/{module}/libraries/{Name}.php` instead only when the
-customization is inherently *per-module* — different modules each needing
-their own profile/template-set/config of the same base library, not just one
-shared override; qualify the load from outside that module:
-`$this->load->library('{module}/{name}')`. `mailing_lib` is the shipped
-example of the per-module case (`Frontend_mailing`, `Auth_mailing` — each
-module can declare its own templates and mailing profile). A file named to
-override the alias (CI3's `subclass_prefix`, e.g.
-`MY_Mailing_lib.php` for `mailing_lib`) is silently never loaded:
-`MX_Loader::library()` resolves a package-provided library via
-`Modules::find()` before CI3's core loader (the only one honoring
-`subclass_prefix`) ever runs. `Frontend_mailing extends MGR_Mailing_lib` is
-the shipped example of the working pattern. Load in the method that uses the
-library, not the constructor (see mgr-rest-controller).
+signatures). Load in the method that uses the library, not the constructor
+(see mgr-rest-controller). To customize one:
+
+- **App-wide (the default):** `application/libraries/{Name}.php` extending
+  the `MGR_*` class, under a name of your own — load it by that name, not
+  the alias's.
+- **Per-module**, only when modules each need their own profile, templates
+  or config of the same base library:
+  `application/modules/{module}/libraries/{Name}.php`, loaded from outside
+  as `$this->load->library('{module}/{name}')`. `mailing_lib` is the shipped
+  example (`Frontend_mailing`, `Auth_mailing`, each
+  `extends MGR_Mailing_lib`).
+- **Never a `MY_` file named to override the alias** (CI3's
+  `subclass_prefix`, e.g. `MY_Mailing_lib.php`): it is silently never
+  loaded, because `MX_Loader::library()` resolves a package library via
+  `Modules::find()` before CI3's core loader — the only one honoring
+  `subclass_prefix` — runs.
 
 | Library | Purpose |
 |---|---|
@@ -107,10 +100,7 @@ in two different shapes:
   variables (see the `.env` samples), or a same-named
   `application/config/<file>.php` that sets only the keys it changes — every
   layer loads and the project wins per key, so a project file does NOT need
-  to restate the rest of the package's file (see
-  `framework/docs/architecture/framework-wiring.md`'s "Package resource
-  override precedence" for the full six-kind route table — framework repo
-  only, not shipped).
+  to restate the rest of the package's file.
 - **Loose-variable/return-shape files** (`lib_mailing.php`, `lib_jwt.php`,
   `lib_sendgrid.php`, `lib_amazon_aws.php`, `mimes.php`) — resolved via
   `config->path()` and `include()`d whole by the consuming constructor/
@@ -167,26 +157,11 @@ load it. The reference opens with that case.
 
 ## Working around a gap in CI3's database layer
 
-`DB_driver`, `DB_result`, `DB_forge` and every `pdo_*` subdriver live in the
-`nielbuys/framework` dependency, and the `MGR_*` → alias → `MY_`/`APP_`
-chain does not reach them. There is no subclass seam, so "override the
-driver method" always costs a Composer patch — a dependency decision, not a
-code change. Work outward instead:
-
-1. **Use the driver's existing public methods.** A gap marked
-   "unimplemented on PDO" is usually a missing override *point*, not a
-   missing capability. `reconnect()` is the worked example: no driver
-   reconnects in it — it only nulls `conn_id` so the next query reconnects
-   lazily — so a driver-agnostic staleness check is a trivial query in a
-   `try`/`catch` plus the already-public `$this->db->close()`.
-2. **Reach the client through config.** `application/config/database.php`'s
-   keys are copied onto the driver object verbatim: `options` passes into
-   the PDO constructor, `dsn` replaces the driver's own DSN building.
-3. **Only then call it a patch**, and raise it as a dependency decision
-   rather than shadowing the class.
-
-Confirm a caller actually reaches the broken path before costing any of
-this — several of these gaps are unreachable through the public API.
+The CI3 driver classes (`DB_driver`, `DB_forge`, the `pdo_*` subdrivers) sit
+outside the alias chain, so there is no subclass seam and "override the
+driver method" means a Composer patch. Before proposing one, read
+`references/ci3-db-layer-gaps.md` beside this file — most gaps close through
+the driver's public methods or `database.php` config instead.
 
 ## Anti-patterns
 

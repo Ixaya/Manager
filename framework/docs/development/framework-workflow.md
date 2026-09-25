@@ -78,6 +78,12 @@ the way `require_once` does. Extend the parent class with no `require` at
 all, the way `MGR_Api_Model` (`extends MY_Model`, no require) and
 `MGR_Site_Controller` (`extends MGR_Controller`, no require) both do.
 
+One more that breaks nothing, so it drifts silently: **a new `mgr_env_*()`
+read in a `system/package/config/*.php` file needs a matching placeholder in
+`sample/.env.sample`**, in that file's existing `#<file>.php::<SECTION>`
+comment block. The template is the project-facing reference for what is
+configurable, and it does not stay accurate on its own.
+
 ## Quality gates
 
 There is no framework test suite. PHPStan (level 5, `phpstan.neon`) and

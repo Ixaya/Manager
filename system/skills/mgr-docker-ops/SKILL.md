@@ -20,17 +20,12 @@ is how a session ends up debugging code that was never actually bound.
 Source of truth (only read if something here is insufficient):
 - `docker_manage.sh` (project root, or `sample/` in the framework repo) —
   the wrapper itself; its header comment documents every flag
-- `docs/development/docker.md` (project root; in the framework repo,
-  `sample/docs/development/docker.md`) — the deeper reference this skill
-  summarizes: instance bootstrap, engine/profile matrix, the full
-  "Live-code dev modes" bind treatment, and the "Silent 500 with empty
-  logs" troubleshooting ladder
-- `docs/development/docker-internals.md` (project root; in the framework
-  repo, `sample/docs/development/docker-internals.md`) — env var placement
-  decision tree, for anyone editing files under `docker/`, not for
-  operating the stack
-- `docs/development/docker-tuning.md` (same two locations) — memory caps,
-  per-engine database sizing, and the OOM-diagnosis commands
+- `docs/development/` (in the framework repo, `sample/docs/development/`):
+  `docker.md` — the deeper reference this skill summarizes (instance
+  bootstrap, engine/profile matrix, "Live-code dev modes", the "Silent 500
+  with empty logs" ladder); `docker-internals.md` — env var placement, for
+  editing files under `docker/`; `docker-tuning.md` — memory caps,
+  per-engine sizing, OOM diagnosis
 
 ## When to use the script vs. a raw `docker` command
 
@@ -40,9 +35,8 @@ compose-managed service (`up`, `down`, `build`, `exec`, `run`). The wrapper's
 checks (required env/secrets files, bind-dir existence) are exactly what
 catches a misconfigured instance before it does something confusing — never
 run bare `docker compose ...` by hand "to save typing". The one narrow
-exception — removing containers/volumes left behind by an instance the
-wrapper won't even let you run `down` against — is below ("A stray instance
-from another project name").
+exception — removing an instance the wrapper won't even let you run `down`
+against — is `references/stray-instance-cleanup.md`.
 
 **Direct `docker` command, fine as-is:** read-only inspection of an
 already-running container by name — `docker ps`, `docker inspect
@@ -76,38 +70,19 @@ modes" section; the bullets above are enough for routine use.
 `up`. Starting it invites editing real values (an API key, a password)
 directly into files that are still tracked in version control, one commit
 away from leaking a secret. If it's already running, that's a bug from a
-previous session, not a stack to build on — tear it down per the recovery
-procedure below and bring up a real instance (`local`, or whichever this
-project uses) instead.
+previous session, not a stack to build on — remove it
+(`references/stray-instance-cleanup.md`) and bring up a real instance.
 
 ## A stray instance from another project name
 
 A Compose project's identity is the `-e <instance>` name itself
-(`docker_manage.sh` runs `docker compose ... -p <instance>`), so different
-instances are fully separate projects — containers, networks, and volumes
-never overlap between them, even against the identical compose file.
-`down`/`up`/`exec` under one instance name never touches another's
-containers, and a mismatched `down` exits 0 with no output — that is not
-evidence the target was empty. Before tearing down or debugging a stack you
-didn't just bring up yourself, confirm which instance actually owns it:
-
-```bash
-docker ps -a   # containers are named <instance>-*, e.g. local-php-1
-```
-
-**If the wrapper refuses to run `down` too:** missing or incomplete env/
-secrets files fail its validation on every subcommand, `down` included —
-exactly how a stray `sample` run (above) gets stuck with no sanctioned way
-to remove it. Remove the containers and volumes directly instead:
-
-```bash
-docker rm -f <instance>-*                              # from `docker ps -a`
-docker volume rm <instance>_*                          # from `docker volume ls`
-```
-
-This is the one case where bypassing `docker_manage.sh` is correct — its own
-checks are what's blocking the exact command needed to clean up a stack that
-was never validly configured. Never bypass it for routine operations.
+(`docker compose ... -p <instance>`), so instances never share containers,
+networks or volumes, even against the identical compose file. A command
+under the wrong instance name never touches the right one's containers, and
+a mismatched `down` exits 0 with no output — not evidence the target was
+empty. Before tearing down or debugging a stack you didn't just bring up,
+confirm the owner with `docker ps -a` (containers are named `<instance>-*`,
+e.g. `local-php-1`).
 
 ## Running CLI/tools commands
 
@@ -125,27 +100,21 @@ bind not covered here — see `framework/docs/development/framework-workflow.md`
 ## `exec`/`run` into php/ws/cron/cli run as the instance's app identity — enforced, not a habit to remember
 
 All four services start as `APP_USER:APP_GROUP` from the instance's
-`docker.env` (`www-data:www-data` when unset — the stock identity almost
-every instance uses) through one `user:` in `docker-compose.yml`, so every
-`exec` and `run` inherits it with no flag: `run --rm cli -c "..."` (the
-standard one-off pattern for migrate/claim_admin) runs as the same identity
-as `exec php ...`. Nothing in these containers runs as
-root, FPM's master included. This matters because a command run as root
-creates root-owned files (a log file, an app file) the app's own identity
-then can't write to or read — **silently**: no error at the time, just a
-dropped log write or a `500 Permission denied` the next time anyone hits
-that path.
+`docker.env` (`www-data:www-data` when unset) through one `user:` in
+`docker-compose.yml`, so every `exec` and `run --rm cli -c "..."` inherits it
+with no flag; nothing runs as root, FPM's master included. This matters
+because a root-run command leaves root-owned files the app identity then
+can't write or read — **silently**: a dropped log write, or a `500
+Permission denied` the next time that path is hit.
 
-The one root step is the one-shot `init` service, which sets ownership of
-the `manager-logs` volume to that identity before the other four start and
-touches nothing else — never a bind mount (`MEDIA_PATH`, `PRIVATE_PATH`),
-whose ownership is the host's job. A failing `init` (for example a named
-`APP_USER` that doesn't exist in the image) leaves the four services
-created but not started; `docker logs <instance>-init-1` says why.
-
-Override only via `APP_USER`/`APP_GROUP` in `docker.env` when the project's
-own storage needs it — numeric or named, no rebuild, applied on recreate;
-see `docker.md`'s "Runtime identity (APP_USER/APP_GROUP)" section for when.
+The one root step is the one-shot `init` service: it owns the
+`manager-logs` volume to that identity before the others start, and never
+touches a bind mount (`MEDIA_PATH`, `PRIVATE_PATH` — the host's job). A
+failing `init` (e.g. a named `APP_USER` missing from the image) leaves the
+four services created but not started; `docker logs <instance>-init-1` says
+why. Change the identity only via `APP_USER`/`APP_GROUP` in `docker.env`
+(numeric or named, no rebuild, applied on recreate) — when, per
+`docker.md`'s "Runtime identity (APP_USER/APP_GROUP)" section.
 
 Override per command only when root is actually needed (installing a
 package, inspecting a file only root can read): `exec -u root php ...` /
