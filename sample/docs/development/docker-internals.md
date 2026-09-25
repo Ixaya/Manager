@@ -250,7 +250,7 @@ when docker's value must differ from that base.
   when empty, which is what keeps today's all-interfaces default.
 - `CGROUP_PARENT` — empty = Docker's default placement. A slice name under
   the `systemd` cgroup driver, a path under `cgroupfs`.
-- `MYSQL_*`/`MARIADB_*`/`POSTGRES_*`/`MSSQL_*` limits and engine knobs —
+- `MYSQL_*`/`MARIADB_*`/`POSTGRES_*` limits and engine knobs —
   dev/local db profiles only; sized together, see `docker-tuning.md`.
   `MARIADB_TMP_TABLE_SIZE` feeds both `tmp_table_size` and
   `max_heap_table_size`.

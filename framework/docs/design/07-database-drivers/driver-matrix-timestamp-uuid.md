@@ -71,6 +71,7 @@ required. Full rationale: `decisions.md`'s "Schema type mapping" section.
 ## Adding SQL Server to this matrix
 
 Blocked on `pdo-dblib-vendor-gaps` clearing — note the result there, not
-here, when it does. Once unblocked: bring up the `mssql` profile, insert
-through the same probe methods, and replace the "code-inspection only" rows
-above with measured values.
+here, when it does. The `mssql` compose profile that this matrix would have
+used is gone (removed 2026-09-25, `decisions.md`); whichever remediation
+lands needs its own way to reach a real SQL Server instance before the
+"code-inspection only" rows above can become measured values.

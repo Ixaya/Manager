@@ -7,7 +7,7 @@
 #
 # Core services (always on): php, nginx, valkey-state, valkey-cache, plus
 # the one-shot init.
-# Profiles: ws | cron | mysql | mariadb | postgres | mssql | cli.
+# Profiles: ws | cron | mysql | mariadb | postgres | cli.
 # Only nginx publishes ports; Valkey is never exposed to the host.
 
 # ── Reusable fragments ────────────────────────────────────────────────────────
@@ -465,39 +465,6 @@ services:
       start_period: 30s
     profiles: [postgres]
 
-  # ── SQL Server (profile: mssql — dev/local only, PDO path only) ───────────
-  # amd64-only — Apple Silicon needs Rosetta/QEMU emulation.
-  # The php image ships no SQL Server driver: add pdo_dblib to the Dockerfile
-  # (or move to a glibc base for Microsoft's pdo_sqlsrv) before anything can
-  # connect — the engine comes up healthy either way, so the failure shows up
-  # as "could not find driver" on the first query, not here.
-  mssql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    platform: linux/amd64
-    restart: unless-stopped
-    networks: [appnet]
-    logging: *logging
-    <<: [*security, *fleet]
-    environment:
-      ACCEPT_EULA:            "Y"
-      MSSQL_SA_PASSWORD_FILE: /run/secrets/db_password
-      # Engine memory ceiling; must stay below MSSQL_MEM_LIMIT.
-      MSSQL_MEMORY_LIMIT_MB:  ${MSSQL_MEMORY_LIMIT_MB:-1536}
-    volumes:
-      - mssql-data:/var/opt/mssql
-    secrets:
-      - db_password
-    mem_limit: ${MSSQL_MEM_LIMIT:-2048m}
-    memswap_limit: ${MSSQL_MEM_LIMIT:-2048m}
-    cpus: ${MSSQL_CPUS:-2.0}
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$(cat /run/secrets/db_password)\" -Q 'SELECT 1' || exit 1"]
-      interval: ${HEALTHCHECK_INTERVAL:-30s}
-      timeout: 5s
-      retries: 3
-      start_period: 45s
-    profiles: [mssql]
-
 # ── Volumes ─────────────────────────────────────────────────────────────────
 volumes:
   manager-logs:      # unified Manager logs (/var/log/manager: app/, cli/ subdirs)
@@ -506,7 +473,6 @@ volumes:
   mysql-data:
   mariadb-data:
   postgres-data:
-  mssql-data:
 
 # ── Networks ──────────────────────────────────────────────────────────────────
 # Single private bridge, namespaced per instance via `-p <instance>` — only

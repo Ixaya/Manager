@@ -99,6 +99,23 @@ one, so the reasoning that held at the time stays readable.
   The compose `mssql` profile stays, carrying a comment that the image has
   no driver yet, so whichever remediation lands only has to reinstate the
   extension.
+- **2026-09-25 (supersedes the "compose profile stays" half of the ruling
+  above — removed, not deferred): the `mssql` service, its named volume,
+  and its `mssql` profile entry are dropped from
+  `sample/docker/docker-compose.yml`, along with the `MSSQL_*` vars from
+  `sample/docker/env/sample.docker.env` and the docs describing them
+  (`docker-internals.md`, `docker-tuning.md`).** It had sat "in between" for
+  months — present in compose, never runnable through it, since the image
+  ships no SQL Server driver — with no consuming project ever bringing it
+  up, and the `mcr.microsoft.com/mssql/server` image is amd64-only while
+  most of the operator's Docker hosts are ARM, so it could not even be
+  exercised locally to close the gap. This is scoped to the Docker profile
+  only: `MgrDriver`, `MgrFieldType`, the migration builder, and every
+  code-level SQL Server branch stay exactly as they are — the standing
+  architecture question about real SQL Server support is still the
+  `pdo-dblib-vendor-gaps` proposal, unaffected by this removal. A project
+  that wants to run SQL Server locally adds its own compose service; nothing
+  here prevents that.
 - **2026-08-05: `pdo/*` variants are NOT engine-matrix rows.** A routine
   parity or regression pass runs the native drivers only — including `pdo/*`
   would double the verification surface of every DB fix. Exercise a PDO

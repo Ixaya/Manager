@@ -16,8 +16,13 @@ cannot depend on an extension the image lacks. SQL Server is excluded on
 purpose: FreeTDS is the only subdriver buildable on this Alpine base, and it
 cannot complete this framework's own migrations against unfixed vendor bugs,
 so shipping it would advertise support that does not exist. The compose
-`mssql` profile stays for whoever resolves that, with a comment saying the
-image has no driver.
+`mssql` profile has been removed (2026-09-25) — no consuming project used it
+in Docker, most of the operator's hosts are ARM (the image is amd64-only),
+and it sat unresolved for months carrying the no-driver caveat; see
+`framework/docs/design/07-database-drivers/decisions.md` for the ruling it
+supersedes. The database-driver code itself is untouched: `MgrDriver`,
+`MgrFieldType`, and the migration builder still target SQL Server, they are
+just never exercised through this repo's own Docker stack.
 Why: `DB_DRIVER=pdo/<engine>` measures at performance parity with its native
 counterpart through this framework's Model layer (1.03-1.08x, within
 run-to-run noise), and returns real `int`/`float`/`bool` instead of CI3's

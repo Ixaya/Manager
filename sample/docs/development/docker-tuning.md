@@ -195,12 +195,6 @@ above it is wasted; far below it, reads go to disk.
   much caching to expect. Keep it near the container's cap; the stock 4GB
   describes a host this container doesn't have.
 
-### SQL Server
-
-`MSSQL_MEMORY_LIMIT_MB` sets the engine's own ceiling; keep it a few hundred
-MB under `MSSQL_MEM_LIMIT`. Not measured on this stack — the image is
-amd64-only.
-
 ## PHP, nginx, Valkey
 
 - **PHP-FPM.** Size `PHP_MEM_LIMIT` from measured worker RSS, not from
@@ -330,8 +324,10 @@ Leave `CGROUP_PARENT` empty for Docker's default placement.
   the sites are idle.
 - **Disk grows in three places.** Database volumes (data plus temp-table
   spills); container logs (capped by the `json-file` driver at 10m × 3 per
-  container); and the app's own logs under `/var/log/manager`, which
-  nothing rotates or deletes.
+  container); and the app's own logs under `/var/log/manager`, bounded
+  only by `manager/tools/log_prune` — the sample crontab runs it nightly,
+  and its deleting stages stay off until the env sets them (`docker.md`,
+  "Retention — `manager/tools/log_prune`").
 - **Back up the database volumes** if a dev site's data matters — the
   bundled profiles have no backup of their own:
 

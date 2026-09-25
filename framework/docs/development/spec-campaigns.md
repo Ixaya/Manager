@@ -529,9 +529,9 @@ session-class table):
 | Tier | Model | Notes |
 |---|---|---|
 | Fast | Haiku 4.5 | 200K context, no effort dial — isolated mechanical transforms only |
-| Standard | Sonnet 5 | Same 1M window as Advanced; supports xhigh |
-| Advanced | Opus 5 | medium approach previous-generation high — prefer dropping effort before dropping tier |
-| Highest | Fable 5 | 2× Advanced price; hardest long-horizon work only |
+| Standard | Sonnet 5 | Same 1M window as Advanced (measured against Opus 5); supports xhigh |
+| Advanced | Opus 5.5 | medium approach previous-generation high (measured on Opus 5) — prefer dropping effort before dropping tier |
+| Highest | Fable 5.1 | 2× Advanced price (Fable 5 vs Opus 5); hardest long-horizon work only |
 
 Batch by section and let the hardest item set the tier — don't pay the
 high-effort tax on ten renames because one spicy item is mixed in; pull it
