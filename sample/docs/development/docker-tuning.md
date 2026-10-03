@@ -2,8 +2,9 @@
 
 > Scope: sizing memory and CPU for the stack on a real host, especially one
 > shared by several instances, and tuning the bundled database engines to fit
-> their caps. For running the stack, see `docker.md`; for editing the files
-> under `docker/`, see `docker-internals.md` (both beside this file).
+> their caps. For running the stack, see `docker.md`; for running it on a
+> server, `docker-server.md`; for editing the files under `docker/`, see
+> `docker-internals.md` (all beside this file).
 
 Every value below is a knob in `docker/env/<instance>.docker.env`, read at
 compose time. The shipped defaults suit one instance on a developer machine;
@@ -304,41 +305,6 @@ cat /sys/fs/cgroup/manager-fleet.slice/memory.max
 ```
 
 Leave `CGROUP_PARENT` empty for Docker's default placement.
-
-## Server readiness
-
-- **Bind published ports to loopback behind a host proxy.** Docker's
-  published ports bypass the host firewall's INPUT rules, so an
-  `HTTP_PORT` published on all interfaces is reachable from anywhere the
-  cloud firewall allows. With a reverse proxy on the host, set
-  `PUBLISH_IP=127.0.0.1`. A proxy that runs as a container on a shared
-  Docker network reaches nginx directly and doesn't need a published port
-  at all.
-- **Narrow `set_real_ip_from`** in `docker/nginx/nginx.conf` to the proxy's
-  address. The shipped config trusts every private range, so on a shared
-  host any other container can set `X-Forwarded-For` and pick the client IP
-  the app logs and rate-checks against.
-- **Image builds run outside every cap.** BuildKit is not in any
-  instance's cgroup; compiling PHP extensions on a small box while the sites
-  are live can exhaust the host. Build elsewhere and pull, or build while
-  the sites are idle.
-- **Disk grows in three places.** Database volumes (data plus temp-table
-  spills); container logs (capped by the `json-file` driver at 10m × 3 per
-  container); and the app's own logs under `/var/log/manager`, bounded
-  only by `manager/tools/log_prune` — the sample crontab runs it nightly,
-  and its deleting stages stay off until the env sets them (`docker.md`,
-  "Retention — `manager/tools/log_prune`").
-- **Back up the database volumes** if a dev site's data matters — the
-  bundled profiles have no backup of their own:
-
-  ```bash
-  ./docker_manage.sh -e <instance> exec -T postgres pg_dump -U <DB_USER> <DB_NAME> > <instance>.sql
-  ./docker_manage.sh -e <instance> exec -T mariadb sh -c 'MYSQL_PWD="$(cat /run/secrets/db_root_password)" mariadb-dump -uroot <DB_NAME>' > <instance>.sql
-  ```
-
-- **Host kernel settings** for Valkey (`vm.overcommit_memory = 1`,
-  transparent huge pages off) are in `docker.md`, "Resource limits &
-  tuning".
 
 ## Measure, don't guess
 

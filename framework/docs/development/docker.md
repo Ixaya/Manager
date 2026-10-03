@@ -9,12 +9,16 @@
 The stack itself lives in `sample/docker/` (with `sample/docker_manage.sh`
 as the only entrypoint), and **its documentation ships with it**:
 
-- `sample/docs/development/docker.md` — setup, deploy, rotation, tuning,
+- `sample/docs/development/docker.md` — setup, deploy, rotation,
   troubleshooting (operate the stack).
+- `sample/docs/development/docker-tuning.md` — memory/CPU sizing and the
+  bundled engines' tuning (size the stack).
+- `sample/docs/development/docker-server.md` — server readiness and the
+  bundled PostgreSQL tier (run it on a server).
 - `sample/docs/development/docker-internals.md` — conventions, hard rules,
   and build gotchas (edit the stack).
 
-Consuming projects receive those two files as their own
+Consuming projects receive those files as their own
 `docs/development/`; anything a stack user or stack developer needs must
 live there, never here.
 

@@ -25,7 +25,8 @@ Source of truth (only read if something here is insufficient):
   bootstrap, engine/profile matrix, "Live-code dev modes", the "Silent 500
   with empty logs" ladder); `docker-internals.md` — env var placement, for
   editing files under `docker/`; `docker-tuning.md` — memory caps,
-  per-engine sizing, OOM diagnosis
+  per-engine sizing, OOM diagnosis; `docker-server.md` — server readiness,
+  the bundled PostgreSQL tier, backups and restore
 
 ## When to use the script vs. a raw `docker` command
 
@@ -49,7 +50,15 @@ wiring for a `grep`/`tail` adds nothing.
 - `-e <instance>` selects the env files (`dev`/`local`/`framework`/… —
   gitignored, copied from the `sample.*` templates on first use).
 - `--profile <db>` (`postgres`/`mysql`/`mariadb`) picks the database
-  container; `--profile ws`/`--profile cron` add those services.
+  container; `--profile ws`/`--profile cron` add those services. Every db
+  profile needs `docker/secrets/<instance>.db_root_password` as well as
+  `db_password`. On Postgres the app's `DB_USER` is a plain database owner,
+  not a superuser; admin work (roles, extensions) runs as `postgres`:
+  `./docker_manage.sh -e <instance> --profile postgres exec postgres psql -U
+  postgres`. Never override the `postgres` entrypoint: it guards the init,
+  and after a failed first init every start refuses (`[postgres-entrypoint]
+  FATAL: the init started … never finished`) — fix the cause, then `down -v`
+  and `up`.
 - `-b`/`--bind` mounts the app source live (project mode: your own app
   tree; framework mode: `sample/`, run from the framework repo). `-m`/
   `--manager-bind` additionally mounts the framework repo's own `system/`
@@ -102,7 +111,21 @@ bind not covered here — see `framework/docs/development/framework-workflow.md`
 Never pick a version from memory or a browsed tag page — both lag. Run
 `bin/docker-pin-report.php` through the `tools` service and apply
 `docker.md`'s "Updating image pins" rules (hold window, LTS-only
-databases, one Alpine across images).
+databases, one Alpine across images). A Postgres **major** bump (`18.x` →
+`19.x`) refuses to start on existing data — the image's `pg_upgrade`
+message, a restart loop: put the old pin back (the data is untouched), then
+follow `docker-server.md`'s dump-and-restore procedure. Minor bumps are safe.
+
+## Server instances: backups
+
+Local instances are never backed up — `down -v` resets them on purpose. On
+a server, `bin/db-backup.sh` dumps every running `mgr.backup=<engine>`
+container on the host, so one scheduled run covers every site; never
+schedule it per site. Root must run a copy that no site user can edit,
+outside every project directory: whoever can edit the file root runs gets
+root. `pg_restore --clean` replaces the target database — drill a restore
+into a scratch database, never the live one. Setup, retention, restore and
+the off-host copy: `docker-server.md`.
 
 ## `exec`/`run` into php/ws/cron/cli run as the instance's app identity — enforced, not a habit to remember
 

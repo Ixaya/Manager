@@ -17,3 +17,7 @@ patches.lock.json
 
 #Ignore local tests
 # *_local.php
+
+# DB backups (bin/db-backup.sh) and POSTGRES_DATA/VALKEY_STATE_DATA bind paths
+docker/backups/
+docker/data/

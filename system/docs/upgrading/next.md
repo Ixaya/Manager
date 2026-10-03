@@ -7,7 +7,7 @@ Everything else in a minor release is additive.
 
 Reaches a project only when it reconciles `docker/docker-compose.yml` and
 `docker/env/sample.docker.env` from the sample; `composer update` alone
-changes nothing. The dev-only `mysql`/`mariadb`/`postgres` profiles
+changes nothing. The bundled `mysql`/`mariadb`/`postgres` profiles
 previously ran engine stock settings under a fixed cap, and the engines never
 size themselves from it. Adopting the new files changes, for those profiles:
 
@@ -183,3 +183,47 @@ sample: its combined `cli/`+`cron/` stanza is now two stanzas, and `cli/`
 switched from `create 0640` to `copytruncate` — a job still writing across a
 rename-based rotation kept appending to the renamed `.1` file, which
 `delaycompress` then compressed out from under it on the next run.
+
+### The bundled `postgres` profile runs the app as a non-superuser, and becomes a server tier
+
+Reaches a project only when it reconciles `docker/docker-compose.yml`, the
+new `docker/postgres/` directory (`entrypoint.sh` and `initdb/`),
+`docker/env/sample.*` and `bin/` from the sample. Reconcile the compose file
+and `docker/postgres/` together: the new compose file runs
+`docker/postgres/entrypoint.sh` as the service's entrypoint, so without the
+directory `postgres` can't start.
+
+- **`--profile postgres` now needs a `db_root_password` secret**
+  (`docker/secrets/<instance>.db_root_password`) as well as `db_password`,
+  like mysql/mariadb. It is the password of the cluster's superuser,
+  `postgres`.
+- **A fresh cluster creates `DB_USER` as a plain role that owns the
+  database**, not as a superuser. Migrations run as before. Admin work —
+  roles, untrusted extensions such as pgvector — runs as `postgres`:
+
+  ```bash
+  ./docker_manage.sh -e <instance> --profile postgres exec postgres psql -U postgres
+  ```
+
+- **An existing cluster is left as it was:** its app user stays a superuser
+  and it has no `postgres` role until the data directory is recreated. For a
+  local instance that is `down -v` (which deletes its data) and a fresh
+  `migrate`.
+- **Never override the `postgres` service's `entrypoint:`.** The wrapper
+  reads `db_password` as root, passes it to the init without exposing it to
+  the running server, and refuses to start a cluster whose first init
+  failed (`[postgres-entrypoint] FATAL: the init started … never
+  finished`). Recovery is in `docs/development/docker-server.md`.
+- **The healthcheck changed:** `postgres` is healthy once its init has
+  finished and `DB_USER` can log in, not merely when the server answers.
+  It also reports unhealthy while every connection slot is taken; nothing
+  in the stack acts on that, but a host tool that restarts unhealthy
+  containers would.
+- **New, for servers (additive):** `POSTGRES_DATA`/`VALKEY_STATE_DATA` in
+  `docker.env` (empty keeps today's named volumes), the `mgr.backup`
+  label, and `bin/db-backup.sh`. Setup, backups, restore and major-version
+  upgrades are in `docs/development/docker-server.md`.
+- **`sample.priv.env` ships `CF_ENCRYPTION_KEY` blank.** A new instance
+  generates its own (`docs/development/docker.md`, "Your own instance");
+  until then `manager/tools/env_check` warns about it. Never replace an
+  existing instance's key: data encrypted with it becomes unreadable.

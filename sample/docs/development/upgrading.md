@@ -222,9 +222,9 @@ anything you paste. Walk the reconcile targets instead:
 V=vendor/ixaya/manager/sample
 for p in .env.sample .env.sample.prod application/config application/core \
          bin docker/docker-compose.yml docker/php docker/nginx docker/cron \
-         docker/valkey docker/env/sample.env docker/env/sample.docker.env \
-         docker/env/sample.priv.env docker_manage.sh phpunit.xml \
-         phpstan.neon docs; do
+         docker/valkey docker/postgres docker/env/sample.env \
+         docker/env/sample.docker.env docker/env/sample.priv.env \
+         docker_manage.sh phpunit.xml phpstan.neon docs; do
     [ -e "$V/$p" ] || { echo "GONE UPSTREAM: $p"; continue; }
     diff -rq "$p" "$V/$p" >/dev/null 2>&1 || echo "CHANGED:      $p"
 done

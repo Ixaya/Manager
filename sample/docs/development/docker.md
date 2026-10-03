@@ -3,8 +3,10 @@
 > Scope: running and operating this stack — setup, deploy, rotation, tuning,
 > troubleshooting. For editing the files under `docker/` themselves, see
 > `docker-internals.md`. For sizing memory/CPU on a real host and tuning the
-> bundled databases, see `docker-tuning.md`. For picking a database
-> engine/driver, see `database.md` (all beside this file).
+> bundled databases, see `docker-tuning.md`. For running on a server
+> (readiness, the bundled PostgreSQL tier, backups), see `docker-server.md`.
+> For picking a database engine/driver, see `database.md` (all beside this
+> file).
 
 All operations that start, stop, build, or exec into a service go through
 the wrapper — never `docker compose` directly. Read-only inspection of an
@@ -40,13 +42,18 @@ chmod 600 docker/env/<instance>.priv.env
 
 openssl rand -hex 24 > docker/secrets/<instance>.valkey_password
 openssl rand -hex 24 > docker/secrets/<instance>.db_password
-openssl rand -hex 24 > docker/secrets/<instance>.db_root_password   # only needed for --profile mysql/mariadb
+openssl rand -hex 24 > docker/secrets/<instance>.db_root_password   # only needed for a bundled db profile (mysql/mariadb/postgres)
 chmod 600 docker/secrets/<instance>.*
 ```
 
 Copy those same values into `<instance>.priv.env`: the valkey password goes in
 `LIB_REDIS_PASSWORD` and the `auth=` param of `CF_SESS_SAVE_PATH`; the DB
-password goes in `DB_PASS`.
+password goes in `DB_PASS`. The template ships `CF_ENCRYPTION_KEY` blank;
+generate one and set it there too:
+
+```bash
+./docker_manage.sh -e <instance> run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/generate_enc_key"
+```
 
 The **base** non-secret config lives in `.env.<instance>` at the app root
 (the same file a non-docker `CI_ENV=<instance>` run loads) and is the single
@@ -87,13 +94,16 @@ placement" decision tree in `docker-internals.md`.
 | `cron` | `cron` | supercronic runs `docker/cron/crontab` | Yes |
 | `mysql` | `mysql` | MySQL — Aurora-compatible, use when parity with the server matters | No — dev/local only |
 | `mariadb` | `mariadb` | MariaDB — lighter local alternative, NOT Aurora-compatible | No — dev/local only |
-| `postgres` | `postgres` | PostgreSQL | No — dev/local only |
+| `postgres` | `postgres` | PostgreSQL — supported for small server instances; a managed database at scale | Yes, small sites |
 | `cli` | `cli` | Interactive shell / one-off commands | As needed |
 | `tools` | `tools` | composer / PHPStan / PHPUnit — the only supported way to run them, host tree bind-mounted in | No — dev only |
 
-Production uses an **external** database (`DB_HOST=<managed endpoint>`, no db
-profile). Valkey ports are **never** published; only nginx publishes
-`HTTP_PORT` (→ :80) and `WS_PORT` (→ :8080).
+Production uses one of two database tiers: an **external** managed database
+(`DB_HOST=<managed endpoint>`, no db profile), recommended at scale; or, for
+small sites, the bundled `postgres` service with its data protected from
+`down -v` and backed up, set up per `docker-server.md`. `mysql`/`mariadb`
+remain dev/local only. Valkey ports are **never** published; only nginx
+publishes `HTTP_PORT` (→ :80) and `WS_PORT` (→ :8080).
 
 ## Build and run
 
@@ -128,7 +138,8 @@ done
 ./docker_manage.sh -e <instance> --profile <mysql|mariadb|postgres> up -d
 ./docker_manage.sh -e <instance> run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/migrate"
 
-# Server / deployment mode: ws + cron enabled, DB is external/managed.
+# Server / deployment mode: ws + cron enabled; DB external/managed, or add
+# --profile postgres for the bundled tier (docker-server.md).
 ./docker_manage.sh -e <instance> build
 ./docker_manage.sh -e <instance> --profile ws --profile cron up -d
 ```
@@ -359,7 +370,7 @@ CF_SESS_SAVE_PATH=tcp://valkey-state:6379?timeout=10.0&prefix=mgr_session&databa
 | Non-secret config the app/entrypoint reads (incl. `DB_USER` — an identifier, not a secret) | `docker/env/<instance>.env` | `--env-file` + `env_file:` | Yes (no secrets here) |
 | Docker-infrastructure-only config (ports, tags, build args, limits) | `docker/env/<instance>.docker.env` | `--env-file` interpolation only | N/A |
 | Valkey server password | `docker/secrets/<instance>.valkey_password` | compose secret → `--requirepass` via entrypoint | **No** |
-| DB passwords (dev profiles) | `docker/secrets/<instance>.db_password`, `.db_root_password` | compose secrets → `*_FILE` env | **No** |
+| DB passwords (bundled db profiles) | `docker/secrets/<instance>.db_password`, `.db_root_password` | compose secrets → `*_FILE` env | **No** |
 
 No secret is ever in an image layer, a compose env-file, or `docker inspect`.
 
@@ -374,6 +385,19 @@ No secret is ever in an image layer, a compose env-file, or `docker inspect`.
 **Rotate the DB password** — update `docker/secrets/<instance>.db_password`
 **and**
 `DB_PASS` in `.priv.env`, alter the DB user, then `up -d`.
+
+On PostgreSQL the secret is read only when the cluster is first created, so
+changing the file alone changes nothing. Set the new password as the
+superuser first — interactively, so it stays off argv and out of the log —
+then update both files and `up -d`:
+
+```bash
+./docker_manage.sh -e <instance> --profile postgres exec postgres psql -U postgres -c "\password <DB_USER>"
+```
+
+The superuser's own password works the same way (`\password postgres`).
+Socket connections inside the container use `trust`, so an admin session
+never needs it.
 
 ## Updating image pins
 
@@ -438,9 +462,9 @@ Acting on it:
 Every service has `mem_limit` + `cpus` (env-overridable in
 `<instance>.docker.env`), and `memswap_limit` equal to `mem_limit`, so a cap is
 hard even on a host with swap. Budgeting several instances on one host, how
-each database engine is sized to fit its cap, the fleet-wide cap, and
-server-readiness items are in `docker-tuning.md`; this section covers the
-PHP and nginx side.
+each database engine is sized to fit its cap, and the fleet-wide cap are in
+`docker-tuning.md` (server-readiness items: `docker-server.md`); this section
+covers the PHP and nginx side.
 
 FPM defaults to `pm=dynamic` (`PHP_PM_MODE=ondemand` frees idle workers)
 with `pm.max_children` from `PHP_PM_MAX_CHILDREN` (20 dev / 50 prod
@@ -500,7 +524,9 @@ never started; `docker logs <instance>-init-1` says why.
 **Bind mounts are yours to own.** `MEDIA_PATH` and `PRIVATE_PATH` (and any
 other host directory you mount) must already be owned by — or writable for —
 that uid/gid on the host; nothing in the stack chowns host storage, since
-doing so is exactly what breaks a shared legacy mount.
+doing so is exactly what breaks a shared legacy mount. `<instance>.priv.env`
+is a bind mount too: the `chmod 600` in "Your own instance" works only while
+`APP_USER` owns the file; otherwise make it `root:<APP_GID>`, mode `0640`.
 
 **nginx reads media as "other".** Its workers run as the image's own `nginx`
 user (uid 101), not `APP_USER`. Uploads the app writes are world-readable

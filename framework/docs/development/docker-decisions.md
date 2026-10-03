@@ -200,9 +200,9 @@ Revisit when: never, unless the pool needs to resize without a rebuild
 
 **`DB_USER` required, no default — mirrors `DB_NAME`.**
 Decision: `docker-compose.yml` uses `${DB_USER:?...}` for
-`MYSQL_USER`/`MARIADB_USER`/`POSTGRES_USER`/the postgres healthcheck, never
-a fallback default.
-Why: `DB_USER` is an identifier the mysql/mariadb/postgres dev profiles
+`MYSQL_USER`/`MARIADB_USER`, the `postgres` service's `DB_USER` (the role
+its init hook creates) and its healthcheck, never a fallback default.
+Why: `DB_USER` is an identifier the bundled db profiles
 need for interpolation — a silent default (formerly `${DB_USER:-ixaya}`)
 meant the provisioned username could silently diverge from whatever
 `DB_USER` was actually intended to be, with no error. Same failure shape
@@ -543,10 +543,11 @@ Cost: `performance_schema` diagnostics are off until re-enabled; MySQL
 point-in-time recovery from binlogs is unavailable on the bundled profile
 (dev-only by design).
 Revisit when: a pinned database image tag changes (re-run the load test in
-the shipped `docker-tuning.md`), a project runs the bundled profile as
-anything other than dev/local, or MariaDB's cgroup memory-pressure feature (it logs "memory.pressure
-not writable" in a stock container) becomes usable and can replace static
-sizing.
+the shipped `docker-tuning.md`), or MariaDB's cgroup memory-pressure
+feature (it logs "memory.pressure not writable" in a stock container)
+becomes usable and can replace static sizing. Making PostgreSQL a server
+tier didn't trigger a re-run: the sizing is per cap, and a server budgets
+its instances with the worksheet.
 
 **Fleet cap via `cgroup_parent`, opt-in and empty by default.**
 Decision: every service merges an `x-fleet` fragment setting
@@ -679,3 +680,154 @@ Revisit when: queues move to `valkey-state` — Path B's own revisit
 condition, a second Redis connection enabling Path A. Queue entries can't be
 evicted and can back up, so the dataset stops being bounded by the session
 TTL.
+
+**The bundled PostgreSQL is a production tier for small sites; a managed database stays the recommendation at scale.**
+Decision: the `postgres` service is supported on server instances, with
+its data protected from `down -v`, a non-superuser app role, and a
+host-side backup script. MySQL and MariaDB stay dev/local only until each
+gets the same treatment. The shipped `docker-server.md` carries the
+procedure.
+Why: small sites where a managed instance per site costs more than it
+warrants already fit the one-container-per-instance model; what was
+missing was everything production needs around it, and none of that
+depends on scale.
+Evidence: each mechanism was checked in a sandbox (Engine 29.7, Compose
+5.5.0) and the ownership- and mode-dependent parts again on a real Linux
+host (Engine 29.8, Compose 5.5.1): data protection, the role and its
+password, migrations including the builder's plpgsql trigger pair running
+as the role, backups with an upload through a write-only credential, and a
+restore drill. A full stack deployed on that host ran end to end, through
+migrations, login and a backup upload.
+Cost: whoever runs the server owns scheduling, off-host storage and
+alerting; the framework ships requirements and recommendations only. Every
+deploy that recreates the whole stack restarts the database.
+Revisit when: the first production deploy shows a gap the end-to-end run
+didn't, or MariaDB joins the tier (it plugs into the same label, layout and
+engine seam).
+
+**No point-in-time recovery on the bundled tier.**
+Decision: the worst-case loss is everything written since the last good
+dump; WAL archiving is not built, and the docs say so.
+Why: the tier targets small sites, and a dump interval is a loss window
+those sites can state and accept. For MySQL the equivalent question is the
+binlog (disabled for sizing, see above); it belongs with MySQL's own server
+work.
+Cost: a site that can't lose a day needs a shorter dump interval or the
+managed tier.
+Revisit when: a site needs a loss window shorter than any practical dump
+interval, or MySQL/MariaDB server-tier work starts.
+
+**Data protection: bind paths behind a variable, locked at the parent.**
+Decision: `${POSTGRES_DATA:-postgres-data}` and
+`${VALKEY_STATE_DATA:-valkey-state-data}`; unset or empty keeps today's
+named volumes, a server points both at `data/…` and makes `data/` itself
+`root:root 0700`, leaving the per-engine directories to Docker.
+Why: `down -v` deletes named volumes, and a bind path is the one thing it
+never touches. Rejected: `external: true` — Compose picks what `down -v`
+deletes by its project label, so a compose-created volume adopted as
+external is still deleted, and `volume prune -a` removes an unused external
+volume; a fixed `name:` volume has the same problem.
+Evidence: on a real host, `0700` on the bind path itself stopped Postgres
+from starting. The image's entrypoint creates `PGDATA` as root, then
+re-runs itself as `postgres`, and that second pass has to traverse the
+mount root to reach `PGDATA` two levels down. Valkey never hit it, because
+its entrypoint chowns its own mount root. Docker's own `root:root 0755` for
+a missing bind path works, and the locked parent still keeps every
+non-root host user out.
+Cost: the server creates one directory before the first `up`; through
+`docker_manage.sh`, every instance of a checkout resolves relative paths
+against the same `docker/`, so the documented value carries the instance
+name.
+Revisit when: never, unless Compose gains a volume that `down -v` skips.
+
+**A server copy of the compose file removes the profile from `postgres`; pinning profiles and override files were rejected.**
+Decision: a deployment that runs a copy of the compose file with its own
+tooling deletes `profiles: [postgres]` in the copy.
+Why: `COMPOSE_PROFILES` works only until something runs compose with a
+`--profile` flag, which replaces it rather than adding to it; an override
+file is ignored once `-f` is explicit. Both were checked on Compose 5.5.0
+with scratch files. A deployment may call compose with a single `-f` and no
+profile flags, so neither can be relied on.
+Cost: the copy diverges from the shipped file by one line, which every
+re-sync has to carry.
+Revisit when: Compose makes profile flags additive.
+
+**The app role: an init hook creates a non-superuser database owner, and a root wrapper supplies its password.**
+Decision: `POSTGRES_USER` is the superuser `postgres` (from
+`db_root_password`); `initdb/10-app-role.sh` creates `DB_USER` as
+`LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE`, owning the database so it
+keeps `CREATE` on `public` (PostgreSQL 15+ revokes it from non-owners).
+`postgres/entrypoint.sh` reads `db_password` as root and hands it over in
+an environment variable the image unsets before the server starts; a
+marker refuses any cluster whose init never finished.
+Why: the image makes `POSTGRES_USER` a superuser, so the app ran as one.
+Rejected: a migration-time step, a per-`up` one-shot, a manual `psql`
+step, a dedicated schema owner, and reading the secret inside the hook —
+the hook runs as `postgres`, so the secret would have to be readable by
+that uid, tying host modes to the image and handing it the app password.
+The marker exists because the image doesn't clean up a half-initialized
+cluster: after a failed hook it starts healthy without the role. And an
+unreadable secret read through psql's ``\set pw `cat …` `` becomes an empty
+string, `CREATE ROLE` then succeeds with no password, and psql exits 0 even
+with `ON_ERROR_STOP` — so the password's presence is checked twice, in the
+wrapper and in the hook.
+Evidence: sandbox and real host — role `rolsuper = f` with a password,
+every secret `root:root 0600`, 0 password occurrences in the server's
+environment or logs (including with every statement logger on), the
+builder's function and trigger created and fired as the role. A major-bump
+rollback (18.6 → 19beta4 → 18.6) restarts the old cluster.
+Cost: roles and untrusted extensions (pgvector among them) need
+`psql -U postgres`. A cluster initialized before this keeps its app user as
+superuser and has no `postgres` role until it is recreated; there is no
+switch-over. Accepted: the marker is written before the image's own pre-init
+checks, so their errors also show the "never finished" message; the
+password sits in the temporary init server's environment while it runs.
+Revisit when: the image runs init hooks as root, or ships a supported
+non-superuser bootstrap.
+
+**Backups: a host job that discovers labelled containers, not a sidecar or an app-side job.**
+Decision: `bin/db-backup.sh` dumps every running `mgr.backup=<engine>`
+container (`pg_dump -Fc -Z0` piped to host `zstd`, `.partial` then
+rename), keeps the newest N good dumps by the filename's stamp, and
+optionally uploads each new dump. The label, the `backups/<engine>/`
+layout and the filename are a contract across framework versions.
+Why: the framework owns a correct dump; when it runs and where copies go
+belong to whoever runs the server. Rejected: a sidecar with a sleep loop
+or `crond`; an app-side cron with an S3 library (the app image carries
+`libpq`, not `pg_dump`); dumping onto a bind mount from inside the
+container (page cache charged to the database's cap, an uncompressed peak
+on disk, and `70:70 0644` dumps any host user can read); `-Fp` and `-Fd`
+(`-Fc` keeps owners and allows `--clean` and selective restore); a
+configurable host uid; age-based retention; an in-script staleness check;
+a generic upload hook, `aws s3 sync` and date folders.
+Evidence: sandbox and real host — dumps `0600` in `0700` directories,
+retention keeping the newest, a `pipefail` kill leaving only `.partial`,
+an upload under a write-only credential including multipart, and
+`pg_restore` from the stream into a scratch database with owners kept.
+Two independent reviews hardened it against hostile labels (path checks
+through a pinned working directory, `DB_BACKUP_ALLOWED_ROOT`) and one site
+aborting the rest.
+Cost: off-host storage, scheduling and alerting are the server's job.
+Accepted: stopped containers are skipped without a log line; there is no
+`fsync` before the rename; stacks run from one directory pool retention
+for a shared database name.
+Revisit when: an engine's dump can't stream to stdout, or the contract has
+to change (a breaking change with an upgrade entry).
+
+**Major-version bumps: a documented dump-and-restore rule, no guard of our own.**
+Decision: minor bumps are safe; a major bump is dump, stop, move the data
+directory aside, bump, start empty, restore. The image's own upgrade check
+is the guard.
+Why: a new major on old data is refused, not corrupted: the container
+exits with a `pg_upgrade` message and restart-loops, the data untouched,
+and the old pin starts it again. Rejected: a preflight guard of our own, an
+automatic dump before every deploy, and a major-version flag in the pin
+report.
+Evidence: 18.6 → 19beta4 on the same volume, sandbox — refusal, then a
+clean 18.6 restart; an 18.6 dump restored into a fresh 19beta4 cluster.
+The entrypoint is byte-identical between those two images.
+Cost: a major bump is a short outage and a manual restore. The wrapper
+mirrors three details of the image's entrypoint; the shipped
+`docker-internals.md` lists them for a re-check on every major.
+Revisit when: 19.0 is released (re-check the entrypoint against the
+wrapper before the pin moves), or the image gains an in-place upgrade path.

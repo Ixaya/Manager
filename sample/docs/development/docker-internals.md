@@ -34,6 +34,8 @@ like it needs that pointer, the content belongs here instead.
 | `docker-compose.manager-bind.yml` | Opt-in override, only loaded with `-m`/`--manager-bind`. Same caution. |
 | `docker_manage.sh` (repo root) | The only supported entrypoint — computes per-instance file paths the compose file depends on. |
 | `env/sample.docker.env`, `env/sample.env`, `env/sample.priv.env`, `env/sample.agent.env` | The four committed templates (short comments by design — per-var background lives in "Env template notes" below). Every other file under `env/` is a per-instance, ignored instantiation. |
+| `postgres/entrypoint.sh`, `postgres/initdb/` | The `postgres` service's root wrapper and its init hooks — see "`docker/postgres/entrypoint.sh`" below before touching either. |
+| `bin/db-backup.sh` (repo root) | Host-side backup of every labelled database container — see "`bin/db-backup.sh`" below. |
 | `php/smoke/` | The smoke-test module's **committed source**. Never ignored anywhere — if you ever see an ignore rule that would catch it, that's a bug; stop and report it. |
 
 ## Hard rules
@@ -250,13 +252,18 @@ when docker's value must differ from that base.
   when empty, which is what keeps today's all-interfaces default.
 - `CGROUP_PARENT` — empty = Docker's default placement. A slice name under
   the `systemd` cgroup driver, a path under `cgroupfs`.
-- `MYSQL_*`/`MARIADB_*`/`POSTGRES_*` limits and engine knobs —
-  dev/local db profiles only; sized together, see `docker-tuning.md`.
+- `MYSQL_*`/`MARIADB_*`/`POSTGRES_*` limits and engine knobs — bundled db
+  profiles; sized together, see `docker-tuning.md`.
   `MARIADB_TMP_TABLE_SIZE` feeds both `tmp_table_size` and
   `max_heap_table_size`.
 - `VALKEY_*_MAXMEMORY` — passed as a `command:` argument, not env.
 - `MEDIA_PATH`/`PRIVATE_PATH` — host bind-mount SOURCE paths; the container
   only ever sees the fixed TARGET.
+- `POSTGRES_DATA`/`VALKEY_STATE_DATA` — the same, for the two stateful
+  services; empty falls back to the named volume (`${VAR:-name}` treats
+  empty as unset). Relative paths resolve against `docker/`, which every
+  instance of one checkout shares — hence the instance name in the
+  documented server value.
 - `RUN_MIGRATIONS` — set `true` on exactly ONE php instance to migrate on
   boot.
 - `INCLUDE_SMOKE_MODULE` — build arg; local images only.
@@ -396,3 +403,88 @@ sequence. If compose ever adds a `user:` override on these services, both
 steps start failing and fresh-volume ownership needs a different fix —
 don't add `user:` to `valkey-state`/`valkey-cache` without revisiting this
 script first.
+
+## `docker/postgres/entrypoint.sh` — the root wrapper and the init marker
+
+The image's own entrypoint runs the `initdb/` hooks after dropping to its
+`postgres` user, so a hook reading `db_password` itself needs the secret
+readable by that user — tying host file modes to the image's uid and
+handing the app password to the database process. The wrapper runs as root
+instead: on a fresh cluster it reads the secret, exports it as
+`POSTGRES_APP_PASSWORD`, and `exec`s the image's entrypoint unchanged. That
+entrypoint unsets every `POSTGRES_*` before it starts the real server, so
+the password never reaches the running server's environment. An existing
+cluster never reads the secret at all.
+
+`initdb/10-app-role.sh` creates `DB_USER` as a plain role that owns the
+database, so the app never connects as the superuser. It reads the password
+with `\getenv` inside psql (never argv), and sets every statement-logging
+setting off for that one session first: a failed or logged `CREATE ROLE`
+would otherwise print the password. It refuses outright when the variable
+is unset, which means the wrapper was bypassed.
+
+**The init marker.** The image doesn't clean up a half-initialized data
+directory: after a failed hook, the next start logs "Skipping
+initialization" and comes up healthy without the app role. So the wrapper
+writes `/var/lib/postgresql/.mgr-init/init-incomplete` (inside the volume,
+outside `PGDATA`) before a fresh init, `initdb/99-init-complete.sh` removes
+it as the last hook, and any start that finds it refuses. Every other hook
+must sort between `10-` and `99-`. The healthcheck also requires the marker
+to be gone, and a symlinked marker or marker directory is refused rather
+than followed.
+
+**What it mirrors from the image — re-check on every major bump.** The
+wrapper depends on three things in the image's `docker-entrypoint.sh`;
+before a new Postgres major lands, diff that script against them:
+
+- **The server-start test.** A flag-first `$1` gets `postgres` prepended;
+  anything else, or `--help`/`--version`/`--describe-config`, is passed
+  straight through with no secret read and no marker (so `run postgres env`
+  and `--version` stay harmless). This is also why the service's `command:`
+  must start with `postgres` or a flag.
+- **The old-data paths.** On an empty `PGDATA`, the wrapper looks where the
+  image's own upgrade check looks (`/var/lib/postgresql`, `…/data`,
+  `…/*/docker`). Data there means another major's cluster: the wrapper
+  hands over unmarked, so the image refuses with its `pg_upgrade` message on
+  every start and putting the old pin back still starts that cluster. A
+  marker written here would have survived the rollback and refused the old
+  pin too.
+- **The fresh-cluster test** — `$PGDATA/PG_VERSION` absent or empty, with
+  `PGDATA` at the image default. Never set `PGDATA`: the image's upgrade
+  check only works at the default.
+
+## `bin/db-backup.sh` — the cross-version contract and the engine seam
+
+One copy of the script serves every site on a host, whatever framework
+version each site runs. Three things are therefore a contract between
+versions, and changing any of them is a breaking change with an upgrade
+entry: the `mgr.backup=<engine>` label, the `backups/<engine>/` layout
+beside the compose file, and the filename
+`<db>-<tag>-<UTC YYYYMMDDTHHMMSSZ>.<ext>.zst` (Postgres: `pg<major>`,
+`dump`).
+
+**Adding an engine** is a `dump_<engine>` function plus one `case` branch
+that sets `db_name`, `tag`, `ext` and `dump_command`, and the compose side:
+the service's `mgr.backup` label and a `${<ENGINE>_DATA:-<volume>}` mount.
+Credentials come from the container's own `/run/secrets`, never argv.
+Postgres takes its major from the container's `PG_MAJOR` env, not the
+image reference, which a registry prefix or digest would break.
+
+Rules the script relies on — keep them when editing it:
+
+- **Guard every fallible per-site step explicitly** (`|| { fail_site …;
+  continue; }`). Under `set -e`, an unguarded failure aborts every
+  remaining site. Wrapping the loop body in a function called as
+  `site || fail` doesn't help: bash disables `set -e` inside a function
+  called that way.
+- **Write through the pinned working directory, never a path.** Each site's
+  `backups/` and `backups/<engine>/` are entered with `cd` and checked
+  (`pwd -P` equals the expected path, owned by the running user, mode
+  `0700`); every write, rename and prune afterwards is relative, so a later
+  rename or symlink swap can't redirect a root-owned write.
+- **Retention sorts by the filename's stamp, never mtime** — an upload or
+  copy touches mtime without changing when the dump ran — and matches the
+  exact stamp shape, so a database whose name extends another's never
+  shares its pool.
+- **A dump is written to `.partial` and renamed only on success** under
+  `pipefail`, so a failed dump can never count as a good one.
