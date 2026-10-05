@@ -34,7 +34,7 @@
   own; dump by hand if a site's data matters:
 
   ```bash
-  ./docker_manage.sh -e <instance> exec -T mariadb sh -c 'MYSQL_PWD="$(cat /run/secrets/db_root_password)" mariadb-dump -uroot <DB_NAME>' > <instance>.sql
+  ./docker_manage.sh -e <instance> exec -T mariadb sh -c 'MYSQL_PWD="$(cat /run/secrets/db_root_password)" mariadb-dump -uroot --single-transaction --routines --triggers --events <DB_NAME>' > <instance>.sql
   ```
 
 - **Host kernel settings** for Valkey (`vm.overcommit_memory = 1`,
