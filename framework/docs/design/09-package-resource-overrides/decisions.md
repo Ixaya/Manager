@@ -85,7 +85,7 @@ config-include-bases.tar.xz`); permanent record split across
 `framework/docs/architecture/framework-wiring.md`,
 `framework/docs/design/07-database-drivers/decisions.md`,
 `framework/docs/development/mx-upstream.md`, and
-`system/docs/upgrading/next.md`.
+`system/docs/upgrading/2.3.6.md`.
 
 **Rejected direction** (mechanism, campaign-wide): a unified
 locations-based resolver modeled on `Modules::find()`. Would mean
@@ -116,4 +116,4 @@ hazard was considered and rejected: existing external projects have long
 depended on the unprefixed names, and a rename is a breaking public-API
 change with no clean migration path for them. Mitigated instead by naming
 the shadowable resources explicitly in the upgrade note
-(`system/docs/upgrading/next.md`) rather than by a code change.
+(`system/docs/upgrading/2.3.6.md`) rather than by a code change.
