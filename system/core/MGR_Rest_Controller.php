@@ -307,6 +307,17 @@ class MGR_Rest_Controller extends REST_Controller
 	}
 
 	/**
+	 * Checks to see if we have everything we need to run this library.
+	*/
+	protected function preflight_checks()
+	{
+		// Manager is recommended for v8.2 or above
+		if (is_php('8.2') === false) {
+			throw new Exception('Using PHP v' . PHP_VERSION . ', though PHP v8.2 or greater is required');
+		}
+	}
+
+	/**
 	 * Echoes $object as timestamped, class-tagged JSON — a quick debug trace.
 	 *
 	 * @return void

@@ -370,7 +370,7 @@ services:
   # Lighter local alternative to mysql — NOT Aurora-compatible. Same
   # secrets pattern as mysql above.
   mariadb:
-    image: mariadb:12.3.2-noble
+    image: mariadb:12.3.3-noble
     restart: unless-stopped
     networks: [appnet]
     logging: *logging

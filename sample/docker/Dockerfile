@@ -12,16 +12,16 @@ FROM alpine:3.24.2 AS supercronic-bin
 ARG TARGETARCH
 RUN set -eux; \
     case "$TARGETARCH" in \
-      amd64) sha256="5adff01c5a797663948e656d2b61d10932369ee437eb5cb54fa872b2960f222b" ;; \
-      arm64) sha256="c0576a8eb092e3f79108ed0a2155a25c7766af78456e5a6070e54757ef513bfe" ;; \
+      amd64) sha256="a53ae236602c7338aba3fbaff40bda6300eae3b9fedb8261eb06cfe3724430c1" ;; \
+      arm64) sha256="02aa0cb229ba09050cba6638059dadb9eedc2276632ea43d6a57a2f8c1629dd5" ;; \
       *) echo "unsupported TARGETARCH: $TARGETARCH"; exit 1 ;; \
     esac; \
     wget -qO /usr/local/bin/supercronic \
-      "https://github.com/aptible/supercronic/releases/download/v0.2.46/supercronic-linux-${TARGETARCH}"; \
+      "https://github.com/aptible/supercronic/releases/download/v0.2.49/supercronic-linux-${TARGETARCH}"; \
     echo "${sha256}  /usr/local/bin/supercronic" | sha256sum -c -; \
     chmod +x /usr/local/bin/supercronic
 
-FROM php:8.4.25-fpm-alpine3.24 AS php-base
+FROM php:8.4.26-fpm-alpine3.24 AS php-base
 # php-base: PHP + every extension + production php.ini. Shared by
 # vendor-builder and php-app so the extension build runs once.
 

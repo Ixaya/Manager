@@ -83,4 +83,15 @@ parameters:
         ##- identifier: method.notFound
         - identifier: class.notFound
         - identifier: property.notFound
+        # false positive: PHPStan 2.2.16 narrows ?string to string after a ternary plus foreach
+        - identifier: booleanAnd.alwaysFalse
+          path: system/package/modules/manager/controllers/Tools.php
+          count: 1
+        - identifier: identical.alwaysFalse
+          path: system/package/modules/manager/controllers/Tools.php
+          count: 1
+        # CI_VERSION is a known constant, so the CI 3 version guard folds to false
+        - identifier: smaller.alwaysFalse
+          path: system/third_party/REST_Controller.php
+          count: 1
         #- identifier: constant.notFound
