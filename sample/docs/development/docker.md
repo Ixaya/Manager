@@ -565,24 +565,27 @@ resolve):
 
 Nothing rotates `/var/log/manager/{app,cli}` on its own: `app/` grows one
 dated file per day forever, `cli/` appends to one file per async job
-forever. `manager/tools/log_prune [streams=all] [dry_run=0]` gzips aged
-`app/` files, deletes aged gz archives, and copytruncates oversized `cli/`
-job logs (`dry_run=1` prints the plan and changes nothing). `cron/` is
+forever. The `api_log` table (one row per REST call) grows forever too.
+`manager/tools/log_prune [streams=all] [dry_run=0]` gzips aged `app/`
+files, deletes aged gz archives, copytruncates oversized `cli/` job logs,
+and deletes `api_log` rows older than a cutoff (`streams`: `all` | `app` |
+`cli` | `api`; `dry_run=1` prints the plan and changes nothing). `cron/` is
 never touched — supercronic writes to stdout, which the compose `json-file`
 driver already bounds.
 
 Defaults (`system/package/config/lib_log_prune.php`, overridable via `mgr_env`):
 `app/` compress after 7 days, `cli/` rotate at 50 MB — both non-destructive
-(gzip in place / archive-then-truncate), so both default on. The two stages
-that actually **delete** data — `app/` gz delete-after and `cli/` archive
-`keep` — default to **0 (off)** in the package itself, so a bare `composer
-update` with no env changes never starts deleting an existing project's
-logs; `sample/.env.sample` ships the recommended values (delete after 30,
-keep 3) for a project that's copied it. Any threshold at `0` turns that
+(gzip in place / archive-then-truncate), so both default on. The three
+stages that actually **delete** data — `app/` gz delete-after, `cli/`
+archive `keep` and `api_log` rows (`MGR_LOG_PRUNE_API_DELETE_AFTER_DAYS`) —
+default to **0 (off)** in the package itself, so a bare `composer update`
+with no env changes never starts deleting an existing project's logs;
+`sample/.env.sample` ships the recommended values (delete after 30, keep 3,
+`api_log` 60) for a project that's copied it. Any threshold at `0` turns that
 stage off — e.g. `MGR_LOG_PRUNE_CLI_MAX_SIZE_MB=0` if a project runs its own
 `cli/` archive pipeline and only wants `log_prune` handling `app/`
 (`streams=app` does the same from the command line, and leaves `cli/`
-untouched).
+untouched; `streams=api` runs only the table stage).
 
 Scheduling — same command everywhere, only the scheduler differs:
 
@@ -599,6 +602,58 @@ covered `app/`, which `log_prune` fits better anyway (dated files need
 age-based pruning, not size-based rotation). Never run both `log_prune`
 and logrotate against `cli/` on the same install — either `log_prune`
 (`streams=all`) alone, or logrotate for `cli/` plus `log_prune app`.
+
+#### `api_log` — database retention
+
+`streams=api` deletes `api_log` rows whose `time` is older than
+`MGR_LOG_PRUNE_API_DELETE_AFTER_DAYS` days (0, the package default, turns
+the stage off; `sample/.env.sample` recommends 60). It reads the table and
+connection from `rest_logs_table` / `rest_database_group`, so a project that
+renamed either needs no change. Unlike `app/` and `cli/`, which are debug
+logs, `api_log` is also the record of which `uri` received which GET/POST —
+size the window to how far back you review it.
+
+Rows go in primary-key-range chunks of 10 000, never one large `DELETE`, so a
+first run on a multi-GB table holds no long lock and writes bounded
+binlog/WAL; a chunk that fails stops the stage and the next night resumes.
+Run `log_prune api 1` first to see the row count. Expect a first run on a
+large table to take a while, and run it off-peak.
+
+**Deleted rows do not shrink the table on disk.** The space is reused by the
+table but not returned to the operating system. Reclaiming it rewrites the
+table, so it is a manual, deliberate step — `log_prune` never runs it:
+
+| Engine | Command | Cost |
+|---|---|---|
+| MySQL / MariaDB (InnoDB) | `OPTIMIZE TABLE api_log;` | rebuilds the table; needs free disk for the copy |
+| PostgreSQL | autovacuum makes the space reusable but returns none; `VACUUM FULL api_log;` returns it | takes an `ACCESS EXCLUSIVE` lock — every REST call's insert waits — and needs free disk for the rewrite |
+| SQLite | `VACUUM;` | rewrites the whole database file and locks it |
+
+InnoDB answers `OPTIMIZE TABLE` with `Table does not support optimize, doing
+recreate + analyze instead` and status `OK` — the normal path, not an error.
+With the bundled containers:
+
+```bash
+./docker_manage.sh -e <instance> --profile postgres exec postgres psql -U postgres -d <DB_NAME> -c 'VACUUM FULL api_log;'
+./docker_manage.sh -e <instance> exec -T mariadb sh -c 'MYSQL_PWD="$(cat /run/secrets/db_root_password)" mariadb -uroot <DB_NAME> -e "OPTIMIZE TABLE api_log"'
+```
+
+On a `mysql` profile the service and client are both `mysql`. Use your
+`rest_logs_table` if it is not `api_log`, and schedule the PostgreSQL one for
+a maintenance window.
+
+**Optional `time` index.** New installs get an index on `time` from the
+original migration. Existing projects do not: the prune does not need it
+(it finds the expired id range, then deletes by primary key), and adding one
+is your call. To add it, write a migration of your own
+(`manager/tools/migration_file`) whose `up()` is
+`$this->add_index(table: 'api_log', columns: ['time']);` and `down()` is
+`$this->drop_index(table: 'api_log', columns: ['time']);`. `add_index` is
+idempotent, so it is also safe on an install that already has the index. On a
+large PostgreSQL table, build it first without blocking inserts —
+`CREATE INDEX CONCURRENTLY api_log_time_key ON api_log (time);` — then run
+the migration, which finds it by name and does nothing (the MySQL/MariaDB
+name is `time`).
 
 ## Agent access & smoke-test module
 

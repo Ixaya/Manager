@@ -88,7 +88,7 @@ signatures). Load in the method that uses the library, not the constructor
 | `websocket_lib` | amphp-based WebSocket server (`serve()`) + `generateLink($user_identifier, $channel)` for signed client URLs (JWT-authed) (see mgr-cache-websockets) |
 | `env_lib` | Loads `.env` / `.env.priv` at boot — you interact via `mgr_env*()`, not this class |
 | `migration_module_lib` | Per-module migration plan/run/version API — used through `manager/tools` (see mgr-migrations) |
-| `log_prune_lib` | Age/size retention over caller-passed log directories (`prune_app`, `prune_cli`); thresholds from `lib_log_prune.php` as public properties a caller may override — used through `manager/tools/log_prune` |
+| `log_prune_lib` | Age/size retention over caller-passed log directories (`prune_app`, `prune_cli`) and the REST `api_log` table (`prune_api`, given a connection and table); thresholds from `lib_log_prune.php` as public properties a caller may override — used through `manager/tools/log_prune` |
 | `ion_auth` | Authentication/groups (CI3 Ion Auth): `logged_in()`, `login()`, `register()`, `user()`, `in_group()`, `is_admin()`, `activate()/deactivate()`, `add_to_group()/remove_from_group()`, `delete_user()`, `clear_login_attempts()` (see mgr-auth) |
 | `format`, `seeder` | REST output formatting (used internally by `response()`); DB seeding base class for `application/database/seeds/` |
 

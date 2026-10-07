@@ -248,10 +248,11 @@ wrapper) is `docker.md`'s "Silent 500 with empty logs" section; the wrapper
 itself is in the mgr-live-probes skill's `references/silent-fatal-probe.md`.
 
 **Nothing rotates `/var/log/manager/{app,cli}` on its own** —
-`manager/tools/log_prune` does; defaults and scheduling are `docker.md`'s
-"Retention". Without the `cron` profile, schedule it from the host with
-`exec -T php`, never `run cli` — `docker.md`'s "Host cron calling into a
-Docker instance".
+`manager/tools/log_prune` does, and the same command prunes the `api_log`
+table (`streams=api`, off until `MGR_LOG_PRUNE_API_DELETE_AFTER_DAYS` is
+set); defaults and scheduling are `docker.md`'s "Retention". Without the
+`cron` profile, schedule it from the host with `exec -T php`, never
+`run cli` — `docker.md`'s "Host cron calling into a Docker instance".
 
 **Config behaves as if a value never loaded?** Don't trust `printenv` —
 `.priv.env` values are invisible to it by design. Run

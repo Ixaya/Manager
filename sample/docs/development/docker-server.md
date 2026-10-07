@@ -23,8 +23,9 @@
   instance's cgroup; compiling PHP extensions on a small box while the sites
   are live can exhaust the host. Build elsewhere and pull, or build while
   the sites are idle.
-- **Disk grows in three places.** Database volumes (data plus temp-table
-  spills); container logs (capped by the `json-file` driver at 10m × 3 per
+- **Disk grows in three places.** Database volumes (data, temp-table
+  spills, and `api_log`, which grows with every REST call until
+  `log_prune`'s `api` stage is set); container logs (capped by the `json-file` driver at 10m × 3 per
   container); and the app's own logs under `/var/log/manager`, bounded
   only by `manager/tools/log_prune` — the sample crontab runs it nightly,
   and its deleting stages stay off until the env sets them (`docker.md`,

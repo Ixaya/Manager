@@ -296,8 +296,14 @@ to pass — `:` for `/`, full offset for a vendor module
 - One concern per migration; never edit an applied migration — add a new one.
   Exceptions, since tracking is keyed by timestamp alone: a pure rename
   (filename + class together), a refactor that provably emits byte-identical
-  DDL, or a fix confined to `down()` (it runs only on an explicit downgrade,
-  which then gets the corrected reversal).
+  DDL, a fix confined to `down()` (it runs only on an explicit downgrade,
+  which then gets the corrected reversal), or a pure non-unique index added
+  to a table's create migration when nothing in code depends on it: new
+  installs get it, existing ones adopt it with their own `add_index`
+  migration, and the drift is harmless by construction. Use `add_index()`
+  there, never `dbforge->add_key()` — the two name the index differently on
+  Postgres/SQLite, so a later `add_index()` would not see it and would
+  create a duplicate.
 - Migrations run through dbforge/`$this->db` on the connection being migrated
   — don't load models inside migrations.
 - Legacy files under the root `application/database/migrations/` folder are

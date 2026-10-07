@@ -35,7 +35,7 @@ class Tools extends CI_Controller
 			['claim_admin', 'One-shot: rotate the seeded admin\'s factory password and print the new one.'],
 			['env_check [key]', 'Per-key env source report (values never printed). No key = framework must-haves.'],
 			['log_check', 'Log destination report: path, ownership and whether appends actually succeed.'],
-			['log_prune [streams=all] [dry_run=0]', 'Retention for the app\'s own logs: gzip aged app/ files, delete aged gz archives, copytruncate oversized cli/ job logs. streams: all (default) | app | cli. dry_run=1 prints the plan and changes nothing.'],
+			['log_prune [streams=all] [dry_run=0]', 'Retention for the app\'s own logs: gzip aged app/ files, delete aged gz archives, copytruncate oversized cli/ job logs, delete aged api_log rows. streams: all (default) | app | cli | api. dry_run=1 prints the plan and changes nothing.'],
 			['cli_exec <module> <library> <function> [identifier]', 'Run a library call in-process (async_exec_lib dispatch target).'],
 			['message [name]', 'Smoke-test echo.'],
 			['help', 'This list.'],
@@ -578,16 +578,17 @@ $table_property
 	}
 
 	/**
-	 * Retention for the app's own logs: gzips/deletes aged `app/` files and
-	 * copytruncates oversized `cli/` job logs. Never touches `cron/` or logrotate output.
+	 * Retention for the app's own logs: gzips/deletes aged `app/` files, copytruncates
+	 * oversized `cli/` job logs and deletes aged `api_log` rows. Never touches `cron/`
+	 * or logrotate output.
 	 *
-	 * @param string $streams 'all' | 'app' | 'cli' — 'app' leaves cli/ to logrotate.
+	 * @param string $streams 'all' | 'app' | 'cli' | 'api' — 'app' leaves cli/ to logrotate.
 	 * @param string $dry_run Truthy to print the plan without changing anything.
 	 */
 	public function log_prune(string $streams = 'all', string $dry_run = '0')
 	{
-		if (!in_array($streams, ['all', 'app', 'cli'], true)) {
-			throw new InvalidArgumentException("Tools::log_prune: unknown streams '{$streams}' — expected all, app, or cli.");
+		if (!in_array($streams, ['all', 'app', 'cli', 'api'], true)) {
+			throw new InvalidArgumentException("Tools::log_prune: unknown streams '{$streams}' — expected all, app, cli, or api.");
 		}
 
 		$dry = (bool) $dry_run;
@@ -605,6 +606,10 @@ $table_property
 
 		if ($streams === 'all' || $streams === 'cli') {
 			$this->_log_prune_cli($dry);
+		}
+
+		if ($streams === 'all' || $streams === 'api') {
+			$this->_log_prune_api($dry);
 		}
 	}
 
@@ -643,6 +648,26 @@ $table_property
 			$this->_format_bytes($result['deleted_bytes']),
 			$dry_run ? '  [dry-run]' : ''
 		);
+	}
+
+	protected function _log_prune_api(bool $dry_run): void
+	{
+		if ($this->log_prune_lib->api_delete_after_days <= 0) {
+			echo 'api/    off (MGR_LOG_PRUNE_API_DELETE_AFTER_DAYS=0)' . PHP_EOL;
+
+			return;
+		}
+
+		$rest = $this->config->read('rest', fail_gracefully: false) ?? [];
+		$db   = $this->load->database(params: (string) ($rest['rest_database_group'] ?? ''), return: true);
+
+		$result = $this->log_prune_lib->prune_api(
+			db: $db,
+			table: (string) ($rest['rest_logs_table'] ?? 'api_log'),
+			dry_run: $dry_run
+		);
+
+		echo sprintf('api/    deleted=%-8d rows%s' . PHP_EOL, $result['deleted'], $dry_run ? '  [dry-run]' : '');
 	}
 
 	protected function _format_bytes(int $bytes): string

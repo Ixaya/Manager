@@ -632,6 +632,27 @@ don't need the same caution); defaulting `dry_run` to `1` instead (protects
 a curious manual invocation but not an unattended cron line copied verbatim
 from the docs, which passes no arguments — the two delete stages needed
 their own off-switch regardless).
+Refined 2026-10-06: `log_prune` gained a fourth stream, `api`, which deletes
+`api_log` rows older than `MGR_LOG_PRUNE_API_DELETE_AFTER_DAYS` — the third
+delete stage, `0` (off) in the package for the same reason as the other two;
+`sample/.env.sample` recommends 60, longer than `app/`/`cli/`'s 30/3 because
+`api_log` is also the security record of which `uri` received which request,
+reviewed over a two-to-three-month horizon, where the file logs are debug
+logs. Decision: delete by primary-key range in 10 000-id chunks, with
+`time < cutoff` repeated per chunk. Rejected: one `DELETE … WHERE time < ?`
+(unbounded lock and binlog/WAL on a multi-GB first run), `DELETE … LIMIT`
+(not portable across the four engines), archive-then-delete (an open design:
+the `transient-table-archival` proposal), and an automatic `OPTIMIZE`/`VACUUM
+FULL` after a prune (locks or rewrites the table under a live API — documented
+as a manual step instead). The original `api_log` migration also gained an
+`add_index` on `time` rather than a `_v2`: a named exception to
+`mgr-migrations`' never-edit rule, because the framework has no optional
+migrations, the plain `CREATE INDEX` on PostgreSQL blocks every REST insert on
+a large table, and the stage does not need the index. Cost: fresh and existing
+installs differ on that one index (a later `_v2` `add_index` would be a no-op
+on fresh installs, so it can be promoted if that stops being acceptable), and
+`log_prune` now spans files and a database table — the nightly run opens the
+REST DB group, skipped when the threshold is 0.
 
 **Pin report: upstream release dates for the hold window, Docker Hub push only as fallback.**
 Decision: `bin/docker-pin-report.php` lists each repository's tags in one

@@ -10,7 +10,7 @@
 # Hourly health check (safe, read-only).
 0 * * * *   bash /var/www/html/bin/cli_run.sh manager/health_checks
 
-# Nightly log retention (app/, cli/).
+# Nightly log retention (app/, cli/, api_log rows).
 15 3 * * *  bash /var/www/html/bin/cli_run.sh manager/tools/log_prune
 
 # ── Examples — uncomment and adjust to your actual routes ─────────────────────

@@ -3,9 +3,10 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
- * Age/size-based retention for the app's own log directories. Thresholds come
- * from lib_log_prune.php and may be overridden per instance; directories are
- * always passed in — Tools::log_prune() resolves the real paths.
+ * Age/size-based retention for the app's own log directories and the REST
+ * api_log table. Thresholds come from lib_log_prune.php and may be overridden
+ * per instance; directories and the database connection are always passed in —
+ * Tools::log_prune() resolves the real ones.
  */
 class MGR_Log_prune_lib
 {
@@ -14,6 +15,7 @@ class MGR_Log_prune_lib
 	public int $app_delete_after_days;
 	public int $cli_max_size_bytes;
 	public int $cli_keep;
+	public int $api_delete_after_days;
 
 	public function __construct()
 	{
@@ -23,6 +25,7 @@ class MGR_Log_prune_lib
 		$this->app_delete_after_days   = (int) ($config['app_delete_after_days'] ?? 0);
 		$this->cli_max_size_bytes      = (int) ($config['cli_max_size_mb'] ?? 0) * 1024 * 1024;
 		$this->cli_keep                = (int) ($config['cli_keep'] ?? 0);
+		$this->api_delete_after_days   = (int) ($config['api_delete_after_days'] ?? 0);
 	}
 
 	/**
@@ -176,6 +179,67 @@ class MGR_Log_prune_lib
 					$result['deleted_bytes'] += $bytes;
 				}
 			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Deletes `$table` rows whose `time` is older than $api_delete_after_days, in primary-key
+	 * chunks of $chunk_rows; a failed chunk is logged and stops the stage (the next run
+	 * resumes). A dry run only counts.
+	 *
+	 * @param ?int $now Clock — a test seam; defaults to now.
+	 * @return array{deleted: int} Rows deleted, or that would be in a dry run.
+	 * @throws InvalidArgumentException When $chunk_rows is below 1.
+	 */
+	public function prune_api(object $db, string $table, bool $dry_run = false, ?int $now = null, int $chunk_rows = 10000): array
+	{
+		if ($chunk_rows < 1) {
+			throw new InvalidArgumentException("MGR_Log_prune_lib::prune_api: chunk_rows must be at least 1, got {$chunk_rows}.");
+		}
+
+		$result = ['deleted' => 0];
+
+		if ($this->api_delete_after_days <= 0 || !$db->table_exists($table)) {
+			return $result;
+		}
+
+		$cutoff = ($now ?? time()) - $this->api_delete_after_days * 86400;
+
+		$bounds = $db->select_min('id', 'first_id')->select_max('id', 'last_id')->where('time <', $cutoff)->get($table);
+		if ($bounds === false) {
+			log_message('error', "MGR_Log_prune_lib: could not read the expired id range of '{$table}' — skipping api_log retention.");
+
+			return $result;
+		}
+
+		$range = $bounds->row();
+		if ($range === null || $range->first_id === null) {
+			return $result;
+		}
+
+		if ($dry_run) {
+			$result['deleted'] = $db->where('time <', $cutoff)->count_all_results($table);
+
+			return $result;
+		}
+
+		$last_id = (int) $range->last_id;
+		for ($start = (int) $range->first_id; $start <= $last_id; $start += $chunk_rows) {
+			// `time` is repeated per chunk: a newer row with a lower id (clock skew) must survive.
+			$deleted = $db
+				->where('id >=', $start)
+				->where('id <', $start + $chunk_rows)
+				->where('time <', $cutoff)
+				->delete($table);
+
+			if ($deleted === false) {
+				log_message('error', "MGR_Log_prune_lib: delete failed on '{$table}' from id {$start} — stopping, the next run resumes.");
+				break;
+			}
+
+			$result['deleted'] += $db->affected_rows();
 		}
 
 		return $result;

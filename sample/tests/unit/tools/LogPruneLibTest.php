@@ -25,6 +25,7 @@ class LogPruneLibTest extends CITestCase
 		$this->log_prune_lib->app_delete_after_days   = 0;
 		$this->log_prune_lib->cli_max_size_bytes      = 0;
 		$this->log_prune_lib->cli_keep                = 0;
+		$this->log_prune_lib->api_delete_after_days   = 0;
 	}
 
 	protected function tearDown(): void
@@ -74,6 +75,7 @@ class LogPruneLibTest extends CITestCase
 		$this->assertSame($config['app_delete_after_days'], $lib->app_delete_after_days);
 		$this->assertSame($config['cli_max_size_mb'] * 1024 * 1024, $lib->cli_max_size_bytes);
 		$this->assertSame($config['cli_keep'], $lib->cli_keep);
+		$this->assertSame($config['api_delete_after_days'], $lib->api_delete_after_days);
 	}
 
 	public function test_app_compresses_files_older_than_compress_after_and_leaves_recent_ones(): void

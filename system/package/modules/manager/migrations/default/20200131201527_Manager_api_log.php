@@ -23,6 +23,9 @@ class Migration_Manager_api_log extends MGR_Migration_builder
 
 		$this->dbforge->add_key('id', true);
 		$this->dbforge->create_table($this->table_name);
+
+		// add_index, not add_key: its index name is the one a project's later add_index detects.
+		$this->add_index(table: $this->table_name, columns: ['time']);
 	}
 
 	public function down()
