@@ -46,6 +46,13 @@
 # MANAGER_BIND_PATH=<path> set in the instance's DOCKER env-file; without it,
 # this aborts rather than silently falling back to baked vendor code.
 #
+# Addons (no flag): selected from the instance's DOCKER env-file. A key that is
+# non-empty there (last occurrence, as compose reads it) adds its file; absent
+# or empty, the file is not passed and what it defines does not exist:
+#   TOOLS_BIND_PATH  → docker/docker-compose.tools.yml (the `tools` service)
+#   HTTP_PORT or WS_PORT → docker/docker-compose.ports.yml (nginx's published
+#     ports; either one includes it, so a missing other one fails loud)
+#
 # Fail loud: a missing instance name or required file aborts immediately.
 set -euo pipefail
 
@@ -82,12 +89,18 @@ ENV_FILE="${DOCKER_DIR}/env/${INSTANCE}.env"
 # like the other env files — the bootstrap step in docker.md creates it.
 [[ -f "${DOCKER_DIR}/../.env.${INSTANCE}" ]] || die "base env file not found: .env.${INSTANCE}  (copy .env.sample — see docker.md bootstrap)"
 
+# A key's value in the DOCKER env-file: last occurrence wins, as in compose;
+# empty when absent (the `|| true` keeps pipefail from aborting on no match).
+docker_env_value() {
+    { grep -E "^${1}=" "$DOCKER_ENV_FILE" || true; } | tail -n1 | cut -d= -f2-
+}
+
 # Resolve a bind-source var the way compose will (relative to docker/, not
 # the caller's cwd) and require the marker subdir — Docker would otherwise
 # silently auto-create an empty source directory and mount that.
 require_bind_dir() {
     local var="$1" subdir="$2" value resolved
-    value="$(grep -E "^${var}=" "$DOCKER_ENV_FILE" | tail -n1 | cut -d= -f2-)"
+    value="$(docker_env_value "$var")"
     [[ "$value" == /* ]] && resolved="$value" || resolved="${DOCKER_DIR}/${value}"
     [[ -d "${resolved}/${subdir}" ]] \
         || die "${var}='${value}' in docker/env/${INSTANCE}.docker.env resolves to '${resolved}', which has no ${subdir}/ (relative paths resolve against docker/, not your cwd — use '..' for the app root, or an absolute path)"
@@ -106,6 +119,14 @@ if [[ "$MANAGER_BIND_MODE" == true ]]; then
     require_bind_dir MANAGER_BIND_PATH system
     COMPOSE_FILE_ARGS+=(-f "${DOCKER_DIR}/docker-compose.manager-bind.yml")
 fi
+TOOLS_ADDON=false
+if [[ -n "$(docker_env_value TOOLS_BIND_PATH)" ]]; then
+    TOOLS_ADDON=true
+    COMPOSE_FILE_ARGS+=(-f "${DOCKER_DIR}/docker-compose.tools.yml")
+fi
+if [[ -n "$(docker_env_value HTTP_PORT)" || -n "$(docker_env_value WS_PORT)" ]]; then
+    COMPOSE_FILE_ARGS+=(-f "${DOCKER_DIR}/docker-compose.ports.yml")
+fi
 
 # Paths below are RELATIVE TO docker/ (the compose file's directory), because
 # compose resolves env_file:, secrets:, and bind-mount sources from there.
@@ -123,6 +144,15 @@ export DB_ROOT_PASSWORD_FILE="secrets/${INSTANCE}.db_root_password"
 require_file() { [[ -f "${DOCKER_DIR}/$1" ]] || die "required file missing: docker/$1  (copy from docker/env/sample.priv.env)"; }
 require_file "$APP_SECRETS_MOUNT"
 require_file "$VALKEY_SECRET_FILE"
+
+# Compose's own "no such service: tools" doesn't say the addon was left out.
+if [[ "$TOOLS_ADDON" == false ]]; then
+    for arg in "$@"; do
+        [[ "$arg" == tools ]] || continue
+        echo "docker_manage.sh: note: no tools service — TOOLS_BIND_PATH is empty or absent in docker/env/${INSTANCE}.docker.env (the template sets TOOLS_BIND_PATH=..)" >&2
+        break
+    done
+fi
 
 exec docker compose \
     "${COMPOSE_FILE_ARGS[@]}" \

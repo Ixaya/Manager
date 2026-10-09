@@ -8,7 +8,11 @@
 # Core services (always on): php, nginx, valkey-state, valkey-cache, plus
 # the one-shot init.
 # Profiles: ws | cron | mysql | mariadb | postgres | cli.
-# Only nginx publishes ports; Valkey is never exposed to the host.
+# Addons, added by docker_manage.sh when their keys are non-empty in
+# <instance>.docker.env: docker-compose.tools.yml (TOOLS_BIND_PATH),
+# docker-compose.ports.yml (HTTP_PORT / WS_PORT).
+# This file publishes no ports: nginx's come from the ports addon, and Valkey
+# is never exposed to the host.
 
 # ── Reusable fragments ────────────────────────────────────────────────────────
 x-logging: &logging
@@ -120,10 +124,6 @@ services:
     networks: [appnet]
     logging: *logging
     <<: [*security, *fleet]
-    # Published ports bypass host firewall INPUT rules; PUBLISH_IP narrows them.
-    ports:
-      - "${PUBLISH_IP:+${PUBLISH_IP}:}${HTTP_PORT:?HTTP_PORT is required}:80"
-      - "${PUBLISH_IP:+${PUBLISH_IP}:}${WS_PORT:?WS_PORT is required}:8080"
     volumes:
       # Serve uploaded media directly (read-only is enough for nginx).
       - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media:ro
@@ -294,37 +294,11 @@ services:
       disable: true
     profiles: [cli]
 
-  # ── Tools: composer/phpstan/phpunit on the host tree (profile: tools) ──────
-  # Reuses the vendor-builder stage (composer + the exact runtime PHP and
-  # extensions). Mounts the project tree at /work — NOT over /var/www/html —
-  # so the runtime services' baked --no-dev vendor/ is never touched. Never
-  # started by `up` (profile-gated); invoke via `run`:
-  #   ./docker_manage.sh -e <i> run --rm tools composer install
-  #   ./docker_manage.sh -e <i> run --rm tools vendor/bin/phpstan analyse
-  tools:
-    image: ${IMAGE_REPO:-manager/app}-tools:${IMAGE_TAG:-latest}
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: vendor-builder
-    working_dir: /work
-    networks: [appnet]
-    logging: *logging
-    <<: [*security, *fleet]
-    volumes:
-      - ${TOOLS_BIND_PATH:-..}:/work
-      - composer-cache:/root/.composer/cache
-    mem_limit: ${TOOLS_MEM_LIMIT:-2048m}
-    memswap_limit: ${TOOLS_MEM_LIMIT:-2048m}
-    cpus: ${TOOLS_CPUS:-2.0}
-    healthcheck:
-      disable: true
-    profiles: [tools]
-
   # ── MySQL (profile: mysql — dev/local only) ────────────────────────────────
   # Aurora-compatible profile — use when parity with the Aurora MySQL
-  # dev/prod server matters. DB_USER/DB_NAME must be set in the env-file
-  # (no default) — passwords come from Docker secrets, never env.
+  # dev/prod server matters. Passwords come from Docker secrets, never env.
+  # DB_NAME/DB_USER default to empty (compose validates inactive profiles too);
+  # left empty, the container starts healthy without the app database or user.
   mysql:
     image: mysql:8.4.11-oraclelinux9
     restart: unless-stopped
@@ -332,8 +306,8 @@ services:
     logging: *logging
     <<: [*security, *fleet]
     environment:
-      MYSQL_DATABASE:           ${DB_NAME:?DB_NAME is required for the mysql profile}
-      MYSQL_USER:               ${DB_USER:?DB_USER is required for the mysql profile}
+      MYSQL_DATABASE:           ${DB_NAME:-}
+      MYSQL_USER:               ${DB_USER:-}
       MYSQL_PASSWORD_FILE:      /run/secrets/db_password
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
     # Sized knobs come from docker.env and must fit inside MYSQL_MEM_LIMIT —
@@ -368,7 +342,7 @@ services:
 
   # ── MariaDB (profile: mariadb — dev/local only) ────────────────────────────
   # Lighter local alternative to mysql — NOT Aurora-compatible. Same
-  # secrets pattern as mysql above.
+  # secrets pattern and empty DB_NAME/DB_USER caveat as mysql above.
   mariadb:
     image: mariadb:12.3.3-noble
     restart: unless-stopped
@@ -376,8 +350,8 @@ services:
     logging: *logging
     <<: [*security, *fleet]
     environment:
-      MARIADB_DATABASE:           ${DB_NAME:?DB_NAME is required for the mariadb profile}
-      MARIADB_USER:               ${DB_USER:?DB_USER is required for the mariadb profile}
+      MARIADB_DATABASE:           ${DB_NAME:-}
+      MARIADB_USER:               ${DB_USER:-}
       MARIADB_PASSWORD_FILE:      /run/secrets/db_password
       MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
       # The healthcheck below needs it: on a datadir created without the
@@ -428,13 +402,14 @@ services:
     <<: [*security, *fleet]
     # POSTGRES_USER is the superuser; DB_USER is a plain database owner created
     # on a fresh cluster only (an existing data dir keeps its roles). Never drop
-    # or replace this entrypoint: it reads db_password and guards the init.
+    # or replace this entrypoint: it reads db_password, guards the init, and
+    # refuses an empty DB_NAME/DB_USER (compose defaults both to empty).
     entrypoint: ["sh", "/usr/local/bin/postgres-entrypoint.sh"]
     environment:
-      POSTGRES_DB:            ${DB_NAME:?DB_NAME is required for the postgres profile}
+      POSTGRES_DB:            ${DB_NAME:-}
       POSTGRES_USER:          postgres
       POSTGRES_PASSWORD_FILE: /run/secrets/db_root_password
-      DB_USER:                ${DB_USER:?DB_USER is required for the postgres profile}
+      DB_USER:                ${DB_USER:-}
       TZ:   UTC
       PGTZ: UTC
     # Sized knobs come from docker.env and must fit inside POSTGRES_MEM_LIMIT.
@@ -470,7 +445,7 @@ services:
     healthcheck:
       # Healthy only once init finished and DB_USER can log in (socket trust,
       # no password); pg_isready alone passes mid-init and without the role.
-      test: ["CMD-SHELL", "[ ! -e /var/lib/postgresql/.mgr-init/init-incomplete ] && psql -U ${DB_USER:?DB_USER is required for the postgres profile} -d ${DB_NAME} -Atqc 'select 1' >/dev/null"]
+      test: ["CMD-SHELL", "[ ! -e /var/lib/postgresql/.mgr-init/init-incomplete ] && psql -U \"$$DB_USER\" -d \"$$POSTGRES_DB\" -Atqc 'select 1' >/dev/null"]
       interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
       retries: 3
@@ -480,15 +455,13 @@ services:
 # ── Volumes ─────────────────────────────────────────────────────────────────
 volumes:
   manager-logs:      # unified Manager logs (/var/log/manager: app/, cli/ subdirs)
-  composer-cache:    # tools service only — speeds up repeated composer installs
   valkey-state-data: # AOF/RDB for durable Valkey — cache has NO volume by design
   mysql-data:
   mariadb-data:
   postgres-data:
 
 # ── Networks ──────────────────────────────────────────────────────────────────
-# Single private bridge, namespaced per instance via `-p <instance>` — only
-# nginx publishes host ports.
+# Single private bridge, namespaced per instance via `-p <instance>`.
 networks:
   appnet:
     driver: bridge

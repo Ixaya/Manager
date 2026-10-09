@@ -1,0 +1,45 @@
+# OPT-IN dev addon: the `tools` service (composer/phpstan/phpunit on the host
+# tree). docker_manage.sh adds this file when TOOLS_BIND_PATH is non-empty in
+# the instance's DOCKER env-file; without it the service does not exist, so
+# the base compose file stays safe to run on its own on a server.
+#
+# Reuses the vendor-builder stage (composer + the exact runtime PHP and
+# extensions). Mounts the project tree at /work — NOT over /var/www/html —
+# so the runtime services' baked --no-dev vendor/ is never touched. Never
+# started by `up` (profile-gated); invoke via `run`:
+#   ./docker_manage.sh -e <i> run --rm tools composer install
+#   ./docker_manage.sh -e <i> run --rm tools vendor/bin/phpstan analyse
+#
+# YAML anchors don't cross compose files: logging, security_opt and
+# cgroup_parent restate the base file's x-logging/x-security/x-fleet — keep
+# them identical.
+
+services:
+  tools:
+    image: ${IMAGE_REPO:-manager/app}-tools:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: vendor-builder
+    working_dir: /work
+    networks: [appnet]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    cgroup_parent: ${CGROUP_PARENT:-}
+    volumes:
+      - ${TOOLS_BIND_PATH:?TOOLS_BIND_PATH is required in the instance env-file for the tools addon}:/work
+      - composer-cache:/root/.composer/cache
+    mem_limit: ${TOOLS_MEM_LIMIT:-2048m}
+    memswap_limit: ${TOOLS_MEM_LIMIT:-2048m}
+    cpus: ${TOOLS_CPUS:-2.0}
+    healthcheck:
+      disable: true
+    profiles: [tools]
+
+volumes:
+  composer-cache:    # speeds up repeated composer installs

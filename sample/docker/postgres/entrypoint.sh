@@ -3,7 +3,8 @@
 # cluster it passes db_password to initdb/10-app-role.sh as
 # POSTGRES_APP_PASSWORD (the image unsets POSTGRES_* before the server starts)
 # and marks the init incomplete until initdb/99-init-complete.sh clears it.
-# A cluster whose init never finished is refused. Never bypass this script.
+# A cluster whose init never finished is refused, and so is a start without
+# DB_USER/POSTGRES_DB. Never bypass this script.
 set -eu
 
 MARKER_DIR=/var/lib/postgresql/.mgr-init
@@ -17,6 +18,13 @@ case "${1:-}" in -*) set -- postgres "$@" ;; esac
 for arg; do
     case "$arg" in '-?'|--help|--describe-config|-V|--version) exec docker-entrypoint.sh "$@" ;; esac
 done
+
+# Compose defaults both to empty so a stack without this profile needs
+# neither; on a fresh cluster an empty DB_USER would fail mid-init instead.
+if [ -z "${DB_USER:-}" ] || [ -z "${POSTGRES_DB:-}" ]; then
+    echo "[postgres-entrypoint] FATAL: DB_USER and DB_NAME must be set in the instance's env file; not starting" >&2
+    exit 1
+fi
 
 if [ -e "$MARKER" ] || [ -L "$MARKER" ]; then
     # Only a regular file is printed: the directory belongs to postgres, not root.

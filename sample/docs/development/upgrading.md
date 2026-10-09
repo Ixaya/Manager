@@ -216,21 +216,34 @@ Do **not** blanket-diff your project root against it. Your root also holds
 `vendor/` itself, `application/logs/`, caches, and — the reason this matters —
 `.env`, `.env.priv`, `docker/env/*`, and `docker/secrets/*`, so the output
 buries the real changes in noise and puts secrets on your screen and into
-anything you paste. Walk the reconcile targets instead:
+anything you paste. Walk the reconcile targets instead, by folder rather
+than by file: the env templates, `application/config` and `core`, `bin/`,
+the wrapper and tool configs, `docs/`, and `docker/` as a whole — its
+compose files, Dockerfile and per-service directories — minus the instance
+files under `docker/env/` and `docker/secrets/`, of which only the
+`sample.*` templates are compared:
 
 ```bash
 V=vendor/ixaya/manager/sample
 for p in .env.sample .env.sample.prod application/config application/core \
-         bin docker/docker-compose.yml docker/php docker/nginx docker/cron \
-         docker/valkey docker/postgres docker/env/sample.env \
-         docker/env/sample.docker.env docker/env/sample.priv.env \
-         docker_manage.sh phpunit.xml phpstan.neon docs; do
+         bin docker_manage.sh phpunit.xml phpstan.neon docs; do
     [ -e "$V/$p" ] || { echo "GONE UPSTREAM: $p"; continue; }
     diff -rq "$p" "$V/$p" >/dev/null 2>&1 || echo "CHANGED:      $p"
 done
+diff -rq -x env -x secrets docker "$V/docker"
+for t in "$V"/docker/env/sample.*; do
+    p="${t#"$V/"}"
+    [ -e "$p" ] || { echo "NEW UPSTREAM: $p"; continue; }
+    diff -q "$p" "$t" >/dev/null 2>&1 || echo "CHANGED:      $p"
+done
 ```
 
-Then `diff -ru <path> "$V/<path>"` on each reported path to see the hunks.
+Comparing `docker/` as a folder is what surfaces a file that is new
+upstream — `Only in vendor/ixaya/manager/sample/docker: <file>` — such as
+a compose file a new release adds beside `docker-compose.yml`; a path list
+would miss it. `Only in docker: <file>` is a file of your own, or one
+upstream removed. Then `diff -ru <path> "$V/<path>"` on each reported path
+to see the hunks (with `-x env -x secrets` for `docker`).
 Note this compares against the **new** scaffold only, so it shows your
 customizations and the upstream changes mixed together with no way to tell
 them apart — that is exactly the axis the compare view supplies. Use this

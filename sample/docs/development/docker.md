@@ -96,14 +96,18 @@ placement" decision tree in `docker-internals.md`.
 | `mariadb` | `mariadb` | MariaDB — lighter local alternative, NOT Aurora-compatible | No — dev/local only |
 | `postgres` | `postgres` | PostgreSQL — supported for small server instances; a managed database at scale | Yes, small sites |
 | `cli` | `cli` | Interactive shell / one-off commands | As needed |
-| `tools` | `tools` | composer / PHPStan / PHPUnit — the only supported way to run them, host tree bind-mounted in | No — dev only |
+| `tools` | `tools` | composer / PHPStan / PHPUnit — the only supported way to run them, host tree bind-mounted in; exists only through its addon (below) | No — dev only |
 
 Production uses one of two database tiers: an **external** managed database
 (`DB_HOST=<managed endpoint>`, no db profile), recommended at scale; or, for
 small sites, the bundled `postgres` service with its data protected from
 `down -v` and backed up, set up per `docker-server.md`. `mysql`/`mariadb`
 remain dev/local only. Valkey ports are **never** published; only nginx
-publishes `HTTP_PORT` (→ :80) and `WS_PORT` (→ :8080).
+publishes `HTTP_PORT` (→ :80) and `WS_PORT` (→ :8080), through the ports
+addon (`docker/docker-compose.ports.yml`) that `docker_manage.sh` includes
+while either key is set in `<instance>.docker.env`. Delete both and nothing
+is published — a proxy container on the same Docker network reaches nginx
+directly.
 
 ## Build and run
 
@@ -245,8 +249,8 @@ on Alpine, unless overridden via `APP_USER`/`APP_GROUP` — only needs
 **read**), updated only via `git pull` on a shared integration branch — no
 sftp, no manual copies. Give each developer (or each integration checkout)
 its own instance so `-b` sessions never collide: unique
-`HTTP_PORT`/`WS_PORT` in `<name>.docker.env`, unique `DB_NAME` in
-`<name>.env`, and `CODE_BIND_PATH` pointing at that checkout.
+`HTTP_PORT`/`WS_PORT` in `<name>.docker.env` (when it publishes), unique
+`DB_NAME` in `<name>.env`, and `CODE_BIND_PATH` pointing at that checkout.
 
 ### Rebuild boundary
 
@@ -264,6 +268,13 @@ PHPStan/PHPUnit/php-cs-fixer run through the `tools` service — the image's own
 with the project tree mounted at `/work`. Dev dependencies land in the host
 tree's `vendor/`; baked images never contain them (the build's
 `composer install --no-dev` plus a runtime image with no composer at all).
+
+The service lives in its own addon file, `docker/docker-compose.tools.yml`,
+which `docker_manage.sh` adds only while `TOOLS_BIND_PATH` is non-empty in
+`<instance>.docker.env` (the template sets `..`, the project root). Without
+the key the service does not exist and compose answers `no such service:
+tools` — the wrapper prints a note saying why. That is the intended state on
+a server: the base compose file never mounts a host tree into a container.
 
 Writing the tests themselves — the base classes, fixtures, and the DB-free vs
 DB-backed choice — is covered in `testing.md`; this section is only how to run

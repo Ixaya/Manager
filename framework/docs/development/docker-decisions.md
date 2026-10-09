@@ -49,7 +49,9 @@ Decision: `composer.json` carries `phpstan/phpstan` + `phpunit/phpunit` +
 `^11 || ^12 || ^13` — 13 needs PHP 8.4, the OR keeps `composer install`
 working at the framework's 8.2 floor); a profile-gated `tools` compose
 service reuses the
-`vendor-builder` build target and mounts the project tree at `/work`.
+`vendor-builder` build target and mounts the project tree at `/work`. The
+service lives in the `docker-compose.tools.yml` addon, not the base file
+(see "Server-safe base compose" below).
 Why: fidelity — the tools run under the exact PHP + extension set the runtime
 ships, so composer's platform checks and PHPStan's analysis match reality; a
 separate testing Dockerfile would duplicate those decisions and drift.
@@ -60,10 +62,11 @@ context never copies a host `vendor/` (explicit COPY list).
 Evidence: with dev packages present in `composer.lock`, a rebuilt
 `vendor-builder` image contains neither `vendor/phpstan` nor
 `vendor/phpunit` (verified 2026-07); `docker compose run` targets the
-profile-gated service without `--profile`, so `docker_manage.sh` needed no
-changes.
+profile-gated service without `--profile`, so `docker_manage.sh` passes no
+profile flag for it.
 Cost: dev `vendor/` lives in the host tree (root-owned writes on Linux
-hosts); a persistent named volume (`composer-cache`) for composer's cache.
+hosts); a persistent named volume (`composer-cache`, declared in the addon)
+for composer's cache.
 Revisit when: CI needs static analysis without building `php-base`'s
 extension set — then derive a slim stage `FROM` the same base rather than
 writing a second Dockerfile.
@@ -133,8 +136,8 @@ Revisit when: never, unless the vendor driver's parser changes.
 **Valkey is never network-exposed — with a pre-planned delta if that
 changes.**
 Decision: no Valkey port is ever published; only nginx publishes ports
-(`HTTP_PORT`, `WS_PORT`). Enforced by the compose file (no `ports:` on
-either valkey service).
+(`HTTP_PORT`, `WS_PORT`, through the ports addon). Enforced by the compose
+files (no `ports:` on either valkey service).
 Why: the only consumers are the app containers on the instance's private
 network; exposure adds attack surface with zero current benefit.
 Revisit when: a same-VPC consumer needs direct access. The pre-planned
@@ -160,11 +163,44 @@ delta, in order:
    defensible policy call — record whichever is chosen here.
 6. Security-group/firewall scoping to exact client CIDRs; re-evaluate
    idle `timeout` for remote clients (pub/sub subscribers stay exempt);
-   and update IN THE SAME CHANGE: the compose header comment ("Only nginx
-   publishes ports…"), the shipped docker.md's "Valkey ports are never
+   and update IN THE SAME CHANGE: the compose header comment ("This file
+   publishes no ports…"), the shipped docker.md's "Valkey ports are never
    published" line
    and its rotation procedure (the password now travels to other
    hosts).
+
+**Server-safe base compose: `tools` and nginx's published ports are addon
+files, selected from `docker.env` keys.**
+Decision: `docker-compose.yml` carries only what a server runs.
+`docker-compose.tools.yml` (the `tools` service) and
+`docker-compose.ports.yml` (nginx's `ports:`) are added by `docker_manage.sh`
+when `TOOLS_BIND_PATH`, or `HTTP_PORT`/`WS_PORT`, is non-empty in
+`<instance>.docker.env` (last occurrence, as compose reads it). No flag: the
+dev flow is unchanged, and a wrapper-run server without a proxy keeps
+publishing.
+Why: a server may run a single copy of the base file through tooling that
+accepts one file. With `tools` in it, the default bind `${TOOLS_BIND_PATH:-..}`
+resolved, in a layout with the compose file directly in the project
+directory, to the directory holding every project — mounted into a root
+container that anyone allowed to `up` a listed service could start. With
+`ports:` in it, a proxy-fronted server had to edit its copy; `PUBLISH_IP`
+narrows the bind, but the need is no published port at all, so several
+instances share a host without coordinating ports.
+Rejected: a wrapper flag (changes every dev command); the database services
+as an addon (profiles already make them optional; the defect was the `:?`
+guards, see the `DB_USER` entry below); `include:` (unconditional, a `:?`
+still fires through it); flattening with `config --no-interpolate`
+(normalizes the file, so no hand-reviewable copy).
+Evidence: Docker Compose v5.5.1, sandbox — an instance with both keys
+renders byte-identical to the previous single file, every profile active;
+the base file alone, without the ports/tools/database keys, renders with no
+`tools` and no nginx `ports`. A running instance brought up with the split
+files kept php, nginx and both Valkeys running (no recreate); only a service
+whose own config changed is recreated.
+Cost: an instance `docker.env` copied before the template carried
+`TOOLS_BIND_PATH` loses `tools` until the key is added (the wrapper prints a
+note); anything running compose without the wrapper gets neither addon.
+Revisit when: a server-side tool can pass more than one compose file.
 
 **WebSocket deps promoted from the framework's `require-dev` to this app's
 `require`.**
@@ -198,21 +234,44 @@ not just a restart — see the shipped docker.md tuning section.
 Revisit when: never, unless the pool needs to resize without a rebuild
 (would require reintroducing a writable rootfs for `php`).
 
-**`DB_USER` required, no default — mirrors `DB_NAME`.**
-Decision: `docker-compose.yml` uses `${DB_USER:?...}` for
-`MYSQL_USER`/`MARIADB_USER`, the `postgres` service's `DB_USER` (the role
-its init hook creates) and its healthcheck, never a fallback default.
-Why: `DB_USER` is an identifier the bundled db profiles
-need for interpolation — a silent default (formerly `${DB_USER:-ixaya}`)
-meant the provisioned username could silently diverge from whatever
-`DB_USER` was actually intended to be, with no error. Same failure shape
-`DB_NAME` was already protected against. The `mariadb` profile was added
-after this fix and follows the same `${DB_USER:?...}` form from the start.
-Revisit when: never — this is the correct steady-state form, matching
-`DB_NAME`.
+**`DB_NAME`/`DB_USER`: no fallback value in compose; the postgres wrapper
+refuses them empty, mysql/mariadb accept it.**
+Decision: `docker-compose.yml` passes `${DB_NAME:-}`/`${DB_USER:-}` to the
+bundled db services: empty when unset, never a fallback identifier. The
+`postgres` entrypoint refuses any server start with `DB_USER` or
+`POSTGRES_DB` empty, and its healthcheck reads both from the container's own
+environment.
+Why: a fallback identifier (formerly `${DB_USER:-ixaya}`) let the
+provisioned user silently diverge from the intended `DB_USER`. The
+`${VAR:?...}` form that replaced it failed differently: compose validates
+every service's variables at load, inactive profiles included, so a stack
+with no bundled database had to carry dummy `DB_NAME`/`DB_USER` values to
+start at all. Rejected: the db services as an addon file (see "Server-safe
+base compose" above).
+Accepted: mysql/mariadb have no wrapper. With the profile active and either
+value empty, the container starts healthy without creating the database or
+user; MySQL's entrypoint logs one `[Warn]` (`MYSQL_PASSWORD specified, but
+missing MYSQL_USER`), MariaDB's nothing.
+The app-side check below does not cover that case: it reads the app
+environment (base `.env.<instance>` + `<instance>.env`), while these values
+reach the db services through compose interpolation (`<instance>.docker.env`
++ `<instance>.env`). On an instance whose `DB_*` live in the base for an
+external database, starting `--profile mysql`/`mariadb` brings up a server
+with no app database or user while the app keeps using the external one,
+silently on both sides. Both engines are dev/local only.
+Evidence: Docker Compose v5.5.1, sandbox — the base file renders with no
+`DB_NAME`/`DB_USER` anywhere, where the `:?` form aborted on all seven
+references. Postgres with either value empty exits `FATAL` before touching
+the volume (a fresh volume stays empty; restored, the same volume
+initializes normally), and an existing cluster restarts with "Skipping
+initialization" and turns healthy under the container-env healthcheck.
+MySQL 8.4 and MariaDB 12.3 with both unset: healthy, no app database, no
+app user.
+Revisit when: mysql/mariadb gain a wrapper for another reason; give it the
+same check.
 
-**The app's own DB identifiers are required-or-fail — the framework-layer
-twin of the compose `${DB_USER:?}` fix.**
+**The app's own DB identifiers are required-or-fail — the app-side
+counterpart of the compose identifiers above.**
 Decision: `MGR_Env_lib::get_required()` (+ `mgr_env_required()` helper)
 throws a `RuntimeException` naming the missing key and pointing at
 `manager/tools/env_check`; `database.php` uses it for `DB_USER` and
@@ -232,7 +291,7 @@ silent 500. Verified live: stack boots normally with `DB_USER` set; with it
 unset the request dies with the named-key message.
 Cost: none for existing consumers — `sample/` ships to new projects only;
 the helper is additive.
-Revisit when: never — this is the steady-state form, matching compose.
+Revisit when: never — this is the steady-state form.
 
 **Env scope split: `env_file:` loads the whole file.**
 Decision: `<instance>.docker.env` (compose/build-arg/wrapper-only vars) is
@@ -250,11 +309,30 @@ the app or an in-container script, re-run the classification check in
 `docker-internals.md` ("Env var placement") before moving it — don't assume
 the reverse move is symmetric with the forward one.
 
+**`sample.env`'s bundled-service groups own only their service's keys; no
+top-level `DB_DRIVER` pin.**
+Decision: `DB_DRIVER` sits in the bundled-database block beside
+`DB_HOST`/`DB_PORT`, and `LIB_REDIS_PORT`/`LIB_REDIS_SOCKET_TYPE` in the
+bundled-Valkey group beside `LIB_REDIS_HOST`. An instance on an external
+service deletes the group, and the base env decides.
+Why: a tool that fills a new environment's base from a legacy `.env` carried
+the legacy native driver into it. A `DB_DRIVER` pinned at the top of
+`sample.env` stopped that, but cost a two-line edit for PostgreSQL, a trap
+where only the top line was changed, and an explanation in three docs — a
+remedy that needs its own fix sits at the wrong layer. The leak is the fill
+tool's, and the tool is where it is fixed (it skips the keys the scaffold
+owns).
+Cost: docker no longer forces PDO on an external-database instance; that
+instance's base `DB_DRIVER` applies.
+Revisit when: a key's docker value must hold whatever the deployment and it
+is not a bundled service's address — then pin it in "Docker specific", as
+`CF_LOG_PATH` is.
+
 **HSTS/CSP/rate limiting ownership: not nginx, in either environment.**
 Decision: `nginx` in this repo never sets `Strict-Transport-Security`,
-`Content-Security-Policy`, or rate limits. Production: owned by
-Cloudflare/Traefik, whichever sits at the edge — TLS is terminated there,
-not in this stack, making it the natural place for TLS-dependent policy.
+`Content-Security-Policy`, or rate limits. Production: owned by the edge
+proxy/CDN — TLS is terminated there, not in this stack, making it the
+natural place for TLS-dependent policy.
 Local dev: there's no edge layer at all (nginx is the only hop), but the
 question is moot regardless — HSTS is a browser directive that's only
 honored over an actual HTTPS connection, and local dev is plain HTTP by

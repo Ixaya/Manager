@@ -170,13 +170,16 @@ chmod 600 docker/env/local.priv.env
 
 openssl rand -hex 24 > docker/secrets/local.valkey_password
 openssl rand -hex 24 > docker/secrets/local.db_password
+openssl rand -hex 24 > docker/secrets/local.db_root_password
 chmod 600 docker/secrets/local.*
 ```
 
 Then:
 
 - In `docker/env/local.env`, set `DB_HOST`/`DB_PORT` for your engine
-  (`postgres:5432`, `mysql:3306`, or `mariadb:3306`).
+  (`postgres:5432`, `mysql:3306`, or `mariadb:3306`), and for PostgreSQL
+  `DB_DRIVER=pdo/pgsql` — all in its bundled-database block, which
+  overrides the base env of step 6.
 - In `docker/env/local.priv.env`'s **Docker specific** section (bottom of
   the file, which wins by position), paste the two generated passwords into
   `LIB_REDIS_PASSWORD`, the `auth=` parameter of `CF_SESS_SAVE_PATH`, and
@@ -199,8 +202,10 @@ before anything that invokes it.
   values pasted into `local.priv.env` — the two must be identical. The
   secret files are what the containers mount; `priv.env` is what the PHP
   app reads.
-- MySQL/MariaDB additionally need `docker/secrets/local.db_root_password`;
-  PostgreSQL does not.
+- Skipping `docker/secrets/local.db_root_password`: every bundled database
+  (PostgreSQL included) mounts it as its superuser password, and compose
+  refuses to start the service without the file (`bind source path does not
+  exist`).
 
 ## 6. Set up the base app env
 
@@ -208,9 +213,11 @@ before anything that invokes it.
 cp .env.sample .env.local
 ```
 
-Set `DB_DRIVER`/`DB_CHAR_SET`/`DB_COLLATION` to match the engine chosen in
-step 5 (for example PostgreSQL is `postgre` / `UTF8` / empty). The
-per-engine table is in `docs/development/docker.md`; how these values reach
+Set `DB_CHAR_SET`/`DB_COLLATION` to match the engine chosen in step 5 (for
+example PostgreSQL is `UTF8` / empty). `DB_DRIVER` here applies to a
+non-Docker run and to an instance on an external database; with a bundled
+one, the block in `docker/env/local.env` sets it (step 5). The
+per-engine table is in `docs/development/database.md`; how these values reach
 the running process — including a non-Docker, host-PHP run using `.env` /
 `.env.priv` — is covered in `docs/architecture/environment.md`.
 

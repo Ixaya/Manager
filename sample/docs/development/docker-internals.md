@@ -32,11 +32,37 @@ like it needs that pointer, the content belongs here instead.
 | `docker-compose.yml` | Core services + all profiles. The only compose file loaded unconditionally. |
 | `docker-compose.dev-bind.yml` | Opt-in override, only loaded with `-b`/`--bind`. See "Never bind" below before touching it. |
 | `docker-compose.manager-bind.yml` | Opt-in override, only loaded with `-m`/`--manager-bind`. Same caution. |
+| `docker-compose.tools.yml` | Addon: the `tools` service and its `composer-cache` volume. Loaded by `docker_manage.sh` only while `TOOLS_BIND_PATH` is non-empty in `<instance>.docker.env`. |
+| `docker-compose.ports.yml` | Addon: nginx's published ports. Loaded only while `HTTP_PORT` or `WS_PORT` is non-empty in `<instance>.docker.env`; the base file publishes nothing. |
 | `docker_manage.sh` (repo root) | The only supported entrypoint — computes per-instance file paths the compose file depends on. |
 | `env/sample.docker.env`, `env/sample.env`, `env/sample.priv.env`, `env/sample.agent.env` | The four committed templates (short comments by design — per-var background lives in "Env template notes" below). Every other file under `env/` is a per-instance, ignored instantiation. |
 | `postgres/entrypoint.sh`, `postgres/initdb/` | The `postgres` service's root wrapper and its init hooks — see "`docker/postgres/entrypoint.sh`" below before touching either. |
 | `bin/db-backup.sh` (repo root) | Host-side backup of every labelled database container — see "`bin/db-backup.sh`" below. |
 | `php/smoke/` | The smoke-test module's **committed source**. Never ignored anywhere — if you ever see an ignore rule that would catch it, that's a bug; stop and report it. |
+
+### Which Compose mechanism for what
+
+The base `docker-compose.yml` must stay safe to run on its own: a server may
+run a copy of it with no other file. Pick the mechanism by what has to be
+optional:
+
+- **Profile** — an optional service chosen per run. Compose interpolates and
+  validates the whole model at load, before profiles pick what starts, so an
+  inactive service's `${VAR:?…}` still aborts. Don't put `:?` on a
+  profile-gated service's variables: default them and validate inside the
+  container (the postgres wrapper does).
+- **Addon file** — a per-deployment difference whose absence must be total
+  (`tools`, published ports, the `-b`/`-m` code binds). `docker_manage.sh`
+  passes every file with an explicit `-f`, which also turns off Compose's
+  automatic `docker-compose.override.yml`; selecting an addon by a
+  `docker.env` key is this stack's own layer.
+- **`include:`** — assembles a model from modules, unconditionally; a `:?`
+  error still fires through it. Not a way to make something optional.
+- **Anchors / `extends`** — reuse. Anchors are file-local, so an addon
+  restates what it needs.
+- **`config --no-interpolate`** — can flatten several files and keeps
+  `${VAR}`, but normalizes the result (adds `name:`, sorts keys, drops
+  comments and anchors), so a hand-reviewable copy of the file is lost.
 
 ## Hard rules
 
@@ -61,7 +87,9 @@ like it needs that pointer, the content belongs here instead.
     project tree (`vendor/` and `bin/` included) at `/work` — a
     build/analysis sandbox, never a runtime service; the bind rules above
     protect the runtime services' `/var/www/html`, which `tools` never
-    touches.
+    touches. It lives in `docker-compose.tools.yml`, never in the base file:
+    its bind has no default, so a base file run on its own (a server's copy)
+    can never mount a host tree.
 - **`docker-compose.dev-bind.yml`/`docker-compose.manager-bind.yml` must
   bind every service that uses `*app-image`, including one-off `cli`, not
   just the long-running `php`/`ws`/`cron`.** `cli` was left out of both
@@ -203,14 +231,16 @@ two can never drift (this replaced an earlier full mirror that did drift).
 
 - **"Docker specific"** — keys whose value ALWAYS differs in docker
   (`MGR_LOG_PATH`, `CACHE_ADAPTER=redis`, `CF_SESS_DRIVER=redis`,
-  `LIB_REDIS_HOST=valkey-cache`, `WEBSOCKET_*`, instance identity). Includes
+  `WEBSOCKET_*`, instance identity). Includes
   **`CF_LOG_PATH=`** cemented empty: docker must be empty (it logs under
   `MGR_LOG_PATH`) and a project's base is not guaranteed to leave it empty,
   so docker asserts it rather than trusting the base. Never "fix" these to
   match the root sample.
-- **"Docker deployment-dependent"** — the `DB_*` block, valid only with the
-  bundled db profile; instances on an external/managed DB delete it and set
-  `DB_*` in the base `../.env.<instance>` to the managed endpoint.
+- **"Docker deployment-dependent"** — groups valid only with a bundled
+  service: the `LIB_REDIS_*` group (bundled `valkey-cache`) and the `DB_*`
+  block (bundled db profile, the engine's `DB_DRIVER` included). An instance
+  on an external Valkey/Redis or an external/managed DB deletes the matching
+  group and sets those keys in the base `../.env.<instance>`.
 
 Refreshing after the root sample changes needs NO action here — the base is
 loaded from `../.env.<instance>`, not copied in. Only add a key to this file
@@ -219,16 +249,16 @@ when docker's value must differ from that base.
 - `MGR_LOG_PATH` — unified root for all Manager log streams; the app
   derives `app/` and `cli/` subdirs from it; the entrypoint creates both on
   boot. Trailing slash required.
-- `DB_DRIVER` — `pdo/mysql` (also for MariaDB) or `pdo/pgsql` by default;
-  the native `mysqli`/`postgre` stay supported. The image ships both
-  extension sets — see database.md for choosing between them.
-- `DB_COLLATION` — `utf8mb4_0900_ai_ci` is MySQL-8-only; MariaDB needs a
-  MariaDB collation; see the matrix comment in the root `.env.sample`.
+- `DB_DRIVER` — the bundled engine's driver, in the `DB_*` block:
+  `pdo/mysql` (also for MariaDB) or `pdo/pgsql`. With the block deleted for
+  an external database, the base's value applies. The image also ships the
+  native `mysqli`/`postgre` extensions — see database.md for the trade-off.
+- `LIB_REDIS_HOST`/`LIB_REDIS_PORT`/`LIB_REDIS_SOCKET_TYPE` — the bundled
+  `valkey-cache`'s address: its port is fixed by its config, and no socket
+  is mounted.
 - `CACHE_ADAPTER` — MUST stay `redis` so cache/queues/pub-sub all use the
   LIB_REDIS connection (they share one connection by design — the cache
   adapter cannot be pointed at a different host than `LIB_REDIS_*`).
-- `LIB_REDIS_CHANNEL_PREFIX` — empty on purpose: per-instance Valkey
-  isolation makes a prefix moot.
 
 `sample.docker.env`:
 
@@ -247,9 +277,13 @@ when docker's value must differ from that base.
   `dynamic` only.
 - `NGINX_NOFILE` — container FD ceiling; must stay ≥ nginx.conf
   `worker_rlimit_nofile`, raise both together.
-- `PUBLISH_IP` — empty binds the published ports on every interface; the
-  compose `${PUBLISH_IP:+${PUBLISH_IP}:}` form drops the prefix entirely
-  when empty, which is what keeps today's all-interfaces default.
+- `HTTP_PORT`/`WS_PORT` — select the ports addon: either one non-empty
+  includes it, and its `:?` guards then require both. Both deleted means
+  nginx publishes nothing.
+- `PUBLISH_IP` — only read by the ports addon. Empty binds the published
+  ports on every interface; the compose `${PUBLISH_IP:+${PUBLISH_IP}:}` form
+  drops the prefix entirely when empty, which is what keeps the
+  all-interfaces default.
 - `CGROUP_PARENT` — empty = Docker's default placement. A slice name under
   the `systemd` cgroup driver, a path under `cgroupfs`.
 - `MYSQL_*`/`MARIADB_*`/`POSTGRES_*` limits and engine knobs — bundled db
@@ -267,6 +301,10 @@ when docker's value must differ from that base.
 - `RUN_MIGRATIONS` — set `true` on exactly ONE php instance to migrate on
   boot.
 - `INCLUDE_SMOKE_MODULE` — build arg; local images only.
+- `TOOLS_BIND_PATH` — selects the tools addon as well as being its bind
+  source: empty or absent, `docker_manage.sh` leaves the addon out and the
+  `tools` service does not exist. `TOOLS_MEM_LIMIT`/`TOOLS_CPUS` only apply
+  while it is included.
 
 `sample.priv.env` — the `MUST equal docker/secrets/<instance>.*` pairings are
 load-bearing: `LIB_REDIS_PASSWORD` ↔ `<instance>.valkey_password`, `DB_PASS` ↔
@@ -432,6 +470,15 @@ it as the last hook, and any start that finds it refuses. Every other hook
 must sort between `10-` and `99-`. The healthcheck also requires the marker
 to be gone, and a symlinked marker or marker directory is refused rather
 than followed.
+
+**Required identifiers.** The compose file defaults `DB_NAME`/`DB_USER` to
+empty: compose validates every service's variables at load, inactive
+profiles included, and a stack without this profile must not need them. The
+wrapper makes the check instead — any server start with `DB_USER` or
+`POSTGRES_DB` empty refuses before touching the volume, where a fresh init
+would otherwise fail at `CREATE ROLE` and leave the marker behind. The
+healthcheck reads both from the container's own environment for the same
+reason.
 
 **What it mirrors from the image — re-check on every major bump.** The
 wrapper depends on three things in the image's `docker-entrypoint.sh`;

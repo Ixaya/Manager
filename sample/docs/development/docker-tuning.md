@@ -211,8 +211,10 @@ above it is wasted; far below it, reads go to disk.
   never forks (`appendonly no`, `save ""`). `valkey-state` forks for every
   AOF rewrite and RDB save, and the fork can double its memory — see
   "Valkey" below.
-- **`tools`** (2048m) is a build/analysis sandbox. Don't run PHPStan or
-  composer on a small shared server while the sites are live.
+- **`tools`** (2048m) is a build/analysis sandbox, and its caps apply only
+  on an instance that includes the tools addon (`TOOLS_BIND_PATH` set).
+  Don't run PHPStan or composer on a small shared server while the sites are
+  live.
 
 ### Valkey
 

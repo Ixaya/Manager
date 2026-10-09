@@ -31,7 +31,11 @@
     for a version number to exist. The release pass renames `next.md` →
     `<version>.md` when that release is cut, then recreates an empty
     `next.md` for the following cycle — so "where does unreleased work go"
-    never depends on a tag existing yet.
+    never depends on a tag existing yet. A `next.md` entry names the files
+    a change adds or moves; a shipped procedure doc (the reconcile loop in
+    `sample/docs/development/upgrading.md`) words its targets as folders
+    and kinds of file so it discovers new ones, because an edit to it
+    reaches a project only once that project is already mid-upgrade.
 - **`README.md` is the package's public face** and changes rarely,
   deliberately, and minimally: when installation steps actually change,
   when a major capability ships, or to fix an error. Keep diffs surgical —

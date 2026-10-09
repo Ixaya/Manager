@@ -8,13 +8,17 @@
 
 ## Server readiness
 
-- **Bind published ports to loopback behind a host proxy.** Docker's
-  published ports bypass the host firewall's INPUT rules, so an
-  `HTTP_PORT` published on all interfaces is reachable from anywhere the
-  cloud firewall allows. With a reverse proxy on the host, set
-  `PUBLISH_IP=127.0.0.1`. A proxy that runs as a container on a shared
-  Docker network reaches nginx directly and doesn't need a published port
-  at all.
+- **Publish only what the proxy needs.** A proxy that runs as a container
+  on a shared Docker network reaches nginx directly: delete `HTTP_PORT` and
+  `WS_PORT` from `<instance>.docker.env` and nothing is published. With a
+  reverse proxy on the host itself, keep them and set
+  `PUBLISH_IP=127.0.0.1`: Docker's published ports bypass the host
+  firewall's INPUT rules, so an `HTTP_PORT` published on all interfaces is
+  reachable from anywhere the cloud firewall allows.
+- **A copy of `docker-compose.yml` run by other tooling needs no edits for
+  ports or tooling.** The base file publishes nothing and has no `tools`
+  service; both live in addon files that only `docker_manage.sh` adds. Pass
+  `-f docker-compose.ports.yml` as well where the copy should publish.
 - **Narrow `set_real_ip_from`** in `docker/nginx/nginx.conf` to the proxy's
   address. The shipped config trusts every private range, so on a shared
   host any other container can set `X-Forwarded-For` and pick the client IP
@@ -123,10 +127,11 @@ with `printf`/`openssl` (no trailing newline), then:
 - **Never override the `postgres` service's `entrypoint:`.** The wrapper
   reads `db_password` as root, passes it to the init without exposing it
   to the running server, and guards against a half-initialized cluster.
-- **Point the app at the bundled database:** `DB_HOST=postgres`,
-  `DB_DRIVER=pdo/pgsql`, `DB_CHAR_SET=UTF8`, `DB_COLLATION` empty
-  (`database.md`). Generate `CF_ENCRYPTION_KEY` (`docker.md`, "Your own
-  instance").
+- **Point the app at the bundled database** in `<instance>.env`:
+  `DB_HOST=postgres`, `DB_PORT=5432` and `DB_DRIVER=pdo/pgsql` in its
+  bundled-database block (the block overrides the base), with
+  `DB_CHAR_SET=UTF8` and `DB_COLLATION` empty (`database.md`). Generate
+  `CF_ENCRYPTION_KEY` (`docker.md`, "Your own instance").
 
 ### If the first initialization fails
 

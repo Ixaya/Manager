@@ -6,10 +6,12 @@
 
 ## Pick a database engine
 
-Pick ONE engine and edit `<instance>.env` to match — the base "Package"
-section's `DB_DRIVER`/`DB_CHAR_SET`/`DB_COLLATION`, and the "Docker
-deployment-dependent" block's `DB_HOST`/`DB_PORT` (`DB_NAME`/`DB_USER` there
-can be any non-empty value):
+Pick ONE engine and set `DB_HOST`/`DB_PORT`/`DB_DRIVER` in the "Docker
+deployment-dependent" block of `<instance>.env` (`DB_NAME`/`DB_USER` there
+can be any non-empty value), and `DB_CHAR_SET`/`DB_COLLATION` in the base
+`.env.<instance>`. The block overrides the base, so with a bundled
+database its `DB_DRIVER` is the one that runs; an instance on an external
+database deletes the block, and the base's `DB_DRIVER` applies:
 
 | Engine | `--profile` | `DB_HOST` | `DB_PORT` | `DB_DRIVER` | native equivalent | `DB_CHAR_SET` / `DB_COLLATION` |
 |---|---|---|---|---|---|---|

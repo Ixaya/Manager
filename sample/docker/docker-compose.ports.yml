@@ -1,0 +1,11 @@
+# OPT-IN addon: nginx's published ports. docker_manage.sh adds this file when
+# HTTP_PORT or WS_PORT is non-empty in the instance's DOCKER env-file; without
+# it nothing is published. Setting only one of the two keys fails on the
+# other's guard below.
+
+services:
+  nginx:
+    # Published ports bypass host firewall INPUT rules; PUBLISH_IP narrows them.
+    ports:
+      - "${PUBLISH_IP:+${PUBLISH_IP}:}${HTTP_PORT:?HTTP_PORT is required}:80"
+      - "${PUBLISH_IP:+${PUBLISH_IP}:}${WS_PORT:?WS_PORT is required}:8080"

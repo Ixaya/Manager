@@ -92,7 +92,8 @@ must pass before a change is finished.
 
 Both analyse the repository root, while the `tools` service is bound to the
 scaffold by default. Point an instance's bind path one level higher and the
-service works on the repository instead:
+service works on the repository instead (the same key is what makes
+`docker_manage.sh` include the tools addon, so it must be set either way):
 
 ```bash
 # sample/docker/env/<instance>.docker.env
