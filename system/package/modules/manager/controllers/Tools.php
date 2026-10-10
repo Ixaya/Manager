@@ -31,7 +31,7 @@ class Tools extends CI_Controller
 			['migration_file <name> <module> [database] [force_modification]', 'Print a `cat > ... <<\'MGR_EOF\'` command that writes an auto-versioned migration file (_v{n} if the name already exists in that module) — paste it into a host shell. force_modification=1 starts a table with pre-tool history at _v2 instead of a fresh create.'],
 			['migration_path <name> <module> [database] [force_modification]', 'Print the auto-versioned name + destination path for a migration, as JSON. See migration_file for force_modification.'],
 			['model_file <name> <module> [table]', 'Print a `cat > ... <<\'MGR_EOF\'` command that writes a new MY_Model skeleton in the given module, optionally overriding $table_name — paste it into a host shell.'],
-			['generate_enc_key [length]', 'Generate a random encryption key (hex, default 16 bytes).'],
+			['generate_enc_key [cipher|bytes]', 'Generate a random hex key: sized for the configured cipher (default), for a cipher name, or an explicit byte count.'],
 			['claim_admin', 'One-shot: rotate the seeded admin\'s factory password and print the new one.'],
 			['env_check [key]', 'Per-key env source report (values never printed). No key = framework must-haves.'],
 			['log_check', 'Log destination report: path, ownership and whether appends actually succeed.'],
@@ -48,11 +48,40 @@ class Tools extends CI_Controller
 		echo PHP_EOL;
 	}
 
-	public function generate_enc_key(string $length = '16')
+	/**
+	 * Prints a random hex key sized for a cipher, or for an explicit byte count.
+	 *
+	 * @param string $cipher_or_bytes Empty = the configured cipher's bytes | a cipher name | a byte count (1-1024)
+	 */
+	public function generate_enc_key(string $cipher_or_bytes = '')
 	{
-		$this->load->library('encryption');
-		$key = bin2hex($this->encryption->create_key((int)$length));
-		die($key);
+		try {
+			$bytes = $this->_enc_key_bytes($cipher_or_bytes);
+		} catch (InvalidArgumentException $exception) {
+			// an uncaught exception prints nothing on a CLI with display_errors off
+			fwrite(STDERR, $exception->getMessage() . PHP_EOL);
+			exit(1);
+		}
+
+		die(bin2hex(random_bytes($bytes)));
+	}
+
+	protected function _enc_key_bytes(string $cipher_or_bytes): int
+	{
+		if ($cipher_or_bytes !== '' && ctype_digit($cipher_or_bytes)) {
+			$bytes = (int) $cipher_or_bytes;
+			if ($bytes < 1 || $bytes > 1024) {
+				throw new InvalidArgumentException("Tools::generate_enc_key: byte count must be 1-1024, got '{$cipher_or_bytes}'.");
+			}
+
+			return $bytes;
+		}
+
+		$settings = $this->config->read('encryption', fail_gracefully: false);
+		$cipher = $cipher_or_bytes !== '' ? strtolower($cipher_or_bytes) : $settings['cipher'];
+
+		return $settings['cipher_key_bytes'][$cipher]
+			?? throw new InvalidArgumentException("Tools::generate_enc_key: unknown cipher '{$cipher}', expected a byte count or one of " . implode(', ', array_keys($settings['cipher_key_bytes'])) . '.');
 	}
 
 	public function plan()

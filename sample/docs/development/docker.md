@@ -55,6 +55,24 @@ generate one and set it there too:
 ./docker_manage.sh -e <instance> run --rm cli -c "bash /var/www/html/bin/cli_run.sh manager/tools/generate_enc_key"
 ```
 
+The key's length follows the cipher, `CF_ENCRYPTION_CIPHER` in
+`.env.<instance>`: `aes-128` (the default) takes 32 hex chars, `aes-256` takes
+64 and is the recommendation for production (`.env.sample.prod`). With no
+argument the tool sizes the key for the configured cipher; `generate_enc_key
+aes-256` or `generate_enc_key 32` sizes it otherwise, so it also generates
+other secrets. Once `CF_ENCRYPTION_CIPHER` is set, a key shorter than its
+cipher needs stops the app with an error; without it OpenSSL silently pads
+the short key with zeros, so `aes-256` would run on a 128-bit key. That error
+also stops the tool when it reads the cipher (no argument, or a cipher name);
+a byte count (`generate_enc_key 32`) skips the config, so it always works.
+
+Choose before the instance holds data. Ciphertext carries no cipher marker,
+so changing the cipher or the key later leaves everything encrypted under the
+old setting unreadable (`decrypt()` returns `false`) until it is
+re-encrypted. Use the key only through the Encryption library: code that
+feeds `encryption_key` straight to `hash_hmac` or `openssl_*` bypasses its
+key derivation, and should keep a separate secret instead.
+
 The **base** non-secret config lives in `.env.<instance>` at the app root
 (the same file a non-docker `CI_ENV=<instance>` run loads) and is the single
 source of the framework's base values — the `[ -f … ] || cp` line above

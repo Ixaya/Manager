@@ -3,6 +3,33 @@
 Changes between 2.x releases that alter behavior a project already depends on.
 Everything else in a minor release is additive.
 
+### New: `CF_ENCRYPTION_CIPHER` selects the encryption cipher, and `generate_enc_key` sizes the key for it
+
+Additive; off by default. Nothing changes for an instance that does not set
+it: the cipher stays `aes-128` and a key already in use keeps working.
+
+`aes-256` is the production recommendation (`.env.sample.prod`) but is **not
+adopted automatically**, and switching a live instance is a data migration:
+ciphertext carries no cipher marker, so after changing the cipher or the key
+everything encrypted under the old setting returns `false` from `decrypt()`
+until it is re-encrypted. Set the cipher and a matching key together on a new
+instance, or re-encrypt first.
+
+- **Key length follows the cipher:** `aes-128` takes 32 hex chars, `aes-256`
+  takes 64. With `CF_ENCRYPTION_CIPHER` set, a key shorter than the cipher
+  needs stops the app with an error instead of being zero-padded by OpenSSL
+  (a 16-byte key under `aes-256` ran as a 128-bit key before). An unknown
+  cipher name is refused the same way.
+- **`manager/tools/generate_enc_key` now takes `[cipher|bytes]`.** No argument
+  sizes the key for the configured cipher, so the default output is the same
+  16 bytes as before; a byte count still works. A zero, negative or
+  non-numeric argument now fails with a message instead of an uncaught
+  `ValueError`, and a fractional one no longer becomes a one-byte key.
+- **Reaches a project** through `composer update` (`system/package/config/encryption.php`;
+  a project's own `application/config/encryption.php` takes precedence);
+  the `.env.sample` line and the key comments in `.env.sample.priv` /
+  `docker/env/sample.priv.env` come with reconciling the sample.
+
 ### New: `log_prune` prunes the `api_log` table — it grew without bound before this
 
 Additive. The `api_log` table (one row per REST call, request parameters

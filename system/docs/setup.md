@@ -183,11 +183,20 @@ Then:
 - In `docker/env/local.priv.env`'s **Docker specific** section (bottom of
   the file, which wins by position), paste the two generated passwords into
   `LIB_REDIS_PASSWORD`, the `auth=` parameter of `CF_SESS_SAVE_PATH`, and
-  `DB_PASS`, and generate a real encryption key for `CF_ENCRYPTION_KEY`:
+  `DB_PASS`, and set `CF_ENCRYPTION_KEY`. Choose the cipher now — its key
+  length follows it, and step 6 sets `CF_ENCRYPTION_CIPHER` in `.env.local`:
+  `aes-128` (the template's default) takes 16 random bytes (32 hex chars),
+  `aes-256` (recommended for production) takes 32 (64 hex chars). The stack
+  can't run the framework's own generator yet (the images are built in step
+  8), so use `openssl`:
 
   ```bash
-  openssl rand -hex 32
+  openssl rand -hex 16   # aes-128
+  openssl rand -hex 32   # aes-256
   ```
+
+  Choose before the instance holds data: changing the cipher or the key
+  later leaves everything encrypted under the old one unreadable.
 
 The exact per-engine values and the reasoning behind the file split are in
 `docs/development/docker.md`. These files are what makes `docker_manage.sh`
@@ -195,9 +204,11 @@ runnable at all — it aborts if any is missing — which is why they come
 before anything that invokes it.
 
 **Common failure modes:**
-- Leaving the sample's placeholder secrets (`change-me-*`, the all-zeros
-  encryption key) in place — the stack starts, but this is unsafe the
-  moment anything sensitive touches it.
+- Leaving the sample's placeholder secrets (`change-me-*`) in place — the
+  stack starts, but this is unsafe the moment anything sensitive touches
+  it. Leaving `CF_ENCRYPTION_KEY` blank is the opposite failure: only
+  `manager/tools/env_check` reports it, and anything that encrypts gets
+  `false` back.
 - Password mismatch between the `docker/secrets/local.*` files and the
   values pasted into `local.priv.env` — the two must be identical. The
   secret files are what the containers mount; `priv.env` is what the PHP
@@ -214,14 +225,20 @@ cp .env.sample .env.local
 ```
 
 Set `DB_CHAR_SET`/`DB_COLLATION` to match the engine chosen in step 5 (for
-example PostgreSQL is `UTF8` / empty). `DB_DRIVER` here applies to a
-non-Docker run and to an instance on an external database; with a bundled
-one, the block in `docker/env/local.env` sets it (step 5). The
-per-engine table is in `docs/development/database.md`; how these values reach
-the running process — including a non-Docker, host-PHP run using `.env` /
-`.env.priv` — is covered in `docs/architecture/environment.md`.
+example PostgreSQL is `UTF8` / empty), and `CF_ENCRYPTION_CIPHER` to the
+cipher the step 5 key was sized for (the template ships `aes-128`).
+`DB_DRIVER` here applies to a non-Docker run and to an instance on an
+external database; with a bundled one, the block in `docker/env/local.env`
+sets it (step 5). The per-engine table is in `docs/development/database.md`;
+how these values reach the running process — including a non-Docker,
+host-PHP run using `.env` / `.env.priv` — is covered in
+`docs/architecture/environment.md`.
 
 **Common failure modes:**
+- A key shorter than `CF_ENCRYPTION_CIPHER` needs stops the first request
+  that uses encryption with `Encryption: CF_ENCRYPTION_KEY is N bytes but
+  <cipher> needs M`: redo the key for the cipher, or the cipher for the key,
+  before any data is encrypted.
 - A char-set/collation mismatch for the engine (for example leaving MySQL
   defaults while running PostgreSQL) surfaces later as a cryptic "Unable to
   set client connection character set" error, not an obvious config

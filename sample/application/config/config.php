@@ -295,13 +295,14 @@ $config['cache_query_string'] = false;
 | Encryption Key
 |--------------------------------------------------------------------------
 |
-| If you use the Encryption class, you must set an encryption key.
+| If you use the Encryption class, you must set an encryption key: hex,
+| sized to CF_ENCRYPTION_CIPHER (aes-128 = 32 chars, aes-256 = 64 chars).
 | See the user guide for more info.
 |
 | https://codeigniter.com/user_guide/libraries/encryption.html
 |
 | Generate Key:
-| php public/index.php manager tools generate_enc_key
+| php public/index.php manager/tools/generate_enc_key
 |
 */
 $config['encryption_key'] = hex2bin(mgr_env('CF_ENCRYPTION_KEY', ''));
