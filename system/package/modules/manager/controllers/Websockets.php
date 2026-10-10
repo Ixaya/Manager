@@ -2,19 +2,10 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-// application/controllers/Websockets.php
+require_once MGRPATH . 'core/MGR_Cli_Controller.php';
 
-class Websockets extends CI_Controller
+class Websockets extends MGR_Cli_Controller
 {
-	public function __construct()
-	{
-		parent::__construct();
-
-		if (!is_cli()) {
-			show_error('Direct access is not allowed. This is a command line tool, use the terminal');
-		}
-	}
-
 	public function generate_link($user_identifier = null, $channel = null)
 	{
 		$this->load->library('websocket_lib');

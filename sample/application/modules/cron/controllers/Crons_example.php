@@ -2,22 +2,14 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Example extends CI_Controller
+class Crons_example extends APP_Cli_Controller
 {
-	public function __construct()
-	{
-		parent::__construct();
-
-		// can only be called from the command line
-		if (!is_cli()) {
-			show_error('Direct access is not allowed. This is a command line tool, use the terminal');
-		}
-	}
-
 	public function send_example($force_restart = 0)
 	{
-		//crontab: */5  *  *  *  * /bin/nice -n 10 /home/example/app/bin/cli_run.sh manager crons send_example >> /home/example/logs/crons/send_example.log
+		//crontab: */5  *  *  *  * /bin/nice -n 10 /home/example/app/bin/cli_run.sh cron/crons_example/send_example >> /home/example/logs/crons/send_example.log
 
+		// 'example' stands in for the project model that feeds the sync; none ships, so
+		// this stops at "Unable to locate the model" until one is written
 		$this->load->model(['manager_option', 'example']);
 
 		$limit = 999;

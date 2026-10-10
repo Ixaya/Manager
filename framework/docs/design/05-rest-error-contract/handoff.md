@@ -37,6 +37,19 @@ Postgres severity label, so no other engine's text can be touched.
 **`manager/tools/log_check`** reports the resolved log paths, ownership, mode
 and writability, and performs a real append test.
 
+**Under the CLI, a failure is stderr plus exit 1; a result is stdout plus
+exit 0.** `show_error_data()` writes its `**ERROR(code)**` block to stderr and
+always ends in `exit(1)`. An uncaught exception in a CLI controller reaches it
+through `MGR_Controller_Dispatch_guard` — used by `MGR_Cli_Controller` (and
+its project shim `APP_Cli_Controller`), `Tools`, and `MGR_Site_Controller` —
+which logs and renders it even with `display_errors` off. Production warnings
+are logged and the command continues. The contract is pinned, in a child
+process, by `sample/tests/unit/tools/CliErrorContractTest.php`.
+
+**A web error behind buffered output is the whole response.** Every buffer
+level is discarded and the error answers its own status; once headers are
+sent nothing more is emitted, and execution stops either way.
+
 ## Remaining open work
 
 Three standing proposals, none blocking. Named by title — a promoted proposal
@@ -76,3 +89,19 @@ Ruled, not oversights — do not re-raise:
   until they expire. No cache-busting was built into a sample.
 - **Postgres `errno` is `null`** where MySQL populates it — a pre-existing
   driver limitation, untouched. Never assert on it.
+- **In development, an error after a complete response replaces it** with a
+  500 — by design, see `decisions.md` "CLI failures and buffered output".
+- **A buffer that refuses removal keeps its bytes**, so they precede the error
+  JSON. Nothing in the framework, the sample or CI3 starts such a buffer.
+- **CLI log ordering:** with stdout buffered at the moment of the error, the
+  stderr block lands first, so a `2>&1` job log shows the error above output
+  that preceded it.
+- **A failing async job logs its exception twice** — `CLI run failed: …` from
+  `MGR_Async_exec_lib::run_library_call()`, then the guard's line.
+- **A true fatal in production CLI** (memory exhaustion) is not rendered by the
+  framework; it exits 255, and reaches stderr only through PHP's own
+  `error_log` — the bundled image points that at `/proc/self/fd/2`.
+- **An HTTP hit on a CLI route answers 403 and writes no app-log entry**,
+  deliberately — a forbidden request, like the 404s above.
+- **A subclass that defines its own `_remap()`, or an exception thrown in a
+  constructor, bypasses the dispatch guard** — CLI as on the web.

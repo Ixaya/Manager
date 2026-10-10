@@ -35,6 +35,11 @@ answering **HTTP 200 with a success envelope**.
 - **Traceability as an acceptance gate.** Not a findings list but a property
   every other fix had to satisfy before it closed: no suppression without a
   log, and no quieting of the development signal.
+- **Extended 2026-10-09/10 to the CLI and to buffered web output** — the exit
+  code as the CLI's status line, the dispatch guard as a shared trait with a
+  CLI base controller, and the buffered-error leak. Recorded under "CLI
+  failures and buffered output" in `decisions.md` and `review.md`, and in
+  `handoff.md`'s current state and residuals.
 
 ## What was deliberately not done
 

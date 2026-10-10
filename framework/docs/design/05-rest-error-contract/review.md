@@ -122,6 +122,33 @@ driver was completely silent in production.
   both environments); the controller check is a deterministic conditional on
   top of it.
 
+## CLI failures and buffered output (2026-10-09/10)
+
+Live, PostgreSQL, production and development, captured before and after
+(the "before" column replayed through a renderer carrying the old
+`show_error_data()` body, so the working tree was never swapped):
+
+| Case | Before | After |
+|---|---|---|
+| CLI uncaught exception, production | exit 1, nothing on either stream | stderr block, exit 1, logged |
+| CLI `show_error()`/unknown command | stdout block, exit 0 | stderr block, exit 1 |
+| CLI success | stdout, exit 0 | unchanged |
+| Warning in a `Tools` command / async job, production | logged, continued, exit 0 | unchanged (the rejected `ini_set` aborted with exit 1) |
+| Unknown, protected or `__construct` method on a guarded CLI controller | — | 404 on stderr, exit 1 |
+| HTTP request to a CLI route (`Tools`, `Websockets`, the sample cron), production | 500 generic, logged | 403 with the refusal message, no log line |
+| REST exception behind a half-written body, production | **200, partial body, kept executing** | 500 generic only |
+| View throwing mid-render behind `MGR_Site_Controller`, production | **200, partial view, kept executing** | 500 generic only |
+| Warning after a complete REST 200, development | 200 kept | 500 with the warning |
+| Output flushed, then a warning | not captured | 200, nothing appended, stopped |
+| Error behind a non-removable buffer | — | 500 in ~20 ms (an unguarded loop spun 30 s / OOM'd) |
+
+Every other REST row (exception, `TypeError`, `show_error`, `show_404`, SQL
+with `db_debug`, fatal call, constructor throw, keyless, OPTIONS through a
+404) came out identical before and after in both environments.
+`CliErrorContractTest` fails against the released package with the two CLI
+defects (empty stderr; exit 0 on a 404) and passes on the fix; the full
+sample suite passed (116 tests).
+
 ## Confounds that nearly produced false results
 
 - **A root-owned log file silently disabled all logging.** A CLI command run
@@ -135,6 +162,8 @@ driver was completely silent in production.
 - **Switching engines needs `DB_HOST` and `DB_PORT`, not just `DB_DRIVER`.**
   Changing only the driver produced no error: the CLI migrate exited `0` with
   no output on any channel. `manager/tools/env_check` is what identified it.
-  That silent exit is itself now the cli-silent-failure proposal.
+  That silent exit became a proposal, resolved 2026-08-09 with an explicit
+  connection check in the migration path; the CLI's exit-code contract was
+  made explicit later (`decisions.md`, "CLI failures and buffered output").
 - **Probe file line numbers are volatile** — adding a method shifted a
   reported line by six between captures. Never assert on them.

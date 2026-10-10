@@ -86,16 +86,21 @@ A `MGR_*` class resolves to the class a project actually instantiates
 through one of two shapes, depending on whether it's a core CI class or a
 library.
 
-**Core classes** (`Model`, `Controller`, `Rest_Controller`, `Model_Dyn`) go
-straight from the framework class to the project's subclass, with no
-intermediate alias file. CI3's own `subclass_prefix` mechanism
+**Core classes** (`Model`, `Controller`, `Rest_Controller`,
+`Site_Controller`, `Cli_Controller`, `Model_Dyn`) go straight from the
+framework class to the project's subclass, with no intermediate alias file.
+CI3's own `subclass_prefix` mechanism
 (`$config['subclass_prefix'] = 'MY_'`, set in `application/config/config.php`)
-is what makes this work: CI loads `MY_Model`/`MY_Controller` by name, and
-those files simply `extend` the `MGR_*` base directly —
+loads `MY_Model`/`MY_Controller` by name; the `APP_*` classes are found by
+MX's autoloader, which looks only in `application/core/`. Either way the
+file simply `extend`s the `MGR_*` base directly —
 `MY_Model extends MGR_Model` (`system/core/MGR/Model.php`),
 `MY_Controller extends MGR_Controller`, `APP_Rest_Controller extends
-MGR_Rest_Controller`, `APP_Model_Dyn extends MGR_Model_Dyn`. All four
-project-side files live in `application/core/`.
+MGR_Rest_Controller`, `APP_Site_Controller extends MGR_Site_Controller`,
+`APP_Cli_Controller extends MGR_Cli_Controller`, `APP_Model_Dyn extends
+MGR_Model_Dyn`. All six project-side files live in `application/core/`, so
+framework code must never extend an `APP_*` class a project may not have
+yet: a project scaffolded before it existed fails with "Class not found".
 
 **Libraries** add one more link: `MGR_X_lib` (the real code, in
 `system/libraries/`) is extended by an unprefixed alias `X_lib` in

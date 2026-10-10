@@ -133,6 +133,73 @@ kept for traceability.
   above ("a 500-worthy failure returning 200 is invisible to all of them"),
   on the exception path specifically.
 
+## CLI failures and buffered output
+
+Extended 2026-10-09/10 from the HTTP contract above to the CLI, and to a web
+error raised while output is still buffered.
+
+- **2026-10-09: under the CLI, a failure goes to stderr and exits 1.**
+  `show_error_data()` wrote its `**ERROR(code)**` block to stdout and ended
+  in a bare `exit`, so every `show_error()`/`show_404()`/PHP-error render
+  exited **0** — a wrapper keying on the exit code saw a failed command as
+  passing, and the error text was mixed into the command's result. The block
+  now goes to `php://stderr` (opened with `fopen()`: the `STDERR` constant is
+  undefined under php-cgi) and the method ends in `exit(1)`, on the web path
+  too, where FPM ignores it. The exit code is the CLI's status line, the same
+  way the HTTP class is the REST one.
+- **2026-10-09: a buffered web error discards the buffer and answers its own
+  status.** The old guard (`if (ob_get_length() > 0) return;`, meant to stop a
+  second JSON payload) skipped both the response and the `exit`. Live-verified
+  in production: an exception thrown with a half-written REST body, or from a
+  view mid-render behind `MGR_Site_Controller`, answered **200 with the partial
+  body**, and execution continued past the exception. Now every buffer level
+  is discarded and the error is the whole response; once headers are sent,
+  nothing is emitted (a second payload would only corrupt the body) but
+  execution still stops. The discard loop stops at a buffer that refuses
+  removal: unguarded, one started without `PHP_OUTPUT_HANDLER_REMOVABLE` spun
+  until `max_execution_time` in production and recursed into an HTML fatal
+  answering 200 in development.
+- **2026-10-09: in development, an error after a complete response replaces
+  it.** This is the case the old guard existed for: a warning in a shutdown
+  function or destructor after `response()` exited. It now answers 500 with
+  the error instead of the 200. Operator: a result produced alongside an
+  error or warning is not trustworthy, and keeping the 200 had led front-end
+  code to strip warning text out of the body and recover the JSON. Production
+  is unaffected — warnings never render there.
+- **2026-10-09: production CLI surfaces an uncaught exception through a
+  dispatch guard, not `display_errors`.** CI3's `_exception_handler()` prints
+  only with `display_errors` on, so a failing `manager/tools` command (and
+  every async job, which runs through `manager/tools/cli_exec`) exited 1 with
+  nothing on either stream. The first fix, `ini_set('display_errors',
+  'stderr')` in `Tools`, was rejected after a regression matrix: it also made
+  every production E_WARNING fatal inside `Tools`, so every consumer's
+  background job would abort on its first warning where it used to log and
+  continue. The shape taken instead is the call-site guard ruled above for
+  web controllers — catch at dispatch, `log_exception()`, `show_exception()`
+  — never a global handler.
+- **2026-10-10: the guard became a trait, and the CLI got a base controller.**
+  `MGR_Site_Controller`'s `_remap()`/`_dispatchable()` moved verbatim into
+  `MGR_Controller_Dispatch_guard` (`system/core/MGR/Controller/`).
+  `MGR_Cli_Controller` uses it and owns the `is_cli()` refusal, with
+  `APP_Cli_Controller` as the project shim; `Websockets` and the sample cron
+  moved onto them. The 2026-08-09 "no new base controller" ruling on the
+  silent-migrate fix was about that fix's scope, not a standing rule; this
+  base was the operator's call, as a home for future CLI helpers.
+  - **`Tools` uses the trait directly, not the base**, so the framework's
+    most critical command (`migrate`) does not inherit helpers the base will
+    accumulate. Revisit once the base has one `Tools` actually wants.
+  - **Framework code extends `MGR_Cli_Controller`, never `APP_Cli_Controller`.**
+    `APP_*` classes autoload only from a project's `application/core/`; a
+    project scaffolded before the shim existed would fatal on
+    `composer update` — `migrate` included.
+  - **An HTTP hit on a CLI route answers 403**, as `cli_exec`'s own refusal
+    already did. It used to answer `show_error()`'s default 500. Operator: a
+    500 on a forbidden path reads as a server failure; the request is the
+    client's error. As a 4xx, the refusal message is disclosed in both modes
+    (it names no internals) and writes no app-log line, the same as 404s.
+  - `Health_checks` keeps no guard: a bare echo, reachable over HTTP by its
+    full path, harmless.
+
 ## The model layer's failure signal
 
 - **2026-07-29 (01 #6): the remedy was aimed at the wrong layer first, and the

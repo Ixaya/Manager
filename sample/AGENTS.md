@@ -108,10 +108,11 @@ invocation options, are covered in `docs/development/`.
 
 The project's own code lives under `application/`:
 
-- `core/` — `MY_Controller`, `APP_Rest_Controller`, `MY_Model`,
-  `APP_Model_Dyn`: thin shims over their `MGR_` parents in the package. They
-  are project code, so they can carry local overrides — check them when
-  tracing behavior, don't assume they are empty.
+- `core/` — `MY_Controller`, `APP_Rest_Controller`, `APP_Site_Controller`,
+  `APP_Cli_Controller`, `MY_Model`, `APP_Model_Dyn`: thin shims over their
+  `MGR_` parents in the package. They are project code, so they can carry
+  local overrides — check them when tracing behavior, don't assume they are
+  empty.
 - `modules/*/controllers/api/` — REST endpoints.
   `modules/auth/controllers/api/Login.php` is the login/registration flow.
 - `modules/<module>/migrations/<connection>/` — new migrations. Older

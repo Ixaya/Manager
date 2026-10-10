@@ -2,15 +2,21 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
+require_once MGRPATH . 'core/MGR/Controller/Dispatch_guard.php';
+
 class Tools extends CI_Controller
 {
+	// Production CLI has display_errors off, so CI's own handler prints nothing; the
+	// guard sends an uncaught exception to stderr with exit 1.
+	use MGR_Controller_Dispatch_guard;
+
 	public function __construct()
 	{
 		parent::__construct();
 
 		// can only be called from the command line
 		if (!is_cli()) {
-			show_error('Direct access is not allowed. This is a command line tool, use the terminal');
+			show_error('Direct access is not allowed. This is a command line tool, use the terminal', 403);
 		}
 	}
 

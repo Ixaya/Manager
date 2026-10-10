@@ -46,6 +46,54 @@ New installs get an index on `api_log.time`; existing ones don't need it —
 (including a non-blocking PostgreSQL build) and reclaiming disk after the
 first prune, which deleting rows alone does not do.
 
+### CLI failures go to stderr with exit 1, and a web error behind buffered output answers its real status
+
+Reaches a project through `composer update`; the new `APP_Cli_Controller`
+comes with reconciling the sample.
+
+Under the CLI:
+
+- **The error block moves from stdout to stderr, and the process exits 1
+  instead of 0.** This covers `show_error()`, `show_404()` (an unknown
+  command), PHP errors that reach the renderer, and uncaught exceptions,
+  including REST controllers run through `bin/cli_run_api.sh`. stdout carries
+  only the command's result. A script that searched stdout for `**ERROR`, or
+  treated exit 0 as success, needs a look. In a log written with `2>&1`, the
+  error now appears above any output the command had buffered before it.
+- **`manager/tools` commands and async jobs now print an uncaught exception
+  in production.** They used to exit 1 with nothing on either stream, because
+  CI3's handler prints only with `display_errors` on. Message, class, file and
+  line now reach stderr, which a job's `2>&1` sends to its `cli/*.log`. A
+  failing async job logs the exception twice in the app log
+  (`CLI run failed: …`, then the exception itself). PHP warnings are unchanged: logged, and the command continues in
+  production.
+- **New: `APP_Cli_Controller`** gives a project's own CLI controllers and
+  crons the same behavior: it refuses HTTP and sends an uncaught exception to
+  stderr with exit 1. Additive: nothing changes until a controller extends
+  it. To adopt, copy `sample/application/core/APP_Cli_Controller.php` into
+  `application/core/`, change `extends CI_Controller` to
+  `extends APP_Cli_Controller`, and drop the constructor's `is_cli()` guard.
+  A controller that defines its own `_remap()` does not get the guard.
+- **An HTTP request to a CLI route now answers 403 instead of 500**, and no
+  longer writes an app-log error line. This covers `manager/tools`,
+  `manager/websockets`, and any controller extending `APP_Cli_Controller`.
+  A monitor that alerted on those 500s, or on their log lines, goes quiet.
+
+On the web (the JSON error path; the HTML views used with
+`$api_only = false` are unchanged):
+
+- **An error raised while output is buffered now answers its real status,
+  with the error as the whole body.** It used to answer **200 with the
+  partial output** (a half-rendered view, a half-written response), and
+  execution continued past the error. What the body discloses is unchanged:
+  production gets the generic envelope.
+- **In development, an error after the response is complete replaces it.**
+  A warning in a shutdown function or destructor that runs after a REST
+  response now answers 500 with the error instead of the 200: a result
+  produced alongside an error is not trustworthy. Front-end code that strips
+  warning text from the body to recover the JSON stops working, by design.
+  Production is unchanged.
+
 ### `tools` and nginx's published ports left `docker-compose.yml` — an instance without `TOOLS_BIND_PATH` loses `tools`
 
 Reaches a project when it reconciles `docker/docker-compose.yml`,

@@ -12,11 +12,14 @@ description: Use when writing CLI commands or cron jobs, running background task
 CLI commands, crons, and background jobs are all controllers, and every
 feature area lives in a self-contained HMVC module. There are no standalone
 PHP scripts — everything routes through the framework's single entry point,
-invoked by `bin/cli_run.sh`.
+invoked by `bin/cli_run.sh`. A CLI controller extends `APP_Cli_Controller`,
+never a bare `CI_Controller` with a hand-written guard.
 
 Source of truth (only read if something here is insufficient):
+- `vendor/ixaya/manager/system/core/MGR_Cli_Controller.php` — the CLI base:
+  HTTP refusal and the dispatch guard
 - `vendor/ixaya/manager/system/package/modules/manager/controllers/Tools.php`
-  — reference CLI controller (migrate/plan/scaffolding commands)
+  — reference CLI commands (migrate/plan/scaffolding)
 - `vendor/ixaya/manager/system/libraries/MGR_Async_exec_lib.php` — background
   CLI dispatch
 - `vendor/ixaya/manager/system/third_party/MX/` — HMVC (Modular Extensions)
@@ -52,7 +55,7 @@ application target" / "this target's own latest") is the worked contrast.
 
 ## CLI-only controllers
 
-CLI commands are plain `CI_Controller`s guarded against HTTP access. Cron jobs
+CLI commands extend `APP_Cli_Controller` (`application/core/`). Cron jobs
 (module `cron`, classes `Crons_*`) use the exact same pattern — they're
 invoked by the system scheduler through the CLI:
 
@@ -63,15 +66,11 @@ invoked by the system scheduler through the CLI:
  * @property Report_lib $report_lib
  * @property Manager_option $manager_option
  */
-class Crons_reports extends CI_Controller
+class Crons_reports extends APP_Cli_Controller
 {
     public function __construct()
     {
-        parent::__construct();
-
-        if (!is_cli()) {
-            show_error('Direct access is not allowed. This is a command line tool, use the terminal');
-        }
+        parent::__construct();  // first: it refuses HTTP before anything loads
 
         $this->load->library('reports/report_lib');  // cross-module load: {module}/{lib}
     }
@@ -83,12 +82,35 @@ class Crons_reports extends CI_Controller
 }
 ```
 
+What the base does:
+- **Refuses HTTP** in its constructor with `show_error(..., 403)`, routed
+  through `MGR_Exceptions`: the request is forbidden, not a server failure,
+  so it is not logged as an error. Unlike a bare `exit()` string, which
+  answers 200.
+- **Guards dispatch.** An uncaught exception is logged and written to stderr
+  with exit 1. This holds in production too, where `display_errors` is off
+  and CI3's own handler would print nothing. A PHP warning is logged and the
+  command continues in production; development (`display_errors` on) aborts
+  on it with exit 1.
+- **Keeps CI3's dispatch checks.** An unknown, non-public or
+  underscore-prefixed method is a 404 on stderr, exit 1.
+- **Not covered:** an exception thrown in a constructor (it runs before
+  dispatch), and a subclass that defines its own `_remap()` — CI3 dispatches
+  only the nearest one, so the guard is silently gone.
+
+A project scaffolded before the base existed has no
+`application/core/APP_Cli_Controller.php`; copy it from
+`vendor/ixaya/manager/sample/application/core/`. A controller that must keep
+another parent gets the same dispatch guard with
+`use MGR_Controller_Dispatch_guard;` (after
+`require_once MGRPATH . 'core/MGR/Controller/Dispatch_guard.php';`) plus its
+own `is_cli()` refusal.
+
 Conventions:
-- Guard in the constructor with `is_cli()`; refuse with `show_error(...)` —
-  it routes through `MGR_Exceptions` and answers with a proper HTTP status,
-  unlike a bare `exit()` string on a 200.
-- Output via `echo ... . PHP_EOL` (see `Tools.php`); no views, no
-  `$this->response()`.
+- Results go to stdout via `echo ... . PHP_EOL` (see `Tools.php`); no views,
+  no `$this->response()`. Report a failure by throwing (or `show_error()`):
+  it reaches stderr with exit 1, which is what a scheduler or wrapper script
+  checks. An echoed error followed by `return` exits 0 — a success.
 - Add `@property` docblocks for everything loaded via `$this->load` — that's
   how PHPStan resolves CI3 magic properties.
 - A command that generates a project file (a scaffold, e.g.
@@ -180,15 +202,26 @@ build a new one.
 // WRONG — hand-built background execution
 exec("php public/index.php reports/sync/full > /dev/null 2>&1 &");
 
-// WRONG — CLI controller with no HTTP guard
+// WRONG — CLI controller with no HTTP guard, and an exception it throws
+// prints nothing in production
 class Crons_reports extends CI_Controller
 {
     public function sync_entries($days = 7) { /* runs over HTTP too */ }
 }
 
+// WRONG — the failure exits 0; a wrapper checking the exit code sees success
+echo 'ERROR: upstream API unreachable' . PHP_EOL;
+return;
+
 // RIGHT
 $this->load->library('async_exec_lib');
 $this->async_exec_lib->cli_run_uri('reports/sync/full');
-// in the constructor:
-if (!is_cli()) show_error('Direct access is not allowed. This is a command line tool, use the terminal');
+
+class Crons_reports extends APP_Cli_Controller
+{
+    public function sync_entries($days = 7)
+    {
+        throw new RuntimeException('Crons_reports: upstream API unreachable');  // stderr, exit 1
+    }
+}
 ```
