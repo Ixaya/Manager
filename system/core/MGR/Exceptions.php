@@ -162,47 +162,53 @@ class MGR_Exceptions extends CI_Exceptions
 	}
 
 	/**
-	 * Sends $data as the response body and stops execution.
+	 * Renders $data as the response body, or to stderr under CLI, then exits 1.
 	 *
 	 * @param  array $data
-	 * @param  int   $error_code HTTP status; ignored under CLI.
+	 * @param  int   $error_code HTTP status; under CLI it only labels the block.
 	 * @return void
 	 */
 	protected function show_error_data($data, $error_code)
 	{
 		if (is_cli()) {
-			echo "**ERROR($error_code)**\r\n";
+			// stdout stays the command's result. fopen(), not STDERR: that constant is
+			// undefined under php-cgi.
+			$stderr = fopen('php://stderr', 'w');
+			fwrite($stderr, "**ERROR($error_code)**\r\n");
 			foreach ($data as $k => $v) {
 				if (is_array($v)) {
 					foreach ($v as $i => $line) {
-						echo $k . '[' . $i . ']: ' . $line . "\r\n";
+						fwrite($stderr, $k . '[' . $i . ']: ' . $line . "\r\n");
 					}
 				} else {
-					echo $k . ': ' . $v . "\r\n";
+					fwrite($stderr, $k . ': ' . $v . "\r\n");
 				}
 			}
 		} else {
-			// If something already wrote to the output buffer, do not emit again.
-			// Prevents multiple JSON payloads in the response.
-			if (ob_get_length() > 0) {
-				return;
-			}
+			// Buffered output (a half-rendered view) is discarded so the error is the whole
+			// response; once headers are sent, a second payload would only corrupt the body.
+			if (!headers_sent()) {
+				// A buffer started without PHP_OUTPUT_HANDLER_REMOVABLE refuses with a notice that
+				// re-enters this handler; unguarded, the loop never ends.
+				while (ob_get_level() > 0 && @ob_end_clean()) {
+				}
 
-			$is_options = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS');
-			$this->_add_cors($is_options);
+				$is_options = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS');
+				$this->_add_cors($is_options);
 
-			// Never $error_code: a non-2xx preflight is not cached, so the browser would
-			// re-send it before every request. 204 is what a routed URL answers.
-			if ($is_options) {
-				http_response_code(204);
-			} else {
-				header('Content-Type: application/json', true, $error_code);
-				echo json_encode($data);
+				// Never $error_code: a non-2xx preflight is not cached, so the browser would
+				// re-send it before every request. 204 is what a routed URL answers.
+				if ($is_options) {
+					http_response_code(204);
+				} else {
+					header('Content-Type: application/json', true, $error_code);
+					echo json_encode($data);
+				}
 			}
 		}
 
-		// Stop normal execution; shutdown handlers may still run.
-		exit;
+		// Shutdown handlers still run. 1 is the CLI failure status; FPM ignores it.
+		exit(1);
 	}
 
 	/**
