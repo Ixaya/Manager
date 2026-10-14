@@ -147,6 +147,25 @@ class MGR_Migration extends CI_Migration
 		$this->_update_version($version);
 	}
 
+	/**
+	 * Runs the migrations to $target_version. A migration that throws mid-transaction is rolled
+	 * back before the exception propagates, so the connection stays usable for the caller.
+	 *
+	 * @throws Throwable whatever the migration threw
+	 */
+	public function version($target_version)
+	{
+		try {
+			return parent::version($target_version);
+		} catch (Throwable $exception) {
+			while ($this->db->trans_active() && $this->db->trans_rollback()) {
+				// each rollback closes one nesting level
+			}
+
+			throw $exception;
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// Storage overrides — key-aware version tracking
 	// -------------------------------------------------------------------------

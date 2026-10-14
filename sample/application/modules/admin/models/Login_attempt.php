@@ -97,7 +97,12 @@ class Login_attempt extends APP_Model_Dyn
 			group_by: 'login_attempt.login, user.id',
 		);
 
-		$total = (int)($count_rows[0]['count'] ?? 0);
+		if ($count_rows === null) {
+			return null;
+		}
+
+		// one row per group
+		$total = count($count_rows);
 
 		return ['data' => $rows, 'total' => $total];
 	}

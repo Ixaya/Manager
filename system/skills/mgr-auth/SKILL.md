@@ -204,6 +204,23 @@ framework mode: the `MGR_` classes) instead of copying upstream method bodies:
 - `set_session(\stdClass $user): bool` — call `parent::set_session()` first
   (its `false` return is the sessionless-mode guard), then add your own
   session keys; the `client_id` mirror above is the pattern to copy.
+- `register_conflict(string $identity, string $email): ?string` and
+  `update_conflict(?\stdClass $user, array $data): ?string` — the error key
+  that blocks `register()`/`update()`, or `null` to proceed. The subclass
+  checks identity and email; `update_conflict()` excludes the user's own row,
+  so changing only the capitalization of one's own identity succeeds. Its
+  lookups fire no `extra_where` hook: the unique keys are global, so a
+  tenant-scoped check would pass rows the database then rejects.
+
+## Identity comparison semantics
+
+`user.username`, `user.email` and `login_attempt.login` are case-insensitive
+columns (accent-sensitive under the recommended collation); `username` and
+`email` each carry a unique key. Every plain `=` on them — login, the
+duplicate checks, lockout, remember-me and password reset — matches case
+variants with no PHP lowercasing, and stored case is kept. Do not lowercase
+identities in PHP or add `LOWER()` to these lookups; it duplicates the
+column's semantics and defeats its index.
 
 Any config-sourced column or table name concatenated into SQL must pass
 `mgr_is_sql_identifier()` (helper, see mgr-helpers-libraries) — the subclass

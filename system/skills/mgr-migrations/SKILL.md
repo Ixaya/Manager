@@ -126,6 +126,7 @@ $this->field(
     new_name: 'new_col',  // renames — for modify_column only
     precision: 10, scale: 2,          // Decimal
     enum_values: ['active', 'inactive'], // Enum (required)
+    case_insensitive: true, // Char/VarChar/Text/MediumText/LongText only — see "Case-insensitive columns"
 )
 ```
 
@@ -158,6 +159,39 @@ MySQL-only by design.
 `TinyInt` is unsigned-only on SQL Server (0-255) — use `SmallInt` for a
 column that must hold negative values and stay portable.
 
+## Case-insensitive columns
+
+New databases compare text exactly (case- and accent-sensitive). A column that
+must match case-insensitively says so with `case_insensitive: true`; nothing
+else changes comparison semantics, and every other column emits no `COLLATE`.
+
+```php
+...$this->field(name: 'username', type: MgrFieldType::VarChar, constraint: 191, case_insensitive: true),
+```
+
+It is accepted on `Char`, `VarChar`, `Text`, `MediumText` and `LongText`; any
+other type (`Uuid` and `Enum` included) throws. The collation comes from the
+connection's own config group in `database.php` (env names below are the
+sample default group's):
+
+| Engine | Config key / sample env | Recommended value |
+|---|---|---|
+| MySQL | `dbcollatci` / `DB_COLLATION_CI` | `utf8mb4_0900_as_ci` |
+| MariaDB | `dbcollatci` / `DB_COLLATION_CI` | `utf8mb4_uca1400_nopad_as_ci` |
+| PostgreSQL | `dblocaleci` / `DB_LOCALE_CI` | `und-u-ks-level2` |
+| SQLite | none | `NOCASE` (ASCII only) |
+| SQL Server | — | throws |
+
+An empty key throws, naming the key and the connection's database; there is
+no fallback to an exact column. On PostgreSQL (18+, since `LIKE` on a
+nondeterministic collation errors before that) the builder creates the
+collation `manager_case_insensitive` on first use and throws if one by that
+name exists with another definition.
+
+`modify_column()` and `modify_column_cast()` keep the collation when the field
+is declared `case_insensitive: true` again; restating it without the flag
+resets it to the exact default, which is how a `down()` undoes it.
+
 ## Altering tables
 
 Use `modify_column` to change a column's type, constraint, or default — never
@@ -170,7 +204,7 @@ $this->dbforge->add_column('user', [
     ...$this->field(name: 'remember_selector', type: MgrFieldType::VarChar, constraint: 255, nullable: true, unique: true),
 ]);
 $this->dbforge->modify_column('user', [
-    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254, unique: true),
+    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254),
     ...$this->field(name: 'last_activity_date', type: MgrFieldType::Timestamp, nullable: true, new_name: 'last_api_date'), // rename
 ]);
 $this->dbforge->drop_column('user', 'salt');
@@ -178,6 +212,19 @@ $this->dbforge->drop_column('user', 'salt');
 $this->add_index(table: 'user', columns: ['email'], unique: true);  // cross-engine, name-length safe
 $this->drop_index(table: 'user', columns: ['email']);
 ```
+
+Make a column unique on an existing table with `add_index(unique: true)`, not
+`unique: true` inside `modify_column()`, whose handling differs per engine:
+PostgreSQL creates a unique index `{table}_{column}_key` (the name
+`drop_index()` derives), MySQL/MariaDB add a second unique index when the
+column already has one, and SQL Server's `ALTER COLUMN … UNIQUE` has never
+been verified.
+
+On a populated table, call `assert_no_duplicates(table:, column:, case_insensitive:)`
+first — before `add_index(unique: true)` or a `modify_column()` that makes the
+column case-insensitive. It throws with the duplicate groups' ids (never their
+values; NULLs ignored), grouping under the CI collation when
+`case_insensitive: true`.
 
 `add_index()`/`drop_index()` (and `add_foreign_key()`/`drop_foreign_key()`,
 below) take an optional `name` to override the derived one — needed for an
@@ -271,7 +318,7 @@ Always via `bin/cli_run.sh` (wraps php with the correct binary path and
 manager/tools/plan           # dry-run: current/latest/pending per target
 manager/tools/migrate        # everything forward, all connections in $config['migration_db']
 manager/tools/migrate latest {module_key}  # single target, forward to its own latest — never runs down()
-manager/tools/migrate {version} {module_key}  # single target to an exact version — DOWNGRADES run down()!
+manager/tools/migrate {version} {module_key} [1]  # single target to an exact version; a DOWNGRADE runs down() and is refused unless the 3rd arg (confirm_downgrade) is 1
 manager/tools/version_list   # list version_list commands per target
 manager/tools/version_set {version} {app|module:key} {conn}  # record version WITHOUT running (adopting existing DBs)
 manager/tools/migration_file {name} {module} {database} [1]  # scaffold; 4th arg = force_modification, positional
@@ -290,6 +337,23 @@ dir plus every module with a `migrations/{conn}/` dir, vendor ones
 included), and `plan`/`version_list` label each with the exact `module_key`
 to pass — `:` for `/`, full offset for a vendor module
 (`vendor:ixaya:manager:system:package:modules:manager`).
+
+## Multi-step migrations (PostgreSQL transaction)
+
+PostgreSQL rolls DDL back; MySQL/MariaDB commit it implicitly. A migration
+whose steps must all land or none brackets them with the builder's pair — a
+transaction on PostgreSQL, a no-op elsewhere, so no engine branch:
+
+```php
+$this->start_ddl_transaction();
+// ... modify_column / add_index steps
+$this->end_ddl_transaction();   // commits, or rolls back and throws if a statement failed
+```
+
+Call the pair in `down()` too. The runner rolls back a migration that throws
+between the two. On MySQL/MariaDB nothing rolls back, so make each step
+idempotent and re-run `migrate` after fixing the cause; the version only
+advances once `up()` returns.
 
 ## Rules
 
@@ -330,6 +394,7 @@ $this->db->query("ALTER TABLE user MODIFY email VARCHAR(254) NOT NULL UNIQUE");
 
 // RIGHT
 $this->dbforge->modify_column('user', [
-    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254, unique: true),
+    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254),
 ]);
+$this->add_index(table: 'user', columns: ['email'], unique: true);
 ```

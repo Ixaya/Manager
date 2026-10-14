@@ -115,6 +115,8 @@ get_all_join($fields, $where, $limit, $order_by, $group_by,
              ?string $join_table = null, ?string $join_where = null, string $join_method = 'left'): ?array
 get_all_like($fields, array $where, ...): ?array      // WHERE col LIKE %val%
 get_all_or_like($fields, array $where, ...): ?array   // OR LIKE
+get_all_like_ci($fields, array $where, ...): ?array   // case-insensitive LIKE on exact columns
+get_all_or_like_ci($fields, array $where, ...): ?array
 get_all_in(string $field, array $values, $fields = null, $limit = null, ...): ?array
 get_all_updated(string $last_update, $fields = null, array $where = [], ...): ?array
     // rows where last_update > $last_update — for sync/polling
@@ -128,6 +130,19 @@ raw SQL fragments (use `mgr_build_order_by()` from `manager_helper` to
 validate against an allowed-columns list; it returns `null` — not a
 substituted default — for a column outside that list, so the caller must
 check for `null` before using the result).
+
+**Case-insensitive search follows the column, and the model picks.** `like`
+never changes. A column declared `case_insensitive` (see the migrations skill)
+already matches case-insensitively, so search it with `get_all_like()` /
+`LIKE` (PostgreSQL needs 18+ for that). An exact column that needs a
+case-insensitive search uses `get_all_like_ci()` / `LIKE_CI`. Never use a `_ci`
+search on a declared-CI column: `ILIKE` errors on it in PostgreSQL. Both kinds
+can share one OR group in `get_all_dynamic()`. On MySQL/MariaDB the `_ci`
+search needs `dbcollatci` in the connection's config group and throws without
+it. Index use: `%x%` never seeks, and neither does any `_ci` search. A
+case-insensitive prefix `x%` seeks only on MySQL/MariaDB, as plain `LIKE` on
+a CI-declared column with its own index; on PostgreSQL a CI-declared column
+seeks for `=` only.
 
 ## Write methods
 
@@ -240,6 +255,7 @@ get_all_dynamic($fields = null, array $where = [], array $join = [],
 |---|---|
 | `EQUAL` / `OR_EQUAL` | `col = value` (escaped) |
 | `LIKE` / `OR_LIKE` | `col LIKE %value%` |
+| `LIKE_CI` / `OR_LIKE_CI` | case-insensitive `col LIKE %value%` on an exact column; `where` only, throws in a join `on:` |
 | `WHERE_IN` / `OR_WHERE_IN` | `col IN (...)` — **throws on empty list** |
 | `GROUP` / `OR_GROUP` | parenthesized group of inner clauses |
 | `EQUAL_COL` / `OR_EQUAL_COL` | col = value (escaped), same as EQUAL — column=column only inside a join's `on:` |
@@ -280,8 +296,9 @@ $rows = $this->get_all_dynamic(
 );
 ```
 
-Join `on:` accepts the same clause kinds (`EQUAL_COL` for column=column,
-`EQUAL` for column=literal, `LIKE`, `WHERE_IN`). Identifiers are
+Join `on:` accepts the clause kinds above except `LIKE_CI` / `OR_LIKE_CI`:
+`EQUAL_COL` for column=column, `EQUAL` for column=literal, `LIKE`,
+`WHERE_IN`. Identifiers are
 regex-validated and throw on anything unsafe; unknown clause kinds throw
 instead of being silently dropped.
 

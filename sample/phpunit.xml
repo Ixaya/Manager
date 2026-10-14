@@ -19,6 +19,9 @@
     <testsuite name="Models">
       <directory>tests/unit/models</directory>
     </testsuite>
+    <testsuite name="Migrations">
+      <directory>tests/unit/migrations</directory>
+    </testsuite>
     <testsuite name="Tools">
       <directory>tests/unit/tools</directory>
     </testsuite>

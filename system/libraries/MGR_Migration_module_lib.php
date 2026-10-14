@@ -333,23 +333,23 @@ class MGR_Migration_module_lib
 		return $lib;
 	}
 
+	/**
+	 * Opens a separate handle on $conn for read-only lookups. Never assign it to $CI->db: the
+	 * migration library and its dbforge must stay on the connection they were built with.
+	 */
 	protected function _setup_database_connection(string $conn)
 	{
-		// Load the specified database connection
 		$CI = &get_instance();
-		$CI->db = $CI->load->database($conn, true);
+		$db = $CI->load->database($conn, true);
 
-		if (!is_object($CI->db) || !$CI->db->conn_id) {
+		if (!is_object($db) || !$db->conn_id) {
 			throw new RuntimeException("MGR_Migration_module_lib: unable to connect to database connection '{$conn}'.");
 		}
 
 		if ($this->_force_db_debug) {
-			$CI->db->db_debug = true;
+			$db->db_debug = true;
 		}
 
-		// Override the default db and dbforge with our connection
-		// $CI->load->dbforge($CI->db);
-
-		return $CI->db;
+		return $db;
 	}
 }

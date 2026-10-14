@@ -15,6 +15,8 @@ class BaseModelTest extends CITestCase
 {
 	private static Dyn_probe_model $model;
 
+	private string $previous_ci_collation = '';
+
 	public static function setUpBeforeClass(): void
 	{
 		DynProbeFixture::create();
@@ -26,8 +28,14 @@ class BaseModelTest extends CITestCase
 		DynProbeFixture::drop();
 	}
 
+	protected function setUp(): void
+	{
+		$this->previous_ci_collation = DynProbeFixture::pin_ci_collation();
+	}
+
 	protected function tearDown(): void
 	{
+		DynProbeFixture::restore_ci_collation($this->previous_ci_collation);
 		get_instance()->db->empty_table('dyn_probe_test');
 		get_instance()->db->empty_table('dyn_probe_category_test');
 		self::$model->del_override();
@@ -124,6 +132,72 @@ class BaseModelTest extends CITestCase
 
 		$this->assertContains((int) $live_id, $ids);
 		$this->assertNotContains((int) $deleted_id, $ids);
+	}
+
+	public function test_get_all_like_ci_and_or_like_ci_match_any_case(): void
+	{
+		$this->insert_probe(['name' => 'Widget Alpha']);
+		$this->insert_probe(['name' => 'Widget Beta']);
+		$this->insert_probe(['name' => 'Gadget Gamma']);
+
+		$this->assertSame(
+			['Widget Alpha', 'Widget Beta'],
+			array_column(self::$model->get_all_like_ci(where: ['name' => 'wIDGET']), 'name'),
+		);
+		$this->assertSame(
+			['Widget Alpha'],
+			array_column(self::$model->get_all_or_like_ci(where: ['name' => 'ALPHA']), 'name'),
+		);
+		$this->assertSame([], self::$model->get_all_like_ci(where: ['name' => 'nothing']));
+	}
+
+	/** The LIKE wildcards in the value stay literal, as with CI3's like() (ESCAPE '!'). */
+	public function test_like_ci_treats_wildcards_in_the_value_literally(): void
+	{
+		$this->insert_probe(['name' => 'Under_score']);
+		$this->insert_probe(['name' => 'Underscore']);
+		$this->insert_probe(['name' => '100% Done']);
+		$this->insert_probe(['name' => '100 Done']);
+
+		$this->assertSame(['Under_score'], array_column(self::$model->get_all_like_ci(where: ['name' => 'DER_S']), 'name'));
+		$this->assertSame(['100% Done'], array_column(self::$model->get_all_like_ci(where: ['name' => '100% d']), 'name'));
+	}
+
+	/** Regression: the ORs of get_all_or_like_ci() must not defeat the implicit soft-delete filter. */
+	public function test_get_all_or_like_ci_does_not_defeat_soft_delete(): void
+	{
+		$live_id = $this->insert_probe(['name' => 'Widget Alpha']);
+		$deleted_id = $this->insert_probe(['name' => 'Widget Beta']);
+		self::$model->delete($deleted_id);
+
+		$rows = self::$model->get_all_or_like_ci(where: ['name' => 'WIDGET']);
+		$ids = array_map('intval', array_column($rows, 'id'));
+
+		$this->assertContains((int) $live_id, $ids);
+		$this->assertNotContains((int) $deleted_id, $ids);
+	}
+
+	public function test_like_ci_without_dbcollatci_throws_on_mysql_family_and_leaves_the_builder_clean(): void
+	{
+		$db = get_instance()->db;
+		if (!MgrDriver::fromCI($db->dbdriver ?? '', subdriver: $db->subdriver ?? null)->isMysqlFamily()) {
+			$this->markTestSkipped('Only MySQL/MariaDB need dbcollatci for a case-insensitive search.');
+		}
+
+		$this->insert_probe(['name' => 'Survives the throw']);
+		$db->dbcollatci = '';
+
+		foreach (['get_all_like_ci', 'get_all_or_like_ci'] as $method) {
+			try {
+				self::$model->{$method}(where: ['name' => 'survives']);
+				$this->fail("Expected a RuntimeException from {$method}().");
+			} catch (RuntimeException $exception) {
+				$this->assertStringContainsString("'dbcollatci'", $exception->getMessage());
+				$this->assertStringContainsString((string) $db->database, $exception->getMessage());
+			}
+		}
+
+		$this->assertCount(1, self::$model->get_all(where: ['name' => 'Survives the throw']));
 	}
 
 	public function test_insert_bulk_and_update_where(): void

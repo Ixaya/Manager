@@ -774,8 +774,9 @@ class BE_Ion_auth_model extends CI_Model
 
 		$manualActivation = $this->configAuth->manualActivation;
 
-		if ($this->identity_check($identity)) {
-			$this->set_error('account_creation_duplicate_username');
+		$conflict = $this->register_conflict($identity, $email);
+		if ($conflict !== null) {
+			$this->set_error($conflict);
 			return false;
 		} elseif (! $this->configAuth->defaultGroup && empty($groups)) {
 			$this->set_error('account_creation_missing_default_group');
@@ -948,6 +949,30 @@ class BE_Ion_auth_model extends CI_Model
 	protected function login_select_columns(): string
 	{
 		return $this->identityColumn . ', email, id, password, active, last_login';
+	}
+
+	/**
+	 * Error key that blocks register(), or null to proceed.
+	 *
+	 * @return string|null
+	 */
+	protected function register_conflict(string $identity, string $email): ?string
+	{
+		return $this->identity_check($identity) ? 'account_creation_duplicate_username' : null;
+	}
+
+	/**
+	 * Error key that blocks update(), or null to proceed.
+	 *
+	 * @return string|null
+	 */
+	protected function update_conflict(?\stdClass $user, array $data): ?string
+	{
+		if (array_key_exists($this->identityColumn, $data) && $this->identity_check($data[$this->identityColumn]) && $user->{$this->identityColumn} !== $data[$this->identityColumn]) {
+			return 'account_creation_duplicate_username';
+		}
+
+		return null;
 	}
 
 	/**
@@ -1746,9 +1771,10 @@ class BE_Ion_auth_model extends CI_Model
 
 		$this->my_db->trans_begin();
 
-		if (array_key_exists($this->identityColumn, $data) && $this->identity_check($data[$this->identityColumn]) && $user->{$this->identityColumn} !== $data[$this->identityColumn]) {
+		$conflict = $this->update_conflict($user, $data);
+		if ($conflict !== null) {
 			$this->my_db->trans_rollback();
-			$this->set_error('account_creation_duplicate_username');
+			$this->set_error($conflict);
 
 			$this->trigger_events(['post_update_user', 'post_update_user_unsuccessful']);
 			$this->set_error('update_unsuccessful');

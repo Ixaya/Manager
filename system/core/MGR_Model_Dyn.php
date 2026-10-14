@@ -8,6 +8,8 @@ class MGR_Model_Dyn_clause
 	public const OR_EQUAL = 'or_equal';
 	public const LIKE = 'like';
 	public const OR_LIKE = 'or_like';
+	public const LIKE_CI = 'like_ci';              // CI LIKE on an exact column; where only
+	public const OR_LIKE_CI = 'or_like_ci';
 	public const WHERE_IN = 'where_in';
 	public const OR_WHERE_IN = 'or_where_in';
 	public const GROUP = 'group';
@@ -86,8 +88,9 @@ final class MGR_Model_Dyn_join
 	 * If you need grouping inside an ON clause, split into separate joins or
 	 * use EQUAL with a view.
 	 *
-	 * @throws InvalidArgumentException on unknown clause kinds, invalid
-	 *         identifiers, or empty IN() value lists.
+	 * @throws InvalidArgumentException on unknown clause kinds (LIKE_CI /
+	 *         OR_LIKE_CI included: where only), invalid identifiers, or empty
+	 *         IN() value lists.
 	 */
 	private function _buildCondition(object $db): string
 	{
@@ -132,6 +135,13 @@ final class MGR_Model_Dyn_join
 						$parts[] = [$glue, "{$col} LIKE '%{$escaped}%' ESCAPE '!'"];
 					}
 					break;
+
+				case MGR_Model_Dyn_clause::LIKE_CI:
+				case MGR_Model_Dyn_clause::OR_LIKE_CI:
+					// CI3's join() re-quotes every ON identifier, which mangles the quoted fragment.
+					throw new InvalidArgumentException(
+						"MGR_Model_Dyn_join: '{$kind}' is not supported in a join ON clause; use it in where."
+					);
 
 				case MGR_Model_Dyn_clause::WHERE_IN:
 				case MGR_Model_Dyn_clause::OR_WHERE_IN:
@@ -390,6 +400,18 @@ class MGR_Model_Dyn extends MY_Model
 
 			case MGR_Model_Dyn_clause::OR_LIKE:
 				$this->my_db->or_like($fields);
+				break;
+
+			case MGR_Model_Dyn_clause::LIKE_CI:
+			case MGR_Model_Dyn_clause::OR_LIKE_CI:
+				foreach ($fields as $column => $value) {
+					$fragment = mgr_build_like_ci($this->my_db, $column, (string) $value);
+					if ($kind === MGR_Model_Dyn_clause::LIKE_CI) {
+						$this->my_db->where($fragment, null, false);
+					} else {
+						$this->my_db->or_where($fragment, null, false);
+					}
+				}
 				break;
 
 			case MGR_Model_Dyn_clause::WHERE_IN:

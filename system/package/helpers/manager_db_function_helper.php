@@ -412,3 +412,35 @@ if (!function_exists('mgr_is_sql_identifier')) {
 		return (bool)preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', $identifier);
 	}
 }
+
+if (!function_exists('mgr_build_like_ci')) {
+	/**
+	 * SQL fragment for a case-insensitive "contains" match on an exact column,
+	 * with CI3's `ESCAPE '!'`. Not for a column declared case-insensitive:
+	 * ILIKE errors on one in PostgreSQL, so use plain like() there.
+	 *
+	 * @throws RuntimeException on MySQL/MariaDB when the connection has no `dbcollatci`
+	 */
+	function mgr_build_like_ci(object $db, string $column, string $value): string
+	{
+		$driver     = MgrDriver::fromCI($db->dbdriver ?? '', subdriver: $db->subdriver ?? null);
+		$identifier = $db->protect_identifiers($column);
+		$pattern    = "'%" . $db->escape_like_str($value) . "%'";
+
+		$collation = $driver->isMysqlFamily() ? trim((string) ($db->dbcollatci ?? '')) : '';
+		if ($driver->isMysqlFamily() && $collation === '') {
+			throw new RuntimeException(
+				"mgr_build_like_ci(): a case-insensitive search needs the 'dbcollatci' setting on the connection "
+					. "to database '{$db->database}'; set it in that connection's config group in database.php."
+			);
+		}
+
+		return match ($driver) {
+			MgrDriver::Postgres  => "{$identifier} ILIKE {$pattern} ESCAPE '!'",
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB   => "{$identifier} COLLATE {$collation} LIKE {$pattern} ESCAPE '!'",
+			MgrDriver::SQLite    => "{$identifier} LIKE {$pattern} ESCAPE '!'",
+			MgrDriver::SQLServer => "LOWER({$identifier}) LIKE LOWER({$pattern}) ESCAPE '!'",
+		};
+	}
+}

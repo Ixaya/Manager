@@ -278,6 +278,66 @@ class MGR_Model extends CI_Model
 		return $this->execute_list();
 	}
 
+	/**
+	 * LIKE %value% on exact columns, case-insensitively. For a column declared case-insensitive use
+	 * get_all_like(): on PostgreSQL ILIKE errors on one.
+	 *
+	 * @return ?array Array of result rows, empty array if no results found, null if the query failed
+	 * @throws RuntimeException on MySQL/MariaDB when the connection has no `dbcollatci`
+	 */
+	public function get_all_like_ci(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
+	{
+		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
+		$this->queue_like_ci($where, or_glue: false);
+
+		return $this->execute_list();
+	}
+
+	/**
+	 * OR-grouped twin of get_all_like_ci(); same column rule.
+	 *
+	 * @return ?array Array of result rows, empty array if no results found, null if the query failed
+	 * @throws RuntimeException on MySQL/MariaDB when the connection has no `dbcollatci`
+	 */
+	public function get_all_or_like_ci(string|array|null $fields = null, array $where = [], int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
+	{
+		$this->apply_list_filters($fields, [], $limit, $order_by, $group_by);
+		$this->queue_like_ci($where, or_glue: true);
+
+		return $this->execute_list();
+	}
+
+	/** Queues one case-insensitive LIKE per entry; a throw drops the half-built query. */
+	private function queue_like_ci(array $where, bool $or_glue): void
+	{
+		if ($where === []) {
+			return;
+		}
+
+		try {
+			// Grouped like get_all_or_like(), so the ORs can't defeat the implicit filters.
+			if ($or_glue) {
+				$this->my_db->group_start();
+			}
+
+			foreach ($where as $column => $value) {
+				$fragment = mgr_build_like_ci($this->my_db, $column, (string) $value);
+				if ($or_glue) {
+					$this->my_db->or_where($fragment, null, false);
+				} else {
+					$this->my_db->where($fragment, null, false);
+				}
+			}
+
+			if ($or_glue) {
+				$this->my_db->group_end();
+			}
+		} catch (Throwable $e) {
+			$this->my_db->reset_query();
+			throw $e;
+		}
+	}
+
 	/** @return ?array Array of result rows, empty array if no results found, null if the query failed */
 	public function get_all_in(string $field, array $values, string|array|null $fields = null, int|string|array|null $limit = null, ?string $order_by = null, ?string $group_by = null): ?array
 	{

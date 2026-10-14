@@ -1,0 +1,34 @@
+<?php
+
+defined('BASEPATH') or exit('No direct script access allowed');
+
+require_once MGRPATH . 'libraries/MGR_Migration_builder.php';
+
+/** Public doors onto MGR_Migration_builder's protected surface, for tests. */
+final class MigrationBuilderHarness extends MGR_Migration_builder
+{
+	public function build_field(mixed ...$named): array
+	{
+		return $this->field(...$named);
+	}
+
+	public function cast_column(string $table, array $field): void
+	{
+		$this->modify_column_cast($table, $field);
+	}
+
+	public function remove_index(string $table, string $column): bool
+	{
+		return $this->drop_index($table, $column);
+	}
+
+	public function begin_ddl(): void
+	{
+		$this->start_ddl_transaction();
+	}
+
+	public function end_ddl(): void
+	{
+		$this->end_ddl_transaction();
+	}
+}

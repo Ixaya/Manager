@@ -44,8 +44,15 @@ include MGRPATH . 'config/database.php';
 |	['char_set'] (string) Client character set. No default — the right
 |	    value is engine-specific (see docs/development/database.md's
 |	    engine table).
-|	['dbcollat'] (string) Client collation, engine-specific; empty for
-|	    PostgreSQL, a matching utf8mb4_* value for MySQL or MariaDB.
+|	['dbcollat'] (string) Table collation: appended to every CREATE TABLE
+|	    and CREATE DATABASE, never sent on connect. Empty for PostgreSQL, a
+|	    utf8mb4_* value for MySQL or MariaDB.
+|	['dbcollatci'] (string) MySQL/MariaDB collation for case_insensitive
+|	    migration fields and like_ci() searches; empty is an error only
+|	    when one of them runs.
+|	['dblocaleci'] (string) PostgreSQL ICU locale of the case-insensitive
+|	    collation (for example und-u-ks-level2); empty is an error only
+|	    when a case_insensitive field is built.
 |	['swap_pre'] (string) Prefix in your own queries to swap for dbprefix.
 |	['encrypt'] (bool|array) TRUE/FALSE for sqlsrv and pdo/sqlsrv; mysqli
 |	    and pdo/mysql take an array of ssl_key, ssl_cert, ssl_ca,
@@ -80,6 +87,8 @@ $db['default'] = mgr_apply_pdo_dsn([
 	'cachedir' => '',
 	'char_set' => mgr_env('DB_CHAR_SET', ''),
 	'dbcollat' => mgr_env('DB_COLLATION', ''),
+	'dbcollatci' => mgr_env('DB_COLLATION_CI', ''),
+	'dblocaleci' => mgr_env('DB_LOCALE_CI', ''),
 	'swap_pre' => '',
 	'encrypt' => false,
 	'compress' => false,
@@ -103,6 +112,8 @@ $db['default'] = mgr_apply_pdo_dsn([
 // 	'cachedir' => '',
 // 	'char_set' => mgr_env('DB_SEC_CHAR_SET'),
 // 	'dbcollat' => mgr_env('DB_SEC_COLLATION', ''),
+// 	'dbcollatci' => mgr_env('DB_SEC_COLLATION_CI', ''),
+// 	'dblocaleci' => mgr_env('DB_SEC_LOCALE_CI', ''),
 // 	'swap_pre' => '',
 // 	'encrypt' => false,
 // 	'compress' => false,

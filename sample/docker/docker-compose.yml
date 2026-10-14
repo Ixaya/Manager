@@ -315,7 +315,7 @@ services:
     # temptable-max-ram is one server-wide pool; past it, temp tables spill to disk.
     command:
       - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_0900_ai_ci
+      - --collation-server=utf8mb4_0900_as_cs
       - --innodb-buffer-pool-size=${MYSQL_INNODB_BUFFER_POOL_SIZE:-128M}
       - --max-connections=${MYSQL_MAX_CONNECTIONS:-30}
       - --temptable-max-ram=${MYSQL_TEMPTABLE_MAX_RAM:-64M}
@@ -363,7 +363,7 @@ services:
     # concurrent sessions × it must fit too. key_buffer is MyISAM-only.
     command:
       - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
+      - --collation-server=utf8mb4_uca1400_nopad_as_cs
       - --innodb-buffer-pool-size=${MARIADB_INNODB_BUFFER_POOL_SIZE:-128M}
       - --max-connections=${MARIADB_MAX_CONNECTIONS:-30}
       - --tmp-table-size=${MARIADB_TMP_TABLE_SIZE:-4M}
@@ -409,6 +409,8 @@ services:
       POSTGRES_DB:            ${DB_NAME:-}
       POSTGRES_USER:          postgres
       POSTGRES_PASSWORD_FILE: /run/secrets/db_root_password
+      # New data volumes only: the image's libc default sorts in code-point order.
+      POSTGRES_INITDB_ARGS:   --locale-provider=icu --icu-locale=und
       DB_USER:                ${DB_USER:-}
       TZ:   UTC
       PGTZ: UTC

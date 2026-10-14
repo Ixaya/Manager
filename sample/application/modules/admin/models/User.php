@@ -49,9 +49,11 @@ class User extends APP_Model_Dyn
 		$where = [];
 		if (!empty($params['search'])) {
 			$search = [];
-			$search[MGR_Model_Dyn_clause::OR_LIKE] = [
+			$search[MGR_Model_Dyn_clause::OR_LIKE_CI] = [
 				'first_name' => $params['search'],
-				'last_name' => $params['search'],
+				'last_name' => $params['search']
+			];
+			$search[MGR_Model_Dyn_clause::OR_LIKE] = [
 				'email' => $params['search']
 			];
 

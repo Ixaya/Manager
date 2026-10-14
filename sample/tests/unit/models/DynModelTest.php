@@ -18,6 +18,8 @@ class DynModelTest extends CITestCase
 {
 	private static Dyn_probe_model $model;
 
+	private string $previous_ci_collation = '';
+
 	public static function setUpBeforeClass(): void
 	{
 		DynProbeFixture::create();
@@ -29,8 +31,14 @@ class DynModelTest extends CITestCase
 		DynProbeFixture::drop();
 	}
 
+	protected function setUp(): void
+	{
+		$this->previous_ci_collation = DynProbeFixture::pin_ci_collation();
+	}
+
 	protected function tearDown(): void
 	{
+		DynProbeFixture::restore_ci_collation($this->previous_ci_collation);
 		get_instance()->db->empty_table('dyn_probe_test');
 		get_instance()->db->empty_table('dyn_probe_category_test');
 		self::$model->del_override();
@@ -117,6 +125,80 @@ class DynModelTest extends CITestCase
 		$names = array_column($rows, 'name');
 		sort($names);
 		$this->assertSame(['Gadget Gamma', 'Widget Alpha', 'Widget Beta'], $names);
+	}
+
+	public function test_get_all_dynamic_like_ci_matches_any_case_next_to_the_exact_like(): void
+	{
+		$this->insert_probe(['name' => 'Widget Alpha', 'status' => 1]);
+		$this->insert_probe(['name' => 'Widget Beta', 'status' => 2]);
+		$this->insert_probe(['name' => 'Gadget Gamma', 'status' => 2]);
+
+		$rows = self::$model->get_all_dynamic(where: [
+			MGR_Model_Dyn_clause::EQUAL   => ['status' => 2],
+			MGR_Model_Dyn_clause::LIKE_CI => ['name' => 'wIDGET'],
+		]);
+
+		$this->assertCount(1, $rows);
+		$this->assertSame('Widget Beta', $rows[0]['name']);
+	}
+
+	/** An exact and a case-insensitive LIKE share one OR group (two kind keys), as the sample admin search does. */
+	public function test_get_all_dynamic_or_group_mixes_exact_and_ci_like(): void
+	{
+		$this->insert_probe(['name' => 'Widget Alpha']);
+		$this->insert_probe(['name' => 'Gadget Gamma']);
+		$this->insert_probe(['name' => 'Sprocket Delta']);
+
+		$rows = self::$model->get_all_dynamic(where: [
+			MGR_Model_Dyn_clause::OR_GROUP => [
+				MGR_Model_Dyn_clause::OR_LIKE    => ['name' => 'Gadget'],
+				MGR_Model_Dyn_clause::OR_LIKE_CI => ['name' => 'WIDGET'],
+			],
+		]);
+
+		$names = array_column($rows, 'name');
+		sort($names);
+		$this->assertSame(['Gadget Gamma', 'Widget Alpha'], $names);
+	}
+
+	/** Regression: OR_LIKE_CI must not glue onto the implicit soft-delete filter. */
+	public function test_get_all_dynamic_or_like_ci_does_not_defeat_soft_delete(): void
+	{
+		$live_id = $this->insert_probe(['name' => 'Widget Alpha']);
+		$deleted_id = $this->insert_probe(['name' => 'Widget Beta']);
+		self::$model->delete($deleted_id);
+
+		$rows = self::$model->get_all_dynamic(where: [MGR_Model_Dyn_clause::OR_LIKE_CI => ['name' => 'WIDGET']]);
+
+		$ids = array_map('intval', array_column($rows, 'id'));
+		$this->assertContains((int) $live_id, $ids);
+		$this->assertNotContains((int) $deleted_id, $ids);
+	}
+
+	/** LIKE_CI is a where-only kind: in a join ON it throws instead of emitting SQL CI3 would re-quote. */
+	public function test_join_on_like_ci_throws_and_leaves_the_builder_clean(): void
+	{
+		$this->insert_probe(['name' => 'Survives the throw']);
+
+		foreach ([MGR_Model_Dyn_clause::LIKE_CI, MGR_Model_Dyn_clause::OR_LIKE_CI] as $kind) {
+			$join = self::$model->build_join(
+				table: 'dyn_probe_category_test',
+				type: MGR_Model_Dyn_join_type::Inner,
+				on: [
+					MGR_Model_Dyn_clause::EQUAL_COL => ['dyn_probe_category_test.id' => 'dyn_probe_test.category_id'],
+					$kind                           => ['dyn_probe_category_test.name' => 'CATEGORY'],
+				],
+			);
+
+			try {
+				self::$model->get_all_dynamic(fields: 'dyn_probe_test.name', join: [$join]);
+				$this->fail("Expected an InvalidArgumentException for '{$kind}' in a join ON.");
+			} catch (InvalidArgumentException $exception) {
+				$this->assertStringContainsString($kind, $exception->getMessage());
+			}
+		}
+
+		$this->assertCount(1, self::$model->get_all_dynamic(where: [MGR_Model_Dyn_clause::EQUAL => ['name' => 'Survives the throw']]));
 	}
 
 	public function test_get_all_dynamic_join_resolves_related_table(): void

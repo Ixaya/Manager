@@ -76,4 +76,26 @@ final class DynProbeFixture
 	{
 		self::$migration?->down();
 	}
+
+	/**
+	 * Gives a MySQL/MariaDB test connection that has no `dbcollatci` the recommended value, for the
+	 * case-insensitive search tests. Returns the previous value for restore_ci_collation().
+	 */
+	public static function pin_ci_collation(): string
+	{
+		$db = get_instance()->db;
+		$previous = (string) ($db->dbcollatci ?? '');
+
+		if ($previous === '' && MgrDriver::fromCI($db->dbdriver ?? '', subdriver: $db->subdriver ?? null)->isMysqlFamily()) {
+			$is_mariadb = str_contains((string) $db->version(), 'MariaDB');
+			$db->dbcollatci = $is_mariadb ? 'utf8mb4_uca1400_nopad_as_ci' : 'utf8mb4_0900_as_ci';
+		}
+
+		return $previous;
+	}
+
+	public static function restore_ci_collation(string $previous): void
+	{
+		get_instance()->db->dbcollatci = $previous;
+	}
 }

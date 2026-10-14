@@ -129,6 +129,15 @@ enum MgrFieldType: string
 			default => false,
 		};
 	}
+
+	/** Types that can be declared case-insensitive. */
+	public function supportsCaseInsensitive(): bool
+	{
+		return match ($this) {
+			self::Char, self::VarChar, self::Text, self::MediumText, self::LongText => true,
+			default => false,
+		};
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +172,7 @@ final class MgrFieldBuilder
 	 * @param int|null	  	$precision		 DECIMAL total digits
 	 * @param int			$scale			  DECIMAL digits after decimal point
 	 * @param mixed[]	  	$enum_values	  Required for MgrFieldType::Enum
+	 * @param string|null  	$collation		 Engine collation clause already resolved by the caller; folded into the column type
 	 */
 	public function __construct(
 		protected readonly string		$name,
@@ -178,6 +188,7 @@ final class MgrFieldBuilder
 		protected readonly ?int			$precision		= null,
 		protected readonly int			$scale			= 0,
 		protected readonly array		$enum_values	= [],
+		protected readonly ?string		$collation		= null,
 	) {
 		$this->_validate();
 	}
@@ -252,10 +263,13 @@ final class MgrFieldBuilder
 	/** Produce the CI dbforge-compatible field array. */
 	public function build(): array
 	{
-		['type' => $type, 'constraint' => $constraint, 'default' => $default, 'unsigned' => $unsigned] = $this->_resolveColumn();
+		['type' => $type, 'constraint' => $constraint, 'default' => $default, 'unsigned' => $unsigned, 'base_type' => $base_type] = $this->_resolveColumn();
 
 		$field = ['type' => $type];
 
+		if ($this->collation !== null) {
+			$field['base_type'] = $base_type;
+		}
 		if ($constraint !== '') {
 			$field['constraint'] = $constraint;
 		}
@@ -313,7 +327,9 @@ final class MgrFieldBuilder
 	 * real PHP bools so each CI driver escapes them natively:
 	 * MySQL/SQLite → 1/0, PostgreSQL → TRUE/FALSE, SQL Server BIT → 1/0.
 	 *
-	 * @return array{type: string, constraint: string, default: mixed, unsigned: bool}
+	 * With a collation, `type` carries the length and `COLLATE` and `base_type` the unfolded type.
+	 *
+	 * @return array{type: string, constraint: string, default: mixed, unsigned: bool, base_type: string}
 	 */
 	protected function _resolveColumn(): array
 	{
@@ -484,7 +500,20 @@ final class MgrFieldBuilder
 				break;
 		}
 
-		return ['type' => $type_value, 'constraint' => $constraint, 'default' => $default, 'unsigned' => $unsigned];
+		// The forge appends the length right after the type, so COLLATE must travel inside the type string.
+		$base_type = $type_value;
+		if ($this->collation !== null) {
+			$type_value .= ($constraint !== '' ? "({$constraint})" : '') . " COLLATE {$this->collation}";
+			$constraint = '';
+		}
+
+		return [
+			'type'		=> $type_value,
+			'constraint' => $constraint,
+			'default'	=> $default,
+			'unsigned'	=> $unsigned,
+			'base_type'	=> $base_type,
+		];
 	}
 }
 
@@ -500,6 +529,9 @@ class MGR_Migration_builder
 
 	/** Allowed FK referential actions — kept to the vocabulary every engine understands. */
 	protected const FK_ACTIONS = ['RESTRICT', 'CASCADE', 'SET NULL', 'SET DEFAULT', 'NO ACTION'];
+
+	/** Fixed name of the PostgreSQL case-insensitive collation; columns bind to it by OID, so it never changes. */
+	protected const PG_CI_COLLATION = 'manager_case_insensitive';
 
 	public function __construct()
 	{
@@ -529,6 +561,9 @@ class MGR_Migration_builder
 	 *	// JSON (PostgreSQL gets JSONB automatically)
 	 *	$this->field(name: 'meta', type: MgrFieldType::Json, nullable: true)
 	 *
+	 *	// Case-insensitive text column (collation comes from the connection's dbcollatci / dblocaleci)
+	 *	$this->field(name: 'username', type: MgrFieldType::VarChar, constraint: 191, case_insensitive: true)
+	 *
 	 *	// Rename column (use in modify_column)
 	 *	$this->field(name: 'old_col', type: MgrFieldType::VarChar, constraint: 100, new_name: 'new_col')
 	 *
@@ -544,7 +579,11 @@ class MGR_Migration_builder
 	 * @param  int|null	  $precision		 DECIMAL: total significant digits.
 	 * @param  int			 $scale			  DECIMAL: digits after decimal point. Default 0.
 	 * @param  string[]	  $enum_values	  Required when type is MgrFieldType::Enum.
+	 * @param  bool			$case_insensitive	Char/VarChar/Text/MediumText/LongText only: the connection's CI
+	 *         collation (dbcollatci / dblocaleci), SQLite NOCASE (ASCII only); throws on SQL Server.
 	 * @return array
+	 * @throws InvalidArgumentException if case_insensitive is set on a type that cannot carry a collation
+	 * @throws RuntimeException if case_insensitive is set on SQL Server, or the engine's CI setting is empty
 	 */
 	protected function field(
 		string		 $name,
@@ -559,6 +598,7 @@ class MGR_Migration_builder
 		?int			$precision		= null,
 		int			 $scale			 = 0,
 		array		  $enum_values	 = [],
+		bool			$case_insensitive = false,
 	): array {
 		return (new MgrFieldBuilder(
 			name: $name,
@@ -574,7 +614,119 @@ class MGR_Migration_builder
 			precision: $precision,
 			scale: $scale,
 			enum_values: $enum_values,
+			collation: $case_insensitive ? $this->_resolve_ci_collation($name, $type) : null,
 		))->build();
+	}
+
+	/**
+	 * Checks that $type can carry a collation, then resolves the engine's clause.
+	 *
+	 * @throws InvalidArgumentException if $type cannot carry a collation
+	 * @throws RuntimeException on SQL Server
+	 */
+	protected function _resolve_ci_collation(string $name, MgrFieldType $type): string
+	{
+		if (!$type->supportsCaseInsensitive()) {
+			throw new InvalidArgumentException(
+				"MGR_Migration_builder::field(): case_insensitive is not valid for type {$type->value} (field '{$name}')."
+			);
+		}
+
+		return $this->_ci_collation_clause($name);
+	}
+
+	/**
+	 * Collation clause the current engine uses for a case-insensitive column.
+	 *
+	 * @throws RuntimeException on SQL Server, or when the engine's CI setting is empty
+	 */
+	protected function _ci_collation_clause(string $name): string
+	{
+		return match ($this->db_driver) {
+			MgrDriver::Postgres  => $this->_ensure_pg_ci_collation(
+				locale: $this->_require_ci_setting($name, 'dblocaleci')
+			),
+			MgrDriver::SQLite    => 'NOCASE',
+			MgrDriver::SQLServer => throw new RuntimeException(
+				"MGR_Migration_builder: case_insensitive is not supported on SQL Server (column '{$name}')."
+			),
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB   => $this->_require_ci_setting($name, 'dbcollatci'),
+		};
+	}
+
+	/**
+	 * Reads a CI database setting from the current connection's config.
+	 *
+	 * @throws RuntimeException if the setting is empty
+	 */
+	protected function _require_ci_setting(string $field_name, string $key): string
+	{
+		$value = trim((string) ($this->db->{$key} ?? ''));
+		if ($value === '') {
+			throw new RuntimeException(
+				"MGR_Migration_builder: case_insensitive column '{$field_name}' needs the '{$key}' setting on the "
+					. "connection to database '{$this->db->database}'; set it in that connection's config group in database.php."
+			);
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Creates the PostgreSQL case-insensitive collation from `$locale` if absent, checks that
+	 * the stored definition matches, and returns the quoted collation name.
+	 *
+	 * @throws RuntimeException if the locale is invalid or the existing collation differs
+	 */
+	protected function _ensure_pg_ci_collation(string $locale): string
+	{
+		$collation		= self::PG_CI_COLLATION;
+		$collation_ident = $this->db->escape_identifiers($collation);
+
+		// A failed CREATE outside a transaction leaves the SET in place, hence the finally.
+		$this->db->query('SET icu_validation_level = error');
+		try {
+			$created = $this->db->query(
+				"CREATE COLLATION IF NOT EXISTS {$collation_ident} "
+					. '(provider = icu, locale = ' . $this->db->escape($locale) . ', deterministic = false)'
+			);
+			// Read before the RESET: inside an aborted transaction the RESET fails too and replaces it.
+			$create_error = $created === false ? ($this->db->error()['message'] ?? 'unknown error') : '';
+		} finally {
+			$this->db->query('RESET icu_validation_level');
+		}
+
+		if ($created === false) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::_ensure_pg_ci_collation(): could not create collation {$collation} "
+					. "from locale '{$locale}': {$create_error}"
+			);
+		}
+
+		// IF NOT EXISTS keeps an older collation of the same name, so compare its stored definition.
+		$existing = $this->db->query(
+			'SELECT collprovider, colllocale, collisdeterministic::int AS is_deterministic FROM pg_collation '
+				. 'WHERE collname = ? AND collnamespace = current_schema()::regnamespace',
+			[$collation]
+		)->row();
+
+		if (
+			$existing === null
+			|| $existing->collprovider !== 'i'
+			|| $existing->colllocale !== $locale
+			|| (int) $existing->is_deterministic !== 0
+		) {
+			$found = $existing === null
+				? 'none found'
+				: "provider '{$existing->collprovider}', locale '{$existing->colllocale}', deterministic {$existing->is_deterministic}";
+			throw new RuntimeException(
+				"MGR_Migration_builder::_ensure_pg_ci_collation(): collation {$collation} exists with a different "
+					. "definition than locale '{$locale}' ({$found})."
+			);
+		}
+
+		return $collation_ident;
 	}
 
 	// ── Shorthands ───────────────────────────────────────────────────────────
@@ -702,6 +854,7 @@ class MGR_Migration_builder
 	 * Changes one column's type, the same as `$this->dbforge->modify_column()`,
 	 * with the `USING` cast CI3's Postgres forge omits. Every other attribute on
 	 * the column (null, default, rename) is delegated to `$this->dbforge->modify_column()`.
+	 * A `case_insensitive` field keeps its collation.
 	 *
 	 * @param  array<string, array<string, mixed>> $field  One `field()` call's return value, passed directly (no spread)
 	 * @return void
@@ -731,7 +884,9 @@ class MGR_Migration_builder
 			// Cast to the unconstrained type and let the TYPE clause apply the length: an explicit
 			// cast to VARCHAR(n)/CHAR(n) truncates an overlong value silently, where the column type
 			// alone rejects it. Bare CHAR is CHAR(1) in Postgres, so TEXT stands in as its base.
-			$cast_type = $attributes['type'] === 'CHAR' ? 'TEXT' : $attributes['type'];
+			// A collated field casts to its base_type, never to the folded type string.
+			$base_type = $attributes['base_type'] ?? $attributes['type'];
+			$cast_type = $base_type === 'CHAR' ? 'TEXT' : $base_type;
 			$this->db->query(
 				"ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} TYPE {$type} "
 					. "USING {$column_ident}::{$cast_type}"
@@ -739,7 +894,7 @@ class MGR_Migration_builder
 		}
 
 		// 'unsigned' never reaches Postgres DDL — nothing to delegate.
-		$rest = array_diff_key($attributes, array_flip(['type', 'constraint', 'unsigned']));
+		$rest = array_diff_key($attributes, array_flip(['type', 'constraint', 'unsigned', 'base_type']));
 		if (!empty($rest)) {
 			$this->dbforge->modify_column($table, [$column => $rest]);
 		}
@@ -1108,6 +1263,42 @@ class MGR_Migration_builder
 		};
 	}
 
+	// ── DDL transaction ──────────────────────────────────────────────────────
+
+	/**
+	 * Opens a transaction on PostgreSQL, the one engine whose DDL rolls back; a no-op elsewhere.
+	 * Pair with end_ddl_transaction() in up() and down().
+	 */
+	protected function start_ddl_transaction(): void
+	{
+		if ($this->db_driver === MgrDriver::Postgres) {
+			$this->db->trans_begin();
+		}
+	}
+
+	/**
+	 * Commits what start_ddl_transaction() opened, or rolls it back and throws if a statement
+	 * failed meanwhile. Does nothing outside PostgreSQL.
+	 *
+	 * @throws RuntimeException if a statement in the transaction failed
+	 */
+	protected function end_ddl_transaction(): void
+	{
+		if ($this->db_driver !== MgrDriver::Postgres) {
+			return;
+		}
+
+		if ($this->db->trans_status() === false) {
+			$this->db->trans_rollback();
+
+			throw new RuntimeException(
+				'MGR_Migration_builder::end_ddl_transaction(): a statement failed; the transaction was rolled back.'
+			);
+		}
+
+		$this->db->trans_commit();
+	}
+
 	// ── Destructive down() guard ─────────────────────────────────────────────
 
 	/**
@@ -1125,8 +1316,55 @@ class MGR_Migration_builder
 	}
 
 	/**
+	 * Throws if $table.$column holds values a unique key on it would reject — under the column's
+	 * CI collation when $case_insensitive is true. Run before modify_column()/add_index(unique: true)
+	 * on a populated table. NULLs are ignored (a unique key accepts several).
+	 *
+	 * @throws RuntimeException naming table.column, the group count and up to 20 groups of ids
+	 */
+	protected function assert_no_duplicates(string $table, string $column, bool $case_insensitive, string $id_column = 'id'): void
+	{
+		$report_limit = 20;
+		$table_ident  = $this->db->escape_identifiers($table);
+		$column_ident = $this->db->escape_identifiers($column);
+		$id_ident     = $this->db->escape_identifiers($id_column);
+		$compared     = $case_insensitive
+			? "{$column_ident} COLLATE {$this->_ci_collation_clause($column)}"
+			: $column_ident;
+
+		$groups = $this->db->query(
+			"SELECT MIN({$id_ident}) AS first_id, COUNT(*) AS row_count FROM {$table_ident} "
+				. "WHERE {$column_ident} IS NOT NULL GROUP BY {$compared} HAVING COUNT(*) > 1 ORDER BY first_id;"
+		)->result_array();
+
+		if ($groups === []) {
+			return;
+		}
+
+		$id_lists = [];
+		foreach (array_slice($groups, 0, $report_limit) as $group) {
+			$rows = $this->db->query(
+				"SELECT {$id_ident} AS id FROM {$table_ident} WHERE {$compared} = "
+					. "(SELECT {$column_ident} FROM {$table_ident} WHERE {$id_ident} = ?) ORDER BY {$id_ident};",
+				[$group['first_id']]
+			)->result_array();
+			$id_lists[] = '[' . implode(', ', array_column($rows, 'id')) . ']';
+		}
+
+		$group_count = count($groups);
+		$semantics   = $case_insensitive ? 'under its case-insensitive collation' : 'by exact value';
+
+		throw new RuntimeException(
+			"MGR_Migration_builder::assert_no_duplicates(): {$table}.{$column} has {$group_count} duplicate group(s) "
+				. "{$semantics}; fix them before migrating. Ids (first {$report_limit} groups): "
+				. implode(', ', $id_lists) . '.'
+		);
+	}
+
+	/**
 	 * Generates a consistent index name.
 	 * Postgres includes table name to avoid cross-schema collisions.
+	 * MGR_DB_pgsql_forge_unique::_unique_index_name() copies the Postgres rule; keep both in sync.
 	 */
 	protected function _index_name(string $table, array $columns): string
 	{
