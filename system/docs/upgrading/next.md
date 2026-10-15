@@ -3,6 +3,103 @@
 Changes between 2.x releases that alter behavior a project already depends on.
 Everything else in a minor release is additive.
 
+### Case-insensitive identity columns: set `DB_COLLATION_CI` / `DB_LOCALE_CI` before migrating
+
+A new package migration, `20261014120000_Manager_ion_auth_v4`, makes
+`user.username`, `user.email` and `login_attempt.login` case-insensitive
+columns, and gives `username` (and on PostgreSQL also `email`) a unique key.
+Login, the duplicate checks and lockout then match case variants on every
+engine. New projects also get exact (case- and accent-sensitive) database
+defaults. `docs/development/database.md`'s "Case sensitivity" section has the
+model; what an existing project does:
+
+- **Set the new key before running `migrate`**, in every connection group
+  that runs the manager migrations: `dbcollatci` (env `DB_COLLATION_CI`) on
+  MySQL/MariaDB, `dblocaleci` (env `DB_LOCALE_CI`) on PostgreSQL. The sample
+  `database.php` and env templates show both. Without it the migration stops
+  before changing anything:
+  `MGR_Migration_builder: case_insensitive column 'username' needs the 'dbcollatci' setting on the connection to database '…'`.
+  The same key is what `like_ci()` searches need on MySQL/MariaDB.
+- **MySQL/MariaDB: keep your `DB_COLLATION`, and set `DB_COLLATION_CI` to the
+  collation your identity columns already have.** The migration then changes
+  no comparison semantics; it only adds the `username` unique key. Read the
+  current value with:
+
+  ```sql
+  SELECT TABLE_NAME, COLUMN_NAME, COLLATION_NAME FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND ((TABLE_NAME = 'user' AND COLUMN_NAME IN ('username', 'email'))
+      OR (TABLE_NAME = 'login_attempt' AND COLUMN_NAME = 'login'));
+  ```
+
+  Never copy the scaffold's new exact `DB_COLLATION` into an existing
+  project: every later `CREATE TABLE` would get it while older tables keep
+  the old one, and `=` between columns of the two collations fails with
+  ERROR 1267 *"Illegal mix of collations"*. For the same reason, choosing a
+  `DB_COLLATION_CI` that differs from your other columns makes your own
+  joins to these three columns fail with that error.
+- **PostgreSQL: 18 or later is required.** The columns get a
+  nondeterministic collation (`manager_case_insensitive`, created from
+  `DB_LOCALE_CI`; recommended `und-u-ks-level2`). Plain `LIKE` on them needs
+  18+, and `ILIKE` on them errors on every version: search them with
+  `like()`, not `like_ci()` or a hand-written `ILIKE`. The app role needs
+  `CREATE` on the schema once, to create the collation.
+- **PostgreSQL installs gain the `email` unique key that v3 never created**
+  (CI3's PostgreSQL forge silently dropped `unique` in `modify_column()`).
+  Existing data may hold exact duplicate emails as well as case variants.
+- **Fix duplicate `username` / `email` rows by hand first.** The migration
+  checks each column under the case-insensitive collation before altering
+  anything, and stops on any duplicate with the table, column, group count
+  and the user ids per group (first 20 groups, never the values). It checks
+  one column per run, so a database with both kinds stops twice. It never
+  chooses a surviving account.
+- **Skipping it:** `manager/tools/version_set 20261014120000 vendor:ixaya:manager:system:package:modules:manager <connection>`
+  records the migration without running it, and the code works without it.
+  On MySQL/MariaDB that loses only the `username` unique key. On PostgreSQL it
+  also keeps the columns case-sensitive (login and lockout stay exact) and
+  skips the `email` unique-key repair.
+- **MySQL/MariaDB re-state `email` as nullable**, as v2 already left it; a
+  `user.email` you set back to `NOT NULL` by hand becomes nullable again.
+- **A collation change rebuilds the table** on MySQL/MariaDB and takes an
+  ACCESS EXCLUSIVE lock on PostgreSQL; plan a window for a large `user` or
+  `login_attempt` table. MySQL/MariaDB do not roll back a failed run: fix the
+  cause and run `migrate` again (every step is idempotent).
+- **Scaffold values reach new projects and new data volumes only.** The
+  templates now ship `utf8mb4_0900_as_cs` / `utf8mb4_0900_as_ci` (MySQL) and
+  `utf8mb4_uca1400_nopad_as_cs` / `utf8mb4_uca1400_nopad_as_ci` (MariaDB);
+  the compose `--collation-server` lines follow the exact values, and the
+  bundled PostgreSQL initializes with `POSTGRES_INITDB_ARGS:
+  --locale-provider=icu --icu-locale=und`. An existing database volume keeps
+  its server default; changing a PostgreSQL cluster's default is a dump and
+  restore.
+
+### `modify_column(unique: true)` now creates the unique index on PostgreSQL
+
+CI3's PostgreSQL forges never emitted `unique` on a column change. A new
+framework forge subclass (`system/core/MGR/Forge/`, loaded by
+`MGR_Loader::dbforge()`) appends `CREATE UNIQUE INDEX IF NOT EXISTS
+{table}_{column}_key` for each such field, so fresh installs get
+`user_email_key` at v3. Your own migrations that relied on the silent no-op
+now get the index, or fail on duplicates they used to accept. On
+MySQL/MariaDB nothing changes; there, repeating `unique: true` on a column
+that already has a unique key still adds a second one, so prefer
+`add_index(unique: true)`.
+
+A project `MY_Loader` that does not extend `MGR_Loader` (the sample's does)
+does not get the forge subclass.
+
+### Migration runner: a throwing migration is rolled back, and an exact-version run stays on one connection
+
+- `MGR_Migration::version()` rolls back any transaction still open on the
+  migration connection before rethrowing, so a migration that fails between
+  `start_ddl_transaction()` and `end_ddl_transaction()` leaves PostgreSQL
+  clean instead of an aborted transaction.
+- `manager/tools/migrate <version> <module_key>` ran the migration's builder
+  SQL and its `dbforge` SQL on two different connections, because the
+  version lookup replaced `$CI->db`. On PostgreSQL, inside a transaction,
+  that hung. The lookup now uses its own handle and leaves `$CI->db` alone; a
+  project `MY_Migration_module_lib` that relied on the swap will notice.
+
 ### New: `CF_ENCRYPTION_CIPHER` selects the encryption cipher, and `generate_enc_key` sizes the key for it
 
 Additive; off by default. Nothing changes for an instance that does not set

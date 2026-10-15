@@ -129,6 +129,16 @@ rule exists: renaming a public method or changing a signature on any
 `MGR_*` class breaks every project subclass sitting on top of it, and
 nothing in the resolution mechanism itself would catch that at build time.
 
+**Database forges** resolve through `MGR_Loader::dbforge()`, not through
+either shape. CI3's own `CI_Loader::dbforge()` hardcodes the vendor forge
+file and its `CI_DB_<driver>[_<subdriver>]_forge` class, with no subclass
+hook, and MX does not override it. The framework override asks the vendor
+loader for its forge, derives `MGR_DB_<rest>` from that class name, and
+builds `system/core/MGR/Forge/MGR_DB_<rest>.php` on the same connection when
+the file exists; otherwise the vendor forge is used. A forge-level fix for
+another engine is one new file there. A project `MY_Loader` that does not
+extend `MGR_Loader` skips this.
+
 ## Package resource override precedence
 
 `$autoload['packages'] = [MGRPATH . 'package']` autoloads six resource

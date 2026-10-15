@@ -120,7 +120,15 @@ Production uses one of two database tiers: an **external** managed database
 (`DB_HOST=<managed endpoint>`, no db profile), recommended at scale; or, for
 small sites, the bundled `postgres` service with its data protected from
 `down -v` and backed up, set up per `docker-server.md`. `mysql`/`mariadb`
-remain dev/local only. Valkey ports are **never** published; only nginx
+remain dev/local only.
+
+The bundled databases start with exact (case- and accent-sensitive)
+defaults: `mysql` and `mariadb` set `--collation-server` to the exact values
+of `database.md`'s engine table, and `postgres` initializes with an ICU `und`
+locale (`POSTGRES_INITDB_ARGS`), because the image's own libc default sorts
+by code point. Both reach a new data volume only. An existing volume keeps
+its server default; on PostgreSQL, changing a cluster's default is a dump and
+restore into a fresh volume. Valkey ports are **never** published; only nginx
 publishes `HTTP_PORT` (→ :80) and `WS_PORT` (→ :8080), through the ports
 addon (`docker/docker-compose.ports.yml`) that `docker_manage.sh` includes
 while either key is set in `<instance>.docker.env`. Delete both and nothing
@@ -317,7 +325,8 @@ root-owned — `chown` them back if that gets in your workflow's way.
 The suite runs in the `testing` environment: the committed `.env.testing`
 holds the profile-independent config, and the gitignored `.env.testing.priv`
 holds the DB block (`DB_HOST`/`DB_PORT`/`DB_DRIVER`/`DB_NAME`/`DB_USER`/
-`DB_PASS`/`DB_CHAR_SET`/`DB_COLLATION`) — more than just the password, because
+`DB_PASS`/`DB_CHAR_SET`/`DB_COLLATION`/`DB_COLLATION_CI` or `DB_LOCALE_CI`) —
+more than just the password, because
 `DB_HOST`/`DB_DRIVER` depend on which local DB profile (mysql/mariadb/postgres)
 is active, and switching profiles shouldn't mean editing a tracked file. Copy
 `.env.sample.testing.priv` to `.env.testing.priv` and uncomment the block for

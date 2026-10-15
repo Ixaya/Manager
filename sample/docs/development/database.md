@@ -13,17 +13,122 @@ can be any non-empty value), and `DB_CHAR_SET`/`DB_COLLATION` in the base
 database its `DB_DRIVER` is the one that runs; an instance on an external
 database deletes the block, and the base's `DB_DRIVER` applies:
 
-| Engine | `--profile` | `DB_HOST` | `DB_PORT` | `DB_DRIVER` | native equivalent | `DB_CHAR_SET` / `DB_COLLATION` |
-|---|---|---|---|---|---|---|
-| PostgreSQL | `postgres` | `postgres` | `5432` | `pdo/pgsql` | `postgre` | `UTF8` / *(leave empty)* |
-| MySQL 8 | `mysql` | `mysql` | `3306` | `pdo/mysql` | `mysqli` | `utf8mb4` / `utf8mb4_0900_ai_ci` |
-| MariaDB | `mariadb` | `mariadb` | `3306` | `pdo/mysql` | `mysqli` | `utf8mb4` / `utf8mb4_uca1400_ai_ci` |
+| Engine | `--profile` | `DB_HOST` | `DB_PORT` | `DB_DRIVER` | native equivalent | `DB_CHAR_SET` / `DB_COLLATION` | `DB_COLLATION_CI` / `DB_LOCALE_CI` |
+|---|---|---|---|---|---|---|---|
+| PostgreSQL 18+ | `postgres` | `postgres` | `5432` | `pdo/pgsql` | `postgre` | `UTF8` / *(leave empty)* | *(leave empty)* / `und-u-ks-level2` |
+| MySQL 8.4+ | `mysql` | `mysql` | `3306` | `pdo/mysql` | `mysqli` | `utf8mb4` / `utf8mb4_0900_as_cs` | `utf8mb4_0900_as_ci` / *(leave empty)* |
+| MariaDB 10.11+ | `mariadb` | `mariadb` | `3306` | `pdo/mysql` | `mysqli` | `utf8mb4` / `utf8mb4_uca1400_nopad_as_cs` | `utf8mb4_uca1400_nopad_as_ci` / *(leave empty)* |
 
 `DB_CHAR_SET` has no default — set it. The native drivers refuse to connect
 without one; the PDO drivers accept an empty value and take whatever the
 database itself is configured for, which is fine until the database is not
-what you assumed. `DB_COLLATION` is only read when creating a database, so
-it can stay empty.
+what you assumed. On MySQL/MariaDB `DB_COLLATION` is the table collation:
+CI3 appends it to every `CREATE TABLE` (and `CREATE DATABASE`), so every new
+table compares under it. It is not sent on connect, so the connection keeps
+the client's default collation, which is case-insensitive on both engines
+and decides literal-to-literal comparisons in raw SQL. Leave it empty on
+PostgreSQL. `DB_COLLATION_CI` / `DB_LOCALE_CI` serve case-insensitive
+columns and searches (below).
+
+The minimums are recommendations, except PostgreSQL 18: plain `LIKE` on a
+case-insensitive column errors on 17 and earlier. MySQL 8.4 and MariaDB
+10.11 are the supported LTS lines; the collation names above exist from
+MySQL 8.0 and MariaDB 10.10. The values were verified on PostgreSQL 18.6,
+MySQL 8.4.11 and MariaDB 12.3.3.
+
+### Case sensitivity
+
+New databases compare text exactly — case- and accent-sensitive — on every
+engine. The exact values above are linguistic, not binary: they sort like a
+dictionary (`alice Alice ALICE angel Ángel bob Bob`), where `utf8mb4_bin`
+sorts by code point. MySQL/MariaDB `as_cs` also treats canonical equivalents
+as equal (`é` and `e` + U+0301), which PostgreSQL's deterministic default
+keeps distinct.
+
+Case-insensitivity is always explicit, in one of two places:
+
+- **A column declared `case_insensitive: true`** in its migration (see the
+  mgr-migrations skill) compares case-insensitively in every query — `=`,
+  `LIKE`, `GROUP BY`, `DISTINCT`, unique keys. The framework's own
+  `user.username`, `user.email` and `login_attempt.login` are declared that
+  way. The collation comes from `DB_COLLATION_CI` (MySQL/MariaDB) or
+  `DB_LOCALE_CI` (PostgreSQL: the ICU locale of a nondeterministic collation
+  the framework creates as `manager_case_insensitive`). An empty key stops
+  the migration with an error naming it.
+- **A case-insensitive search on an exact column** uses `get_all_like_ci()`
+  / `LIKE_CI` (see the mgr-models skill). A CI-declared column is searched
+  with plain `like()`; `like_ci()` on one errors on PostgreSQL, where `ILIKE`
+  rejects a nondeterministic collation.
+
+The recommended values are case-insensitive and accent-sensitive: `admin`
+matches `ADMIN`, `jose` does not match `José`.
+
+**Indexes.** `%x%` never uses an index, and neither does `like_ci()`. A
+case-insensitive prefix search (`x%`) seeks only on MySQL/MariaDB, as plain
+`LIKE` on a CI-declared column with its own index. On PostgreSQL a
+CI-declared column's index serves `=` but no `LIKE`. Admin screens that scan
+are fine; a large table that needs fast case-insensitive search needs its own
+design.
+
+**Mixing collations.** On MySQL/MariaDB, `=` between two columns of different
+non-binary collations fails with ERROR 1267 *"Illegal mix of collations"* —
+for example a join from one of your own exact columns to `user.email`.
+Declare both columns alike, or add `COLLATE` to one side. PostgreSQL does not
+error; the comparison runs under the case-insensitive side. A column compared
+with a literal never errors on any engine.
+
+**Choosing other values.** The values are recommendations; the project owns
+the choice. Where one language dominates, pick that language's collation and
+move the exact and CI values together — MariaDB
+`utf8mb4_uca1400_spanish_nopad_as_cs` / `utf8mb4_uca1400_spanish_nopad_as_ci`;
+PostgreSQL the database locale and `DB_LOCALE_CI` (`es-u-ks-level2`). MySQL
+8.4 has no Spanish `as_ci`, so there only the exact value can move. An
+accent-insensitive strength (`und-u-ks-level1`, `…_ai_ci`) works too, but
+makes `jose` and `José` the same identity.
+
+**PostgreSQL.** On a case-insensitive (nondeterministic) column:
+
+- These error: regular expressions (`~`, `~*`, `SIMILAR TO`, `regexp_*`,
+  `substring(col FROM pattern)`), `ILIKE`, `starts_with()` and `^@`. An
+  explicit deterministic collation on the operand works around it
+  (`col COLLATE "C" ~ '…'`, an exact match).
+- These work case-insensitively: `=`, `IN`, `LIKE` (18+), `strpos()`,
+  `replace()` (unlike MySQL's `REPLACE()`, which is case-sensitive),
+  `DISTINCT`, `GROUP BY`, `ORDER BY`, unique keys.
+- A string foreign key needs the identical collation on both sides.
+- Columns bind to `manager_case_insensitive` by OID. After `DB_LOCALE_CI`
+  changes, the next case-insensitive field a migration builds fails with a
+  "different definition" error, and existing columns keep the old locale.
+  There is no in-place change; convert in one transaction (PostgreSQL DDL
+  rolls back on failure):
+
+  ```sql
+  BEGIN;
+  CREATE COLLATION "manager_case_insensitive_new" (provider = icu, locale = '<new locale>', deterministic = false);
+  -- string FKs between collated columns: drop, convert both sides, re-add
+  ALTER TABLE <t> ALTER COLUMN <c> TYPE <same type> COLLATE "manager_case_insensitive_new";  -- every collated column
+  DROP COLLATION "manager_case_insensitive";
+  ALTER COLLATION "manager_case_insensitive_new" RENAME TO "manager_case_insensitive";
+  COMMIT;
+  -- then set DB_LOCALE_CI to the new value
+  ```
+
+  A stricter locale can make a foreign key or a former match fail; a looser
+  one can merge values a unique key then rejects, so scan for duplicates
+  under the new locale first. Each `ALTER … TYPE` takes an ACCESS EXCLUSIVE
+  lock and rebuilds the column's indexes; plan a window on large tables.
+- An ICU library upgrade (a new image) can change collation versions.
+  PostgreSQL then warns, and the expected fix is `REINDEX` on the affected
+  indexes plus `ALTER COLLATION … REFRESH VERSION`. Not verified here.
+- The bundled PostgreSQL cluster initializes new volumes with an ICU `und`
+  default, so its exact default sorts linguistically as well (`docker.md`).
+
+**SQLite** declares case-insensitive columns `COLLATE NOCASE`, which folds
+ASCII only (`josé` and `JOSÉ` stay distinct), and its plain `LIKE` is already
+ASCII-case-insensitive. **SQL Server** refuses `case_insensitive: true`, and
+`like_ci()` falls back to `LOWER()` on both sides; neither is verified, and a
+typical SQL Server instance default is case-insensitive, so exact-by-default
+does not hold there.
 
 ### PDO is the default; the native drivers are the compatibility choice
 
@@ -221,3 +326,20 @@ between them.
   the correct function for any raw SQL writing "now" into a `Timestamp`
   column there. Postgres/MySQL/MariaDB/SQLite are unaffected — none of them
   has this offset-vs-naive distinction for the value itself.
+- **Only PostgreSQL rolls back DDL.** A multi-step migration brackets its
+  steps with `start_ddl_transaction()` / `end_ddl_transaction()`: a
+  transaction on PostgreSQL, a no-op elsewhere, and the runner rolls an open
+  transaction back when a migration throws. MySQL/MariaDB commit each DDL
+  statement implicitly, so a failure there leaves the earlier steps applied;
+  steps are written idempotent and `migrate` is simply re-run after the
+  cause is fixed.
+- **`unique: true` inside `modify_column()` means different things per
+  engine.** PostgreSQL gets a unique index `{table}_{column}_key` (the name
+  `drop_index()` derives); MySQL/MariaDB emit `UNIQUE` in the `MODIFY`, which
+  adds a *second* unique index (`email_2`) when the column already has one;
+  SQL Server's `ALTER COLUMN … UNIQUE` is unverified. `add_index(unique:
+  true)` is the portable form.
+- **CI3's `table_exists()` can report a rolled-back table as present.** It
+  reads a cached table list that `create_table()` appends to and a rollback
+  does not clear; inside a PostgreSQL DDL transaction that failed, query the
+  catalog instead.

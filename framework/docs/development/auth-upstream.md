@@ -106,8 +106,13 @@ merging a newer upstream, diff against this list and re-run the probe suite in
 - **Seam methods (extension points the subclasses rely on):**
   `login_select_columns()`, `users_groups_select_columns()`, and
   `recheck_session_unset_keys()` (returns every key `set_session()` stores —
-  the two carry reciprocal keep-in-sync comments). If upstream restructures
-  `login()`/`recheck_session()`/`set_session()`, these seams must survive.
+  the two carry reciprocal keep-in-sync comments), plus `register_conflict()`
+  and `update_conflict()` (2026-10-14): behavior-neutral extractions of
+  `register()`'s identity check and `update()`'s identity-check expression,
+  returning the error key or `null`. `MGR_Ion_auth_model` overrides both to
+  add the email check and to exclude the user's own row. If upstream
+  restructures `login()`/`recheck_session()`/`set_session()`/`register()`/
+  `update()`, these seams must survive.
 - **Deleted dead code:** the `__call` aliases `create_user`/`update_user`
   (library) and the constructor identity-cookie auto-login block (+ the
   `identityCookieName` config key) — the cookie was never written anywhere;
@@ -146,6 +151,11 @@ merging a newer upstream, diff against this list and re-run the probe suite in
   CI4-driver feature; CI3's postgre driver uses `LASTVAL()`, runtime-proven).
 - **`ionSelect` is a `users()`-only feature**; `groups()` deliberately doesn't
   consume it.
+- **The `register()`/`update()` duplicate checks fire no `extra_where` hook**
+  (`MGR_Ion_auth_model::value_taken_by_other()`), unlike `email_check()`. The
+  unique keys on `username`/`email` are global, so a tenant-scoped check would
+  pass a row the database then rejects. Do not route them through
+  `email_check()`/`identity_check()` for parity.
 - **Dropped upstream API kept dropped:** `getErrors()`,
   `checkCompatibility()`, `errors($template)` param — zero callers.
 

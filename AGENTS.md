@@ -35,6 +35,7 @@ system/
 ├── core/               # MGR classes: Model, Controller, Loader, Router, Exceptions,
 │   │                   #   MGR_Model_Dyn, MGR_Api_Model, MGR_Rest_Controller
 │   └── MGR/
+│       └── Forge/      #   MGR_DB_*_forge subclasses, picked by MGR_Loader::dbforge()
 ├── hooks/              # MGR_Bootstrap.php (framework bootstrap hook)
 ├── libraries/          # MGR_* implementations (upload, aws, jwt, mailing, async exec,
 │   │                   #   websocket, migration builder/module lib)

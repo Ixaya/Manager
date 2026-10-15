@@ -59,6 +59,11 @@ something the stack depends on; anything else is a recommendation.
 There is no point-in-time recovery: the worst-case loss is everything
 written since the last good dump.
 
+A new cluster initializes with an ICU `und` default locale
+(`POSTGRES_INITDB_ARGS` in the compose file). It applies to an empty data
+directory only; a cluster created before keeps its default, and moving it is
+a dump and restore into a fresh one.
+
 Paths below are relative to the directory holding the compose file
 (`docker/` in a project checkout). `<container>` is the `postgres`
 container's name.
@@ -130,7 +135,9 @@ with `printf`/`openssl` (no trailing newline), then:
 - **Point the app at the bundled database** in `<instance>.env`:
   `DB_HOST=postgres`, `DB_PORT=5432` and `DB_DRIVER=pdo/pgsql` in its
   bundled-database block (the block overrides the base), with
-  `DB_CHAR_SET=UTF8` and `DB_COLLATION` empty (`database.md`). Generate
+  `DB_CHAR_SET=UTF8`, `DB_COLLATION` empty and
+  `DB_LOCALE_CI=und-u-ks-level2` (`database.md`; without it the first
+  `migrate` stops). Generate
   `CF_ENCRYPTION_KEY` (`docker.md`, "Your own instance").
 
 ### If the first initialization fails

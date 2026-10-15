@@ -37,6 +37,7 @@ tests/
     ├── auth/            "Auth" suite — DB-backed integration reference
     ├── env/             "Env" suite — the env layer
     ├── models/          "Models" suite — MY_Model / APP_Model_Dyn
+    ├── migrations/      "Migrations" suite — case-insensitive columns, forge, DDL transaction
     └── tools/           "Tools" suite — log_prune, the CLI error contract
 ```
 

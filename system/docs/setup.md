@@ -224,8 +224,11 @@ before anything that invokes it.
 cp .env.sample .env.local
 ```
 
-Set `DB_CHAR_SET`/`DB_COLLATION` to match the engine chosen in step 5 (for
-example PostgreSQL is `UTF8` / empty), and `CF_ENCRYPTION_CIPHER` to the
+Set `DB_CHAR_SET`/`DB_COLLATION` and the case-insensitive key
+(`DB_COLLATION_CI` on MySQL/MariaDB, `DB_LOCALE_CI` on PostgreSQL) to match
+the engine chosen in step 5 (for example PostgreSQL is `UTF8` / empty /
+`DB_LOCALE_CI=und-u-ks-level2`; without its key the first `migrate` stops),
+and `CF_ENCRYPTION_CIPHER` to the
 cipher the step 5 key was sized for (the template ships `aes-128`).
 `DB_DRIVER` here applies to a non-Docker run and to an instance on an
 external database; with a bundled one, the block in `docker/env/local.env`
@@ -453,7 +456,8 @@ chmod 600 .env.testing.priv
 
 Fill in `DB_NAME`/`DB_USER`/`DB_PASS` (the same values as your `local`
 instance) and uncomment the block for your engine
-(`DB_HOST`/`DB_PORT`/`DB_DRIVER`/`DB_CHAR_SET`/`DB_COLLATION`). Writing and
+(`DB_HOST`/`DB_PORT`/`DB_DRIVER`/`DB_CHAR_SET`/`DB_COLLATION`, plus
+`DB_COLLATION_CI` or `DB_LOCALE_CI`). Writing and
 extending tests is covered in `docs/development/testing.md`.
 
 **Common failure modes:**

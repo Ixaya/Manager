@@ -148,11 +148,8 @@ class MGR_Loader extends MX_Loader
 	}
 
 	/**
-	 * Load the database forge, preferring an `MGR_DB_*_forge` subclass of the vendor forge.
-	 *
-	 * The vendor loader resolves the forge class itself; its class name decides the MGR
-	 * counterpart (`CI_DB_pdo_pgsql_forge` -> `MGR_DB_pdo_pgsql_forge`), looked up as a file
-	 * in `core/MGR/Forge/`. Without one the vendor forge is used unchanged.
+	 * Load the database forge, preferring `core/MGR/Forge/MGR_DB_<rest>.php` named after the vendor
+	 * forge's class (`CI_DB_pdo_pgsql_forge` -> `MGR_DB_pdo_pgsql_forge`); the vendor forge otherwise.
 	 *
 	 * @param object|null $db     Database object; the active connection when omitted
 	 * @param bool        $return Return the forge instead of assigning `$CI->dbforge`
