@@ -17,6 +17,11 @@ final class MigrationBuilderHarness extends MGR_Migration_builder
 		$this->modify_column_cast($table, $field);
 	}
 
+	public function check_no_nulls(string $table, array $columns): void
+	{
+		$this->assert_no_nulls($table, $columns);
+	}
+
 	public function remove_index(string $table, string $column): bool
 	{
 		return $this->drop_index($table, $column);

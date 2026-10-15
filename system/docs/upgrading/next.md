@@ -55,11 +55,17 @@ model; what an existing project does:
   chooses a surviving account.
 - **Skipping it:** `manager/tools/version_set 20261014120000 vendor:ixaya:manager:system:package:modules:manager <connection>`
   records the migration without running it, and the code works without it.
-  On MySQL/MariaDB that loses only the `username` unique key. On PostgreSQL it
+  On MySQL/MariaDB that loses the `username` unique key and the NOT NULL
+  correction below. On PostgreSQL it
   also keeps the columns case-sensitive (login and lockout stay exact) and
   skips the `email` unique-key repair.
-- **MySQL/MariaDB re-state `email` as nullable**, as v2 already left it; a
-  `user.email` you set back to `NOT NULL` by hand becomes nullable again.
+- **MySQL/MariaDB: four Ion Auth columns become NOT NULL.** `user.ip_address`,
+  `user.email`, `user.created_on` and `login_attempt.ip_address` were left
+  nullable by an earlier migration on those engines; PostgreSQL always had
+  them NOT NULL. Before changing anything the migration looks for NULLs and
+  stops with the table, column, row count and ids (first 20, never the
+  values); it never fills a value in. Fix those rows by hand and run `migrate`
+  again. The next entry has the cause.
 - **A collation change rebuilds the table** on MySQL/MariaDB and takes an
   ACCESS EXCLUSIVE lock on PostgreSQL; plan a window for a large `user` or
   `login_attempt` table. MySQL/MariaDB do not roll back a failed run: fix the
@@ -72,6 +78,44 @@ model; what an existing project does:
   --locale-provider=icu --icu-locale=und`. An existing database volume keeps
   its server default; changing a PostgreSQL cluster's default is a dump and
   restore.
+
+### An unspecified `nullable:` in `field()` now means NOT NULL on every operation
+
+Reaches a project through `composer update`; the scaffold's migration-builder
+test door and test (`tests/support/MigrationBuilderHarness.php`,
+`tests/unit/migrations/NullabilityDefaultTest.php`) come with reconciling the
+sample.
+
+A `field()` without `nullable:` used to mean three things: NOT NULL in
+`create_table`, nullable in `add_column`, and on `modify_column` unchanged on
+PostgreSQL but nullable on MySQL/MariaDB (`MODIFY` redefines the whole
+column). That is how Ion Auth's `modify_column()` calls left four columns
+nullable on MySQL/MariaDB only. It now means NOT NULL on all of them.
+Migrations that already ran are never re-executed, so no existing database
+changes; what changes is migrations that run after you upgrade (a fresh
+install, a new migration):
+
+- **`create_table`:** no change.
+- **`add_column` without `nullable:`:** NOT NULL instead of nullable. Add
+  `nullable: true`, or a `default` for a populated table.
+- **`modify_column()` / `modify_column_cast()` without `nullable:`:** NOT
+  NULL on every engine. Restating a nullable column this way now needs
+  `nullable: true`; without it, PostgreSQL fails while rows hold NULL, and
+  MySQL/MariaDB with strict mode off rewrite the NULLs to `''`/`0`.
+- **New `assert_no_nulls(table:, columns:)` builder helper** stops with the
+  row ids before a tightening; call it ahead of such a `modify_column()`.
+- **MySQL/MariaDB projects: your own tables may already be nullable where
+  you meant NOT NULL.** A column created NOT NULL and later restated with
+  `modify_column()` without `nullable:` was made nullable. List what is
+  nullable and compare it with what your migrations declared:
+
+  ```sql
+  SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND IS_NULLABLE = 'YES';
+  ```
+
+  Restore a column with a new migration that calls `assert_no_nulls()` and
+  then `modify_column()` with `nullable: false`, or leave it as it is.
 
 ### `modify_column(unique: true)` now creates the unique index on PostgreSQL
 

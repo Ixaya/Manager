@@ -339,6 +339,14 @@ between them.
   adds a *second* unique index (`email_2`) when the column already has one;
   SQL Server's `ALTER COLUMN … UNIQUE` is unverified. `add_index(unique:
   true)` is the portable form.
+- **A column restated in `modify_column()` is only as NOT NULL as the call
+  says.** MySQL/MariaDB `MODIFY` redefines the whole column, so a restate
+  that leaves nullability out makes it nullable; PostgreSQL alters the pieces
+  separately and keeps it. The builder states nullability on every field
+  (NOT NULL unless `nullable: true`), so all engines agree. Tightening a
+  column on MySQL/MariaDB with strict mode off does not fail on existing
+  NULLs — it rewrites them to `''`/`0` — so check first with
+  `assert_no_nulls()`.
 - **CI3's `table_exists()` can report a rolled-back table as present.** It
   reads a cached table list that `create_table()` appends to and a rollback
   does not clear; inside a PostgreSQL DDL transaction that failed, query the

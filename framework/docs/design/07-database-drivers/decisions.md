@@ -415,6 +415,36 @@ rather than a separate initiative because it is the same subsystem
   path never sees) and driver-aware read normalization in the DB layer
   (larger schema-metadata plumbing than the bug needs). Documented in the
   `mgr-models` skill.
+- **2026-10-15: an unspecified `nullable` on `field()` is NOT NULL on every
+  operation and engine.** The default used to be `null`, "CI default", and
+  the forge read an absent `null` key three ways: NOT NULL on `create_table`,
+  nullable on `add_column`, and on `modify_column` unchanged on PostgreSQL
+  (separate `SET/DROP NOT NULL` statements) but nullable on MySQL/MariaDB
+  (`MODIFY` redefines the whole column). Ion Auth v2 and v3 restated four
+  columns without `nullable:`, so `user.ip_address`, `user.email`,
+  `user.created_on` and `login_attempt.ip_address` came out nullable on
+  MySQL/MariaDB only. `MgrFieldBuilder` now always emits `null`, `false` by
+  default, so one field definition produces one result everywhere; the value
+  is NOT NULL because that is what `create_table` always did. Shipped
+  `add_column` calls that relied on the old nullable result got an explicit
+  `nullable: true` (`ion_auth_v3` `down()`, `salt`; byte-identical DDL, an
+  allowed `down()` edit), so nothing already shipped changes. Existing
+  MySQL/MariaDB databases are corrected by `ion_auth_v4`, edited in place
+  because it had not shipped: it restates the four columns NOT NULL behind
+  `assert_no_nulls()` on every engine (a no-op on PostgreSQL), which stops
+  with the row ids and never fills a value — with strict mode off MySQL would
+  otherwise rewrite the NULLs to `''`/`0`. Its `down()` leaves them NOT NULL;
+  restoring nullable would re-create the defect, and PostgreSQL never had it.
+  Rejected: a forge-level rule for `modify_column()` only (leaves create and
+  add disagreeing); "unchanged" on modify (MySQL needs the current state read
+  from `information_schema`, a mechanism with no other caller); and a
+  required `nullable:` on the modify path (breaks every consumer migration
+  that omits it, for no behavior the default does not already give).
+  Consuming projects' own unrun migrations that omit `nullable:` change
+  meaning — in `system/docs/upgrading/next.md`. Live: schemas of a fresh
+  migrate on PostgreSQL 18.6, MySQL 8.4.11 and MariaDB 12.3.3 differ before
+  and after only in those four columns on MySQL/MariaDB, and an upgraded
+  legacy database matches a fresh one.
 
 ## Schema key constraints (foreign keys, index prefix length, primary keys)
 

@@ -103,11 +103,12 @@ its MySQL/SQL Server no-ops and its "no CI search" exclusion.
 - **Order:** transaction start → build fields → duplicate check →
   `modify_column()` without `unique:` → `add_index(unique: true)` → end. On
   MySQL `MODIFY … UNIQUE` on a keyed column adds `email_2`.
-- **Nullability re-stated, never changed:** `username` false, `email` null,
-  `login` true. `nullable: null` makes a MySQL/MariaDB column nullable
-  (stock installs already are after v2); the divergence itself is the
-  proposal "MySQL/MariaDB `modify_column()` without `nullable:` drops NOT
-  NULL".
+- **Nullability re-stated, never loosened:** `username` false, `email` false,
+  `login` true. `v4` also restates `user.ip_address`, `user.created_on` and
+  `login_attempt.ip_address` NOT NULL, behind a NULL-row gate — v2 had left
+  all four nullable on MySQL/MariaDB. The builder-level default that closes
+  it is in `07-database-drivers/decisions.md` ("an unspecified `nullable` …
+  is NOT NULL").
 - **Duplicate report:** `table.column`, group count, ids per group (first
   20), never values; NULLs ignored. One column per run.
 - **`down()`** drops only the `username` key and restates the columns

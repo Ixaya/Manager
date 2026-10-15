@@ -212,6 +212,16 @@ Give `mysqli`/`postgre` their own pass when a change touches driver-specific
 behavior — CI3's driver classes, fetch types, connection handling — or when
 asked for it by name.
 
+**A change to what migrations emit is judged by a schema diff.** Migrate a
+fresh database to the last migration before the one under change
+(`manager/tools/migrate <version> <module_key>`, see the mgr-migrations
+skill), dump `information_schema.columns` (table, column, type, nullability,
+default, collation), and repeat after the change on every engine; the diff
+should hold exactly the intended columns. A migration that corrects existing
+data needs a second proof: build the legacy state by hand on a fresh database
+(alter the columns back, insert a row the migration must refuse), run it, and
+compare the result with a fresh install.
+
 Tear down with every profile flag the session used, or the leftover
 containers outlive it:
 

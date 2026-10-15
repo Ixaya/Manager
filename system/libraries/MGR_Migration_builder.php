@@ -164,7 +164,7 @@ final class MgrFieldBuilder
 	 * @param MgrDriver		$driver			 Injected from MGR_Migration_builder — computed once per migration
 	 * @param int|null	 	$constraint
 	 * @param bool			$unsigned		  Passed to dbforge; PostgreSQL upsizes the type instead of UNSIGNED
-	 * @param bool|null		$nullable		  true=NULL, false=NOT NULL, null=CI default
+	 * @param bool			$nullable		  true=NULL, false=NOT NULL (the default)
 	 * @param bool			$unique
 	 * @param bool			$auto_increment
 	 * @param mixed		  	$default			Scalar or null (DEFAULT NULL). Omit for no default.
@@ -180,7 +180,7 @@ final class MgrFieldBuilder
 		protected readonly MgrDriver	$driver,
 		protected readonly ?int			$constraint		= null,
 		protected readonly bool			$unsigned		= false,
-		protected readonly ?bool		$nullable		= null,
+		protected readonly bool			$nullable		= false,
 		protected readonly bool			$unique			= false,
 		protected readonly bool			$auto_increment = false,
 		protected readonly mixed		$default		= MgrFieldDefault::NotSet,
@@ -276,9 +276,8 @@ final class MgrFieldBuilder
 		if ($unsigned) {
 			$field['unsigned'] = $unsigned;
 		}
-		if ($this->nullable !== null) {
-			$field['null'] = $this->nullable;
-		}
+		// always emitted: an absent key resolves differently per operation and engine
+		$field['null'] = $this->nullable;
 		if ($this->unique) {
 			$field['unique'] = true;
 		}
@@ -571,7 +570,7 @@ class MGR_Migration_builder
 	 * @param  MgrFieldType $type
 	 * @param  int|null	  $constraint			 For CHAR, VARCHAR, etc.
 	 * @param  bool			$unsigned		  Integers only. PostgreSQL upsizes the type instead of UNSIGNED.
-	 * @param  bool|null	 $nullable		  true=NULL | false=NOT NULL | null=CI default
+	 * @param  bool		  $nullable		  true=NULL | false=NOT NULL (the default)
 	 * @param  bool			$unique
 	 * @param  bool			$auto_increment
 	 * @param  mixed		  $default			Scalar or null (DEFAULT NULL). Omit for no default.
@@ -590,7 +589,7 @@ class MGR_Migration_builder
 		MgrFieldType $type,
 		?int			$constraint			= null,
 		bool			$unsigned		 = false,
-		?bool		  $nullable		 = null,
+		bool			$nullable		 = false,
 		bool			$unique			= false,
 		bool			$auto_increment = false,
 		mixed		  $default		  = MgrFieldDefault::NotSet,
@@ -1359,6 +1358,35 @@ class MGR_Migration_builder
 				. "{$semantics}; fix them before migrating. Ids (first {$report_limit} groups): "
 				. implode(', ', $id_lists) . '.'
 		);
+	}
+
+	/**
+	 * Throws if any of $columns holds NULL — run before a modify_column() that makes them NOT NULL,
+	 * which MySQL/MariaDB with strict mode off would otherwise satisfy by rewriting the NULLs to ''/0.
+	 *
+	 * @param  string[] $columns
+	 * @throws RuntimeException naming each table.column, its NULL row count and up to 20 ids
+	 */
+	protected function assert_no_nulls(string $table, array $columns, string $id_column = 'id'): void
+	{
+		$report_limit = 20;
+		$found        = [];
+
+		foreach ($columns as $column) {
+			$null_rows = $this->db->where($column, null)->count_all_results($table);
+			if ($null_rows === 0) {
+				continue;
+			}
+
+			$rows    = $this->db->select($id_column)->where($column, null)->order_by($id_column)->limit($report_limit)->get($table)->result_array();
+			$found[] = "{$table}.{$column}: {$null_rows} row(s), ids (first {$report_limit}): [" . implode(', ', array_column($rows, $id_column)) . ']';
+		}
+
+		if ($found !== []) {
+			throw new RuntimeException(
+				'MGR_Migration_builder::assert_no_nulls(): ' . implode('; ', $found) . '; fix them before migrating.'
+			);
+		}
 	}
 
 	/**

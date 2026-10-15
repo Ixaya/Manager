@@ -26,7 +26,7 @@ class Migration_Manager_ion_auth_v3 extends MGR_Migration_builder
 		]);
 
 		$this->dbforge->add_column('user', [
-			...$this->field(name: 'salt', type: MgrFieldType::VarChar, constraint: 40),
+			...$this->field(name: 'salt', type: MgrFieldType::VarChar, constraint: 40, nullable: true),
 		]);
 	}
 }

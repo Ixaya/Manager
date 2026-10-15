@@ -119,7 +119,7 @@ $this->field(
     name: 'price', type: MgrFieldType::Decimal,
     constraint: 191,      // CHAR/VARCHAR length
     unsigned: true,       // ints/decimals only (validated)
-    nullable: false,      // true = NULL, false = NOT NULL, omit = CI default
+    nullable: false,      // true = NULL, false = NOT NULL (the default, on create, add and modify alike)
     unique: true,
     auto_increment: true, // int types only (validated)
     default: 0,           // scalar or null; omit for no DEFAULT clause
@@ -235,7 +235,14 @@ that.
 
 Tightening `nullable: true` to `false` fails while any row still holds
 `NULL` — a `default` in the same call sets the column default, it does not
-backfill. `UPDATE` those rows first.
+backfill. `UPDATE` those rows first, and call
+`assert_no_nulls(table:, columns:)` before the `modify_column()`: it throws
+with the row ids (never values), where MySQL/MariaDB with strict mode off
+would silently rewrite the NULLs to `''`/`0`.
+
+Restating a column in `modify_column()` or `add_column()` re-declares its
+nullability too: omitting `nullable:` means NOT NULL, so a column that is
+nullable (or a nullable column you add) needs `nullable: true`.
 
 `down()` must reverse `up()` (see `Manager_ion_auth_v3.php` for a full symmetric
 example).
