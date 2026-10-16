@@ -168,6 +168,12 @@ one was switched is not evidence of anything; it may have quietly run on
 the old driver. Confirm the actual driver a run used from the run's own
 output, not from which env file you remember editing.
 
+Switching engine is the bundled-database block's whole `DB_*` row in
+`<instance>.env`, not `DB_DRIVER`/`DB_HOST` alone. The block overrides the
+base, empty values included, so PostgreSQL's `DB_CHAR_SET=UTF8` left in
+place on MySQL connects silently as `utf8mb3` and refuses 4-byte characters
+on write. The per-engine rows are in `docs/development/database.md`.
+
 ## A container that restarts or drops every connection: check for an OOM kill first
 
 Every service has a hard memory cap, and reaching it kills a process inside

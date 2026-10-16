@@ -86,6 +86,37 @@ model; what an existing project does:
   its server default; changing a PostgreSQL cluster's default is a dump and
   restore.
 
+### PostgreSQL is now the new-project default
+
+The scaffold's `.env.sample`, the `docker/env/sample.env` bundled-database
+block and the `DB_DRIVER` fallback in `application/config/database.php` now
+default to PostgreSQL: `pdo/pgsql`, `DB_CHAR_SET=UTF8`, empty
+`DB_COLLATION`/`DB_COLLATION_CI`, `DB_LOCALE_CI=und-u-ks-level2`.
+**PostgreSQL 18 or later is required** (see the case-insensitive identity
+columns entry above). MySQL and MariaDB stay fully supported; their values
+are in the templates' comments and in `docs/development/database.md`'s
+engine table.
+
+Existing projects are unaffected automatically: `composer update` never
+touches your own env files or `database.php`. Two cases need a look:
+
+- **A project whose env files leave `DB_DRIVER` unset** relied on the old
+  `pdo/mysql` fallback. If it reconciles `database.php` from the sample, set
+  `DB_DRIVER` explicitly first.
+- **Reconciling `docker/env/sample.env`** brings PostgreSQL's block values;
+  keep your engine's (entry below).
+
+`.env.sample.testing.priv` now uses the PDO drivers too (`pdo/pgsql` with
+`UTF8`, `pdo/mysql`), matching the app default; it used to ship `postgre`
+and `mysqli`. Your own `.env.testing.priv` is unaffected. Keep its
+`DB_DRIVER` the same as the instance's, or the suite tests a different
+driver from the one the app runs.
+
+The scaffold also drops the commented `$db['secondary']` example and its
+`DB_SEC_*` env lines. A project that uses them is unaffected;
+`docs/development/database.md`'s "Adding a connection group" covers the
+pattern.
+
 ### An unspecified `nullable:` in `field()` now means NOT NULL on every operation
 
 Reaches a project through `composer update`; the scaffold's migration-builder
@@ -276,7 +307,7 @@ nginx's published ports. No flag, so the dev flow is unchanged.
 - Bringing an existing instance up with the new files recreates nothing
   that didn't change: php, nginx and the Valkeys keep running.
 
-### The bundled-service groups of the docker env now carry `DB_DRIVER`, `LIB_REDIS_PORT` and `LIB_REDIS_SOCKET_TYPE` — adopting them moves a native-driver instance with a bundled database to PDO
+### The bundled-service groups of the docker env now carry the full `DB_*` set, `LIB_REDIS_PORT` and `LIB_REDIS_SOCKET_TYPE` — adopting them moves a native-driver instance with a bundled database to PDO
 
 Reaches a project when it reconciles `docker/env/sample.env` into its
 `docker/env/<instance>.env` files. Those keys used to come only from the base
@@ -287,15 +318,20 @@ the matching group, and the base's values apply as before:
 - **Redis group** (bundled `valkey-cache`): `LIB_REDIS_PORT=6379`,
   `LIB_REDIS_SOCKET_TYPE=tcp`, beside the `LIB_REDIS_HOST` it already set.
   Nothing changes for an instance already on those values.
-- **Bundled-database block:** `DB_DRIVER=pdo/mysql`, beside `DB_HOST`/
-  `DB_PORT`. **An instance with a bundled database whose base says `mysqli`
-  or `postgre` runs PDO once it adopts this line**, and the JSON an API
-  returns changes type: PDO fetches native int/float/bool where the native
-  drivers return strings. `PDO::ATTR_STRINGIFY_FETCHES`, commented in
+- **Bundled-database block:** the engine's full key set, `DB_HOST`,
+  `DB_PORT`, `DB_DRIVER`, `DB_CHAR_SET`, `DB_COLLATION`, `DB_COLLATION_CI`
+  and `DB_LOCALE_CI`. The template ships PostgreSQL's values and lists
+  MySQL's and MariaDB's in a comment above them. **Copy your engine's
+  values, not the template's:** the block overrides the base, empty values
+  included, so a MySQL/MariaDB instance that takes the PostgreSQL lines
+  can't connect, and one that takes an empty `DB_COLLATION` creates its
+  next tables under the server default instead of its own collation.
+  **An instance with a bundled database whose base says `mysqli` or
+  `postgre` runs PDO once it adopts the block's `DB_DRIVER`**, and the JSON
+  an API returns changes type: PDO fetches native int/float/bool where the
+  native drivers return strings. `PDO::ATTR_STRINGIFY_FETCHES`, commented in
   `application/config/database.php`, restores strings, and
-  `docs/development/database.md` holds the trade-off. **PostgreSQL:** set
-  `DB_DRIVER=pdo/pgsql` in the block, or the template's `pdo/mysql`
-  overrides a correct base and the app can't connect.
+  `docs/development/database.md` holds the trade-off.
 
 Verify per key, after recreating the app containers — `source=process-env`
 means the docker layer set it:

@@ -31,8 +31,8 @@ include MGRPATH . 'config/database.php';
 |	    off, surfacing as an unexplained 500 on every request.
 |	['password'] (string)
 |	['database'] (string) Required, no fallback — as username.
-|	['dbdriver'] (string) pdo/mysql or pdo/pgsql (default, typed fetches),
-|	    or mysqli (also MariaDB) / postgre (native, stringified fetches).
+|	['dbdriver'] (string) PDO (default): pdo/pgsql or pdo/mysql (typed fetches);
+|	    or native: postgre / mysqli for MySQL/MariaDB (stringified fetches).
 |	['dbprefix'] (string) Prepended to table names by the Query Builder.
 |	['pconnect'] (bool) TRUE reuses a persistent connection.
 |	['db_debug'] (bool) What a query that fails to execute does:
@@ -77,7 +77,7 @@ $db['default'] = mgr_apply_pdo_dsn([
 	'username' => mgr_env_required('DB_USER'),
 	'password' => mgr_env('DB_PASS', ''),
 	'database' => mgr_env_required('DB_NAME'),
-	'dbdriver' => mgr_env('DB_DRIVER', 'pdo/mysql'),
+	'dbdriver' => mgr_env('DB_DRIVER', 'pdo/pgsql'),
 	// bridges native's stringify-everything contract on pdo driver
 	// 'options' => [PDO::ATTR_STRINGIFY_FETCHES => true],
 	'dbprefix' => '',
@@ -96,28 +96,3 @@ $db['default'] = mgr_apply_pdo_dsn([
 	'failover' => [],
 	'save_queries' => true
 ]);
-
-// $db['secondary'] = mgr_apply_pdo_dsn([
-// 	'dsn'	=> '',
-// 	'hostname' => mgr_env('DB_SEC_HOST', 'localhost'),
-//  'port' => mgr_env('DB_SEC_PORT', null),
-// 	'username' => mgr_env('DB_SEC_USER', 'root'),
-// 	'password' => mgr_env('DB_SEC_PASS', ''),
-// 	'database' => mgr_env('DB_SEC_NAME', ''),
-// 	'dbdriver' => mgr_env('DB_SEC_DRIVER', 'pdo/mysql'),
-// 	'dbprefix' => '',
-// 	'pconnect' => false,
-// 	'db_debug' => (ENVIRONMENT !== 'production'),
-// 	'cache_on' => false,
-// 	'cachedir' => '',
-// 	'char_set' => mgr_env('DB_SEC_CHAR_SET'),
-// 	'dbcollat' => mgr_env('DB_SEC_COLLATION', ''),
-// 	'dbcollatci' => mgr_env('DB_SEC_COLLATION_CI', ''),
-// 	'dblocaleci' => mgr_env('DB_SEC_LOCALE_CI', ''),
-// 	'swap_pre' => '',
-// 	'encrypt' => false,
-// 	'compress' => false,
-// 	'stricton' => true,
-// 	'failover' => [],
-// 	'save_queries' => true
-// ]);

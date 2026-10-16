@@ -238,9 +238,10 @@ two can never drift (this replaced an earlier full mirror that did drift).
   match the root sample.
 - **"Docker deployment-dependent"** — groups valid only with a bundled
   service: the `LIB_REDIS_*` group (bundled `valkey-cache`) and the `DB_*`
-  block (bundled db profile, the engine's `DB_DRIVER` included). An instance
-  on an external Valkey/Redis or an external/managed DB deletes the matching
-  group and sets those keys in the base `../.env.<instance>`.
+  block (bundled db profile, the engine's driver, charset and collation
+  keys included). An instance on an external Valkey/Redis or an
+  external/managed DB deletes the matching group and sets those keys in the
+  base `../.env.<instance>`.
 
 Refreshing after the root sample changes needs NO action here — the base is
 loaded from `../.env.<instance>`, not copied in. Only add a key to this file
@@ -249,10 +250,12 @@ when docker's value must differ from that base.
 - `MGR_LOG_PATH` — unified root for all Manager log streams; the app
   derives `app/` and `cli/` subdirs from it; the entrypoint creates both on
   boot. Trailing slash required.
-- `DB_DRIVER` — the bundled engine's driver, in the `DB_*` block:
-  `pdo/mysql` (also for MariaDB) or `pdo/pgsql`. With the block deleted for
-  an external database, the base's value applies. The image also ships the
-  native `mysqli`/`postgre` extensions — see database.md for the trade-off.
+- `DB_*` — the bundled engine's full key set, in the `DB_*` block: host,
+  port, `DB_DRIVER` (`pdo/pgsql`, or `pdo/mysql` also for MariaDB), charset
+  and the three collation/locale keys. Empty values there still override
+  the base. With the block deleted for an external database, the base's
+  values apply. The image also ships the native `mysqli`/`postgre`
+  extensions — see database.md for the trade-off.
 - `LIB_REDIS_HOST`/`LIB_REDIS_PORT`/`LIB_REDIS_SOCKET_TYPE` — the bundled
   `valkey-cache`'s address: its port is fixed by its config, and no socket
   is mounted.

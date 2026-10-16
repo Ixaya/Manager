@@ -455,21 +455,20 @@ parity-testing only.**
 Decision: when bootstrapping an instance for framework development (not a
 consuming project — see `sample/docs/development/docker.md`'s setup section
 for the generic copy-from-`sample.*` steps), default it to `--profile
-postgres` / `DB_DRIVER=pdo/pgsql`: after copying the templates to
+postgres` / `DB_DRIVER=pdo/pgsql`. The templates ship PostgreSQL's values
+(2026-10-15), so copying them to
 `<instance>.env`/`<instance>.docker.env`/`<instance>.priv.env` and
-`.env.sample` to `.env.<instance>`, override `DB_HOST=postgres` and
-`DB_DRIVER=pdo/pgsql` in `<instance>.env` before first `up`. Bring up
-MySQL/MariaDB only for the cross-engine matrix pass
+`.env.sample` to `.env.<instance>` is enough; no override is needed. Bring
+up MySQL/MariaDB only for the cross-engine matrix pass
 (`framework-workflow.md`'s "Cross-engine verification"), never as the
-everyday instance.
+everyday instance; switching an instance means its block's whole `DB_*`
+row.
 Why: this has been this repo's own dev/test default since Docker's
 introduction for 2.0, independent of the separate PDO-vs-native driver
 decision — that later change only picked which protocol reaches Postgres,
-not the engine choice itself. Postgres is also the leading candidate under
-discussion for consuming projects' own default (see "Should new projects
-default to PostgreSQL instead of MySQL?", an open proposal) — dogfooding it
-here keeps this repo's daily-driver experience aligned with where the
-framework may be headed, independent of when/whether that proposal lands.
+not the engine choice itself. Consuming projects now default to it too
+(`framework/docs/design/07-database-drivers/decisions.md`, 2026-10-15
+entry), so this repo's daily driver matches what a new project starts on.
 Evidence: this repo's own `local` instance already runs this way
 (`local.env`'s `DB_DRIVER=pdo/pgsql` / `DB_HOST=postgres`, verified
 2026-08-09) — this entry makes it an intentional, documented default

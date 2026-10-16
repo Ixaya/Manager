@@ -6,12 +6,13 @@
 
 ## Pick a database engine
 
-Pick ONE engine and set `DB_HOST`/`DB_PORT`/`DB_DRIVER` in the "Docker
-deployment-dependent" block of `<instance>.env` (`DB_NAME`/`DB_USER` there
-can be any non-empty value), and `DB_CHAR_SET`/`DB_COLLATION` in the base
-`.env.<instance>`. The block overrides the base, so with a bundled
-database its `DB_DRIVER` is the one that runs; an instance on an external
-database deletes the block, and the base's `DB_DRIVER` applies:
+Pick ONE engine and set its row in the "Docker deployment-dependent" block
+of `<instance>.env`: `DB_HOST`, `DB_PORT`, `DB_DRIVER`, `DB_CHAR_SET`,
+`DB_COLLATION`, `DB_COLLATION_CI` and `DB_LOCALE_CI` (`DB_NAME`/`DB_USER`
+there can be any non-empty value). The templates ship PostgreSQL's row. The
+block overrides the base `.env.<instance>`, so with a bundled database its
+values are the ones that run, empty ones included; an instance on an
+external database deletes the block and sets the same keys in the base:
 
 | Engine | `--profile` | `DB_HOST` | `DB_PORT` | `DB_DRIVER` | native equivalent | `DB_CHAR_SET` / `DB_COLLATION` | `DB_COLLATION_CI` / `DB_LOCALE_CI` |
 |---|---|---|---|---|---|---|---|
@@ -132,8 +133,8 @@ does not hold there.
 
 ### PDO is the default; the native drivers are the compatibility choice
 
-`DB_DRIVER` defaults to `pdo/mysql` for a new project, and `pdo/pgsql` is
-the Postgres equivalent. Both measure at performance parity with their
+`DB_DRIVER` defaults to `pdo/pgsql` for a new project, and `pdo/mysql` is
+the MySQL/MariaDB equivalent. Both measure at performance parity with their
 native counterpart through this framework's own Model-layer benchmark —
 the already-tuned defaults in `mgr_apply_pdo_dsn()` are what get you there,
 and you don't need to change anything for it.
@@ -198,6 +199,17 @@ story: SQLite works over `pdo/sqlite` (`DB_NAME` is the file path), and SQL
 Server has a compose profile but no driver in the image — the available
 Alpine subdriver has unresolved problems severe enough that shipping it
 would be misleading.
+
+### Adding a connection group
+
+A second database is a second group in `application/config/database.php`.
+Copy `$db['default']`, name the group for what it holds (`$db['finance']`),
+and give it its own env prefix (`DB_FINANCE_HOST`, `DB_FINANCE_DRIVER`, …,
+with `DB_FINANCE_PASS` in `.env.priv`). Keep `mgr_env_required()` on its
+user and database, and take its charset and collation keys from the engine
+table above for that group's engine. A model selects it with
+`$connection_name = 'finance'`, and its migrations go under
+`migrations/finance/`.
 
 ### Cross-engine quirks worth knowing before you switch engines
 

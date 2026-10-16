@@ -158,9 +158,12 @@ instead of asking again.
 
 ## 5. Set up your `local` Docker instance — env and secrets
 
-Pick a database engine (PostgreSQL, MySQL, or MariaDB) and create the three
-env files plus secret files the stack needs. Each instance name selects its
-own env files, secrets, and published ports, so instances never collide:
+Ask the operator which database engine the project will run on in
+production — PostgreSQL (the default), MySQL, or MariaDB — unless they
+already said, and use the same one locally. With no preference, use
+PostgreSQL. Then create the three env files plus secret files the stack
+needs. Each instance name selects its own env files, secrets, and published
+ports, so instances never collide:
 
 ```bash
 cp docker/env/sample.env         docker/env/local.env
@@ -176,10 +179,11 @@ chmod 600 docker/secrets/local.*
 
 Then:
 
-- In `docker/env/local.env`, set `DB_HOST`/`DB_PORT` for your engine
-  (`postgres:5432`, `mysql:3306`, or `mariadb:3306`), and for PostgreSQL
-  `DB_DRIVER=pdo/pgsql` — all in its bundled-database block, which
-  overrides the base env of step 6.
+- In `docker/env/local.env`, set the bundled-database block to your
+  engine's row. The template ships PostgreSQL's (`postgres:5432`,
+  `pdo/pgsql`, `UTF8`, `DB_LOCALE_CI=und-u-ks-level2`); MySQL's and
+  MariaDB's are in the comment above it. The block overrides the base env
+  of step 6, empty values included.
 - In `docker/env/local.priv.env`'s **Docker specific** section (bottom of
   the file, which wins by position), paste the two generated passwords into
   `LIB_REDIS_PASSWORD`, the `auth=` parameter of `CF_SESS_SAVE_PATH`, and
@@ -224,15 +228,13 @@ before anything that invokes it.
 cp .env.sample .env.local
 ```
 
-Set `DB_CHAR_SET`/`DB_COLLATION` and the case-insensitive key
-(`DB_COLLATION_CI` on MySQL/MariaDB, `DB_LOCALE_CI` on PostgreSQL) to match
-the engine chosen in step 5 (for example PostgreSQL is `UTF8` / empty /
-`DB_LOCALE_CI=und-u-ks-level2`; without its key the first `migrate` stops),
-and `CF_ENCRYPTION_CIPHER` to the
-cipher the step 5 key was sized for (the template ships `aes-128`).
-`DB_DRIVER` here applies to a non-Docker run and to an instance on an
-external database; with a bundled one, the block in `docker/env/local.env`
-sets it (step 5). The per-engine table is in `docs/development/database.md`;
+Set `CF_ENCRYPTION_CIPHER` to the cipher the step 5 key was sized for (the
+template ships `aes-128`). The `DB_*` engine keys here (`DB_DRIVER`,
+`DB_CHAR_SET`, `DB_COLLATION`, `DB_COLLATION_CI`, `DB_LOCALE_CI`; the
+template ships PostgreSQL's) apply to a non-Docker run and to an instance
+on an external database; with a bundled one, the block in
+`docker/env/local.env` sets them all (step 5). The per-engine table is in
+`docs/development/database.md`;
 how these values reach the running process — including a non-Docker,
 host-PHP run using `.env` / `.env.priv` — is covered in
 `docs/architecture/environment.md`.
@@ -242,10 +244,14 @@ host-PHP run using `.env` / `.env.priv` — is covered in
   that uses encryption with `Encryption: CF_ENCRYPTION_KEY is N bytes but
   <cipher> needs M`: redo the key for the cipher, or the cipher for the key,
   before any data is encrypted.
-- A char-set/collation mismatch for the engine (for example leaving MySQL
-  defaults while running PostgreSQL) surfaces later as a cryptic "Unable to
-  set client connection character set" error, not an obvious config
-  mismatch.
+- Values for the wrong engine, in the step 5 block or, for an external
+  database, here. MySQL's `utf8mb4` on PostgreSQL fails to connect with a
+  cryptic "Unable to set client connection character set". The template's
+  PostgreSQL values on MySQL fail later and less obviously: `UTF8` connects
+  as MySQL's 3-byte `utf8mb3`, the first `migrate` stops on the empty
+  `DB_COLLATION_CI` (`needs the 'dbcollatci' setting`), and with only that
+  fixed, any 4-byte character (emoji) is refused on write with
+  `Incorrect string value`. Copy the whole row for your engine.
 
 ## 7. Resolve dependencies and choose optional integrations
 

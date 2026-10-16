@@ -161,6 +161,34 @@ one, so the reasoning that held at the time stays readable.
   project should not start out accepting zero-dates and silent truncation;
   an existing one is unaffected until it edits its own config, which is
   where the audit belongs.
+- **2026-10-15: PostgreSQL is the new-project default engine** (`pdo/pgsql`,
+  `UTF8`, empty `DB_COLLATION`/`DB_COLLATION_CI`,
+  `DB_LOCALE_CI=und-u-ks-level2`), in `.env.sample`, the `database.php`
+  fallback, the docker env block and the testing template. Ruled 2026-10-12,
+  gated on case-sensitive defaults (`10-case-sensitive-defaults`): before
+  that, identity lookups relied on MySQL's case-insensitive collation, and
+  the default path would have shipped a login that rejected a
+  differently-capitalized email. Why the framework was ready: PostgreSQL was
+  already its own development and test engine, the only bundled engine with
+  a production tier (`docker-server.md`), and `system/` has no MySQL-only SQL
+  outside driver `match` arms. Why PostgreSQL: rigor (`stricton` closes
+  MySQL's write side, not its numeric comparison coercion), transactional
+  DDL, and choosing being cheap now while switching a live project is a data
+  migration. pgvector and PgBouncer were weighed and not shipped: the
+  pinned image has no `vector` and the non-superuser app role cannot create
+  it, and the bundled tier's short per-request connections do not need a
+  pooler. Costs accepted: dump-and-restore major upgrades, PostgreSQL 18 as
+  a hard minimum, and a mixed fleet, since existing projects keep MySQL.
+  Both env templates flip, not only the docker block: the base is what a new
+  project on an external database reads, and two defaults would switch
+  engine silently when the block is deleted. The block now carries the full
+  `DB_*` row, because it overrides the base with empty values included; a
+  partial row (driver and host only) on MySQL connects as `utf8mb3` and
+  refuses 4-byte characters on write (verified on MySQL 8.4.11). The
+  commented `$db['secondary']` example was removed in the same change: it
+  had drifted to `localhost`/`root` fallbacks the default group no longer
+  uses, and projects added their own named group and left it unused; the
+  pattern now lives in `sample/docs/development/database.md`.
 - **2026-08-09: two long-standing "PDO gaps" closed as non-issues rather
   than fixed.** Both looked PDO-specific and neither is. `reconnect()` is
   unimplemented on the PDO path, but it does not reconnect anything on any
