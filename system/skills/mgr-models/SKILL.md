@@ -316,9 +316,12 @@ Gotchas:
 
 Paginated/searchable lists follow one shape: the controller passes
 `build_list_params()` output straight in, the model returns
-`['data' => rows, 'total' => count]`, and `$order_by` is validated with
-`mgr_build_order_by()` against an allowed-columns list — its `null` for an
-invalid column makes `get_list()` return `null` instead of querying. For a
+`['data' => rows, 'total' => n, 'filtered' => n]` (`total` ignores the
+search), and `$order_by` is validated with `mgr_build_order_by()` against an
+allowed-columns list — its `null` for an invalid column makes `get_list()`
+return `null` instead of querying. Append a unique column to the `ORDER BY`
+unless it already leads: rows tied on the sort value can repeat or vanish
+between pages. For a
 `400` rather than a generic `500`, the model also exposes
 `get_list_validate(array $params): ?string`, which the controller calls
 first (`mgr_validate_order_by()` over the same list). The full model is in

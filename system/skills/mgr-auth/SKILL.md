@@ -227,6 +227,9 @@ Any config-sourced column or table name concatenated into SQL must pass
 select builders already assert this and throw `InvalidArgumentException` on
 anything that is not a plain, optionally dotted, identifier. CI's
 `escape_identifiers()` is NOT a guard (it passes parens and quotes through).
+A query that joins `user` to a stored login value reads the identity column
+from config — `$this->load->config_read('ion_auth')['identity'] ?? 'email'`
+— never a literal `user.email`; the dynamic join validates the name.
 
 Library conveniences with session fallback: `user()`, `in_group()`,
 `is_admin()`, `get_users_groups()`, `add_to_group()` — all take an optional id

@@ -35,8 +35,8 @@ class Login_attempts extends APP_Rest_Controller
 			'status' => 1,
 			'response' => [
 				'login_attempts' => $login_attempts['data'],
-				'recordsTotal' => $login_attempts['total'],
-				'recordsFiltered' => 0
+				'total' => $login_attempts['total'],
+				'filtered' => $login_attempts['filtered']
 			]
 		];
 

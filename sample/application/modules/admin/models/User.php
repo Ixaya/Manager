@@ -32,7 +32,7 @@ class User extends APP_Model_Dyn
 	/**
 	 * Paginated user list.
 	 *
-	 * @return ?array{data: array, total: int} null on a failed query.
+	 * @return ?array{data: array, total: int, filtered: int} total ignores the filters; null on a failed query.
 	 */
 	public function get_list(array $params): ?array
 	{
@@ -76,14 +76,36 @@ class User extends APP_Model_Dyn
 			return null;
 		}
 
+		// ties on a non-unique sort column can swap rows between pages
+		if ($params['order_by'] !== 'id') {
+			$order_by .= ', id ASC';
+		}
+
 		$rows = $this->get_all_dynamic(fields: $fields, where: $where, limit: $limit_page, order_by: $order_by);
 		if ($rows === null) {
 			return null;
 		}
 
-		$count_rows = $this->get_all_dynamic(fields: 'count(*) AS count', where: $where);
-		$total = (int)($count_rows[0]['count'] ?? 0);
+		$filtered = $this->count_matching($where);
+		if ($filtered === null) {
+			return null;
+		}
 
-		return ['data' => $rows, 'total' => $total];
+		$total = $filtered;
+		if (!empty($where)) {
+			$total = $this->count_matching([]);
+			if ($total === null) {
+				return null;
+			}
+		}
+
+		return ['data' => $rows, 'total' => $total, 'filtered' => $filtered];
+	}
+
+	private function count_matching(array $where): ?int
+	{
+		$count_rows = $this->get_all_dynamic(fields: 'count(*) AS count', where: $where);
+
+		return $count_rows === null ? null : (int)($count_rows[0]['count'] ?? 0);
 	}
 }

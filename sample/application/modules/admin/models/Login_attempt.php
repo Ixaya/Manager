@@ -30,7 +30,7 @@ class Login_attempt extends APP_Model_Dyn
 	/**
 	 * Paginated login-attempt counts per login, joined with the user table.
 	 *
-	 * @return ?array{data: array, total: int} null on a failed query.
+	 * @return ?array{data: array, total: int, filtered: int} total ignores the search; null on a failed query.
 	 */
 	public function get_list(array $params): ?array
 	{
@@ -61,20 +61,18 @@ class Login_attempt extends APP_Model_Dyn
 			$where[MGR_Model_Dyn_clause::OR_GROUP] = $search;
 		}
 
-		$join = [
-			new MGR_Model_Dyn_join(
-				table: 'user',
-				type: MGR_Model_Dyn_join_type::Left,
-				on: [
-					MGR_Model_Dyn_clause::EQUAL_COL => ['user.email' => 'login_attempt.login']
-				],
-			),
-		];
+		$join = [$this->build_user_join(MGR_Model_Dyn_join_type::Left)];
 
 		$limit_page = mgr_build_limit_page($params['limit'] ?? 0, $params['page'] ?? 1);
 		$order_by   = mgr_build_order_by($params['order_by'] ?? "id", $params['order'] ?? "DESC", self::ALLOWED_ORDER);
 		if ($order_by === null) {
 			return null;
+		}
+
+		// groups with a NULL sort value tie, and tied rows can swap between pages
+		$sort_column = mgr_validate_order_by($params['order_by'] ?? 'id', self::ALLOWED_ORDER);
+		if ($sort_column !== 'login_attempt.login') {
+			$order_by .= ', login_attempt.login ASC';
 		}
 
 		$rows = $this->get_all_dynamic(
@@ -90,6 +88,24 @@ class Login_attempt extends APP_Model_Dyn
 			return null;
 		}
 
+		$filtered = $this->count_groups($where, $join);
+		if ($filtered === null) {
+			return null;
+		}
+
+		$total = $filtered;
+		if (!empty($where)) {
+			$total = $this->count_groups([], $join);
+			if ($total === null) {
+				return null;
+			}
+		}
+
+		return ['data' => $rows, 'total' => $total, 'filtered' => $filtered];
+	}
+
+	private function count_groups(array $where, array $join): ?int
+	{
 		$count_rows = $this->get_all_dynamic(
 			fields: ['COUNT(*) AS count'],
 			where: $where,
@@ -97,14 +113,26 @@ class Login_attempt extends APP_Model_Dyn
 			group_by: 'login_attempt.login, user.id',
 		);
 
-		if ($count_rows === null) {
-			return null;
+		return $count_rows === null ? null : count($count_rows);
+	}
+
+	/**
+	 * Joins the user table on the configured identity column (email when unset).
+	 */
+	private function build_user_join(MGR_Model_Dyn_join_type $type): MGR_Model_Dyn_join
+	{
+		$identity = $this->load->config_read('ion_auth')['identity'] ?? null;
+		if (!is_string($identity) || $identity === '') {
+			$identity = 'email';
 		}
 
-		// one row per group
-		$total = count($count_rows);
-
-		return ['data' => $rows, 'total' => $total];
+		return $this->build_join(
+			table: 'user',
+			type: $type,
+			on: [
+				MGR_Model_Dyn_clause::EQUAL_COL => ["user.{$identity}" => 'login_attempt.login']
+			],
+		);
 	}
 
 	/**
@@ -118,21 +146,12 @@ class Login_attempt extends APP_Model_Dyn
 			'user.first_name',
 			'user.last_name',
 			'user.email',
-			'login_attempt.id',
 			'login_attempt.ip_address',
 			'login_attempt.login',
 			$this->build_field_select('time', MgrFunctionType::FromUnixtime, ['login_attempt.time'])
 		];
 
-		$join = [
-			$this->build_join(
-				table: 'user',
-				type: MGR_Model_Dyn_join_type::Inner,
-				on: [
-					MGR_Model_Dyn_clause::EQUAL_COL => ['user.email' => 'login_attempt.login']
-				],
-			)
-		];
+		$join = [$this->build_user_join(MGR_Model_Dyn_join_type::Inner)];
 
 		$where = [];
 		$where[MGR_Model_Dyn_clause::EQUAL] = ['user.id' => $id];

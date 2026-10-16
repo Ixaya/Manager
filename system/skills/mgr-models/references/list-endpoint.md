@@ -2,7 +2,8 @@
 
 The model half of a paginated, searchable list endpoint (from the vendor
 sample `User` model). The controller passes `build_list_params()` output
-straight in; the model returns `['data' => rows, 'total' => count]`. The
+straight in; the model returns `['data' => rows, 'total' => unfiltered
+count, 'filtered' => filtered count]`. The
 controller half is in the mgr-rest-controller skill's
 `references/full-example.md`.
 
@@ -49,10 +50,30 @@ class User extends APP_Model_Dyn
             return null;
         }
 
-        $rows  = $this->get_all_dynamic(fields: $fields, where: $where, limit: $limit_page, order_by: $order_by);
+        // a non-unique sort column ties; the unique id keeps pages disjoint
+        if ($params['order_by'] !== 'id') {
+            $order_by .= ', id ASC';
+        }
+
+        $rows = $this->get_all_dynamic(fields: $fields, where: $where, limit: $limit_page, order_by: $order_by);
+        if ($rows === null) {
+            return null;
+        }
+
+        $filtered = $this->count_matching($where);
+        $total    = empty($where) ? $filtered : $this->count_matching([]);
+        if ($filtered === null || $total === null) {
+            return null;
+        }
+
+        return ['data' => $rows, 'total' => $total, 'filtered' => $filtered];
+    }
+
+    private function count_matching(array $where): ?int
+    {
         $count = $this->get_all_dynamic(fields: 'count(*) AS count', where: $where);
 
-        return ['data' => $rows, 'total' => $count[0]['count'] ?? 0];
+        return $count === null ? null : (int)($count[0]['count'] ?? 0);
     }
 }
 ```
@@ -70,5 +91,13 @@ These carry over to any list model you write:
   before `get_list()`, reusing the same allowed-columns list via
   `mgr_validate_order_by()`. Only add it once a caller needs the 400/500
   split; a model can rely on `get_list()`'s own `null` guard alone.
-- **Count with the same `$where`.** The total must reflect the filters, so
-  reuse the built clause set rather than a bare `count_all()`.
+- **Two counts, DataTables semantics.** `filtered` counts with the same
+  `$where` (reuse the built clause set, not a bare `count_all()`, whose
+  `$where` is CI syntax); `total` counts with no filter. Skip the second
+  query when `$where` is empty — the two are equal.
+- **Append a unique tie-break to `ORDER BY`** (the primary key, or the
+  group key of a grouped list) unless it is already the sort column. Rows
+  that tie on the sort value come back in an engine-chosen order that can
+  differ between the page-1 and page-2 queries, duplicating one row and
+  dropping another. Expect NULL-heavy sort columns (a LEFT JOIN's) to tie
+  on most rows.

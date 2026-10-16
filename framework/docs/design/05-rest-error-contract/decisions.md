@@ -51,6 +51,16 @@ kept for traceability.
 - **2026-07-30 (02 #6): `response` always holds an object.** A bare scalar id
   becomes `{'id': $id}`; where there is nothing to report, the key is omitted
   rather than filled with a placeholder.
+- **2026-10-15: a list response keeps its rows under a named key, with
+  `total` and `filtered` as plain snake_case siblings.** `{users: [...],
+  total, filtered}` replaces a raw model array under `response` in one
+  sample controller and `recordsTotal`/`recordsFiltered` in the other: no
+  other response is camelCase, and a sibling key (a filter catalog, say)
+  can be added later without reshaping the existing ones. `total` ignores
+  the search, `filtered` counts what it matched. The model keeps the generic
+  `data`/`total`/`filtered` array and the controller names the key, so the
+  wire name stays the endpoint's decision. The sample is adopted, not
+  pushed: existing projects change only when they re-copy it.
 
 ## The disclosure boundary
 

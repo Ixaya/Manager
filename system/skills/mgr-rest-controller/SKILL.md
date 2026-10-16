@@ -242,6 +242,11 @@ HTTP 200 is invisible to all of them.
 A `-1` tier for framework/exception errors is **retired**; don't emit it or
 branch on it.
 
+**A list response** keeps the rows under a descriptive key, with `total`
+(ignores the search) and `filtered` (what it matched) as snake_case siblings
+in `response`: `['users' => $rows, 'total' => $total, 'filtered' => $filtered]`.
+Extra data later joins as another sibling, so existing keys never reshape.
+
 **`error` — a controller's own space for production-safe failure detail.**
 Optional, an object, present only when a failure needs to hand the frontend
 more than free text can carry — which fields failed validation, which record

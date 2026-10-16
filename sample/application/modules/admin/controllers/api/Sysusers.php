@@ -32,23 +32,25 @@ class Sysusers extends APP_Rest_Controller
 
 		$this->load->driver('cache');
 		$cache_key = mgr_cache_key("sysusersidx", $params);
-		$response = $this->cache->get($cache_key);
-		if (!empty($response)) {
-			$this->response($response, REST_Controller::HTTP_OK);
-		}
+		$users = $this->cache->get($cache_key);
+		if (empty($users)) {
+			$users = $this->user->get_list($params);
 
-		$users = $this->user->get_list($params);
+			if ($users === null) {
+				$this->response(['status' => 0, 'message' => 'Failed to load users.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+			}
 
-		if ($users === null) {
-			$this->response(['status' => 0, 'message' => 'Failed to load users.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+			$this->cache->save($cache_key, $users);
 		}
 
 		$response = [
 			'status' => 1,
-			'response' => $users
+			'response' => [
+				'users' => $users['data'],
+				'total' => $users['total'],
+				'filtered' => $users['filtered']
+			]
 		];
-
-		$this->cache->save($cache_key, $response);
 
 		$this->response($response, REST_Controller::HTTP_OK);
 	}
