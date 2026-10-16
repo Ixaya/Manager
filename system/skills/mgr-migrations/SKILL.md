@@ -331,6 +331,10 @@ manager/tools/version_set {version} {app|module:key} {conn}  # record version WI
 manager/tools/migration_file {name} {module} {database} [1]  # scaffold; 4th arg = force_modification, positional
 ```
 
+`migrate` prints each `[FAIL]` line (a refused downgrade included) to stderr and
+exits 1 after the remaining targets have run; `[WARN] … not found` stays on
+stdout with exit 0.
+
 `RUN_MIGRATIONS=true` on one instance migrates on startup.
 
 `migrate`/`migrate_database`/`version_set` force `db_debug` on for the

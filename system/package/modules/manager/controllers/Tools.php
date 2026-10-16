@@ -197,9 +197,7 @@ class Tools extends CI_Controller
 
 		// 1. No filter — every target, forward to latest.
 		if ($module_key === 'all') {
-			foreach ($this->migration_module_lib->run($connection_name) as $line) {
-				echo $line . PHP_EOL;
-			}
+			$this->_print_migration_lines($this->migration_module_lib->run($connection_name));
 			return;
 		}
 
@@ -208,7 +206,34 @@ class Tools extends CI_Controller
 		$key            = $module_key === 'app' ? null : str_replace(':', '/', $module_key);
 		$target_version = $version === 'latest' ? null : $version;
 
-		echo $this->migration_module_lib->migrate_target($connection_name, $key, $target_version, (bool) $confirm_downgrade) . PHP_EOL;
+		$this->_print_migration_lines([
+			$this->migration_module_lib->migrate_target($connection_name, $key, $target_version, (bool) $confirm_downgrade),
+		]);
+	}
+
+	/**
+	 * Prints result lines, `[FAIL]` ones to stderr; exits 1 after all are printed if any failed.
+	 *
+	 * @param array<int, string> $lines
+	 */
+	protected function _print_migration_lines(array $lines): void
+	{
+		$failed = false;
+
+		foreach ($lines as $line) {
+			if (!str_starts_with($line, '[FAIL]')) {
+				echo $line . PHP_EOL;
+				continue;
+			}
+
+			$failed = true;
+			// fopen(), not STDERR: that constant is undefined under php-cgi
+			fwrite(fopen('php://stderr', 'w'), $line . PHP_EOL);
+		}
+
+		if ($failed) {
+			exit(1);
+		}
 	}
 
 	/**

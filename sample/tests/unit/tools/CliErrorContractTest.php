@@ -38,6 +38,24 @@ class CliErrorContractTest extends CITestCase
 		$this->assertSame('', $result['stderr']);
 	}
 
+	public function test_migrate_fail_line_goes_to_stderr_with_exit_1(): void
+	{
+		$result = $this->run_cli('manager/tools/migrate', '1', 'app');
+
+		$this->assertSame(1, $result['exit_code']);
+		$this->assertSame('', $result['stdout']);
+		$this->assertStringStartsWith('[FAIL] application:default', $result['stderr']);
+	}
+
+	public function test_migrate_unknown_module_stays_a_warning_with_exit_0(): void
+	{
+		$result = $this->run_cli('manager/tools/migrate', 'latest', 'no_such_module');
+
+		$this->assertSame(0, $result['exit_code']);
+		$this->assertSame('[WARN] no_such_module:default -> not found' . PHP_EOL, $result['stdout']);
+		$this->assertSame('', $result['stderr']);
+	}
+
 	/**
 	 * Runs a CLI route in a child process with display_errors off, the
 	 * configuration where an uncaught exception used to print nothing.
