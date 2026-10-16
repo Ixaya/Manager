@@ -128,4 +128,8 @@ honored; `PRAGMA case_sensitive_like = ON` makes `LIKE` exact.
 | `lower(col) LIKE 'x%'` with a `varchar_pattern_ops` index on `lower(col)` | Bitmap Index Scan | — |
 | MySQL functional index on `LOWER(v)` / MariaDB indexed virtual column | — | serves `LOWER(v) = …` only |
 
-`login_attempt.login` has no index on any engine; lockout lookups scan.
+`login_attempt` carries `(login, ip_address)` and `(time)` indexes from `v4`
+on every engine. The first serves the lockout reads under the CI collation
+(`User123` finds `user123`); the second is what lets the successful-login
+purge's `OR time < …` arm avoid a scan (PostgreSQL BitmapOr, MySQL/MariaDB
+`index_merge`).

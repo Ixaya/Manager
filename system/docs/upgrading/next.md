@@ -8,6 +8,9 @@ Everything else in a minor release is additive.
 A new package migration, `20261014120000_Manager_ion_auth_v4`, makes
 `user.username`, `user.email` and `login_attempt.login` case-insensitive
 columns, and gives `username` (and on PostgreSQL also `email`) a unique key.
+It also indexes `login_attempt` on `(login, ip_address)` and `(time)`: every
+lockout check and every successful login's purge of old attempts scanned the
+whole table before.
 Login, the duplicate checks and lockout then match case variants on every
 engine. New projects also get exact (case- and accent-sensitive) database
 defaults. `docs/development/database.md`'s "Case sensitivity" section has the
@@ -58,7 +61,9 @@ model; what an existing project does:
   On MySQL/MariaDB that loses the `username` unique key and the NOT NULL
   correction below. On PostgreSQL it
   also keeps the columns case-sensitive (login and lockout stay exact) and
-  skips the `email` unique-key repair.
+  skips the `email` unique-key repair. Either way it also skips the
+  `login_attempt` indexes; add them with your own migration if the table is
+  large.
 - **MySQL/MariaDB: four Ion Auth columns become NOT NULL.** `user.ip_address`,
   `user.email`, `user.created_on` and `login_attempt.ip_address` were left
   nullable by an earlier migration on those engines; PostgreSQL always had
@@ -68,7 +73,9 @@ model; what an existing project does:
   again. The next entry has the cause.
 - **A collation change rebuilds the table** on MySQL/MariaDB and takes an
   ACCESS EXCLUSIVE lock on PostgreSQL; plan a window for a large `user` or
-  `login_attempt` table. MySQL/MariaDB do not roll back a failed run: fix the
+  `login_attempt` table. The two new `login_attempt` indexes are built in the
+  same run, after the collation change, so they add no second lock window on
+  PostgreSQL. MySQL/MariaDB do not roll back a failed run: fix the
   cause and run `migrate` again (every step is idempotent).
 - **Scaffold values reach new projects and new data volumes only.** The
   templates now ship `utf8mb4_0900_as_cs` / `utf8mb4_0900_as_ci` (MySQL) and

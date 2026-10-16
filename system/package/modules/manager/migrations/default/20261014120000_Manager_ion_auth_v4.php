@@ -27,6 +27,10 @@ class Migration_Manager_ion_auth_v4 extends MGR_Migration_builder
 		$this->add_index(table: 'user', columns: 'username', unique: true);
 		$this->add_index(table: 'user', columns: 'email', unique: true);
 
+		// after the login collation change, so the index is built once; (time) serves the purge's OR arm
+		$this->add_index(table: 'login_attempt', columns: ['login', 'ip_address']);
+		$this->add_index(table: 'login_attempt', columns: 'time');
+
 		$this->end_ddl_transaction();
 	}
 
@@ -34,6 +38,8 @@ class Migration_Manager_ion_auth_v4 extends MGR_Migration_builder
 	{
 		$this->start_ddl_transaction();
 
+		$this->drop_index(table: 'login_attempt', columns: 'time');
+		$this->drop_index(table: 'login_attempt', columns: ['login', 'ip_address']);
 		$this->drop_index(table: 'user', columns: 'username');
 
 		$this->dbforge->modify_column('user', [

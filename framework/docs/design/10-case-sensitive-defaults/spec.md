@@ -40,7 +40,8 @@ making PostgreSQL the default engine.
 - **Identity migration** `20261014120000_Manager_ion_auth_v4`: transaction
   start, build the three CI fields (so every loud failure fires first),
   duplicate check on `username` and `email`, `modify_column()` without
-  `unique:`, `add_index(unique: true)` on both, transaction end.
+  `unique:`, `add_index(unique: true)` on both, `add_index()` on
+  `login_attempt (login, ip_address)` and `(time)`, transaction end.
 - **Ion Auth:** `register_conflict()` / `update_conflict()` seams in the
   `BE_` fork; `MGR_Ion_auth_model` adds the email check and excludes the
   user's own row.

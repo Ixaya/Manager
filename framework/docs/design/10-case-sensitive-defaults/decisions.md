@@ -101,8 +101,18 @@ its MySQL/SQL Server no-ops and its "no CI search" exclusion.
 ## Identity migration
 
 - **Order:** transaction start → build fields → duplicate check →
-  `modify_column()` without `unique:` → `add_index(unique: true)` → end. On
-  MySQL `MODIFY … UNIQUE` on a keyed column adds `email_2`.
+  `modify_column()` without `unique:` → `add_index(unique: true)` → the two
+  `login_attempt` indexes → end. On MySQL `MODIFY … UNIQUE` on a keyed
+  column adds `email_2`.
+- **`login_attempt` indexes:** `(login, ip_address)` serves the lockout
+  reads (the prefix covers `trackLoginIpAddress` off); `(time)` serves the
+  `OR time < …` arm of `clear_login_attempts()`, which runs on every
+  successful login and is ungrouped on purpose. Either alone leaves that
+  delete a full scan (measured on a 1M-row table: 64 / 276 / 244 ms on
+  PostgreSQL / MySQL / MariaDB, 1 / 12 / 9 ms with both). Rejected:
+  `(login, ip_address, time)` — no faster lookups, ~20% larger, and a sort
+  step for the last-attempt read on MySQL/MariaDB. Built after the `login`
+  collation change, so the table is rebuilt once.
 - **Nullability re-stated, never loosened:** `username` false, `email` false,
   `login` true. `v4` also restates `user.ip_address`, `user.created_on` and
   `login_attempt.ip_address` NOT NULL, behind a NULL-row gate — v2 had left
