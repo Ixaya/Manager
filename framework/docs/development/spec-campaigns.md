@@ -458,9 +458,10 @@ don't re-derive. Campaign-proven additions:
   method's empty array against the write methods' `false` in one run; reading
   either alone would have confirmed the wrong story. Where a contract is
   supposed to be uniform across a family of calls, exercise the family.
-- Run the engine matrix (postgres, mysql, mariadb) before release when DB
-  behavior changed — driver quirks proved decisive (a fix correct on one
-  engine was wrong on another). One run per engine, on whatever `DB_DRIVER`
+- Run the tier-1 engine matrix (postgres, mariadb, mysql) at the close of a
+  campaign that touched the database and before release — driver quirks
+  proved decisive (a fix correct on one engine was wrong on another). One
+  run per engine, on whatever `DB_DRIVER`
   the instance carries (`pdo/*` by default, the same as a new project); the
   native drivers get their own pass when the change touches driver-specific
   behavior or when the prompt names it.

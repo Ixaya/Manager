@@ -119,7 +119,7 @@ class CaseInsensitiveColumnsTest extends CITestCase
 
 		// Narrowing through the cast must reject the value, not truncate it.
 		$this->db->db_debug = false;
-		$this->builder->cast_column(self::TABLE, $this->builder->build_field(name: 'ci_text', type: MgrFieldType::VarChar, constraint: 5, nullable: true, case_insensitive: true));
+		$this->expect_failed_query(fn () => $this->builder->cast_column(self::TABLE, $this->builder->build_field(name: 'ci_text', type: MgrFieldType::VarChar, constraint: 5, nullable: true, case_insensitive: true)));
 		$this->assertSame('abcdefghij', $this->db->select('ci_text')->get(self::TABLE)->row()->ci_text);
 
 		// Restating without case_insensitive goes back to the exact default.
@@ -157,7 +157,7 @@ class CaseInsensitiveColumnsTest extends CITestCase
 
 		$this->db->db_debug = false;
 		$this->assertNotFalse($this->db->insert(self::TABLE, ['email' => 'dup@example.test']));
-		$this->assertFalse($this->db->insert(self::TABLE, ['email' => 'dup@example.test']));
+		$this->assertFalse($this->expect_failed_query(fn () => $this->db->insert(self::TABLE, ['email' => 'dup@example.test'])));
 		$this->assertTrue($this->builder->remove_index(self::TABLE, 'email'));
 	}
 
@@ -182,7 +182,7 @@ class CaseInsensitiveColumnsTest extends CITestCase
 		$this->builder->begin_ddl();
 		$this->dbforge->add_field(['id' => ['type' => 'INT']]);
 		$this->dbforge->create_table(self::TABLE_ROLLBACK);
-		$this->assertFalse($this->db->query('SELECT * FROM phpunit_ci_no_such_table'));
+		$this->assertFalse($this->expect_failed_query(fn () => $this->db->query('SELECT * FROM phpunit_ci_no_such_table')));
 
 		$failure = $this->thrown(fn () => $this->builder->end_ddl());
 		$this->assertInstanceOf(RuntimeException::class, $failure);
@@ -240,7 +240,10 @@ PHP);
 			$this->assertFalse($this->in_catalog(self::TABLE_ROLLBACK));
 			$this->assertSame(1, (int) $runner_db->query('SELECT 1 AS ok')->row()->ok);
 		} finally {
-			$runner_db?->close();
+			// The native postgre driver reuses the link for an identical DSN; closing it would close the suite's own.
+			if ($runner_db !== null && $runner_db->conn_id !== $original_db->conn_id) {
+				$runner_db->close();
+			}
 			unset($instance->{$library_name});
 			$instance->db      = $original_db;
 			$instance->dbforge = $original_forge;
@@ -262,6 +265,25 @@ PHP);
 	{
 		if ($this->driver === MgrDriver::SQLite) {
 			$this->markTestSkipped('SQLite cannot alter a column.');
+		}
+	}
+
+	/** Runs a query that is meant to fail; the native postgre driver also raises an E_WARNING for it, which PHPUnit would report. */
+	private function expect_failed_query(callable $callback): mixed
+	{
+		$previous = null;
+		$previous = set_error_handler(static function (int $severity, string $message, string $file, int $line) use (&$previous): bool {
+			if ($severity === E_WARNING && str_contains($message, 'Query failed')) {
+				return true;
+			}
+
+			return $previous !== null && $previous($severity, $message, $file, $line);
+		});
+
+		try {
+			return $callback();
+		} finally {
+			restore_error_handler();
 		}
 	}
 

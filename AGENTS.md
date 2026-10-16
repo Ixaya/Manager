@@ -119,10 +119,17 @@ package alias → `MY_`/`APP_`) is in `framework/docs/architecture/`.
 
 - **PHP 8.2 floor, 8.4-era style.** No 8.3/8.4-only features (typed class
   constants, `#[\Override]`, property hooks, asymmetric visibility).
-- **Cross-engine always.** Anything touching the database must work on
-  MySQL/MariaDB, PostgreSQL, SQL Server, and SQLite — use `MgrDriver`,
-  `MgrFieldType`, and `MgrFunctionType`; never emit engine-specific SQL
-  without a driver `match`.
+- **Engine support is tiered.** Anything touching the database goes
+  through `MgrDriver`, `MgrFieldType`, and `MgrFunctionType` — never
+  engine-specific SQL without a driver `match`. Then:
+  1. PostgreSQL, MariaDB, MySQL on `pdo/*` — must work. A simple change is
+     verified on PostgreSQL; all three before closing a campaign that
+     touched the database, and before a release.
+  2. The same engines on native `postgre`/`mysqli` — must work; verified
+     before a release.
+  3. SQLite and SQL Server — supported through those same enums, without a
+     routine test pass. A gap whose fix can be derived without a live run
+     is fixed, and recorded as unverified on that engine.
 - **`sample/` is the canonical example source for every consuming project.**
   When a convention changes, update the sample in the same change — an
   outdated sample teaches the old pattern to every new project and agent.

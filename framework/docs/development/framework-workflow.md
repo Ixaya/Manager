@@ -198,17 +198,19 @@ is recent.
 
 ### Cross-engine verification
 
-Anything touching the database must hold on MySQL/MariaDB, PostgreSQL, SQL
-Server, and SQLite. Bring up the profile the change actually touches, and run
-the matrix (`--profile postgres`, `--profile mysql`, `--profile mariadb`)
-before a release when DB behavior changed: driver quirks have made a fix that
+Engine tiers are in AGENTS.md. Day to day, bring up the profile the change
+touches — PostgreSQL for a simple change. The tier-1 matrix
+(`--profile postgres`, `--profile mariadb`, `--profile mysql`) runs at the
+close of any campaign that touched the database and before a release,
+aimed at what actually differs per engine: migrations, type mapping,
+collation, and driver-level behavior. Driver quirks have made a fix that
 was correct on one engine wrong on another.
 
 **The matrix is engines, not drivers.** Each run uses whatever `DB_DRIVER`
 the instance is configured with, which is `pdo/*` by default — the same
 driver a new project gets. Doubling every engine with its native counterpart
-is not a routine pass; in practice even MariaDB does not get run every time.
-Give `mysqli`/`postgre` their own pass when a change touches driver-specific
+is the tier-2 release pass, not a routine one. Give `mysqli`/`postgre`
+their own pass earlier when a change touches driver-specific
 behavior — CI3's driver classes, fetch types, connection handling — or when
 asked for it by name.
 
