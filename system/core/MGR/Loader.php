@@ -196,25 +196,135 @@ class MGR_Loader extends MX_Loader
 	}
 
 	protected $_db_cache = [];
+
+	/** @var array<string, array{offset: string, link: ?WeakReference, backend_pid: ?int}> what each $_db_cache entry's session was last sent */
+	protected array $_db_cache_sessions = [];
+
+	/**
+	 * Returns a shared handle per group name; '' is the main handle. A DSN string or array is never cached.
+	 *
+	 * @throws RuntimeException when the server rejects PHP's timezone offset as the session timezone
+	 */
 	public function &database_cache($params = '', $query_builder = null)
 	{
-		// Return main db if params empty
 		if (empty($params)) {
-			$this->database();
-			return CI::$APP->db;
+			// Adopted or loaded once; a later replacement of $CI->db (the migration runner) must not move cache users.
+			if (!isset($this->_db_cache[''])) {
+				$this->database();
+				$this->_db_cache[''] = CI::$APP->db;
+			}
+
+			// On every hit too, to catch a reconnect or a raw date_default_timezone_set(); a synced hit sends nothing.
+			$this->_apply_session_time_zone('');
+			return $this->_db_cache[''];
 		}
 
 		// Return from array if a DSN string wasn't passed
 		if (is_string($params) && strpos($params, '://') === false) {
-			if (isset($this->_db_cache[$params]) && is_object($this->_db_cache[$params]) && ! empty($this->_db_cache[$params])) {
-				return $this->_db_cache[$params];
+			if (!(isset($this->_db_cache[$params]) && is_object($this->_db_cache[$params]) && ! empty($this->_db_cache[$params]))) {
+				$this->_db_cache[$params] = $this->database($params, true, $query_builder);
 			}
 
-			$this->_db_cache[$params] = $this->database($params, true, $query_builder);
+			$this->_apply_session_time_zone($params);
 			return $this->_db_cache[$params];
 		}
 
-		return $this->database($params, true, $query_builder);
+		// Untracked: sync_session_time_zone() never reaches it.
+		$db     = $this->database($params, true, $query_builder);
+		$offset = mgr_get_time_zone_offset(date_default_timezone_get());
+		if (is_string($offset)) {
+			// A DSN string carries the password: never let it reach a log line.
+			$this->_send_session_time_zone(db: $db, offset: $offset, label: 'dsn-generic');
+		}
+
+		return $db;
+	}
+
+	/**
+	 * Re-sends PHP's current timezone offset to every cached handle whose session holds another one.
+	 *
+	 * @throws RuntimeException when a server rejects the offset
+	 */
+	public function sync_session_time_zone(): void
+	{
+		foreach (array_keys($this->_db_cache) as $key) {
+			$this->_apply_session_time_zone((string) $key);
+		}
+	}
+
+	/**
+	 * Sends PHP's current timezone offset to a cache entry's session unless already sent on its current link.
+	 */
+	protected function _apply_session_time_zone(string $key): void
+	{
+		$offset = mgr_get_time_zone_offset(date_default_timezone_get());
+		if (!is_string($offset)) {
+			return;
+		}
+
+		$db      = $this->_db_cache[$key];
+		$session = $this->_db_cache_sessions[$key] ?? null;
+		// A WeakReference, not spl_object_id(): a freed link's id is reused by the next one. The pid
+		// catches native postgre's reconnect(), whose pg_ping() can reset the same link to a new backend.
+		if ($session !== null && $session['offset'] === $offset && $session['link']?->get() === $db->conn_id
+			&& $session['backend_pid'] === $this->_postgre_backend_pid($db)) {
+			return;
+		}
+
+		if (!$this->_send_session_time_zone(db: $db, offset: $offset, label: $key)) {
+			return;
+		}
+
+		// PostgreSQL undoes a SET on rollback: unrecorded, every access re-sends until one lands outside the
+		// transaction. Only CI's trans_begin()/trans_start() are seen, not a raw BEGIN.
+		if ($db->trans_active() && MgrDriver::fromCI($db->dbdriver ?? '', subdriver: $db->subdriver ?? null) === MgrDriver::Postgres) {
+			unset($this->_db_cache_sessions[$key]);
+			return;
+		}
+
+		$this->_db_cache_sessions[$key] = [
+			'offset'      => $offset,
+			'link'        => is_object($db->conn_id) ? WeakReference::create($db->conn_id) : null,
+			'backend_pid' => $this->_postgre_backend_pid($db),
+		];
+	}
+
+	/** Native postgre's backend pid, read client-side (no round trip); null on every other driver. */
+	protected function _postgre_backend_pid(object $db): ?int
+	{
+		return $db->conn_id instanceof PgSql\Connection ? pg_get_pid($db->conn_id) : null;
+	}
+
+	/**
+	 * Sets $offset as $db's session timezone; true when sent, or on SQLite/SQL Server, which have none.
+	 * False (logged) when the link is unusable, so the caller retries on the next access.
+	 *
+	 * @throws RuntimeException when the server is reachable but rejects the offset
+	 */
+	protected function _send_session_time_zone(object $db, string $offset, string $label): bool
+	{
+		$driver = MgrDriver::fromCI($db->dbdriver ?? '', subdriver: $db->subdriver ?? null);
+		// $offset is ±HH:MM by construction; escape_str() would fatal on an unconnected PDO handle.
+		$sql = match ($driver) {
+			MgrDriver::MySQL,
+			MgrDriver::MariaDB  => "SET SESSION time_zone = '{$offset}'",
+			// Without INTERVAL, Postgres parses a bare offset string as a
+			// POSIX-style spec, which inverts the sign vs. our ISO offset.
+			MgrDriver::Postgres => "SET TIME ZONE INTERVAL '{$offset}' HOUR TO MINUTE",
+			default             => null,
+		};
+
+		if ($sql === null || $db->query($sql) !== false) {
+			return true;
+		}
+
+		// An unusable link is transient (retried on the next access); a working one means the server rejected the offset.
+		if (!$db->conn_id || $db->query('SELECT 1') === false) {
+			log_message('error', "MGR_Loader: unable to set the session time zone to {$offset} on database connection '{$label}'.");
+			return false;
+		}
+
+		throw new RuntimeException("MGR_Loader: the database server rejected session time zone {$offset} on database connection '{$label}'; PHP's time zone cannot be mirrored on this engine.");
 	}
 
 	/**

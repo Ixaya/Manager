@@ -17,6 +17,8 @@ class LogPruneApiTest extends CITestCase
 
 	public static function setUpBeforeClass(): void
 	{
+		// Main is this test's own connection; dbforge() skips loading it once any other handle exists.
+		get_instance()->load->database();
 		get_instance()->load->dbforge();
 		require_once MGRPATH . 'libraries/MGR_Migration_builder.php';
 

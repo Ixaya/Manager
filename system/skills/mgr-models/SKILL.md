@@ -69,8 +69,8 @@ reads a body field. No runtime error, but it invites mistakes — name it
 |---|---|---|
 | `$table_name` | lowercase class name | Target table |
 | `$primary_key` | `'id'` | Used by `get()`, `update()`, `delete()` |
-| `$connection_name` | `''` (default group) | DB group from `application/config/database.php`; connections are cached/shared via `database_cache()` |
-| `$database_name` | `''` | Selects a specific database on the connection |
+| `$connection_name` | `''` (main handle) | DB group from `database.php`, via `database_cache()`. `''` is the main handle, shared with REST and Ion Auth; any group name — even `'default'` — gets its own handle and server session |
+| `$database_name` | `''` | `db_select()` on the group's shared handle — switches it for every user of the group (no-op on PostgreSQL); prefer a separate group |
 | `$soft_delete` | `false` | `delete()` sets `deleted=1, enabled=0` instead of DELETE; all reads add `WHERE deleted=0` |
 | `$save_history` | `false` | Audit trail |
 | `$use_last_update` | `true` | Every write stamps `last_update = now` |
@@ -80,6 +80,19 @@ reads a body field. No runtime error, but it invites mistakes — name it
 
 Rows are returned as **associative arrays** (`row_array()` /
 `result_array()`), not objects.
+
+Handles are cached per loader for the whole process; avoid `MX_Controller`,
+whose cloned loader has its own cache, so every MX controller opens its own
+sessions.
+
+The handle cache owns the session timezone: it sends PHP's offset when a
+handle opens and re-checks it on every `database_cache()` access. After boot,
+change it only with `mgr_date_default_timezone_set()`, which re-sends to every
+open handle at once; a raw `date_default_timezone_set()`, DST or a reconnect
+is corrected at the next access, not inside a Model already holding its
+handle. A DSN-string `connection_name` gets it once. With `db_debug` off, an
+offset the server rejects throws `RuntimeException` (MariaDB accepts -12:59 …
++13:00 only); with it on, CI's error fires first.
 
 ## Automatic behaviors (why you don't hand-roll queries)
 
@@ -229,7 +242,7 @@ clean_string(string $text): string             // accent-strip + snake-safe iden
 debug_query(bool $return = false): ?string     // last executed SQL
 set_override(int|string|null $id = null): void / set_override_column(string $column_name) / del_override(bool $reset_column = true)
 reconnect_database(string $connection_name, string $database_name, bool $generate_table_name = false): void
-set_database_time_zone(string $time_zone): void
+set_database_time_zone(string $time_zone): void  // deprecated: use mgr_date_default_timezone_set(); LogicException unless '' or PHP's offset (no-op on SQLite/SQL Server)
 ```
 
 ## Dynamic queries — APP_Model_Dyn

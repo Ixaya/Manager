@@ -73,6 +73,12 @@ then populates:
 - `$this->logged_in_level` — highest Ion Auth group level of that user
 - stamps `last_api_date` / `last_api_os` on the `user` row
 
+Keys, logging and `$this->rest->db` use `rest_database_group` (`rest.php`,
+default `''`: the main handle Models and Ion Auth share; any group name, even
+`'default'`, opens a separate session). To serve REST from another handle,
+override `_load_rest_database()`. `rest_time_zone` (`MGR_REST_TIME_ZONE`)
+takes a zone identifier, never an offset.
+
 If the prompt doesn't specify, the endpoint is **authenticated** — that's the
 default and it needs no configuration:
 
@@ -309,8 +315,7 @@ with:
 
 ```php
 $this->setup_model('billing/invoice', 'invoice');
-// loads the model if needed, applies the controller's time zone to its DB session,
-// and injects $this->user_id when the model is an API model
+// loads the model if needed and injects $this->user_id when the model is an API model
 ```
 
 Plain `$this->load->model('module/name')` is fine for models that don't need

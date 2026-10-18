@@ -30,8 +30,7 @@ class DeletionTest extends AuthTestCase
 
 		$this->assertTrue(self::$auth->delete_group((int) $gid));
 
-		$row = $this->db->where('name', self::GROUP)
-			->get(self::$auth->tables['groups'])->row();
+		$row = self::$auth->where('name', self::GROUP)->groups()->row();
 		$this->assertNull($row);
 	}
 }

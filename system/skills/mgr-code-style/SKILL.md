@@ -127,7 +127,7 @@ documentation guidelines, not this skill.
 ## Patterns from the reference code
 
 - **Guard clauses / early returns** over nested conditionals.
-- **`match` over `switch`** when mapping values (`set_database_time_zone()`).
+- **`match` over `switch`** when mapping values (`MGR_Model::insert_id()`).
 - **Backed enums with behavior methods** instead of class constants
   (`MgrDriver::fromCI(...)->isMysqlFamily()`,
   `MgrFieldType::supportsUnsigned()`).

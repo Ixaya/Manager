@@ -376,6 +376,21 @@ abstract class REST_Controller extends MY_Controller
 	{
 	}
 
+	protected function _load_rest_database()
+	{
+		// Load DB if its enabled
+		if ($this->config->item('rest_database_group') && ($this->config->item('rest_enable_keys') || $this->config->item('rest_enable_logging'))) {
+			return $this->load->database($this->config->item('rest_database_group'), true);
+		}
+
+		// Use whatever database is in use (isset returns FALSE)
+		elseif (property_exists($this, 'db')) {
+			return $this->db;
+		}
+
+		return null;
+	}
+
 	/**
 	 * Constructor for the REST API
 	 *
@@ -507,15 +522,7 @@ abstract class REST_Controller extends MY_Controller
 		// Extend this function to apply additional checking early on in the process
 		$this->early_checks();
 
-		// Load DB if its enabled
-		if ($this->config->item('rest_database_group') && ($this->config->item('rest_enable_keys') || $this->config->item('rest_enable_logging'))) {
-			$this->rest->db = $this->load->database($this->config->item('rest_database_group'), true);
-		}
-
-		// Use whatever database is in use (isset returns FALSE)
-		elseif (property_exists($this, 'db')) {
-			$this->rest->db = $this->db;
-		}
+		$this->rest->db = $this->_load_rest_database();
 
 		// Check if there is a specific auth type for the current class/method
 		// _auth_override_check could exit so we need $this->rest->db initialized before

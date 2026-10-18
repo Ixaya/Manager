@@ -32,6 +32,8 @@ final class DynProbeFixture
 
 	public static function create(): void
 	{
+		// Main is the fixture's own connection; dbforge() skips loading it once any other handle exists.
+		get_instance()->load->database();
 		get_instance()->load->dbforge();
 		require_once MGRPATH . 'libraries/MGR_Migration_builder.php';
 

@@ -22,9 +22,7 @@ class RememberMeTest extends AuthTestCase
 
 	private function remember_columns(): ?object
 	{
-		return $this->db->select('remember_selector, remember_code')
-			->where('id', $this->user_id)
-			->get(self::$auth->tables['users'])->row();
+		return self::$auth->user($this->user_id)->row();
 	}
 
 	public function test_remember_user_populates_selector_and_code(): void

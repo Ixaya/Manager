@@ -24,6 +24,8 @@ class CaseInsensitiveColumnsTest extends CITestCase
 
 	protected function setUp(): void
 	{
+		// Main is this test's own connection; dbforge() skips loading it once any other handle exists.
+		$this->load->database();
 		$this->load->dbforge();
 		$this->builder = new MigrationBuilderHarness();
 		$this->driver = MgrDriver::fromCI($this->db->dbdriver ?? '', subdriver: $this->db->subdriver ?? null);
@@ -224,7 +226,6 @@ PHP);
 		$original_db     = $instance->db;
 		$original_forge  = $instance->dbforge;
 		$library_name    = 'phpunit_ci_runner';
-		$runner_db       = null;
 
 		try {
 			$this->load->library('migration', ['migration_path' => $directory, 'db_group' => 'default'], $library_name);
@@ -240,10 +241,6 @@ PHP);
 			$this->assertFalse($this->in_catalog(self::TABLE_ROLLBACK));
 			$this->assertSame(1, (int) $runner_db->query('SELECT 1 AS ok')->row()->ok);
 		} finally {
-			// The native postgre driver reuses the link for an identical DSN; closing it would close the suite's own.
-			if ($runner_db !== null && $runner_db->conn_id !== $original_db->conn_id) {
-				$runner_db->close();
-			}
 			unset($instance->{$library_name});
 			$instance->db      = $original_db;
 			$instance->dbforge = $original_forge;

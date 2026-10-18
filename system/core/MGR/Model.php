@@ -49,8 +49,8 @@ class MGR_Model extends CI_Model
 
 	/**
 	 * Opens the DB connection (by name, $this->connection_name, or the
-	 * default group), resolves $my_db_driver, and applies the session
-	 * timezone and override filter.
+	 * default group), resolves $my_db_driver, and applies the override
+	 * filter; the session timezone comes from the handle cache.
 	 */
 	public function connect(?string $connection_name = null): void
 	{
@@ -74,9 +74,6 @@ class MGR_Model extends CI_Model
 		if (!$this->table_name) {
 			$this->generate_table_name();
 		}
-
-		$time_zone = date_default_timezone_get();
-		$this->set_database_time_zone($time_zone);
 
 		$this->set_override();
 		$this->connected = true;
@@ -653,29 +650,29 @@ class MGR_Model extends CI_Model
 		return null;
 	}
 
-	/** Sets the DB session's timezone — a no-op on SQLite/SQL Server, which have no session TZ concept. */
+	/**
+	 * No-op for '' or PHP's current offset, and on SQLite/SQL Server; the handle cache owns the session timezone.
+	 *
+	 * @deprecated Use mgr_date_default_timezone_set(), or a separate database group.
+	 * @throws LogicException on MySQL/MariaDB/PostgreSQL for any other value
+	 */
 	public function set_database_time_zone(string $time_zone): void
 	{
-		$offset = mgr_get_time_zone_offset($time_zone);
-
-		if ($offset === false) {
+		if (!mgr_provided($time_zone)) {
 			return;
 		}
 
-		$offset = $this->my_db->escape_str($offset);
-
-		$sql = match ($this->my_db_driver) {
-			MgrDriver::MySQL,
-			MgrDriver::MariaDB  => "SET SESSION time_zone = '{$offset}'",
-			// Without INTERVAL, Postgres parses a bare offset string as a
-			// POSIX-style spec, which inverts the sign vs. our ISO offset.
-			MgrDriver::Postgres => "SET TIME ZONE INTERVAL '{$offset}' HOUR TO MINUTE",
-			default             => null,   // SQLite, SQL Server — no session TZ concept
-		};
-
-		if ($sql !== null) {
-			$this->my_db->query($sql);
+		$offset = mgr_get_time_zone_offset($time_zone);
+		if ($offset !== false && $offset === mgr_get_time_zone_offset(date_default_timezone_get())) {
+			return;
 		}
+
+		$this->check_connect();
+		if (in_array($this->my_db_driver, [MgrDriver::SQLServer, MgrDriver::SQLite], true)) {
+			return;
+		}
+
+		throw new LogicException("MGR_Model: set_database_time_zone('{$time_zone}') would desync this handle's session from PHP's timezone; change both with mgr_date_default_timezone_set(), or use a separate database group.");
 	}
 
 	/**

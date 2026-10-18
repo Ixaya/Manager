@@ -18,7 +18,6 @@ class Login extends APP_Rest_Controller
 
 		parent::__construct();
 
-		$this->load->database();
 		$this->load->library('ion_auth');
 	}
 

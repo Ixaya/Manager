@@ -315,6 +315,8 @@ class MGR_Migration_module_lib
 	protected function _lib(string $conn): object
 	{
 		if (isset($this->_libs[$conn])) {
+			$this->_libs[$conn]->set_db_group($conn);
+
 			return $this->_libs[$conn];
 		}
 
@@ -334,13 +336,14 @@ class MGR_Migration_module_lib
 	}
 
 	/**
-	 * Opens a separate handle on $conn for read-only lookups. Never assign it to $CI->db: the
-	 * migration library and its dbforge must stay on the connection they were built with.
+	 * Returns the cached handle for $conn, shared with the runner. Never build the runner here: its constructor writes.
 	 */
 	protected function _setup_database_connection(string $conn)
 	{
 		$CI = &get_instance();
-		$db = $CI->load->database($conn, true);
+		/** @var MGR_Loader $loader */
+		$loader = $CI->load;
+		$db = $loader->database_cache($conn);
 
 		if (!is_object($db) || !$db->conn_id) {
 			throw new RuntimeException("MGR_Migration_module_lib: unable to connect to database connection '{$conn}'.");

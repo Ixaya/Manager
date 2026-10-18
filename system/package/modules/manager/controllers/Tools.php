@@ -10,6 +10,9 @@ class Tools extends CI_Controller
 	// guard sends an uncaught exception to stderr with exit 1.
 	use MGR_Controller_Dispatch_guard;
 
+	/** @var MGR_Loader */
+	public $load;
+
 	public function __construct()
 	{
 		parent::__construct();
@@ -719,7 +722,7 @@ $table_property
 		}
 
 		$rest = $this->config->read('rest', fail_gracefully: false) ?? [];
-		$db   = $this->load->database(params: (string) ($rest['rest_database_group'] ?? ''), return: true);
+		$db   = $this->load->database_cache((string) ($rest['rest_database_group'] ?? ''));
 
 		$result = $this->log_prune_lib->prune_api(
 			db: $db,

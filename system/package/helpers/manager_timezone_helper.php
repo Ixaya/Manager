@@ -4,20 +4,26 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 if (!function_exists('mgr_date_default_timezone_set')) {
 	/**
-	 * Set PHP date default timezone.
+	 * Sets PHP's default timezone and re-sends its offset to every cached DB handle.
+	 * Anything but a zone identifier (an offset included) is logged and ignored.
 	 *
 	 * @param string $time_zone The timezone identifier (e.g., "America/New_York").
 	 * @return void
+	 * @throws RuntimeException when a database server rejects the new offset (PHP's time zone is already changed)
 	 */
 	function mgr_date_default_timezone_set($time_zone)
 	{
-		// Get the list of valid timezone identifiers
-		$valid_timezones = timezone_identifiers_list();
+		if (!in_array($time_zone, timezone_identifiers_list())) {
+			log_message('error', "mgr_date_default_timezone_set: '{$time_zone}' is not a time zone identifier; PHP's time zone is unchanged.");
+			return;
+		}
 
-		// Check if the provided timezone is valid
-		if (in_array($time_zone, $valid_timezones)) {
-			ini_set('date.timezone', $time_zone);
-			date_default_timezone_set($time_zone);
+		ini_set('date.timezone', $time_zone);
+		date_default_timezone_set($time_zone);
+
+		$CI = get_instance();
+		if ($CI->load instanceof MGR_Loader) {
+			$CI->load->sync_session_time_zone();
 		}
 	}
 }

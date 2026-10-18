@@ -14,7 +14,6 @@ abstract class AuthTestCase extends CITestCase
 	public static function setUpBeforeClass(): void
 	{
 		$ci = get_instance();
-		$ci->load->database();
 		$ci->load->model('ion_auth_model');
 		self::$auth = $ci->ion_auth_model;
 	}
@@ -45,8 +44,7 @@ abstract class AuthTestCase extends CITestCase
 
 	protected static function delete_group_if_exists(string $name): void
 	{
-		$row = get_instance()->db->where('name', $name)
-			->get(self::$auth->tables['groups'])->row();
+		$row = self::$auth->where('name', $name)->groups()->row();
 		if ($row) {
 			self::$auth->delete_group((int) $row->id);
 		}

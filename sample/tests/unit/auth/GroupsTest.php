@@ -68,8 +68,7 @@ class GroupsTest extends AuthTestCase
 		// pass. Description is restored before asserting so a failure never
 		// leaves residue.
 		$config   = (object) $this->load->config_read('ion_auth');
-		$adminRow = $this->db->where('name', $config->adminGroup)
-			->get(self::$auth->tables['groups'])->row();
+		$adminRow = self::$auth->where('name', $config->adminGroup)->groups()->row();
 		$this->assertNotNull($adminRow, 'admin group not found');
 
 		$dataOnly = self::$auth->update_group((int) $adminRow->id, '', ['description' => 'phpunit_tmp_desc']);

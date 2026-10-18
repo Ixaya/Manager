@@ -65,7 +65,9 @@ class MGR_Migration extends CI_Migration
 	{
 		// Load the specified database connection
 		$CI = &get_instance();
-		$CI->db = $CI->load->database($this->_db_group, true);
+		/** @var MGR_Loader $loader */
+		$loader = $CI->load;
+		$CI->db = $loader->database_cache($this->_db_group);
 
 		if (!is_object($CI->db) || !$CI->db->conn_id) {
 			throw new RuntimeException("MGR_Migration: unable to connect to database connection '{$this->_db_group}'.");

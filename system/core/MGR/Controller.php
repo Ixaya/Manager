@@ -4,6 +4,9 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class MGR_Controller extends CI_Controller
 {
+	/** @var MGR_Loader */
+	public $load;
+
 	protected ?string $_theme = null;
 	protected ?string $_container = null;
 	protected ?string $_layout = null;

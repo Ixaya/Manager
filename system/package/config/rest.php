@@ -254,9 +254,10 @@ $config['rest_ip_blacklist'] = '';
 |
 | Connect to a database group for keys, logging, etc. It will only connect
 | if you have any of these features enabled
+| '' is the main handle, shared with Models; a group name opens its own session.
 |
 */
-$config['rest_database_group'] = 'default';
+$config['rest_database_group'] = '';
 
 /*
 |--------------------------------------------------------------------------

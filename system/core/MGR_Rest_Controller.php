@@ -15,8 +15,8 @@ class MGR_Rest_Controller extends REST_Controller
 	public int $logged_in_level = 0;
 
 	/**
-	 * Applies the request's configured time zone and, for an identified API
-	 * user, syncs the DB session time zone and loads their profile context.
+	 * Applies the configured rest_time_zone and, for an identified API user,
+	 * loads their profile context.
 	 */
 	public function __construct()
 	{
@@ -28,11 +28,6 @@ class MGR_Rest_Controller extends REST_Controller
 		}
 
 		if (isset($this->_apiuser)) {
-			$offset = mgr_get_time_zone_offset($this->time_zone);
-			if ($offset !== false) {
-				$this->set_rest_timezone($offset);
-			}
-
 			$this->process_api_user();
 		}
 	}
@@ -62,29 +57,26 @@ class MGR_Rest_Controller extends REST_Controller
 		}
 	}
 
+	/** REST handle from the loader's cache: keys, logging and Models share one session per group. */
+	protected function _load_rest_database(): ?object
+	{
+		if ($this->config->item('rest_enable_keys') || $this->config->item('rest_enable_logging')) {
+			return $this->load->database_cache((string) $this->config->item('rest_database_group'));
+		}
+
+		return parent::_load_rest_database();
+	}
+
 	/**
-	 * Applies $offset as the DB session time zone, using the cross-engine
-	 * SQL for the active driver; does nothing on unsupported drivers.
+	 * Re-sends PHP's current timezone offset to every cached DB handle.
 	 *
-	 * @param string $offset Time zone offset or name to set for this session.
+	 * @deprecated The handle cache owns the session timezone; change it with mgr_date_default_timezone_set().
+	 * @param string $offset Ignored.
 	 * @return void
 	 */
 	protected function set_rest_timezone(string $offset)
 	{
-		$offset = $this->rest->db->escape_str($offset);
-		$driver = MgrDriver::fromCI($this->rest->db->dbdriver ?? '', subdriver: $this->rest->db->subdriver ?? null);
-		$sql = match ($driver) {
-			MgrDriver::MySQL,
-			MgrDriver::MariaDB  => "SET SESSION time_zone = '{$offset}'",
-			// Without INTERVAL, Postgres parses a bare offset string as a
-			// POSIX-style spec, which inverts the sign vs. our ISO offset.
-			MgrDriver::Postgres => "SET TIME ZONE INTERVAL '{$offset}' HOUR TO MINUTE",
-			default             => null,
-		};
-
-		if ($sql !== null) {
-			$this->rest->db->query($sql);
-		}
+		$this->load->sync_session_time_zone();
 	}
 
 	/**
@@ -157,7 +149,7 @@ class MGR_Rest_Controller extends REST_Controller
 	}
 
 	/**
-	 * Lazy-loads $model as $model_name and sets its time zone (plus user_id if it's an API_Model).
+	 * Lazy-loads $model as $model_name and injects user_id if it's an API_Model.
 	 *
 	 * @param string $model      Model class/file name to load.
 	 * @param string $model_name Property name the loaded model is assigned to.
@@ -168,8 +160,6 @@ class MGR_Rest_Controller extends REST_Controller
 		if (!isset($this->{$model_name})) {
 			$this->load->model($model);
 		}
-
-		$this->{$model_name}->set_database_time_zone($this->time_zone);
 
 		if (is_a($this->{$model_name}, 'API_Model')) {
 			$this->{$model_name}->user_id = $this->user_id;

@@ -340,7 +340,16 @@ stdout with exit 0.
 `migrate`/`migrate_database`/`version_set` force `db_debug` on for the
 connection they touch, so a failed DDL statement halts with the
 query/file/line instead of being recorded as applied. `plan`/`version_list`
-are read-only and don't.
+force it too, so a failed version lookup halts with the real SQL error; they
+still write nothing.
+
+The runner and `plan`'s lookup share each connection's cached handle
+(`database_cache($conn)`, the one Models naming that group get): one session
+per connection, held until the process ends, and the forced `db_debug` stays
+on it. A revisited connection (a repeated `MGR_MIGRATION_DB` entry) re-points
+the memoized runner. Never use `database_cache('')` inside a migration: the
+runner has replaced `$CI->db`, so the cache would adopt the migration's
+connection as main.
 
 Version tracking: the app sequence is one row in `migrations`; each module
 tracks its own row in `migrations_path`. Targets are auto-discovered (the app

@@ -8,10 +8,11 @@ code change. Work outward instead:
 
 1. **Use the driver's existing public methods.** A gap marked
    "unimplemented on PDO" is usually a missing override *point*, not a
-   missing capability. `reconnect()` is the worked example: no driver
-   reconnects in it — it only nulls `conn_id` so the next query reconnects
-   lazily — so a driver-agnostic staleness check is a trivial query in a
-   `try`/`catch` plus the already-public `$this->db->close()`.
+   missing capability. `reconnect()` is the worked example: it differs per
+   driver (a no-op on PDO; native `postgre` can reset the same link to a
+   fresh session), so a driver-agnostic staleness check is a trivial query in
+   a `try`/`catch` plus the already-public `$this->db->close()`, which nulls
+   `conn_id` on every driver so the next query reconnects lazily.
 2. **Reach the client through config.** `application/config/database.php`'s
    keys are copied onto the driver object verbatim: `options` passes into
    the PDO constructor, `dsn` replaces the driver's own DSN building.
