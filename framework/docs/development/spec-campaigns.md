@@ -148,7 +148,9 @@ inherits; `proposals.md` indexes it as one row in a triage table — title,
 `Urgency` (High/Medium/Low), `Effort` (S/M/L), and `Proposed`, the real
 calendar date the write-up was created (folder creation date for now; the
 actual authored date going forward) — a date needs no renumbering as rows
-are added, deleted, or reordered, where an ordinal index would. Rows are
+are added, deleted, or reordered, where an ordinal index would — and
+`Origin`, the workspace number of the campaign that wrote it (`n/a` when
+none), so a campaign's spin-offs can be found together. Rows are
 grouped by `Urgency` rather than appended chronologically, so the table's
 own top-to-bottom order doubles as a priority view without a separately
 generated index. Unlike `pending.md`, this file is expected to be revised
@@ -393,6 +395,13 @@ the suspect part" is a legitimate way to open an objective.
   tell is subtle — one campaign's config override survived a full options
   write-up before anyone noticed the framework wasn't suppressing the failure,
   our own layer was discarding it.
+- **Cross every proposed fix against the open flags.** Whoever writes a fix
+  option (a closing review) or a fix plan (a fix pass) lists the recorded
+  flags and known shapes it touches, and says how the option holds under
+  each. One campaign designed a transaction guard per driver object, while a
+  flag it had already recorded said one native-`postgre` connection is shared
+  across objects. The gap surfaced only at the next re-check, a whole session
+  later.
 - **Baseline discipline:** before editing, confirm the code still matches the
   handoff quote — if it doesn't, STOP and report, don't improvise. After
   editing, diff against the quote and state in one line what changed.
@@ -453,6 +462,12 @@ don't re-derive. Campaign-proven additions:
   there is nothing to make the comparison against. The same holds for engines
   — the one that already behaves correctly is the control that shows a fix
   homologated an existing behavior rather than inventing one.
+- **Stamp every capture with the tree it ran on**: a content hash of the code
+  under test, computed where it runs. Use a hash, not a commit id: commits may
+  be amended until the campaign is archived, so a commit does not name a tree.
+  A code change landing after end-of-batch verification either re-runs the
+  batch, or the handoff names what was not re-run and why. A stated scope is
+  closed; it is not a punch item for the closing review.
 - **Probe the sibling paths in the same run, not just the one under test.**
   What exposed the wrong-layer fix above was a probe comparing the read
   method's empty array against the write methods' `false` in one run; reading
@@ -697,6 +712,14 @@ The failures new operators hit first — each is the negative of a rule above:
    greps; produce a per-section verdict table and a punch list, **written to
    a file in the campaign directory (`closing-review.md`) in the same turn —
    never left only in the chat reply** (fix nothing in that session).
+
+   **What reopens work.** A closing review or re-check reopens work only for a
+   defect reachable in normal use under the default configuration. A defect
+   that needs several uncommon conditions at once, or an unverified one, is a
+   **known issue** by default. It gets a release-note line and a Low-urgency
+   proposal written while the evidence is in context, and the campaign keeps
+   closing. The operator can still promote one. Without this floor, every
+   re-check finds a narrower edge, and the campaign never closes.
 2. **Pending-task gate** (opens the distillation session, before its plan is
    proposed). Sweep the whole workspace for anything still open — `pending.md`,
    deferred verdicts in the objective records, follow-ons a late objective

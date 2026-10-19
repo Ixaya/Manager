@@ -212,7 +212,11 @@ driver a new project gets. Doubling every engine with its native counterpart
 is the tier-2 release pass, not a routine one. Give `mysqli`/`postgre`
 their own pass earlier when a change touches driver-specific
 behavior — CI3's driver classes, fetch types, connection handling — or when
-asked for it by name.
+asked for it by name. For anything about connections or sessions, judge
+native `postgre` against `pdo/pgsql`, never alone: `pg_connect()` returns the
+existing link for an identical DSN, so two handles that are separate sessions
+on every other driver share one there, and a result that only looks right on
+`postgre` proves nothing.
 
 **A change to what migrations emit is judged by a schema diff.** Migrate a
 fresh database to the last migration before the one under change
@@ -230,6 +234,42 @@ containers outlive it:
 ```bash
 ./docker_manage.sh -e <instance> -b -m --profile <db> down -v
 ```
+
+### Two migration groups
+
+The scaffold ships one migration group, and its PHPUnit suite has no
+multi-group test: a second database would have to ship in every project's
+setup. When a change touches how the migration runner or
+`MGR_Migration_module_lib` pick their connection, set a second group up
+temporarily on a disposable instance and revert all of it afterwards:
+
+1. As the engine's superuser inside the db container, create a second
+   database on the same server and give it to the app role (PostgreSQL:
+   `CREATE DATABASE <name> OWNER <app role>`; MySQL family: create it and
+   `GRANT ALL` on it to the app user).
+2. In `sample/application/config/database.php`, add a group copying
+   `default` with `database` swapped, and the DSN's `dbname=` too on a PDO
+   driver.
+3. Put a module migration under `migrations/<group>/`, set
+   `MGR_MIGRATION_DB=default,<group>` in the instance env, and recreate
+   `php`.
+
+Then check, counting each database's tables and its `migration_time_path`
+rows before and after:
+
+- **One pass** — `manager/tools/migrate`: each database holds only its own
+  tables and version rows.
+- **A repeated entry** — `MGR_MIGRATION_DB=default,<group>,default`: the third
+  pass changes neither database.
+- **A revisit through the library** — `run('default')`, `run('<group>')`,
+  `run('default')` on one `MGR_Migration_module_lib` (a probe method): the
+  third runner reports the default database (`current_database()` /
+  `DATABASE()`) and writes nothing to the second.
+- **`plan`** — both databases are unchanged.
+
+Before the runner re-pointed a memoized connection, the repeated entry and
+the revisit wrote the default group's whole schema into the second database and overwrote its
+version rows, with no error.
 
 ## Closing a change
 

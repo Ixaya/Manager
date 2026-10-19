@@ -19,8 +19,11 @@ Two base classes live under `tests/support/`; pick one:
   `$this->config`, `$this->load`, and any loaded model are reachable via
   `$this->`. Use it for anything that does not need a schema.
 - **`AuthTestCase`** — extends `CITestCase`, loads the Ion Auth model once per
-  class, and adds namespaced fixture helpers. Use it for database-backed
-  integration tests.
+  class, and adds namespaced fixture helpers. Use it for tests against the
+  auth tables: it reaches them through Ion Auth's own connection, which
+  `AUTH_DB_CONNECTION` can point at another group. It does not load the main
+  connection; a test that reads other tables through `$this->db`, or calls
+  `dbforge()`, runs `$this->load->database()` first.
 
 Both are `abstract`, so PHPUnit never collects them as tests. Do not extend
 `PHPUnit\Framework\TestCase` directly — you lose the super-object access and

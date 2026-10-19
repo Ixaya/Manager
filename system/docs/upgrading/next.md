@@ -179,8 +179,145 @@ does not get the forge subclass.
 - `manager/tools/migrate <version> <module_key>` ran the migration's builder
   SQL and its `dbforge` SQL on two different connections, because the
   version lookup replaced `$CI->db`. On PostgreSQL, inside a transaction,
-  that hung. The lookup now uses its own handle and leaves `$CI->db` alone; a
-  project `MY_Migration_module_lib` that relied on the swap will notice.
+  that hung. The lookup no longer replaces `$CI->db`; it now shares the
+  connection's cached handle with the runner (next entry). A project
+  `MY_Migration_module_lib` that relied on the swap will notice.
+
+### Database handles: one session per group name per process, and the handle cache owns the session time zone
+
+Every framework consumer that asks for a database handle by group name now
+gets the same cached handle from `MGR_Loader::database_cache()`, and with it
+the same server session, until the process ends. `''` is the main handle. On
+`pdo/*` and `mysqli`, an authenticated REST request drops from 2 sessions to
+1, login from 3 to 1, `migrate <version> <module_key>` from 2 to 1, and a
+`plan` that looks up versions repeatedly in one process from one session per
+lookup to one. Native `postgre` already shared one link per DSN, and its counts
+don't change.
+
+What an existing project does:
+
+- **Name `''`, not `'default'`, for the main handle.** The package default of
+  `rest_database_group` is now `''`, so the REST handle, `Rest_key_model` and
+  Models share main. An explicit group name always gets its own handle and
+  session, even when it names the same group as main. A project that sets
+  `rest_database_group = 'default'` in its own `rest.php`, or names
+  `'default'` in a model's `$connection_name`, keeps a separate session until
+  it switches to `''`.
+- **REST queries now share the application's transaction.** API-key, limit and
+  access-log queries, and `process_api_user()`'s `user` update, run on the main
+  session. For example, the destructor's `api_log` update can land inside an
+  open application transaction, or on PostgreSQL inside an aborted one. Before,
+  they ran on their own session on every driver except native `postgre`, which
+  has always shared that link.
+- **`database_cache('')` no longer follows a replaced `$CI->db`.** The cache
+  adopts main, or loads it, once per process. Inside a migration, never ask
+  for `''`: the runner has already replaced `$CI->db`, so the cache would
+  adopt the migration's connection as main.
+- **The session time zone is the cache's.** Each cached handle gets PHP's
+  current offset when it opens. Every later `database_cache()` access (so
+  every Model connect) re-checks it, and sends a `SET` only when PHP's offset
+  or the session's link has changed. That covers a reconnect, a raw
+  `date_default_timezone_set()` and a DST change, from the next access on,
+  not inside a Model that already holds its handle.
+  `mgr_date_default_timezone_set()` re-sends to every open handle at once.
+  `MGR_Model::connect()`, `setup_model()` and the REST controller no longer
+  send their own `SET`. Unauthenticated REST requests (`auth_override = none`,
+  login) now get the session time zone too.
+- **On PostgreSQL, a time-zone `SET` sent inside a CI transaction**
+  (`trans_begin()` / `trans_start()`) is re-sent on every access until one
+  lands outside the transaction, because a rollback undoes it. This costs
+  something only when the zone changes or the link reconnects during a
+  transaction. Two cases are not covered:
+  - a transaction opened with a raw `BEGIN`;
+  - on native `postgre`, a transaction opened through another group with the
+    same DSN as main, because the two share one connection. After such a
+    transaction rolls back, that other group's handle can keep the old offset
+    until the next access through `''`. Package defaults never create such a
+    group.
+- **A rejected offset now throws.** A session time-zone `SET` that fails on a
+  working link throws `RuntimeException`, naming the offset and the connection.
+  It comes from `database_cache()` (so from a Model constructor or connect),
+  and from `mgr_date_default_timezone_set()`. By then PHP's time zone is
+  already changed, and the handles after the rejecting one are not re-sent
+  until their next access. MariaDB 12.3 accepts only −12:59 … +13:00, so
+  `Pacific/Kiritimati` (+14:00) and `Pacific/Chatham` in its summer (+13:45)
+  are rejected there; MySQL 8.4 and PostgreSQL 18 accept every real offset.
+  On a link that is down or unusable, the failure is logged at `error` and
+  retried on the next access. With `db_debug` on, CI's own database error
+  halts first, as before.
+- **A Model whose `connection_name` is a DSN string** (or a `database_cache()`
+  call with a DSN or array) is never cached. It gets PHP's offset once, when
+  it opens; a later `mgr_date_default_timezone_set()` does not reach it. A
+  failed `SET` there logs as `database connection 'dsn-generic'`; the DSN
+  itself is never logged.
+- **`MGR_Model::set_database_time_zone()` is deprecated**, with its signature
+  unchanged (`string`). It is a no-op for an empty value or for PHP's current
+  offset. Any other value throws `LogicException` on MySQL, MariaDB and
+  PostgreSQL, including a value that resolves to no offset, which used to be a
+  silent no-op. Such a call already desynced the session. On SQLite and SQL
+  Server it stays a no-op for every value. Change the time zone with
+  `mgr_date_default_timezone_set()`, or use a separate group.
+- **`MGR_Rest_Controller::set_rest_timezone()` is deprecated.** It re-syncs
+  and ignores its argument.
+- **`rest_time_zone` / `MGR_REST_TIME_ZONE` takes zone identifiers only.** An
+  offset value such as `-05:00` used to be sent to the database session of
+  authenticated requests. Now it is logged at `error` and ignored, and every
+  session follows PHP's time zone. `mgr_date_default_timezone_set()` logs at
+  `error` for every caller that passes a non-identifier, not only this one.
+- **`MX_Controller` is discouraged.** Its loader clone has its own handle
+  cache, so each MX controller opens extra sessions.
+- **A model's `$database_name` switches the database for every user of its
+  group's handle** (on the PostgreSQL family, CI's `db_select()` does
+  nothing). Use a separate group instead.
+- **A project `MY_Loader` that does not extend `MGR_Loader`** (the sample's
+  does) gets none of this.
+
+Migrations:
+
+- **The runner and the `plan` / `migrate <version> <key>` lookup take each
+  connection's cached handle**: one session per connection and process, held
+  until the process ends. A multi-connection `migrate` keeps one session per
+  connection already visited (before, the replaced handle closed at the
+  switch). A project `MY_Migration_module_lib` overriding the lookup's
+  `_setup_database_connection()` now gets the cached handle and must not close
+  it.
+- **Revisiting a connection in one process no longer migrates into the
+  previous connection's database.** That happened with a repeated
+  `MGR_MIGRATION_DB` entry, or `run('a'); run('b'); run('a')` through the
+  library: the third pass wrote the first group's whole schema into the second
+  database and overwrote its version rows, without any error. `_lib()` now
+  re-points a memoized runner with `set_db_group()`.
+- **`db_debug` that `migrate`, `migrate_database`, `version_set`, `plan` and
+  `version_list` force stays on that connection's cached handle** for the rest
+  of the `manager/tools` process, so it also reaches a Model naming that group
+  there. Web and REST processes never force it.
+
+Other changes:
+
+- **`REST_Controller::_load_rest_database()`** is a new protected seam holding
+  the block that loads `rest->db`. `MGR_Rest_Controller` overrides it to return
+  the cached handle; a project that needs another REST handle overrides it too.
+  When neither keys nor logging are on and the controller has no `db`,
+  `rest->db` is now `null` instead of never set.
+- **`MGR_Loader::sync_session_time_zone()`** is public: it is what
+  `mgr_date_default_timezone_set()` calls.
+- **`manager/tools/log_prune api`** reads `api_log` through the cached handle
+  for `rest_database_group`, which is main under the new default.
+- **`MGR_Controller` and `Tools` declare `$load` as `MGR_Loader`** (PHPDoc
+  only), so project static analysis sees the MGR loader methods on
+  controllers.
+- **Reaches a project** through `composer update` (`system/`), and by
+  reconciling the sample:
+  - `application/modules/auth/controllers/api/Login.php` no longer calls
+    `$this->load->database()`; drop the line from a copy;
+  - the Auth tests (`tests/support/AuthTestCase.php`,
+    `tests/unit/auth/DeletionTest.php`, `GroupsTest.php`, `RememberMeTest.php`)
+    read Ion Auth's tables through `ion_auth_model`, so they pass with
+    `AUTH_DB_CONNECTION` set;
+  - `tests/support/DynProbeFixture.php`, `tests/unit/tools/LogPruneApiTest.php`
+    and `tests/unit/migrations/CaseInsensitiveColumnsTest.php` load main
+    before `dbforge()` instead of relying on an earlier suite having loaded
+    it, and `CaseInsensitiveColumnsTest` no longer closes the runner's handle.
 
 ### New: `CF_ENCRYPTION_CIPHER` selects the encryption cipher, and `generate_enc_key` sizes the key for it
 

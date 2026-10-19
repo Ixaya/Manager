@@ -217,13 +217,13 @@ A few behaviors differ by engine regardless of which driver (native or PDO)
 you run — worth knowing before assuming a schema or query is portable
 between them.
 
-- **`set_database_time_zone()` needs `INTERVAL` on Postgres.** A bare
+- **The session time zone needs `INTERVAL` on Postgres.** A bare
   `SET TIME ZONE '<offset>'` there parses as a POSIX-style spec, which
   inverts the sign versus the ISO offset the framework passes — so the
-  model issues `SET TIME ZONE INTERVAL '<offset>' HOUR TO MINUTE` on
+  handle cache issues `SET TIME ZONE INTERVAL '<offset>' HOUR TO MINUTE` on
   Postgres instead, and the plain `SET SESSION time_zone = '<offset>'`
   form on MySQL/MariaDB. SQLite and SQL Server have no session time zone
-  concept, so the call is a no-op there.
+  concept, so nothing is sent there.
 - **`Char` is blank-padded on PostgreSQL, not on MySQL/MariaDB.** A
   `Char(8)` column holding `'abcd'` reads back as `'abcd    '` on Postgres
   but `'abcd'` on MySQL — identical under native and PDO alike, so this is
