@@ -179,7 +179,6 @@ class MGR_Migration_module_lib
 	 */
 	public function migrate_target(string $conn, ?string $key, ?string $version = null, bool $confirm_downgrade = false): string
 	{
-		$lib    = $this->_lib($conn);
 		$label  = ($key ?? 'application') . ':' . $conn;
 		$target = null;
 
@@ -193,6 +192,8 @@ class MGR_Migration_module_lib
 			return "[WARN] {$label} -> not found";
 		}
 
+		// Built only now: the runner's constructor creates the tracking tables.
+		$lib = $this->_lib($conn);
 		$lib->set_path($target['path']);
 		$lib->set_migration_key($key);
 

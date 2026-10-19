@@ -101,7 +101,7 @@ class MGR_Websocket_lib
 			$level = \Monolog\Level::fromName($log_level_name);
 		} catch (\ValueError $e) {
 			$level = \Monolog\Level::Notice;
-			log_message('warning', "Invalid log level: {$log_level_name}, defaulting to Notice");
+			log_message('error', "Invalid log level: {$log_level_name}, defaulting to Notice");
 		}
 
 
