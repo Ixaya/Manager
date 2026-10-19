@@ -169,8 +169,8 @@ before creating or reorganizing any doc.
 
 ## Hard rules
 
-- **PHP 8.2 floor, 8.4-era style.** No 8.3/8.4-only features (typed class
-  constants, `#[\Override]`, property hooks, asymmetric visibility).
+- **PHP 8.3 floor, 8.4-era style.** No 8.4/8.5-only features (property
+  hooks, asymmetric visibility, the pipe operator).
 - **Never edit anything under `vendor/`.** Composer manages every package
   there — `ixaya/manager`, its `nielbuys/framework` base, everything else —
   and wipes edits on the next `composer install`/`update`. Fix

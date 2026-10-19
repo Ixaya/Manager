@@ -34,10 +34,11 @@ style from those files.
 4. **Clear names over short code.** `$connection_name`, not `$conn`;
    `get_unique_hash()`, not `uhash()`. A longer descriptive name beats a
    comment explaining a short one. Loop vars and tiny closures may stay short.
-5. **PHP 8.4-era style on an 8.2 floor.** Allowed: enums, `readonly`, promoted
+5. **PHP 8.4-era style on an 8.3 floor.** Allowed: enums, `readonly`, promoted
    constructors, `match`, named arguments, first-class callables, DNF types,
-   spread of string-keyed arrays. NOT allowed (needs 8.3/8.4): typed class
-   constants, `#[\Override]`, property hooks, asymmetric visibility.
+   spread of string-keyed arrays, typed class constants, `#[\Override]`. NOT
+   allowed (needs 8.4/8.5): property hooks, asymmetric visibility, the pipe
+   operator.
 6. **Strict comparisons** (`===`/`!==`). Older framework code mixes `==` —
    don't copy that.
 7. **No `else` after `return`/`throw`** — use guard clauses and early returns.

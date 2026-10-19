@@ -57,6 +57,19 @@ local images via `INCLUDE_SMOKE_MODULE`); disposable, campaign-specific,
 gitignored checks are **probes** (framework-repo only, never shipped). A probe
 graduates to smoke only if it proves generic.
 
+## Run-history cache location
+
+PHPUnit 12 and 13 share no setting that turns the run-history cache off.
+`cacheResult` prints a runner deprecation on 13 (removed in 14); its
+replacement `recordTestRunHistory` fails schema validation on 12, which is a
+runner warning and so exit code 1 under `failOnWarning`; and with neither
+set, both write `.phpunit.result.cache` beside `phpunit.xml`, in the project
+root. `phpunit.xml` therefore sets `cacheDirectory="tests/.phpunit.cache"`
+(valid on both), which keeps the file inside `tests/`, ignored by
+`tests/.gitignore`, and the root untouched (2026-10-19). Revisit when PHPUnit
+12 leaves the sample's constraint: `recordTestRunHistory="false"` then turns
+the cache off outright.
+
 ## Deferred / follow-up
 
 - **`mgr-testing` skill — deferred.** The authoring guide

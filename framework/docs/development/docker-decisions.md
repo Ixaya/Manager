@@ -45,9 +45,10 @@ Revisit when: never, unless composer itself becomes a runtime dependency
 **Dev tooling (PHPStan/PHPUnit) runs in the `vendor-builder` stage — no
 separate testing image, no prod/dev mode switch.**
 Decision: `composer.json` carries `phpstan/phpstan` + `phpunit/phpunit` +
-`friendsofphp/php-cs-fixer` in `require-dev` (PHPUnit as
-`^11 || ^12 || ^13` — 13 needs PHP 8.4, the OR keeps `composer install`
-working at the framework's 8.2 floor); a profile-gated `tools` compose
+`friendsofphp/php-cs-fixer` in `require-dev` (PHPUnit as `^12 || ^13` — 12
+needs PHP 8.3 and 13 needs 8.4, so the OR keeps `composer install` working
+at the framework's 8.3 floor; 11 is dropped because PHPUnit runs only on
+developer machines, never on a server); a profile-gated `tools` compose
 service reuses the
 `vendor-builder` build target and mounts the project tree at `/work`. The
 service lives in the `docker-compose.tools.yml` addon, not the base file
@@ -439,7 +440,7 @@ control is judged on its own terms.
 Why: a bare host run substitutes whatever PHP version and extension set the
 developer's machine happens to have for the exact ones the stack pins — a
 missing extension `.so` (ImageMagick) or a host PHP outside the framework's
-8.2 floor / 8.4-era style reproduces a host artifact, not a framework bug, and
+8.3 floor / 8.4-era style reproduces a host artifact, not a framework bug, and
 wastes a debugging session on the wrong layer.
 Evidence: the corpus's five host-first sites (`sample/AGENTS.md`'s `composer
 install`/`vendor/bin/phpstan analyse`/PHPUnit paragraph, `README.md`'s

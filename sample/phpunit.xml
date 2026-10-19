@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- cacheResult is deprecated on PHPUnit 13; recordTestRunHistory is rejected by 12.
+     cacheDirectory is valid on both. -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/13.0/phpunit.xsd"
          bootstrap="tests/Bootstrap.php"
-         cacheResult="false"
+         cacheDirectory="tests/.phpunit.cache"
          beStrictAboutTestsThatDoNotTestAnything="true"
          failOnWarning="true"
          failOnRisky="true">

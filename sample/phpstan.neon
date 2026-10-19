@@ -2,7 +2,7 @@ parameters:
     # Set the level of strictness
     level: 5
     # Set a specific php version
-    # phpVersion: 80200
+    # phpVersion: 80300
 
     # Limit processes in case of reduced ram requirement
     # parallel:

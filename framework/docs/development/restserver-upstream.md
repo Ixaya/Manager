@@ -55,7 +55,7 @@ on `MY_Model` instead of `CI_Model`.
 
 `system/third_party/REST_Controller.php` is upstream-tracked: fixes go in
 `MGR_Rest_Controller`, and the file stays close to upstream so a merge stays
-clean. It carries one deliberate edit, which landed in commit `113fc86`.
+clean. It carries one deliberate edit, which landed in commit `3d0c173`.
 
 The constructor's block that loads `rest->db` moved, verbatim, into
 `protected function _load_rest_database()`, placed right after

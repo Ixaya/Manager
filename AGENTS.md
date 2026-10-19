@@ -117,8 +117,8 @@ package alias → `MY_`/`APP_`) is in `framework/docs/architecture/`.
 
 ## Hard rules
 
-- **PHP 8.2 floor, 8.4-era style.** No 8.3/8.4-only features (typed class
-  constants, `#[\Override]`, property hooks, asymmetric visibility).
+- **PHP 8.3 floor, 8.4-era style.** No 8.4/8.5-only features (property
+  hooks, asymmetric visibility, the pipe operator).
 - **Engine support is tiered.** Anything touching the database goes
   through `MgrDriver`, `MgrFieldType`, and `MgrFunctionType` — never
   engine-specific SQL without a driver `match`. Then:

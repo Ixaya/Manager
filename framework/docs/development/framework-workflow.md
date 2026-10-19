@@ -235,6 +235,34 @@ containers outlive it:
 ./docker_manage.sh -e <instance> -b -m --profile <db> down -v
 ```
 
+### Another PHP or PHPUnit version
+
+The suite runs on another PHP by changing the image's `FROM php:` pin and
+nothing else; judge the cell by the run's own output (the PHP and PHPUnit
+versions in its header). Use a throwaway instance, so the real instance's
+images, volumes and secrets stay untouched:
+
+- Copy an existing instance's three `docker/env/` files, its three
+  `docker/secrets/` files and the base `.env.<instance>` at the `sample/`
+  root, and give the copy its own `IMAGE_REPO`, `IMAGE_REPO_NGINX` and
+  `IMAGE_TAG`.
+- Edit the pin at `sample/docker/Dockerfile` by hand, one version per run,
+  and `build tools php`. Put the pin back afterwards; `git status` showing
+  the Dockerfile unmodified is the check.
+- Set `TOOLS_BIND_PATH` (absolute) to a throwaway copy of `sample/` made
+  without `vendor/` and `composer.lock`, and run `composer update` through
+  `tools`. The scaffold's own `sample/vendor` and `sample/composer.lock` are
+  local state that another PHP or PHPUnit major would overwrite. The copy
+  resolves on its own: 8.3 gets PHPUnit 12, 8.4 gets 13; force a major by
+  editing the copy's `composer.json`. Leaving the gitignored `probes` module
+  out of the copy shows what a consuming project runs.
+- Run `migrate` and `phpunit` with the `-v` mount of the live `system/`
+  (see "The vendor mirror lags the working tree").
+- Tear down with `down -v` for every profile used, and `docker rmi` the
+  instance's images. `down -v` also removes the instance's composer-cache
+  volume; it refills. The copy's `vendor/` is root-owned, so delete it with a
+  container.
+
 ### Two migration groups
 
 The scaffold ships one migration group, and its PHPUnit suite has no

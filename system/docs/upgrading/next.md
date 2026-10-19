@@ -505,3 +505,28 @@ values; they now default to empty, and the dummies can go.
   server with no app database or user while the app keeps using the
   external one. Keep `DB_NAME`/`DB_USER` in `<instance>.env` whenever a
   bundled profile runs.
+
+### PHP 8.3 is the supported floor; the sample drops PHPUnit 11 and `cacheResult`
+
+PHP 8.2 reaches end of life in December 2026. The documentation, the
+scaffold's `AGENTS.md` rule and the agent skills now treat PHP 8.3 as the
+floor, and 8.2 is no longer tested. The package's own Composer constraint
+still admits 8.2 until a later release raises it, so nothing stops working
+on an 8.2 server today. What a project does:
+
+- **Plan the move to 8.3 or later** before that release, and raise the `php`
+  constraint in your `composer.json` with it.
+- **PHPUnit:** the scaffold's `composer.json.sample` now requires
+  `^12.0 || ^13.0` (PHPUnit runs on developer machines, never on a server).
+  A project that keeps `^11` is unaffected.
+- **`phpunit.xml`:** on PHPUnit 13, `cacheResult` prints a runner
+  deprecation. Its replacement, `recordTestRunHistory`, is rejected by 12,
+  which is a warning and so exit code 1 under `failOnWarning`. Deleting the
+  attribute alone turns the run-history cache on and writes
+  `.phpunit.result.cache` into the project root. The sample now sets
+  `cacheDirectory="tests/.phpunit.cache"`, valid on both, and
+  `tests/.gitignore` ignores `.phpunit.cache/`. Reconcile `phpunit.xml` and
+  `tests/.gitignore` from the sample to adopt it; a project that keeps the
+  old attribute keeps working.
+- The scaffold's `AGENTS.md` rule line now reads 8.3 floor; typed class
+  constants and `#[\Override]` are allowed.

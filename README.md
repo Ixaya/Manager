@@ -12,7 +12,7 @@ The framework is **always consumed as a Composer dependency**: your project boot
 
 - CodeIgniter base upgradeable through Composer
 - HMVC, organize your code into self-contained modules, each with its own controllers, models and views
-- Modern, typed PHP (8.2+) codebase — enums, `match`, named parameters, readonly value objects
+- Modern, typed PHP (8.3+) codebase — enums, `match`, named parameters, readonly value objects
 - Support for MySQL/MariaDB, PostgreSQL, SQL Server, SQLite, or any database supported by CodeIgniter 3
 - Different Database connection/technology per Model. (you can have a model that loads a Database from Postgres and another Model that loads a Database from MySQL)
 - Typed base model (`MY_Model`) with soft deletes, audit history, tenant scoping, and a dynamic query builder
@@ -34,7 +34,7 @@ This is the quick version. If you want a more in depth guide follow `system/docs
 
 ### Requirements
 
-- PHP 8.2+
+- PHP 8.3+
 - Composer
 
 ### 1. Install via Composer

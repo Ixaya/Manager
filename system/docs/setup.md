@@ -13,7 +13,7 @@ with `composer update`. Framework code is never copied into or edited
 inside a project — see the scaffolded project's
 `docs/development/upgrading.md` for what to reconcile after an upgrade.
 
-**Prerequisites:** Docker, plus PHP 8.2+ and Composer if you run the initial
+**Prerequisites:** Docker, plus PHP 8.3+ and Composer if you run the initial
 install yourself (step 1). After scaffolding, everything else — including
 Composer, the dependency resolution, and the test tools — runs through the
 Docker stack, so no host database engine or PHP extensions are required.
@@ -46,7 +46,7 @@ Otherwise install it:
 composer require ixaya/manager
 ```
 
-If PHP 8.2+ or Composer isn't present and you were asked to run the whole
+If PHP 8.3+ or Composer isn't present and you were asked to run the whole
 setup yourself, stop and ask the operator whether to install them — they
 may prefer to run this one step themselves (or in a container) and have you
 continue from step 2. Do not install a language runtime without
