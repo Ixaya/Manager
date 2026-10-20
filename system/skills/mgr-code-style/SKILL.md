@@ -72,10 +72,9 @@ style from those files.
 
 Two kinds, two audiences:
 
-- **Function-header comments (PHPDoc): for whoever *calls* the function.**
-  What it does, what to pass, what comes back, what it throws — enough to use
-  it without reading the body. Keep it SHORT (see Hard rule 2); no internals,
-  no history.
+- **Function-header comments (PHPDoc): for whoever *calls* the function** —
+  enough to use it without reading the body (Hard rule 2); no internals, no
+  history.
 - **Inline comments inside a function: for whoever next *edits* it.** Only
   when necessary, and short — **1–2 lines**, up to **4** for a
   constraint/consequence warning stated as a direct effect ("must stay above
@@ -116,14 +115,11 @@ PRIVATE_PATH=../private
 CF_SESS_SAVE_PATH=
 ```
 
-A terse fragment for structure; a full constraint line only when there is a
-real gotcha the value can't show.
-
-An entry-point script's header may be longer — it documents the file's
-contract and examples, PHPDoc-style — but every line still has to earn its
-place. PHP-specific rules (typing, PHPDoc tags, named parameters) do not
-transfer. Markdown documentation is not code — it follows the project's
-documentation guidelines, not this skill.
+A terse fragment for structure; a full constraint line only for a real
+gotcha the value can't show. An entry-point script's header may be longer —
+it documents the file's contract, PHPDoc-style — but PHP-specific rules
+(typing, PHPDoc tags, named parameters) do not transfer. Markdown is not
+code: it follows the project's documentation guidelines, not this skill.
 
 ## Patterns from the reference code
 
@@ -148,23 +144,13 @@ documentation guidelines, not this skill.
 ## Documentation
 
 Principle: **knowledge lives at the scope it applies to**, and documents the
-*why* — code and git already record the *what*.
-
-| Scope | Where |
-|---|---|
-| Framework conventions (models, REST, migrations…) | `vendor/ixaya/manager/system/skills/` — the `mgr-*` skills; symlinked into tool dirs like `.claude/skills/` |
-| Project-wide rules | `AGENTS.md` — the cross-tool project standard |
-| Module reference | `docs/modules/<module>.md` — purpose, boundaries, decisions, gotchas. Never inside the module directory |
-| In-flight investigations and specs | `docs/workspace/<task>/` — transitory; distilled into permanent documentation when the work closes |
-| Documentation guidelines | `docs/documentation.md` — the rubric for every document: layout, categories, lifecycle, formatting |
-| Everything else | `docs/` — organized per the documentation guidelines |
+*why* — code and git already record the *what*. Framework conventions live
+in the `mgr-*` skills (`vendor/ixaya/manager/system/skills/`, symlinked into
+tool dirs like `.claude/skills/`), project-wide rules in `AGENTS.md`, and
+everything else in `docs/` per `docs/documentation.md`.
 
 **Documentation never lives in the code tree** — no `README.md`, `AGENTS.md`,
 or notes file beside the code it describes, however local the knowledge feels.
-Prose in the source tree makes both harder to maintain, and the
-discoverability it seems to buy isn't needed: work here reaches code through
-a planned pass that reads the documentation first, not by tripping over a
-file inside the directory.
 
 **The Decisions rule:** when you make a non-obvious choice (algorithm,
 external API workaround, schema tradeoff), append ONE dated line to the

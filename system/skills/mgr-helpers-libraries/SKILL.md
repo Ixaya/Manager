@@ -1,6 +1,6 @@
 ---
 name: mgr-helpers-libraries
-description: Use when needing utility functions (hashing, env vars, dates/timezones, file paths, mime types, pagination, cross-DB SQL functions) or framework libraries (file upload, S3, JWT, email, background exec, WebSocket, Excel), or when CREATING a new library in this codebase. Maps what the ixaya/manager package already provides — instead of hand-rolling it with PHP primitives — and teaches the library authoring conventions (naming, CI access, config modes).
+description: Use when needing utility functions (hashing, env vars, dates/timezones, file paths, mime types, pagination, cross-DB SQL functions) or framework libraries (file upload, S3, JWT, email, background exec, WebSocket, Excel), or when CREATING a new library in this codebase. Maps what the framework already provides and teaches the library authoring conventions (naming, CI access, config modes) — instead of hand-rolling it with PHP primitives.
 ---
 
 # Manager Helpers & Libraries
@@ -32,25 +32,21 @@ required by `public/index.php` at boot. The rest need
 | Helper | Key functions |
 |---|---|
 | `manager_helper` | `mgr_provided($v)` — "has a usable value" check (use instead of ad-hoc `!empty()` chains); `mgr_generate_hash($len)`, `mgr_format_hash`/`mgr_unformat_hash` (folio display); `mgr_process_exception($e, $context)` — standard exception logging; `mgr_cache_key($prefix, $params)`; `mgr_build_limit_page($limit, $page)` and `mgr_build_order_by($col, $dir, $allowed_cols)` — pagination/ordering from request params, rejecting (returns `null`) a `$col` not in `$allowed_cols` instead of substituting a default; `mgr_validate_order_by($col, $allowed_cols)` is the same check alone, for validating before running a query; `image_url()`, `secure_url()` |
-| `manager_env_helper` | `mgr_env($key, $default)` + typed variants `mgr_env_bool/int/float/array/json`, `mgr_env_strict` — ALWAYS use these for environment variables, never `getenv()`/`$_ENV`. Empty means unset: a present-but-empty value from process env, `$_ENV`, or a file collapses to `$default` (pass `strict=false` to opt out when `$default` is non-null). A matched quote pair (`KEY="value"`) is stripped from any source before that check runs — a stray/mismatched quote is left as literal data |
-| `manager_time_helper` (load it) | `mgr_get_date_option($option, $date)` / `_obj` / `_unix` — named ranges like today/yesterday/month starts; `mgr_create_date_time($string, $format): ?DateTime`; `mgr_format_date_time_iso($raw_value): ?string` — formats a `Timestamp` column's raw driver value as ISO-8601, so API output reads identically across engines (MySQL's naive string vs. Postgres/SQL-Server's offset-suffixed one); `mgr_format_date_time_sql($raw_value): ?string` — same reconciliation, `Y-m-d H:i:s` output mirroring `mgr_get_now_date_time_sql_format()`; optional at controller-response time, never automatic; `mgr_to_unix($date)` |
+| `manager_env_helper` | `mgr_env($key, $default)` + typed `mgr_env_bool/int/float/array/json`, `mgr_env_strict` — ALWAYS, never `getenv()`/`$_ENV`. An empty value from any source collapses to `$default` (`strict=false` opts out when `$default` is non-null); a matched quote pair (`KEY="value"`) is stripped first, a mismatched one stays literal |
+| `manager_time_helper` (load it) | `mgr_get_date_option($option, $date)` / `_obj` / `_unix` — named ranges (today, month starts…); `mgr_create_date_time($string, $format): ?DateTime`; `mgr_format_date_time_iso($raw_value)` / `mgr_format_date_time_sql($raw_value)` — normalize a `Timestamp` column's raw value (naive on MySQL, offset-suffixed on Postgres/SQL Server) to ISO-8601 / `Y-m-d H:i:s`; opt-in at response time, never automatic; `mgr_to_unix($date)` |
 | `manager_timezone_helper` | `mgr_date_default_timezone_set($tz)` — after boot use it, never `date_default_timezone_set()`: it also re-sends the offset to cached DB handles; a non-identifier is logged at `error` and ignored; `mgr_get_time_zone_offset($tz)`, `mgr_get_now_date_time($tz): DateTime`, `mgr_get_now_date_time_sql_format($tz): string` — SQL-literal (`Y-m-d H:i:s`) form, used for `last_update`-style write sites |
 | `manager_file_helper` | `mgr_file_path()` / `mgr_private_file_path()` — public vs private storage roots; `mgr_clean_file_path()`, `mgr_clean_file_s3_path()`; `mgr_get_temp_upload_path*($field)` — `$_FILES` handling |
 | `manager_mime_helper` | `mgr_file_extention()`, `mgr_mime_extention()`, `mgr_detect_mime_from_file/data()` — never trust client mime types |
-| `manager_db_driver` | `MgrDriver` enum (`MySQL, MariaDB, Postgres, SQLServer, SQLite`): `MgrDriver::fromCI($db->dbdriver, subdriver: $db->subdriver ?? null)` — the `subdriver` param resolves a compound `pdo/<engine>` driver string to the real engine, and is a no-op for a plain driver name; `->isMysqlFamily()`, `->supportsUnsigned()` — use for any driver-conditional SQL |
-| `manager_db_function` | `MgrFunctionType` enum (`FromUnixtime, ToUnixtime, Now, DateFormat, DateDiff, Round, Floor, Ceil, Abs`) + `mgr_build_function()` / `mgr_build_field_select()` — cross-engine SQL functions in SELECTs; models wrap these as `$this->build_field_select()` (see mgr-models). Also `mgr_is_sql_identifier()` — validate a config/user-sourced column or `table.column` name before concatenating it into SQL (callers throw on false; CI's `escape_identifiers()` is NOT a guard, it passes parens/quotes through); `mgr_build_like_ci($db, $column, $value)` — the case-insensitive `LIKE %value%` fragment behind the models' `_ci` searches (see mgr-models for when to use it) |
+| `manager_db_driver` | `MgrDriver` enum (`MySQL, MariaDB, Postgres, SQLServer, SQLite`): `MgrDriver::fromCI($db->dbdriver, subdriver: $db->subdriver ?? null)` (resolves `pdo/<engine>`); `->isMysqlFamily()`, `->supportsUnsigned()` — use for any driver-conditional SQL |
+| `manager_db_function` | `MgrFunctionType` enum (`FromUnixtime, ToUnixtime, Now, DateFormat, DateDiff, Round, Floor, Ceil, Abs`) + `mgr_build_function()` / `mgr_build_field_select()` — cross-engine SQL functions in SELECTs (models: `$this->build_field_select()`, see mgr-models). `mgr_is_sql_identifier()` — validate a config/user-sourced column or `table.column` name before concatenating it into SQL (callers throw on false; CI's `escape_identifiers()` is NOT a guard, it passes parens/quotes through) |
 | `manager_spreadsheet_helper` (load it) | `mgr_sheet_*` — cell refs, ranges, sum/avg rows, fills, fonts for PhpSpreadsheet exports |
 | `manager_assets_helper` (load it) | `add_css_fontawesome5/6($items)` |
 
-Every package helper function is wrapped in `if (! function_exists(...))`.
-To override just one function, declare it — same filename — under
-`application/helpers/manager_{name}_helper.php`; the rest of the package's
-functions in that file still load. This is why the guard exists: without
-it, a project file declaring even one function would fatal with
-`Cannot redeclare` the moment both layers loaded. Do **not** reach for a
-`MY_manager_{name}_helper.php` — that extension path is CI3's own and
-hardcodes a `BASEPATH`-relative file, so it hard-errors on a package
-helper rather than silently losing; it's deliberately unsupported here.
+Every package helper function is wrapped in `if (! function_exists(...))`,
+so to override one, declare just that function in a same-named
+`application/helpers/manager_{name}_helper.php`; the package's other
+functions still load. Never `MY_manager_{name}_helper.php` — CI3's extension
+path hard-errors on a package helper.
 
 ## Libraries
 
@@ -83,45 +79,35 @@ signatures). Load in the method that uses the library, not the constructor
 | `attachment_lib` | Uploads tied to DB records: stores files AND rows in the `attachment` table keyed by `(model_name, model_hash)` — use when a file belongs to an entity |
 | `amazon_aws_lib` | S3: `upload_file`, `upload_data`, `get_file`, `save_file`, `get_presigned_url`, `list_files`; multiple configs via `set_config_key()` |
 | `jwt_lib` | `generate_token($user_id, $aud, $scopes, $extra)` / `decode_token($token, $aud)`; config-keyed secrets via `set_config_key()` |
-| `mailing_lib` | Themed email sending: `send_email($email, $data, $subject, $view)` renders a mailing view (module `mailing`); transport is picked by the active profile's `protocol` (`smtp`/`sendmail`/`sendgrid`); `send_template($email, $template_key, $data)` sends a SendGrid dynamic/legacy template directly (no view rendering, `sendgrid`-only, `$template_key` must be declared in the subclass's `$templates`); `set_theme()`, `set_config_key()`, BCC support, `$view_only` for previewing |
-| `sendgrid_lib` | Raw curl client for SendGrid's v3 Mail Send API: `send($to, $subject, $html_body, $from, $bcc, $attachments)`, `send_template($to, $template_id, $template_data, ...)` — both return `{success, status_code, headers, body, message_id}`; `get_template_id($key)`; config-keyed accounts via `set_config_key()`. Used directly, or through `mailing_lib` when its active profile's `protocol` is `sendgrid` |
+| `mailing_lib` | Themed email: `send_email($email, $data, $subject, $view)` renders a mailing view; transport is the active profile's `protocol` (`smtp`/`sendmail`/`sendgrid`). `send_template($email, $template_key, $data)` is `sendgrid`-only, `$template_key` declared in the subclass's `$templates`; `set_theme()`, `set_config_key()` |
+| `sendgrid_lib` | SendGrid v3 Mail Send client: `send()`, `send_template()`, `get_template_id($key)`, `set_config_key()` — directly, or via `mailing_lib`'s `sendgrid` protocol |
 | `websocket_lib` | amphp-based WebSocket server (`serve()`) + `generateLink($user_identifier, $channel)` for signed client URLs (JWT-authed) (see mgr-cache-websockets) |
 | `env_lib` | Loads `.env` / `.env.priv` at boot — you interact via `mgr_env*()`, not this class |
 | `migration_module_lib` | Per-module migration plan/run/version API — used through `manager/tools` (see mgr-migrations) |
 | `log_prune_lib` | Age/size retention over caller-passed log directories (`prune_app`, `prune_cli`) and the REST `api_log` table (`prune_api`, given a connection and table); thresholds from `lib_log_prune.php` as public properties a caller may override — used through `manager/tools/log_prune` |
-| `ion_auth` | Authentication/groups (CI3 Ion Auth): `logged_in()`, `login()`, `register()`, `user()`, `in_group()`, `is_admin()`, `activate()/deactivate()`, `add_to_group()/remove_from_group()`, `delete_user()`, `clear_login_attempts()` (see mgr-auth) |
+| `ion_auth` | Authentication, users and groups (see mgr-auth) |
 | `format`, `seeder` | REST output formatting (used internally by `response()`); DB seeding base class for `application/database/seeds/` |
 
 Library configuration lives in `vendor/ixaya/manager/system/package/config/`,
 in two different shapes:
 
 - **`$config[]` array files** (`lib_websocket.php`, `ion_auth.php`,
-  `rest.php`, …) — all env-var driven; apps override values via environment
-  variables (see the `.env` samples), or a same-named
-  `application/config/<file>.php` that sets only the keys it changes — every
-  layer loads and the project wins per key, so a project file does NOT need
-  to restate the rest of the package's file.
+  `rest.php`, …) — env-var driven; override via environment variables (see
+  the `.env` samples) or a same-named `application/config/<file>.php` setting
+  only the keys it changes — every layer loads and the project wins per key.
 - **Loose-variable/return-shape files** (`lib_mailing.php`, `lib_jwt.php`,
-  `lib_sendgrid.php`, `lib_amazon_aws.php`, `mimes.php`) — resolved via
-  `config->path()` and `include()`d whole by the consuming constructor/
-  helper, so there is no per-key merge: `path()` returns one file. The
-  framework's own copy lives at `vendor/ixaya/manager/system/config/<file>.php`;
-  `system/package/config/<file>.php` is a thin `require
-  dirname(__FILE__) . '/../../config/<file>.php';` shim so `path()` still
-  resolves it for a project shipping no copy of its own. A project overrides
-  by giving its own `application/config/<file>.php` that starts with
-  `include MGRPATH . 'config/<file>.php';` then sets only the fields it
-  wants to change — the include makes that one file complete, not a diff.
+  `lib_sendgrid.php`, `lib_amazon_aws.php`, `mimes.php`) — one file is
+  `include()`d whole, no per-key merge. A project override
+  (`application/config/<file>.php`) starts with
+  `include MGRPATH . 'config/<file>.php';`, then sets only the fields it
+  changes — the include is what makes it complete.
 
 Framework-level toggles (`migration_db`, `languages`, `rest_time_zone`,
 `cache_enable`) are in `package/config/manager.php`. Reference these, don't
 edit vendor copies.
 
-Caching is CI3's cache **driver**, not a library:
-`$this->load->driver('cache')` → `$this->cache->get/save($key, $value, $ttl)`.
-A Redis driver ships in `vendor/ixaya/manager/system/libraries/MGR/Cache/`
-(app-side copy under `application/libraries/Cache/`); pair with
-`mgr_cache_key()`.
+Caching is CI3's cache **driver**, not a library (see mgr-cache-websockets);
+key it with `mgr_cache_key()`.
 
 ## Framework-provided models
 
@@ -150,10 +136,6 @@ Only read when AUTHORING a new library (not when consuming one):
 `references/creating-a-library.md` beside this file — naming, CI access, the
 two config modes (multi-profile vs plain read), and the exemplars to copy
 from.
-
-Authoring a library for the framework itself is a different shape — three
-files, not one, because the unprefixed alias above has to exist for apps to
-load it. The reference opens with that case.
 
 ## Working around a gap in CI3's database layer
 

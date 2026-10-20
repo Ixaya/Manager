@@ -85,21 +85,12 @@ Handles are cached per loader for the whole process; avoid `MX_Controller`,
 whose cloned loader has its own cache, so every MX controller opens its own
 sessions.
 
-The handle cache owns the session timezone: it sends PHP's offset when a
-handle opens and re-checks it on every `database_cache()` access. After boot,
-change it only with `mgr_date_default_timezone_set()`, which re-sends to every
-open handle at once; a raw `date_default_timezone_set()`, DST or a reconnect
-is corrected at the next access, not inside a Model already holding its
-handle. A DSN-string `connection_name` gets it once. With `db_debug` off, an
-offset the server rejects throws `RuntimeException` (MariaDB accepts -12:59 …
-+13:00 only); with it on, CI's error fires first.
-
-## Automatic behaviors (why you don't hand-roll queries)
-
-Applied to every read: `where_override` (tenant filter) + `deleted = 0` (if
-soft_delete). Applied to every write: `where_override`, `last_update` stamp.
-Applied to inserts: override column value. `delete()` under soft_delete is an
-UPDATE.
+The handle cache sends PHP's timezone offset to the session. After boot,
+change the timezone only with `mgr_date_default_timezone_set()`, which
+re-sends it to every open handle; a raw `date_default_timezone_set()` is not
+corrected inside a Model already holding its handle. A DSN-string
+`connection_name` gets it once. An offset the server rejects throws
+(MariaDB accepts -12:59 … +13:00 only).
 
 ## Read methods
 
@@ -110,11 +101,9 @@ two; `count_all()` is `?int` on the same contract, where `0` is a genuinely
 empty table. `$fields` is a comma-separated select list or array; `null`
 = `SELECT *`. `$limit` accepts `int`, `'10'`, or `[limit, offset]`.
 
-Whether a failed query reaches your code at all is a project setting.
-`db_debug` on (`application/config/database.php`) makes CI render the DB
-error and stop the request; off, the call returns `null` and this check is
-the only thing between a failed query and a success response. Write the
-check either way — the shipped config turns the flag off in production.
+`db_debug` (`application/config/database.php`) decides whether a failed query
+stops the request or returns `null`; the shipped config turns it off in
+production, so always write the `null` check.
 
 ```php
 get(int|string $id, $fields = null): ?array
@@ -150,12 +139,9 @@ already matches case-insensitively, so search it with `get_all_like()` /
 `LIKE` (PostgreSQL needs 18+ for that). An exact column that needs a
 case-insensitive search uses `get_all_like_ci()` / `LIKE_CI`. Never use a `_ci`
 search on a declared-CI column: `ILIKE` errors on it in PostgreSQL. Both kinds
-can share one OR group in `get_all_dynamic()`. On MySQL/MariaDB the `_ci`
-search needs `dbcollatci` in the connection's config group and throws without
-it. Index use: `%x%` never seeks, and neither does any `_ci` search. A
-case-insensitive prefix `x%` seeks only on MySQL/MariaDB, as plain `LIKE` on
-a CI-declared column with its own index; on PostgreSQL a CI-declared column
-seeks for `=` only.
+can share one OR group in `get_all_dynamic()`. No `_ci` search or `%x%` uses
+an index; only plain `LIKE 'x%'` on an indexed CI-declared column does, on
+MySQL/MariaDB (PostgreSQL seeks `=` only).
 
 ## Write methods
 
@@ -196,13 +182,10 @@ a value from the same source. Loose `==` is not the escape hatch — PHP
 compares numeric strings as numbers, so `'007' == '7'` is true.
 
 **`upsert_atomic()` and `replace()` are race-safe; `upsert()`, `upsert_where()`,
-and `replace_pk()` are not.** The first two are each a single statement the
-engine runs atomically. The other three read first and write second, so two
-callers racing on the same row can both find it missing and both insert.
-`replace_pk()`'s transaction stops it half-applying; it does not stop the
-collision. That is fine when one request owns the row, and wrong for a queue
-worker or a webhook receiver — reach for `upsert_atomic()` or `replace()`
-there, not `upsert()`/`upsert_where()`/`replace_pk()`.
+and `replace_pk()` are not.** The first two are single atomic statements;
+the other three read then write, so two racing callers can both find the row
+missing and both insert. Fine when one request owns the row; a queue worker
+or webhook receiver needs `upsert_atomic()` or `replace()`.
 
 `replace()` and `replace_pk()` both discard the old row, so a column missing
 from `$data` comes back empty; `upsert_atomic()` merges, so an omitted column
@@ -242,7 +225,6 @@ clean_string(string $text): string             // accent-strip + snake-safe iden
 debug_query(bool $return = false): ?string     // last executed SQL
 set_override(int|string|null $id = null): void / set_override_column(string $column_name) / del_override(bool $reset_column = true)
 reconnect_database(string $connection_name, string $database_name, bool $generate_table_name = false): void
-set_database_time_zone(string $time_zone): void  // deprecated: use mgr_date_default_timezone_set(); LogicException unless '' or PHP's offset (no-op on SQLite/SQL Server)
 ```
 
 ## Dynamic queries — APP_Model_Dyn
@@ -309,15 +291,10 @@ $rows = $this->get_all_dynamic(
 );
 ```
 
-Join `on:` accepts the clause kinds above except `LIKE_CI` / `OR_LIKE_CI`:
-`EQUAL_COL` for column=column, `EQUAL` for column=literal, `LIKE`,
-`WHERE_IN`. Identifiers are
-regex-validated and throw on anything unsafe; unknown clause kinds throw
-instead of being silently dropped.
+Identifiers are regex-validated and throw on anything unsafe; unknown clause
+kinds throw instead of being silently dropped.
 
 Gotchas:
-- `EQUAL_COL` in `$where` is a literal comparison (same as `EQUAL`), not
-  column=column — that meaning applies only inside a join's `on:`.
 - Mixed AND/OR in a join ON clause is emitted flat (SQL precedence applies) —
   split into separate joins if you need grouping.
 - `FULL`/`CROSS` join types don't exist (CI3 silently degrades them).
@@ -327,18 +304,11 @@ Gotchas:
 
 ### Canonical list-endpoint pattern (`get_list`)
 
-Paginated/searchable lists follow one shape: the controller passes
-`build_list_params()` output straight in, the model returns
-`['data' => rows, 'total' => n, 'filtered' => n]` (`total` ignores the
-search), and `$order_by` is validated with `mgr_build_order_by()` against an
-allowed-columns list — its `null` for an invalid column makes `get_list()`
-return `null` instead of querying. Append a unique column to the `ORDER BY`
-unless it already leads: rows tied on the sort value can repeat or vanish
-between pages. For a
-`400` rather than a generic `500`, the model also exposes
-`get_list_validate(array $params): ?string`, which the controller calls
-first (`mgr_validate_order_by()` over the same list). The full model is in
-`references/list-endpoint.md`; its controller half is the
+The controller passes `build_list_params()` output straight in; the model
+returns `['data' => rows, 'total' => n, 'filtered' => n]` (`total` ignores
+the search). Append a unique column to the `ORDER BY` unless it already
+leads: rows tied on the sort value can repeat or vanish between pages. The
+full model is in `references/list-endpoint.md`; its controller half is the
 mgr-rest-controller skill's `references/full-example.md`.
 
 ## Anti-patterns

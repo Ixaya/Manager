@@ -1,6 +1,6 @@
 ---
 name: mgr-docker-ops
-description: Use before running any docker/docker compose command, bringing the stack up or down, exec'ing into a container, running a manager/tools CLI command, or debugging a container-side permission/logging problem — not only while writing live probes — in this codebase. Teaches docker_manage.sh's instance/profile/bind-flag model, bind-mount verification, and the three log channels plus the log_check recovery recipe — instead of hand-rolling docker/docker compose calls that skip required env wiring or leave root-owned files behind.
+description: Use before running any docker/docker compose command, bringing the stack up or down, exec'ing into a container, running a manager/tools CLI command, or debugging a container-side permission/logging problem in this codebase. Teaches docker_manage.sh's instance/profile/bind-flag model, bind-mount verification, and the three log channels with the log_check recovery — instead of raw docker compose calls that skip env wiring or leave root-owned files behind.
 ---
 
 # Manager Docker Operations
@@ -21,12 +21,10 @@ Source of truth (only read if something here is insufficient):
 - `docker_manage.sh` (project root, or `sample/` in the framework repo) —
   the wrapper itself; its header comment documents every flag
 - `docs/development/` (in the framework repo, `sample/docs/development/`):
-  `docker.md` — the deeper reference this skill summarizes (instance
-  bootstrap, engine/profile matrix, "Live-code dev modes", the "Silent 500
-  with empty logs" ladder); `docker-internals.md` — env var placement, for
-  editing files under `docker/`; `docker-tuning.md` — memory caps,
-  per-engine sizing, OOM diagnosis; `docker-server.md` — server readiness,
-  the bundled PostgreSQL tier, backups and restore
+  `docker.md` — the deeper reference this skill summarizes;
+  `docker-internals.md` — env var placement, for editing `docker/`;
+  `docker-tuning.md` — memory caps, sizing, OOM diagnosis;
+  `docker-server.md` — server readiness, bundled PostgreSQL, backups
 
 ## When to use the script vs. a raw `docker` command
 
@@ -52,11 +50,11 @@ wiring for a `grep`/`tail` adds nothing.
 - `--profile <db>` (`postgres`/`mysql`/`mariadb`) picks the database
   container; `--profile ws`/`--profile cron` add those services. Every db
   profile needs `docker/secrets/<instance>.db_root_password` as well as
-  `db_password`. Postgres admin work (roles, extensions) runs as `postgres`
-  — the app's `DB_USER` is not a superuser: `--profile postgres exec
-  postgres psql -U postgres`. Never override its entrypoint; after a failed
-  first init every start refuses (`[postgres-entrypoint] FATAL: the init
-  started … never finished`) — fix the cause, then `down -v` and `up`.
+  `db_password`. Postgres admin work (roles, extensions) runs as `postgres`,
+  not the app's `DB_USER`: `--profile postgres exec postgres psql -U
+  postgres`. Never override its entrypoint; a failed first init makes every
+  start refuse (`[postgres-entrypoint] FATAL: the init started … never
+  finished`) — recovery in `docker-server.md`.
 - `-b`/`--bind` mounts the app source live (project mode: your own app
   tree; framework mode: `sample/`, run from the framework repo). `-m`/
   `--manager-bind` additionally mounts the framework repo's own `system/`
@@ -69,26 +67,19 @@ wiring for a `grep`/`tail` adds nothing.
   without `-b`/`-m` even if you were told otherwise — confirm (next
   section) before trusting anything against it.
 
-## Never bring up the `sample` instance itself
+## The `sample` instance, and stray instances
 
-`sample` is the env-file template other instances are copied from
-(`sample.env` → `<instance>.env`, etc.) — it is never a valid `-e` target for
-`up`. Starting it invites editing real values (an API key, a password)
-directly into files that are still tracked in version control, one commit
-away from leaking a secret. If it's already running, that's a bug from a
-previous session, not a stack to build on — remove it
+`sample` is the env-file template other instances are copied from — never an
+`-e` target for `up`: starting it invites real secrets into tracked files. If
+it's running, a previous session left it; remove it
 (`references/stray-instance-cleanup.md`) and bring up a real instance.
 
-## A stray instance from another project name
-
-A Compose project's identity is the `-e <instance>` name itself
-(`docker compose ... -p <instance>`), so instances never share containers,
-networks or volumes, even against the identical compose file. A command
-under the wrong instance name never touches the right one's containers, and
-a mismatched `down` exits 0 with no output — not evidence the target was
+A Compose project's identity is the `-e <instance>` name (`-p <instance>`),
+so a command under the wrong name never touches the right instance, and a
+mismatched `down` exits 0 with no output — not evidence the target was
 empty. Before tearing down or debugging a stack you didn't just bring up,
-confirm the owner with `docker ps -a` (containers are named `<instance>-*`,
-e.g. `local-php-1`).
+confirm the owner with `docker ps -a` (containers are `<instance>-*`, e.g.
+`local-php-1`).
 
 ## Running CLI/tools commands
 
@@ -103,31 +94,26 @@ Full command list: `manager/tools/help`. The quality-gate commands
 ## Bumping an image pin
 
 Never pick a version from memory — run `bin/docker-pin-report.php` through
-the `tools` service and apply `docker.md`'s "Updating image pins" rules. A
-Postgres **major** bump restart-loops on existing data with a `pg_upgrade`
-message: put the old pin back, then `docker-server.md`'s dump-and-restore.
+the `tools` service and follow `docker.md`'s "Updating image pins".
 
-## `exec`/`run` into php/ws/cron/cli run as the instance's app identity — enforced, not a habit to remember
+## `exec`/`run` run as the app identity — enforced
 
-All four services start as `APP_USER:APP_GROUP` from the instance's
-`docker.env` (`www-data:www-data` when unset) through one `user:` in
-`docker-compose.yml`, so every `exec` and `run --rm cli -c "..."` inherits it
-with no flag; nothing runs as root, FPM's master included. This matters
-because a root-run command leaves root-owned files the app identity then
-can't write or read — **silently**: a dropped log write, or a `500
-Permission denied` the next time that path is hit.
+php/ws/cron/cli all start as `APP_USER:APP_GROUP` from the instance's
+`docker.env` (`www-data:www-data` when unset), so every `exec` and
+`run --rm cli -c "..."` inherits it with no flag; nothing runs as root. A
+root-run command leaves root-owned files the app identity then can't write
+or read — **silently**: a dropped log write, or a `500 Permission denied`
+later.
 
-The one root step is the one-shot `init` service: it owns the
-`manager-logs` volume to that identity, never a bind mount (`MEDIA_PATH`,
-`PRIVATE_PATH` — the host's job). If the four services sit created but not
-started, `docker logs <instance>-init-1` says why. Change the identity only
-via `APP_USER`/`APP_GROUP` in `docker.env` (applied on recreate; see
-`docker.md`'s "Runtime identity (APP_USER/APP_GROUP)").
+The one root step is the one-shot `init` service, which owns the
+`manager-logs` volume to that identity (bind mounts are the host's job). If
+the four services sit created but not started, `docker logs
+<instance>-init-1` says why. Change the identity only via
+`APP_USER`/`APP_GROUP` in `docker.env`, applied on recreate.
 
-Override per command only when root is actually needed (installing a
-package, inspecting a file only root can read): `exec -u root php ...` /
-`run --rm -u root cli ...`. If you do, and you touched `/var/log/manager` or
-the app tree, run the repair below before trusting any subsequent result.
+Use `exec -u root php ...` / `run --rm -u root cli ...` only when root is
+actually needed; if you touched `/var/log/manager` or the app tree, run the
+repair below before trusting any subsequent result.
 
 ## Confirm the bind actually took
 
@@ -190,9 +176,7 @@ docker exec <c> cat /sys/fs/cgroup/memory.events     # oom_kill counter for this
 not a kill: `valkey-state` is full, and every request that starts a session
 500s. Raise `VALKEY_STATE_MAXMEMORY`, and its cap with it.
 
-Never raise a database knob without raising its cap with it
-(`docker-tuning.md`). `valkey-state` peaks at ~2× its dataset during an AOF
-rewrite; check a pairing with `bin/valkey-profile.sh`, not by eye.
+Never raise a knob without its cap (`docker-tuning.md` has the pairings).
 
 ## Logs — three channels, and the `log_check` trap
 
@@ -227,11 +211,9 @@ ladder (flip `display_errors`, then `db_debug`, then the silent-fatal
 wrapper) is `docker.md`'s "Silent 500 with empty logs" section; the wrapper
 itself is in the mgr-live-probes skill's `references/silent-fatal-probe.md`.
 
-**Nothing rotates `/var/log/manager/{app,cli}` on its own** —
-`manager/tools/log_prune` does, and also prunes `api_log` once
-`MGR_LOG_PRUNE_API_DELETE_AFTER_DAYS` is set (`docker.md`'s "Retention").
-Without the `cron` profile, schedule it from the host with `exec -T php`,
-never `run cli`.
+**Nothing rotates `/var/log/manager/{app,cli}` on its own** — use
+`manager/tools/log_prune` (`docker.md`'s "Retention"); from a host cron use
+`exec -T php`, never `run cli`.
 
 **Config behaves as if a value never loaded?** Don't trust `printenv` —
 `.priv.env` values are invisible to it by design. Run

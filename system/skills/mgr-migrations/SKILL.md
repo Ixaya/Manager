@@ -1,6 +1,6 @@
 ---
 name: mgr-migrations
-description: Use when creating or editing a database migration, adding/modifying tables or columns, changing a column's type, adding a foreign key, a primary key, or a key-prefix-length index, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern of the ixaya/manager framework — typed field() columns, cross-engine type mapping, and the index/key/type-change helpers that close CI3's per-engine forge gaps — instead of the legacy CI_Migration/dbforge-array style.
+description: Use when creating or editing a database migration, adding or altering tables, columns, column types, indexes, foreign keys or primary keys, or running/troubleshooting migrations in this codebase. Teaches the MGR_Migration_builder pattern — typed field() columns, cross-engine type mapping, and the index/key/type-change helpers that close CI3's per-engine forge gaps — instead of the legacy CI_Migration/dbforge-array style.
 ---
 
 # Manager Migrations (MGR_Migration_builder)
@@ -28,40 +28,35 @@ Source of truth (only read if something here is insufficient):
 - `vendor/ixaya/manager/system/package/modules/manager/controllers/Tools.php` —
   `migration_file()`/`migration_path()`, the scaffolding + auto-versioning
   commands below
-- Canonical examples:
-  `vendor/ixaya/manager/system/package/modules/manager/migrations/default/20250820111900_Manager_attachment.php`
-  (create table), `.../20260213175005_Manager_ion_auth_v2.php` (additive) +
-  `.../20260213175009_Manager_ion_auth_v3.php` (destructive) — split so a
-  database shared with an older deployment can stop at the additive one
-- Primary-key surgery on a populated table (composite key, restoring
-  AUTO_INCREMENT): `references/key-surgery.md`
+- `vendor/ixaya/manager/system/package/modules/manager/migrations/default/` —
+  `*_Manager_attachment.php` (create table); `*_Manager_ion_auth_v2.php`
+  (additive) + `_v3.php` (destructive), split so a shared older database can
+  stop at the additive one
 
 ## File placement and naming
 
 ```
 application/modules/{module}/migrations/{connection}/{YmdHis}_{Name}.php  # where NEW migrations go
-application/database/migrations/{connection}/...   # app-level — legacy history only, don't add here
+application/database/migrations/{connection}/...   # app-level — frozen legacy history: don't add, never renumber
 ```
 
-`{connection}` is the DB group name (`default`, etc.). `{Name}` should be
-module-qualified — `{Module}_{table}` (a `billing` module's
-`invoice` table → `Billing_invoice`) — so two modules can never pick the
-same migration class name. If that exact qualified name already exists
-anywhere in the module's own migrations directories (any connection), append
-`_v{n}` — `_v2` for the second one, `_v3` for the third, and so on; never
-edit an applied migration in place (see "Rules" below).
+`{connection}` is the DB group name (`default`, etc.). `{Name}` is
+module-qualified — `{Module}_{table}` (a `billing` module's `invoice`
+table → `Billing_invoice`) — so two modules never pick the same class name.
+If that name already exists in any of the module's migrations directories,
+append `_v2`, `_v3`, …; never edit an applied migration (see "Rules").
 
 Class name is `Migration_{Name}` with only the first word capitalized (file
 `20260213175009_Manager_ion_auth_v3.php` → `class Migration_Manager_ion_auth_v3`).
 
-`manager/tools/migration_file <name> <module> [database]` applies this rule
-and prints a `cat > ... <<'MGR_EOF'` command — paste it into your host
-shell, since a container cannot persist a write to `application/`. A first
-version is pre-filled (id + timestamps); a later one is empty, because a
-fabricated sample would succeed silently against an existing table.
-`migration_path` prints just the derived name and directory as JSON. A 4th
-arg `1` (`force_modification`) makes the first migration on a table with no
-module-qualified history a modification (`_v2`) instead of a create.
+`manager/tools/migration_file` applies this rule and prints a
+`cat > ... <<'MGR_EOF'` command to paste into your host shell (a container
+cannot persist a write to `application/`). A first version is pre-filled (id
++ timestamps); a later one is empty, since a fabricated sample would succeed
+silently against an existing table. A 4th arg `1` (`force_modification`)
+makes the first migration on a table with no module-qualified history a
+`_v2` modification instead of a create. `migration_path` prints just the
+derived name and directory as JSON.
 
 ## Creating a table
 
@@ -105,12 +100,6 @@ trigger but not the function, which survives as an inert
 `set_<table>_<column>()`. A column called with `on_update: false` created no
 function and needs no reversal.
 
-If the model sets `$soft_delete = true` (see mgr-models), the table needs an
-`enabled` + `deleted` pair — the model filters `WHERE deleted = 0` on reads
-and sets `deleted = 1, enabled = 0` on delete. There is no shorthand; declare
-both as `0`/`1` flag columns (`SmallInt`, `unsigned`, defaults `1` and `0`;
-see `Bool` below for why not `Bool`).
-
 `field()` returns `[name => spec]`, so specs are **spread (`...`)** into the
 dbforge array. Named parameters:
 
@@ -139,12 +128,12 @@ rowversion counter, not a datetime). The builder's DocBlock carries the full
 matrix. Invalid combinations throw `InvalidArgumentException` at construction
 — no silent bad DDL.
 
-Use `Bool` only for true boolean semantics (`true`/`false` values). For
-`0`/`1` flag columns (`enabled`, `deleted`, …) use `SmallInt`/`TinyInt`:
-`Bool` maps to Postgres `BOOLEAN`, which does **not** implicitly cast an
-integer `1`/`0` on insert, so `INSERT ... enabled = 1` fails with *"column is
-of type boolean but expression is of type integer"*. `SmallInt` is portable
-across all engines.
+Use `Bool` only for true boolean semantics. `0`/`1` flag columns use
+`SmallInt`: `Bool` maps to Postgres `BOOLEAN`, which does **not** cast an
+integer on insert (*"column is of type boolean but expression is of type
+integer"*). That includes the `enabled` + `deleted` pair a model with
+`$soft_delete = true` needs (see mgr-models) — no shorthand, declare both
+(`unsigned`, defaults `1` and `0`).
 
 ```php
 ...$this->field(name: 'is_verified', type: MgrFieldType::Bool, default: false),   // boolean semantics
@@ -171,22 +160,13 @@ else changes comparison semantics, and every other column emits no `COLLATE`.
 
 It is accepted on `Char`, `VarChar`, `Text`, `MediumText` and `LongText`; any
 other type (`Uuid` and `Enum` included) throws. The collation comes from the
-connection's own config group in `database.php` (env names below are the
-sample default group's):
-
-| Engine | Config key / sample env | Recommended value |
-|---|---|---|
-| MySQL | `dbcollatci` / `DB_COLLATION_CI` | `utf8mb4_0900_as_ci` |
-| MariaDB | `dbcollatci` / `DB_COLLATION_CI` | `utf8mb4_uca1400_nopad_as_ci` |
-| PostgreSQL | `dblocaleci` / `DB_LOCALE_CI` | `und-u-ks-level2` |
-| SQLite | none | `NOCASE` (ASCII only) |
-| SQL Server | — | throws |
-
-An empty key throws, naming the key and the connection's database; there is
-no fallback to an exact column. On PostgreSQL (18+, since `LIKE` on a
-nondeterministic collation errors before that) the builder creates the
-collation `manager_case_insensitive` on first use and throws if one by that
-name exists with another definition.
+connection's config group in `database.php` — `dbcollatci` on MySQL/MariaDB,
+`dblocaleci` on PostgreSQL; SQLite uses `NOCASE` (ASCII only), SQL Server
+throws. Recommended values per engine: `docs/development/database.md`. An
+empty key throws; there is no fallback to an exact column. On PostgreSQL
+(18+, since `LIKE` on a nondeterministic collation errors before that) the
+builder creates the collation `manager_case_insensitive` on first use and
+throws if one by that name exists with another definition.
 
 `modify_column()` and `modify_column_cast()` keep the collation when the field
 is declared `case_insensitive: true` again; restating it without the flag
@@ -213,12 +193,10 @@ $this->add_index(table: 'user', columns: ['email'], unique: true);  // cross-eng
 $this->drop_index(table: 'user', columns: ['email']);
 ```
 
-Make a column unique on an existing table with `add_index(unique: true)`, not
-`unique: true` inside `modify_column()`, whose handling differs per engine:
-PostgreSQL creates a unique index `{table}_{column}_key` (the name
-`drop_index()` derives), MySQL/MariaDB add a second unique index when the
-column already has one, and SQL Server's `ALTER COLUMN … UNIQUE` has never
-been verified.
+Make a column unique on an existing table with `add_index(unique: true)`,
+never `unique: true` inside `modify_column()` — its handling differs per
+engine (PostgreSQL names the index `{table}_{column}_key`, MySQL/MariaDB add
+a second unique index if one exists, SQL Server is unverified).
 
 On a populated table, call `assert_no_duplicates(table:, column:, case_insensitive:)`
 first — before `add_index(unique: true)` or a `modify_column()` that makes the
@@ -226,23 +204,20 @@ column case-insensitive. It throws with the duplicate groups' ids (never their
 values; NULLs ignored), grouping under the CI collation when
 `case_insensitive: true`.
 
-`add_index()`/`drop_index()` (and `add_foreign_key()`/`drop_foreign_key()`,
-below) take an optional `name` to override the derived one — needed for an
-index/FK this builder didn't create itself. All four are idempotent and
-return `bool`: `true` if the call created/dropped something, `false` if a
-match already existed (`add_*`) or didn't exist (`drop_*`). None throws on
-that.
+`add_index()`/`drop_index()` and `add_foreign_key()`/`drop_foreign_key()`
+take an optional `name` for an index/FK this builder didn't create. All four
+are idempotent and never throw on a no-op: they return `true` if they
+created/dropped something, `false` if it already existed (`add_*`) or was
+absent (`drop_*`).
 
 Tightening `nullable: true` to `false` fails while any row still holds
-`NULL` — a `default` in the same call sets the column default, it does not
-backfill. `UPDATE` those rows first, and call
-`assert_no_nulls(table:, columns:)` before the `modify_column()`: it throws
-with the row ids (never values), where MySQL/MariaDB with strict mode off
-would silently rewrite the NULLs to `''`/`0`.
+`NULL` — a `default` in the same call does not backfill. `UPDATE` those rows
+first, then `assert_no_nulls(table:, columns:)` before the `modify_column()`:
+it throws with the row ids (never values), where MySQL/MariaDB with strict
+mode off would silently rewrite the NULLs to `''`/`0`.
 
 Restating a column in `modify_column()` or `add_column()` re-declares its
-nullability too: omitting `nullable:` means NOT NULL, so a column that is
-nullable (or a nullable column you add) needs `nullable: true`.
+nullability: omitting `nullable:` means NOT NULL.
 
 `down()` must reverse `up()` (see `Manager_ion_auth_v3.php` for a full symmetric
 example).
@@ -328,7 +303,7 @@ manager/tools/migrate latest {module_key}  # single target, forward to its own l
 manager/tools/migrate {version} {module_key} [1]  # single target to an exact version; a DOWNGRADE runs down() and is refused unless the 3rd arg (confirm_downgrade) is 1
 manager/tools/version_list   # list version_list commands per target
 manager/tools/version_set {version} {app|module:key} {conn}  # record version WITHOUT running (adopting existing DBs)
-manager/tools/migration_file {name} {module} {database} [1]  # scaffold; 4th arg = force_modification, positional
+manager/tools/migration_file {name} {module} {database} [1]  # scaffold (see "File placement")
 ```
 
 `migrate` prints each `[FAIL]` line (a refused downgrade included) to stderr and
@@ -337,25 +312,17 @@ stdout with exit 0.
 
 `RUN_MIGRATIONS=true` on one instance migrates on startup.
 
-`migrate`/`migrate_database`/`version_set` force `db_debug` on for the
-connection they touch, so a failed DDL statement halts with the
-query/file/line instead of being recorded as applied. `plan`/`version_list`
-force it too, so a failed version lookup halts with the real SQL error; they
-still write nothing.
+`plan`, `version_list`, `version_set` and `migrate` force `db_debug` on for
+the connection they touch, so a failed statement halts with the real SQL
+error instead of being recorded as applied. Never use `database_cache('')`
+inside a migration: the runner has replaced `$CI->db`, so the cache would
+adopt the migration's connection as main.
 
-The runner and `plan`'s lookup share each connection's cached handle
-(`database_cache($conn)`, the one Models naming that group get): one session
-per connection, held until the process ends, and the forced `db_debug` stays
-on it. A revisited connection (a repeated `MGR_MIGRATION_DB` entry) re-points
-the memoized runner. Never use `database_cache('')` inside a migration: the
-runner has replaced `$CI->db`, so the cache would adopt the migration's
-connection as main.
-
-Version tracking: the app sequence is one row in `migrations`; each module
-tracks its own row in `migrations_path`. Targets are auto-discovered (the app
-dir plus every module with a `migrations/{conn}/` dir, vendor ones
-included), and `plan`/`version_list` label each with the exact `module_key`
-to pass — `:` for `/`, full offset for a vendor module
+Version tracking: the app sequence is one row in `migrations`, each module
+its own row in `migrations_path`. Targets are auto-discovered (the app dir
+plus every module with a `migrations/{conn}/` dir, vendor ones included);
+`plan`/`version_list` label each with the `module_key` to pass — `:` for
+`/`, full offset for a vendor module
 (`vendor:ixaya:manager:system:package:modules:manager`).
 
 ## Multi-step migrations (PostgreSQL transaction)
@@ -378,24 +345,19 @@ advances once `up()` returns.
 ## Rules
 
 - One concern per migration; never edit an applied migration — add a new one.
-  Exceptions, since tracking is keyed by timestamp alone: a pure rename
-  (filename + class together), a refactor that provably emits byte-identical
-  DDL, a fix confined to `down()` (it runs only on an explicit downgrade,
-  which then gets the corrected reversal), or a pure non-unique index added
-  to a table's create migration when nothing in code depends on it: new
-  installs get it, existing ones adopt it with their own `add_index`
-  migration, and the drift is harmless by construction. Use `add_index()`
-  there, never `dbforge->add_key()` — the two name the index differently on
+  Tracking is keyed by timestamp alone, so the exceptions are: a pure rename
+  (filename + class together), a refactor emitting byte-identical DDL, a fix
+  confined to `down()`, or a non-unique index nothing in code depends on,
+  added to the table's create migration (existing installs adopt it with
+  their own `add_index` migration). Use `add_index()` there, never
+  `dbforge->add_key()` — the two name the index differently on
   Postgres/SQLite, so a later `add_index()` would not see it and would
   create a duplicate.
 - Migrations run through dbforge/`$this->db` on the connection being migrated
   — don't load models inside migrations.
-- Legacy files under the root `application/database/migrations/` folder are
-  frozen history: never renumber them.
-- Write engine-neutral DDL: no raw `ENUM(...)` strings, no MySQL-only column
-  clauses — that's what `MgrFieldType` and the index helpers are for. Raw
-  `$this->db->query()` DDL is a last resort and must handle each `MgrDriver`
-  case (see `modify_field_timestamp()` in the builder for the pattern).
+- Engine-neutral DDL only — `MgrFieldType` and the index helpers exist for
+  it. Raw `$this->db->query()` DDL is a last resort and must handle each
+  `MgrDriver` case (pattern: `modify_field_timestamp()` in the builder).
 - One statement per `$this->db->query()` call — CI's pdo driver prepares every
   statement and the prepared protocol rejects multiple commands, so SQL that
   works under a native driver fails under `pdo/*`.

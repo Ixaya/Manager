@@ -1,6 +1,6 @@
 ---
 name: mgr-rest-controller
-description: Use when creating or editing a REST API endpoint (controllers under modules/*/controllers/api/), handling API authentication, or returning JSON responses in this codebase. Teaches the APP_Rest_Controller conventions of the ixaya/manager framework — auth_override ordering, group/level gating, response envelope — instead of vanilla CI3 controllers or hand-rolled JSON output.
+description: Use when creating or editing a REST API endpoint (controllers under modules/*/controllers/api/), handling API authentication, or returning JSON responses in this codebase. Teaches the APP_Rest_Controller conventions — auth_override ordering, group/level gating, response envelope — instead of vanilla CI3 controllers or hand-rolled JSON output.
 ---
 
 # Manager REST Controllers (APP_Rest_Controller)
@@ -31,12 +31,7 @@ Source of truth (only read if something here is insufficient):
   `application/core/APP_API_Model.php` — app aliases
 - Canonical example:
   `vendor/ixaya/manager/sample/application/modules/admin/controllers/api/Sysusers.php`
-  (the vendor sample is the reference — API controllers inside `application/`
-  may predate current conventions)
-- Public-endpoint example (`auth_override`, login → API key):
-  `references/public-endpoint.md`
-- Uncaught-error response shapes (development vs production, body-less
-  500s): `references/error-rendering.md`
+  (newer than controllers already in `application/`)
 
 `REST_Controller` extends `MY_Controller`, so API controllers inherit
 the framework controller helpers too — `upload_image()`, `upload_file()`,
@@ -156,8 +151,7 @@ Manual checks inside a method: `$this->validate_level($level)`,
 
 The constructor runs on every request to the controller; loading libraries
 there taxes endpoints that don't need them. Load libraries AND models at point
-of use — the vendor sample loads `$this->load->model('admin/user')` inside
-each action, not in the constructor.
+of use.
 
 ```php
 public function report_get()
@@ -181,12 +175,8 @@ if (empty($key)) {
 //                 set_key_level($key, $level), delete_key($key), delete_user_key($user_id)
 ```
 
-### Password-reset endpoints
-
-Use `$this->ion_auth->reset_password_with_code($code, $new_password)` and
-never expose a reset path reachable with an identity alone — the full rules
-(raw-method gating, sessions, lockout, tenancy, do-not-regress invariants) are
-in the mgr-auth skill.
+Password reset goes through `$this->ion_auth->reset_password_with_code()`,
+never a path reachable with an identity alone (rules: mgr-auth).
 
 ## Request input
 
@@ -215,17 +205,13 @@ payload.
 `return` nor `else`: `if (!$valid) { $this->response(...); }`, then the rest
 of the method unindented.
 
-Envelope convention — `status` is binary and answers one question only: did the
-request do what was asked? `1` = yes, `0` = no, as **integers** (not JSON
-booleans). The *kind* of failure is carried by the HTTP status code, never by a
-second tier in the body. `message` = human text; `response` = success payload,
-always an object/array — never a bare scalar or bool. Wrap a single value
-under a descriptive key instead: `['id' => $new_id]`, not `$new_id` directly:
+Envelope: `status` answers only "did the request do what was asked?" —
+`1`/`0` as **integers**, not JSON booleans; the kind of failure is the HTTP
+code, never a second tier in the body. `message` = human text; `response` =
+success payload, always an object/array — wrap a single value under a named
+key (`['id' => $new_id]`), never a bare scalar or bool:
 
 ```php
-// success — response holds a full record
-$this->response(['status' => 1, 'message' => 'User created successfully.', 'response' => ['user' => $user_record]], REST_Controller::HTTP_OK);
-// success — a bare id is still wrapped under a named key, never returned directly
 $this->response(['status' => 1, 'message' => 'User created successfully.', 'response' => ['id' => $new_id]], REST_Controller::HTTP_OK);
 // validation / missing input
 $this->response(['status' => 0, 'message' => 'No data provided, please try again.'], REST_Controller::HTTP_BAD_REQUEST);
@@ -263,41 +249,30 @@ need. `error` and `response` are mutually exclusive on one body.
 
 ### Uncaught errors already return JSON
 
-`MGR_Exceptions` renders uncaught exceptions, PHP errors and 404s as JSON for
-API clients, always as HTTP 500 for a 5xx, with the detail always logged. In
-production (`should_disclose_details()` false — `display_errors` off, not
-`ENVIRONMENT`) the body is only `{status: 0, message: 'An unexpected error
-occurred.'}`; in development it adds an internals-only `error` object the
-framework builds, never the controller. 4xx is never suppressed. An exception
-thrown in a controller *constructor*, or a true fatal, returns a body-less
-500 in production. Full shapes, for debugging or writing a client:
-`references/error-rendering.md`.
+`MGR_Exceptions` renders uncaught exceptions, PHP errors and 404s as JSON, a
+5xx always as HTTP 500 with the detail logged. In production
+(`should_disclose_details()` false — `display_errors` off, not `ENVIRONMENT`)
+the body is only `{status: 0, message: 'An unexpected error occurred.'}`;
+development adds a framework-built internals `error` object. 4xx is never
+suppressed. A controller-*constructor* exception or a true fatal returns a
+body-less 500 in production. Full shapes: `references/error-rendering.md`.
 
-**Only catch a throwable you actually expect and want to recover from** — a
-friendlier message, cleanup, or a specific HTTP code. Trace the call chain
-first: if nothing in it can throw, a `try/catch` guards nothing and usually
-reimplements a worse version of the dispatch boundary — leaking a raw
-`$e->getMessage()`, skipping the disclosure gate, or folding a business
-failure and a real exception into one generic response. When something
-genuinely can throw, `try/catch (Exception $e)` is right — respond with the
-specific code (`HTTP_INTERNAL_SERVER_ERROR` for an unrecovered one) and log
-with `mgr_process_exception($e)`. CLI-visible logging inside API code:
+**Only catch a throwable you expect and can recover from** (a friendlier
+message, cleanup, a specific HTTP code). Trace the call chain first: if
+nothing in it can throw, a `try/catch` reimplements a worse dispatch
+boundary — leaking `$e->getMessage()`, skipping the disclosure gate, merging
+business failures with real exceptions. When something genuinely can throw,
+catch `Exception`, respond with the specific code, and log with
+`mgr_process_exception($e)`. CLI-visible logging inside API code:
 `$this->print_log($object)` (timestamped, class-tagged).
 
-**Tracing for `throw` is not the same as tracing for failure.** A call that
-returns `?array`/`?int`/`bool` signals failure through its return — `null`
-from `count_all()`/`get_all*` means the query failed, `false` from an Ion
-Auth `update()`/`activate()` means the write failed. Skip that check and a
-real failure answers `status: 1` HTTP 200, worse than the try/catch it
-replaced. Check the return and respond `status: 0` with the matching code —
-no exception, so no try/catch.
-
-Failing the whole request is the default whenever the nullable value **is**
-the response. The one deliberate departure: a metric that is one of several
-independent values in one payload (a dashboard aggregating counts) may let a
-`null` flow through so the frontend renders whatever else loaded — say so in
-a comment at the call site, and never apply it just because failing feels
-inconvenient.
+**Tracing for `throw` is not tracing for failure.** A `?array`/`?int`/`bool`
+return signals failure itself — `null` from `count_all()`/`get_all*` is a
+failed query, `false` from Ion Auth `update()`/`activate()` a failed write.
+Unchecked, a real failure answers `status: 1` HTTP 200. Check it and respond
+`status: 0` with the matching code. The one departure: on a payload of
+several independent values (a dashboard of counts), one `null` may flow
+through so the rest still renders — say so in a comment at the call site.
 
 ### Response caching (expensive list endpoints)
 
@@ -323,10 +298,7 @@ user context.
 
 ## Full example
 
-A complete authenticated list + detail + delete controller (level gating,
-point-of-use loading, caching, envelope, HTTP codes) is in
-`references/full-example.md` beside this file — read it when building a new
-controller from scratch.
+Building a controller from scratch: `references/full-example.md`.
 
 ## Anti-patterns
 

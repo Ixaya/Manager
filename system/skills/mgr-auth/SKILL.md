@@ -1,6 +1,6 @@
 ---
 name: mgr-auth
-description: Use when working on authentication — login/logout, sessions vs sessionless API auth, account lockout, password reset, remember-me, user groups, multi-tenant client_id, or bootstrapping the first admin credential/API key on a fresh install — in this codebase. Teaches the Ion Auth stack of the ixaya/manager framework (BE_ fork → package subclasses → config), its extension seams, and the security invariants that must never be regressed — instead of hand-rolling password_verify()/lockout/token logic against Ion Auth's tables directly.
+description: Use when working on authentication — login/logout, sessions vs sessionless API auth, account lockout, password reset, remember-me, user groups, multi-tenant client_id, or bootstrapping the first admin credential/API key on a fresh install — in this codebase. Teaches the Ion Auth stack (BE_ fork → package subclasses → config), its extension seams, and the security invariants that must never be regressed — instead of hand-rolling password_verify()/lockout/token logic against Ion Auth's tables directly.
 ---
 
 # Manager Auth (Ion Auth stack)
@@ -32,8 +32,6 @@ Source of truth (only read if something here is insufficient):
   `disable_session()`, seams, identifier guards
 - `vendor/ixaya/manager/system/package/config/ion_auth.php` — every key below,
   with comments
-- Endpoint example: the mgr-rest-controller skill's
-  `references/public-endpoint.md` (sessionless login + API key issuance)
 
 ## Pick your mode first
 
@@ -43,11 +41,10 @@ Source of truth (only read if something here is insufficient):
   1. Config: copy `vendor/.../system/package/config/ion_auth.php` to
      `application/config/ion_auth.php` and edit the copy (or just set the
      `AUTH_*` env keys — most knobs are env-overridable).
-  2. Code: check whether the project already has its own
-     `application/libraries/Ion_auth.php` /
-     `application/models/Ion_auth_model.php`. If yes, edit those. If not,
-     create one extending the vendor `MGR_` class — the loader prefers
-     `application/` over the package shim, so it transparently takes over:
+  2. Code: edit the project's own `application/libraries/Ion_auth.php` /
+     `application/models/Ion_auth_model.php`, or create one extending the
+     vendor `MGR_` class — the loader prefers `application/` over the
+     package shim:
 
      ```php
      require MGRPATH . 'libraries/MGR_Ion_auth.php';
@@ -77,12 +74,11 @@ bin/cli_run.sh manager/tools/claim_admin
 # Docker: ./docker_manage.sh -e <instance> exec php bash /var/www/html/bin/cli_run.sh manager/tools/claim_admin
 ```
 
-It prints the identity and a generated password ONCE. It only works while the
-admin row still carries the exact factory hash — after the claim (or any
-password change) the gate closes permanently and the normal password-reset
-flow applies. From there: log in through the normal auth endpoint to get an
-`api_key`, and store credentials only in gitignored files (e.g.
-`docker/env/<instance>.agent.env`). Never bootstrap by inserting into
+It prints the identity and a generated password ONCE, and works only while
+the admin row still carries the exact factory hash — after the claim (or any
+password change) the gate closes for good and the normal reset flow applies.
+Then log in through the normal auth endpoint for an `api_key`, and keep
+credentials only in gitignored files. Never bootstrap by inserting into
 `user`/`user_key` with raw SQL, and never write the factory password's
 plaintext into docs, templates, or code.
 
@@ -104,22 +100,18 @@ if ($user !== false) {
 - `disable_session(false)` re-enables sessions for the same request.
 - Session mode (no `disable_session()`, session library loaded): `login()`
   returns `true`, stores the session, and regenerates the session id.
-- There is no 4th `login()` argument; `disable_session()` replaced the legacy
-  `$returnUser` flag (see `system/docs/upgrading/2.0.0.md`, Ion Auth item 2).
 
 API endpoints then issue an `X-API-KEY` via `Rest_key_model` — flow and key
-lifecycle live in the mgr-rest-controller skill.
+lifecycle live in the mgr-rest-controller skill, whose
+`references/public-endpoint.md` is the worked login endpoint.
 
-**Uniform failure messaging — the recommended default.** Returning the same
-response for every failure cause (wrong password, locked out,
-already-registered, unknown email) keeps login, registration, and recovery
-endpoints from becoming a username-enumeration surface. The framework does not
-impose it: the library sets distinct internal errors (`login_unsuccessful`,
-`login_timeout`, `login_unsuccessful_not_active`) and leaves the response to
-the endpoint, so the project owns the call — differentiate only deliberately,
-knowing what it discloses. The endpoint example above takes the default: bad
-password and locked-out both get "Username/password incorrect"; registration
-failure is a neutral "Unable to register."; recovery always claims success.
+**Uniform failure messaging — the recommended default.** The same response
+for every failure cause (wrong password, locked out, already-registered,
+unknown email) keeps login, registration and recovery from becoming a
+username-enumeration surface. The framework does not impose it: the library
+sets distinct internal errors (`login_unsuccessful`, `login_timeout`,
+`login_unsuccessful_not_active`) and the endpoint owns the response —
+differentiate only deliberately, knowing what it discloses.
 
 ## Lockout
 
@@ -133,12 +125,11 @@ Config (`config/ion_auth.php`, all env-overridable):
 | `lockoutTime` | `AUTH_LOCKOUT_TIME` | 600 | Window seconds; lockout auto-expires |
 
 `trackLoginIpAddress` is NOT IP-only tracking: attempts are always keyed on
-the submitted identity, and the flag additionally requires the same IP — it
-strictly narrows lockout (a shared-office IP cannot lock a whole team out; an
-attacker who knows a username can only lock it per-IP). Lockout is
-time-windowed — it expires on its own after `lockoutTime`, no manual
-`clear_login_attempts()` needed (that method also purges expired attempt rows
-table-wide by design).
+the identity, and the flag additionally requires the same IP — it only
+narrows lockout (a shared office IP cannot lock out a team; an attacker can
+lock a username only per-IP). Lockout expires on its own after
+`lockoutTime`; `clear_login_attempts()` is not needed (and purges expired
+attempt rows table-wide by design).
 
 ## Password reset
 
@@ -222,11 +213,9 @@ variants with no PHP lowercasing, and stored case is kept. Do not lowercase
 identities in PHP or add `LOWER()` to these lookups; it duplicates the
 column's semantics and defeats its index.
 
-Any config-sourced column or table name concatenated into SQL must pass
-`mgr_is_sql_identifier()` (helper, see mgr-helpers-libraries) — the subclass
-select builders already assert this and throw `InvalidArgumentException` on
-anything that is not a plain, optionally dotted, identifier. CI's
-`escape_identifiers()` is NOT a guard (it passes parens and quotes through).
+Config-sourced column or table names concatenated into SQL must pass
+`mgr_is_sql_identifier()` (see mgr-helpers-libraries); the subclass select
+builders assert it and throw `InvalidArgumentException`.
 A query that joins `user` to a stored login value reads the identity column
 from config — `$this->load->config_read('ion_auth')['identity'] ?? 'email'`
 — never a literal `user.email`; the dynamic join validates the name.
