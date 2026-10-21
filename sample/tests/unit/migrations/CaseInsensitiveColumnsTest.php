@@ -63,11 +63,9 @@ class CaseInsensitiveColumnsTest extends CITestCase
 
 		$this->assertSame('VARCHAR', $exact['a']['type']);
 		$this->assertSame('50', (string) $exact['a']['constraint']);
-		$this->assertArrayNotHasKey('base_type', $exact['a']);
 
 		$this->assertSame('VARCHAR(50) COLLATE ' . $this->ci_clause(), $ci['a']['type']);
 		$this->assertArrayNotHasKey('constraint', $ci['a']);
-		$this->assertSame('VARCHAR', $ci['a']['base_type']);
 	}
 
 	public function test_ci_field_fails_loudly_on_a_wrong_type_or_a_missing_setting(): void
@@ -119,9 +117,10 @@ class CaseInsensitiveColumnsTest extends CITestCase
 		$this->assertSame($expected, $this->column_collation('plain_col'));
 		$this->assertSame(1, $this->db->where('plain_col', 'ABC')->count_all_results(self::TABLE));
 
-		// Narrowing through the cast must reject the value, not truncate it.
+		// Narrowing through the cast must reject the value, not truncate it, and throw with db_debug off.
 		$this->db->db_debug = false;
-		$this->expect_failed_query(fn () => $this->builder->cast_column(self::TABLE, $this->builder->build_field(name: 'ci_text', type: MgrFieldType::VarChar, constraint: 5, nullable: true, case_insensitive: true)));
+		$narrowing = $this->expect_failed_query(fn () => $this->thrown(fn () => $this->builder->cast_column(self::TABLE, $this->builder->build_field(name: 'ci_text', type: MgrFieldType::VarChar, constraint: 5, nullable: true, case_insensitive: true))));
+		$this->assertInstanceOf(RuntimeException::class, $narrowing);
 		$this->assertSame('abcdefghij', $this->db->select('ci_text')->get(self::TABLE)->row()->ci_text);
 
 		// Restating without case_insensitive goes back to the exact default.
@@ -160,7 +159,7 @@ class CaseInsensitiveColumnsTest extends CITestCase
 		$this->db->db_debug = false;
 		$this->assertNotFalse($this->db->insert(self::TABLE, ['email' => 'dup@example.test']));
 		$this->assertFalse($this->expect_failed_query(fn () => $this->db->insert(self::TABLE, ['email' => 'dup@example.test'])));
-		$this->assertTrue($this->builder->remove_index(self::TABLE, 'email'));
+		$this->assertTrue($this->builder->remove_index(self::TABLE, 'email', unique: true));
 	}
 
 	public function test_the_ddl_transaction_is_postgres_only_and_rolls_back_a_failed_statement(): void

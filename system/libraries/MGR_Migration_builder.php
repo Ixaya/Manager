@@ -22,8 +22,8 @@ enum MgrFieldType: string
 	/** 4-byte int — most common. */
 	case Int		  = 'INT';
 	/**
-	 * 8-byte int. SQL Server has no wider integer type — `unsigned: true` has no effect
-	 * there (stays a signed BIGINT). Postgres widens to DECIMAL (arbitrary precision).
+	 * 8-byte int. With `unsigned: true`, PostgreSQL widens to NUMERIC(20,0) and SQL Server to
+	 * DECIMAL(20,0), which hold the full unsigned range (a widened column still accepts negatives).
 	 */
 	case BigInt	  = 'BIGINT';
 
@@ -36,6 +36,7 @@ enum MgrFieldType: string
 	case Decimal	 = 'DECIMAL';
 	/**
 	 * 4-byte float. MySQL/MariaDB: FLOAT. PostgreSQL: REAL. SQL Server: FLOAT(24).
+	 * `unsigned: true` only applies on MySQL/MariaDB; elsewhere the signed type already holds the range.
 	 * SQLite has no 4-byte type — stores at its usual 8-byte REAL affinity regardless.
 	 */
 	case Float		= 'FLOAT';
@@ -163,7 +164,7 @@ final class MgrFieldBuilder
 	 * @param MgrFieldType  $type
 	 * @param MgrDriver		$driver			 Injected from MGR_Migration_builder — computed once per migration
 	 * @param int|null	 	$constraint
-	 * @param bool			$unsigned		  Passed to dbforge; PostgreSQL upsizes the type instead of UNSIGNED
+	 * @param bool			$unsigned		  Passed to dbforge; PostgreSQL and SQL Server widen integers instead of UNSIGNED
 	 * @param bool			$nullable		  true=NULL, false=NOT NULL (the default)
 	 * @param bool			$unique
 	 * @param bool			$auto_increment
@@ -263,13 +264,10 @@ final class MgrFieldBuilder
 	/** Produce the CI dbforge-compatible field array. */
 	public function build(): array
 	{
-		['type' => $type, 'constraint' => $constraint, 'default' => $default, 'unsigned' => $unsigned, 'base_type' => $base_type] = $this->_resolveColumn();
+		['type' => $type, 'constraint' => $constraint, 'default' => $default, 'unsigned' => $unsigned] = $this->_resolveColumn();
 
 		$field = ['type' => $type];
 
-		if ($this->collation !== null) {
-			$field['base_type'] = $base_type;
-		}
 		if ($constraint !== '') {
 			$field['constraint'] = $constraint;
 		}
@@ -315,7 +313,7 @@ final class MgrFieldBuilder
 	 *  Year			 │ YEAR					 │ SMALLINT				 │ SMALLINT				│ INTEGER
 	 *  Uuid			 │ CHAR(36)				│ UUID					  │ UNIQUEIDENTIFIER	 │ TEXT
 	 *  Enum			 │ ENUM('a','b',…)	  │ VARCHAR(max_len)	  │ NVARCHAR(max_len)	│ TEXT
-	 *  UNSIGNED		│ supported			  │ widens (SmallInt/Int/BigInt/Float; Decimal capped) │ widens (SmallInt/Int/Float; BigInt/Decimal capped) │ ignored
+	 *  UNSIGNED		│ supported			  │ widens SmallInt/Int/BigInt, others as signed │ widens SmallInt/Int/BigInt, others as signed │ ignored
 	 */
 
 	/**
@@ -326,32 +324,14 @@ final class MgrFieldBuilder
 	 * real PHP bools so each CI driver escapes them natively:
 	 * MySQL/SQLite → 1/0, PostgreSQL → TRUE/FALSE, SQL Server BIT → 1/0.
 	 *
-	 * With a collation, `type` carries the length and `COLLATE` and `base_type` the unfolded type.
+	 * With a collation, `type` carries the length and `COLLATE`.
 	 *
-	 * @return array{type: string, constraint: string, default: mixed, unsigned: bool, base_type: string}
+	 * @return array{type: string, constraint: string, default: mixed, unsigned: bool}
 	 */
 	protected function _resolveColumn(): array
 	{
 		$type	  = $this->type;
 		$unsigned = $this->unsigned;
-
-		// Postgres/SQL Server have no UNSIGNED keyword, and CI3's own vendored widening for
-		// both is a no-op (upstream _attr_unsigned() bug) — honored here instead by re-dispatching
-		// to the next-widest MgrFieldType. Read $type below, never $this->type — a case added
-		// later must see the widened value.
-		if ($unsigned && ($this->driver === MgrDriver::Postgres || $this->driver === MgrDriver::SQLServer)) {
-			$widened = match ($type) {
-				MgrFieldType::SmallInt => MgrFieldType::Int,
-				MgrFieldType::Int	   => MgrFieldType::BigInt,
-				MgrFieldType::Float	  => MgrFieldType::Double,
-				MgrFieldType::BigInt	 => $this->driver === MgrDriver::Postgres ? MgrFieldType::Decimal : null,
-				default					  => null,
-			};
-			if ($widened !== null) {
-				$type	  = $widened;
-				$unsigned = false;
-			}
-		}
 
 		$type_value = $type->value;
 		$constraint	= $this->constraint !== null ? (string) $this->constraint : '';
@@ -378,6 +358,10 @@ final class MgrFieldBuilder
 					MgrDriver::SQLite					 => ['INTEGER',  ''],
 					default								  => ['TINYINT',  $constraint],
 				};
+				// This SMALLINT is not a SmallInt: sent with unsigned, the Forge would widen it to INTEGER.
+				if ($this->driver === MgrDriver::Postgres) {
+					$unsigned = false;
+				}
 				break;
 
 			case MgrFieldType::Blob:
@@ -500,7 +484,6 @@ final class MgrFieldBuilder
 		}
 
 		// The forge appends the length right after the type, so COLLATE must travel inside the type string.
-		$base_type = $type_value;
 		if ($this->collation !== null) {
 			$type_value .= ($constraint !== '' ? "({$constraint})" : '') . " COLLATE {$this->collation}";
 			$constraint = '';
@@ -511,7 +494,6 @@ final class MgrFieldBuilder
 			'constraint' => $constraint,
 			'default'	=> $default,
 			'unsigned'	=> $unsigned,
-			'base_type'	=> $base_type,
 		];
 	}
 }
@@ -569,7 +551,7 @@ class MGR_Migration_builder
 	 * @param  string		 $name
 	 * @param  MgrFieldType $type
 	 * @param  int|null	  $constraint			 For CHAR, VARCHAR, etc.
-	 * @param  bool			$unsigned		  Integers only. PostgreSQL upsizes the type instead of UNSIGNED.
+	 * @param  bool			$unsigned		  Integers only. PostgreSQL and SQL Server widen the type instead of UNSIGNED.
 	 * @param  bool		  $nullable		  true=NULL | false=NOT NULL (the default)
 	 * @param  bool			$unique
 	 * @param  bool			$auto_increment
@@ -732,7 +714,7 @@ class MGR_Migration_builder
 
 	/**
 	 * Standard integer primary key with auto-increment.
-	 * CI/dbforge translates AUTO_INCREMENT → SERIAL/IDENTITY per driver.
+	 * CI/dbforge translates AUTO_INCREMENT → SERIAL/BIGSERIAL/IDENTITY per driver.
 	 *
 	 * @param string $name Default 'id'
 	 */
@@ -793,7 +775,7 @@ class MGR_Migration_builder
 
 		match ($this->db_driver) {
 			MgrDriver::Postgres => (function () use ($table_ident, $column_ident, $table, $column, $on_update, $default) {
-				$this->db->query($default
+				$this->_ddl($default
 					? "ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} SET DEFAULT CURRENT_TIMESTAMP;"
 					: "ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} DROP DEFAULT;");
 
@@ -805,7 +787,7 @@ class MGR_Migration_builder
 					return;
 				}
 
-				$this->db->query("CREATE OR REPLACE FUNCTION set_{$table}_{$column}()
+				$this->_ddl("CREATE OR REPLACE FUNCTION set_{$table}_{$column}()
                 RETURNS TRIGGER AS $$
                 BEGIN
                      NEW.{$column} := NOW();
@@ -813,7 +795,7 @@ class MGR_Migration_builder
                 END;
                 $$ LANGUAGE plpgsql;");
 
-				$this->db->query("CREATE TRIGGER trg_{$table}_{$column}
+				$this->_ddl("CREATE TRIGGER trg_{$table}_{$column}
                 BEFORE UPDATE ON {$table_ident}
                 FOR EACH ROW
                 EXECUTE FUNCTION set_{$table}_{$column}();");
@@ -822,7 +804,7 @@ class MGR_Migration_builder
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB => (function () use ($table, $column, $on_update, $default) {
 				$clause = ($default ? ' DEFAULT CURRENT_TIMESTAMP' : '') . ($on_update ? ' ON UPDATE CURRENT_TIMESTAMP' : '');
-				$this->db->query("ALTER TABLE `{$table}` MODIFY COLUMN `{$column}` TIMESTAMP{$clause}");
+				$this->_ddl("ALTER TABLE `{$table}` MODIFY COLUMN `{$column}` TIMESTAMP{$clause}");
 			})(),
 
 			MgrDriver::SQLServer => (function () use ($table_ident, $column_ident, $table, $column, $default) {
@@ -832,7 +814,7 @@ class MGR_Migration_builder
                 ALTER TABLE {$table_ident} DROP CONSTRAINT {$constraint_ident};");
 
 				if ($default) {
-					$this->db->query("ALTER TABLE {$table_ident} ADD CONSTRAINT {$constraint_ident} DEFAULT (SYSDATETIMEOFFSET()) FOR {$column_ident};");
+					$this->_ddl("ALTER TABLE {$table_ident} ADD CONSTRAINT {$constraint_ident} DEFAULT (SYSDATETIMEOFFSET()) FOR {$column_ident};");
 				}
 			})(),
 
@@ -850,9 +832,9 @@ class MGR_Migration_builder
 	}
 
 	/**
-	 * Changes one column's type, the same as `$this->dbforge->modify_column()`,
-	 * with the `USING` cast CI3's Postgres forge omits. Every other attribute on
-	 * the column (null, default, rename) is delegated to `$this->dbforge->modify_column()`.
+	 * Changes one column's type, the same as `$this->dbforge->modify_column()`, with the
+	 * `USING` cast PostgreSQL needs across type families (the forge's `cast` attribute).
+	 * Every other attribute on the column (null, default, rename) is applied by the same call.
 	 * A `case_insensitive` field keeps its collation.
 	 *
 	 * @param  array<string, array<string, mixed>> $field  One `field()` call's return value, passed directly (no spread)
@@ -868,34 +850,10 @@ class MGR_Migration_builder
 			);
 		}
 
-		if ($this->db_driver !== MgrDriver::Postgres) {
-			$this->dbforge->modify_column($table, $field);
-			return;
-		}
+		$field[array_key_first($field)]['cast'] = true;
 
-		$column       = array_key_first($field);
-		$attributes   = $field[$column];
-		$table_ident  = $this->db->escape_identifiers($table);
-		$column_ident = $this->db->escape_identifiers($column);
-
-		if (isset($attributes['type'])) {
-			$type = $attributes['type'] . (isset($attributes['constraint']) ? "({$attributes['constraint']})" : '');
-			// Cast to the unconstrained type and let the TYPE clause apply the length: an explicit
-			// cast to VARCHAR(n)/CHAR(n) truncates an overlong value silently, where the column type
-			// alone rejects it. Bare CHAR is CHAR(1) in Postgres, so TEXT stands in as its base.
-			// A collated field casts to its base_type, never to the folded type string.
-			$base_type = $attributes['base_type'] ?? $attributes['type'];
-			$cast_type = $base_type === 'CHAR' ? 'TEXT' : $base_type;
-			$this->db->query(
-				"ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} TYPE {$type} "
-					. "USING {$column_ident}::{$cast_type}"
-			);
-		}
-
-		// 'unsigned' never reaches Postgres DDL — nothing to delegate.
-		$rest = array_diff_key($attributes, array_flip(['type', 'constraint', 'unsigned', 'base_type']));
-		if (!empty($rest)) {
-			$this->dbforge->modify_column($table, [$column => $rest]);
+		if ($this->dbforge->modify_column($table, $field) === false) {
+			$this->_ddl_failed((string)$this->db->last_query());
 		}
 	}
 
@@ -908,10 +866,11 @@ class MGR_Migration_builder
 	 * @param  array<string,mixed> $prefix_lengths  Column => key-prefix length (MySQL/MariaDB's InnoDB
 	 *         key-size limit). PostgreSQL: `left()` expression index. SQLite: ignored. SQL Server: throws.
 	 * @param  string|null $name  Exact index name to use, bypassing the derived name — needed to
-	 *         line up with an index created outside this method (`dbforge->add_key()`, hand-run DDL)
+	 *         line up with an index created outside this method (hand-run DDL)
 	 * @return bool  true if the index was created, false if a matching one already existed (no-op)
 	 * @throws InvalidArgumentException if a $prefix_lengths key isn't in $columns, or a value isn't a positive int
-	 * @throws RuntimeException if $prefix_lengths is non-empty on SQL Server
+	 * @throws RuntimeException if $prefix_lengths is non-empty on SQL Server, or a unique index is
+	 *         asked for where a plain one already holds the name
 	 */
 	protected function add_index(
 		string $table,
@@ -921,7 +880,7 @@ class MGR_Migration_builder
 		?string $name = null,
 	): bool {
 		$columns     = (array)$columns;
-		$index_name  = $name ?? $this->_index_name($table, $columns);
+		$index_name  = $name ?? $this->_index_name(table: $table, columns: $columns, unique: $unique);
 		$unique_sql  = $unique ? 'UNIQUE ' : '';
 
 		foreach ($prefix_lengths as $column => $length) {
@@ -945,8 +904,26 @@ class MGR_Migration_builder
 			);
 		}
 
-		if ($this->_index_exists($table, $index_name)) {
+		$existing_unique = $this->dbforge->index_uniqueness(table: $table, name: $index_name);
+
+		if ($unique && $existing_unique === false) {
+			throw new RuntimeException(
+				"MGR_Migration_builder::add_index(): '{$index_name}' on '{$table}' is a plain index; "
+					. 'drop it with drop_index() before adding a unique one.'
+			);
+		}
+
+		if ($existing_unique !== null) {
 			return false;
+		}
+
+		// Where plain and unique names differ, a unique over the same columns already serves a plain request.
+		if (!$unique && $name === null) {
+			$unique_name = $this->_index_name(table: $table, columns: $columns, unique: true);
+
+			if ($unique_name !== $index_name && $this->dbforge->index_uniqueness(table: $table, name: $unique_name) === true) {
+				return false;
+			}
 		}
 
 		match ($this->db_driver) {
@@ -958,7 +935,7 @@ class MGR_Migration_builder
 						: $this->db->escape_identifiers($c),
 					$columns
 				));
-				$this->db->query("CREATE {$unique_sql}INDEX IF NOT EXISTS {$index_name} ON {$table_ident} ({$columns_ident});");
+				$this->_ddl("CREATE {$unique_sql}INDEX IF NOT EXISTS {$this->db->escape_identifiers($index_name)} ON {$table_ident} ({$columns_ident});");
 			})(),
 			MgrDriver::SQLite => (function () use ($table, $columns, $index_name, $unique_sql) {
 				$table_ident   = $this->db->escape_identifiers($table);
@@ -968,7 +945,7 @@ class MGR_Migration_builder
 			MgrDriver::SQLServer => (function () use ($table, $columns, $index_name, $unique_sql) {
 				$table_ident   = $this->db->escape_identifiers($table);
 				$columns_ident = implode(', ', array_map([$this->db, 'escape_identifiers'], $columns));
-				$this->db->query("CREATE {$unique_sql}INDEX {$index_name} ON {$table_ident} ({$columns_ident});");
+				$this->_ddl("CREATE {$unique_sql}INDEX {$index_name} ON {$table_ident} ({$columns_ident});");
 			})(),
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB => (function () use ($table, $columns, $index_name, $unique_sql, $prefix_lengths) {
@@ -977,7 +954,7 @@ class MGR_Migration_builder
 					fn ($c) => isset($prefix_lengths[$c]) ? "`{$c}`({$prefix_lengths[$c]})" : "`{$c}`",
 					$columns
 				));
-				$this->db->query("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");
+				$this->_ddl("ALTER TABLE {$table_ident} ADD {$unique_sql}INDEX `{$index_name}` ({$columns_ident});");
 			})()
 		};
 
@@ -985,35 +962,61 @@ class MGR_Migration_builder
 	}
 
 	/**
-	 * Drops an index from an existing table, if a matching one exists.
+	 * Drops an index from an existing table, if a matching one exists. On PostgreSQL a unique
+	 * constraint (a field's `unique`) is dropped as a constraint.
 	 *
 	 * @param  string $table   Table name
 	 * @param  array|string $columns  Column(s) the index was created on — ignored when $name is
 	 *         given, still required so a call site can name the intent either way
 	 * @param  string|null $name  Exact index name to look for, bypassing the derived name — needed
-	 *         for an index created outside this builder (`dbforge->add_key()`, hand-run DDL, a
-	 *         name that differs per environment)
+	 *         for an index created outside this builder (hand-run DDL, a name that differs per
+	 *         environment)
+	 * @param  bool $unique  The `unique` the index was created with; it picks the derived name.
+	 *         Ignored when $name is given
 	 * @return bool  true if a matching index existed and was dropped, false if none did
+	 * @throws RuntimeException on PostgreSQL if the index backs a primary-key or exclusion constraint
 	 */
-	protected function drop_index(string $table, array|string $columns, ?string $name = null): bool
+	protected function drop_index(string $table, array|string $columns, ?string $name = null, bool $unique = false): bool
 	{
-		$index_name = $name ?? $this->_index_name($table, (array)$columns);
+		$index_name = $name ?? $this->_index_name(table: $table, columns: (array)$columns, unique: $unique);
 
 		if (!$this->_index_exists($table, $index_name)) {
 			return false;
 		}
 
 		match ($this->db_driver) {
-			MgrDriver::Postgres,
-			MgrDriver::SQLite => $this->db->query("DROP INDEX {$index_name};"),
+			MgrDriver::Postgres => (function () use ($table, $index_name) {
+				$constraint_type = $this->_pg_index_constraint_type(table: $table, index_name: $index_name);
+
+				if ($constraint_type === null) {
+					$this->_ddl('DROP INDEX ' . $this->db->escape_identifiers($index_name) . ';');
+
+					return;
+				}
+
+				if ($constraint_type !== 'u') {
+					throw new RuntimeException(
+						"MGR_Migration_builder::drop_index(): '{$index_name}' on '{$table}' backs a primary-key or "
+							. 'exclusion constraint; drop_index() drops indexes and unique constraints only '
+							. '(a primary key: use drop_primary_key()).'
+					);
+				}
+
+				// DROP INDEX refuses an index that backs a constraint.
+				$this->_ddl(
+					'ALTER TABLE ' . $this->db->escape_identifiers($table)
+						. ' DROP CONSTRAINT ' . $this->db->escape_identifiers($index_name) . ';'
+				);
+			})(),
+			MgrDriver::SQLite => $this->_ddl("DROP INDEX {$index_name};"),
 			MgrDriver::SQLServer => (function () use ($table, $index_name) {
 				$table_ident = $this->db->escape_identifiers($table);
-				$this->db->query("DROP INDEX {$index_name} ON {$table_ident};");
+				$this->_ddl("DROP INDEX {$index_name} ON {$table_ident};");
 			})(),
 			MgrDriver::MySQL,
 			MgrDriver::MariaDB => (function () use ($table, $index_name) {
 				$table_ident = '`' . $table . '`';
-				$this->db->query("DROP INDEX `{$index_name}` ON {$table_ident};");
+				$this->_ddl("DROP INDEX `{$index_name}` ON {$table_ident};");
 			})(),
 		};
 
@@ -1072,7 +1075,7 @@ class MGR_Migration_builder
 		$ref_table_ident = $this->db->escape_identifiers($ref_table);
 		$ref_column_ident = $this->db->escape_identifiers($ref_column);
 
-		$this->db->query(
+		$this->_ddl(
 			"ALTER TABLE {$table_ident} ADD CONSTRAINT {$fk_ident} FOREIGN KEY ({$column_ident}) "
 				. "REFERENCES {$ref_table_ident} ({$ref_column_ident}) "
 				. "ON DELETE {$on_delete_sql} ON UPDATE {$on_update_sql};"
@@ -1112,9 +1115,9 @@ class MGR_Migration_builder
 
 		match ($this->db_driver) {
 			MgrDriver::MySQL,
-			MgrDriver::MariaDB => $this->db->query("ALTER TABLE {$table_ident} DROP FOREIGN KEY {$fk_ident};"),
+			MgrDriver::MariaDB => $this->_ddl("ALTER TABLE {$table_ident} DROP FOREIGN KEY {$fk_ident};"),
 			MgrDriver::Postgres,
-			MgrDriver::SQLServer => $this->db->query("ALTER TABLE {$table_ident} DROP CONSTRAINT {$fk_ident};"),
+			MgrDriver::SQLServer => $this->_ddl("ALTER TABLE {$table_ident} DROP CONSTRAINT {$fk_ident};"),
 		};
 
 		return true;
@@ -1148,9 +1151,9 @@ class MGR_Migration_builder
 		match ($this->db_driver) {
 			// MySQL/MariaDB rename every primary key to the literal PRIMARY — naming it there is pointless.
 			MgrDriver::MySQL,
-			MgrDriver::MariaDB => $this->db->query("ALTER TABLE {$table_ident} ADD PRIMARY KEY ({$columns_ident});"),
+			MgrDriver::MariaDB => $this->_ddl("ALTER TABLE {$table_ident} ADD PRIMARY KEY ({$columns_ident});"),
 			MgrDriver::Postgres,
-			MgrDriver::SQLServer => $this->db->query(
+			MgrDriver::SQLServer => $this->_ddl(
 				"ALTER TABLE {$table_ident} ADD CONSTRAINT {$this->db->escape_identifiers($this->_pk_name($table))} "
 					. "PRIMARY KEY ({$columns_ident});"
 			),
@@ -1188,9 +1191,9 @@ class MGR_Migration_builder
 
 		match ($this->db_driver) {
 			MgrDriver::MySQL,
-			MgrDriver::MariaDB => $this->db->query("ALTER TABLE {$table_ident} DROP PRIMARY KEY;"),
+			MgrDriver::MariaDB => $this->_ddl("ALTER TABLE {$table_ident} DROP PRIMARY KEY;"),
 			MgrDriver::Postgres,
-			MgrDriver::SQLServer => $this->db->query(
+			MgrDriver::SQLServer => $this->_ddl(
 				"ALTER TABLE {$table_ident} DROP CONSTRAINT {$this->db->escape_identifiers($pk_name)};"
 			),
 		};
@@ -1233,33 +1236,73 @@ class MGR_Migration_builder
 					);
 				}
 
-				$this->db->query(
+				$this->_ddl(
 					"ALTER TABLE {$table_ident} MODIFY COLUMN {$column_ident} {$row->Type} NOT NULL AUTO_INCREMENT;"
 				);
 			})(),
 			MgrDriver::Postgres => (function () use ($table, $column, $table_ident, $column_ident) {
 				$sequence       = $this->_pg_sequence_name($table, $column);
 				$sequence_ident = $this->db->escape_identifiers($sequence);
+				// regclass input folds an unquoted name, so the literal carries the quoted identifier.
+				$sequence_regclass = $this->db->escape($sequence_ident) . '::regclass';
 
-				$this->db->query("CREATE SEQUENCE {$sequence_ident};");
-				$this->db->query(
+				$this->_ddl("CREATE SEQUENCE {$sequence_ident};");
+				$this->_ddl(
 					"ALTER TABLE {$table_ident} ALTER COLUMN {$column_ident} "
-						. "SET DEFAULT nextval('{$sequence}'::regclass);"
+						. "SET DEFAULT nextval({$sequence_regclass});"
 				);
-				$this->db->query("ALTER SEQUENCE {$sequence_ident} OWNED BY {$table_ident}.{$column_ident};");
+				$this->_ddl("ALTER SEQUENCE {$sequence_ident} OWNED BY {$table_ident}.{$column_ident};");
 				// Postgres neither numbers existing rows nor positions the sequence itself.
 				// MySQL does both and reads 0/NULL as "assign one" — homologated here.
-				$this->db->query(
-					"UPDATE {$table_ident} SET {$column_ident} = nextval('{$sequence}'::regclass) "
+				$this->_ddl(
+					"UPDATE {$table_ident} SET {$column_ident} = nextval({$sequence_regclass}) "
 						. "WHERE {$column_ident} = 0 OR {$column_ident} IS NULL;"
 				);
-				$this->db->query(
-					"SELECT setval('{$sequence}'::regclass, "
+				$this->_ddl(
+					"SELECT setval({$sequence_regclass}, "
 						. "COALESCE((SELECT MAX({$column_ident}) FROM {$table_ident}), 1), "
 						. "(SELECT MAX({$column_ident}) FROM {$table_ident}) IS NOT NULL);"
 				);
 			})(),
 		};
+	}
+
+	// ── DDL execution ────────────────────────────────────────────────────────
+
+	/**
+	 * Runs one load-bearing statement like `query()`, returning its result, and throws when the
+	 * engine rejects it with `db_debug` off, where a bare `query()` returns `false` and carries on.
+	 *
+	 * @return object|true the result object of a read, `true` for a write
+	 * @throws RuntimeException with the engine's error and the start of the statement
+	 */
+	protected function _ddl(string $sql): object|true
+	{
+		$result = $this->db->query($sql);
+
+		if ($result === false) {
+			$this->_ddl_failed($sql);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Throws for a statement that failed, with the engine's last error. Public dbforge calls
+	 * that return `false` pass `$this->db->last_query()`.
+	 *
+	 * @throws RuntimeException always
+	 */
+	protected function _ddl_failed(string $sql): never
+	{
+		$error = $this->db->error()['message'] ?? 'unknown error';
+
+		// Inside a PostgreSQL DDL transaction this propagates past end_ddl_transaction() on purpose:
+		// the runner rolls back a migration that throws.
+		throw new RuntimeException(
+			"MGR_Migration_builder: statement failed: {$error} — "
+				. substr((string)preg_replace('/\s+/', ' ', $sql), 0, 120)
+		);
 	}
 
 	// ── DDL transaction ──────────────────────────────────────────────────────
@@ -1390,54 +1433,37 @@ class MGR_Migration_builder
 	}
 
 	/**
-	 * Generates a consistent index name.
-	 * Postgres includes table name to avoid cross-schema collisions.
-	 * MGR_DB_pgsql_forge_unique::_unique_index_name() copies the Postgres rule; keep both in sync.
+	 * The index name the forge derives, so `dbforge->add_key()` and these helpers agree.
 	 */
-	protected function _index_name(string $table, array $columns): string
+	protected function _index_name(string $table, array $columns, bool $unique = false): string
 	{
-		$suffix = implode('_', $columns);
-		$name   = match ($this->db_driver) {
-			MgrDriver::Postgres,
-			MgrDriver::SQLite    => "{$table}_{$suffix}_key",
-			MgrDriver::SQLServer,
-			MgrDriver::MySQL,
-			MgrDriver::MariaDB   => $suffix,
-		};
-
-		return $this->_truncate_identifier($name);
+		return $this->dbforge->index_name(table: $table, columns: $columns, unique: $unique);
 	}
 
 	/**
-	 * Whether an index by this exact name exists on the table, per the engine's own catalog —
-	 * not a lookup by column, so it never matches a different index over the same columns.
+	 * Whether an index by this exact name exists on the table, per the engine's own catalog.
 	 */
 	protected function _index_exists(string $table, string $index_name): bool
 	{
-		$table_escaped = $this->db->escape($table);
-		$name_escaped  = $this->db->escape($index_name);
+		return $this->dbforge->index_uniqueness(table: $table, name: $index_name) !== null;
+	}
 
-		$row = match ($this->db_driver) {
-			MgrDriver::Postgres => $this->db->query(
-				"SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() "
-					. "AND tablename = {$table_escaped} AND indexname = {$name_escaped};"
-			)->row(),
-			MgrDriver::SQLite => $this->db->query(
-				"SELECT 1 FROM sqlite_master WHERE type = 'index' "
-					. "AND tbl_name = {$table_escaped} AND name = {$name_escaped};"
-			)->row(),
-			MgrDriver::SQLServer => $this->db->query(
-				"SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID({$table_escaped}) "
-					. "AND name = {$name_escaped};"
-			)->row(),
-			MgrDriver::MySQL,
-			MgrDriver::MariaDB => $this->db->query(
-				"SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() "
-					. "AND table_name = {$table_escaped} AND index_name = {$name_escaped};"
-			)->row(),
-		};
+	/**
+	 * The kind of constraint behind a PostgreSQL index of this name: `p` primary key, `u` unique,
+	 * `x` exclusion. Null when no constraint backs it.
+	 */
+	protected function _pg_index_constraint_type(string $table, string $index_name): ?string
+	{
+		// A foreign key or check constraint can share a plain index's name; only index-backing kinds count.
+		$row = $this->db->query(
+			'SELECT c.contype FROM pg_constraint c '
+				. 'JOIN pg_class t ON t.oid = c.conrelid '
+				. 'JOIN pg_namespace n ON n.oid = t.relnamespace '
+				. "WHERE n.nspname = current_schema() AND t.relname = ? AND c.conname = ? AND c.contype IN ('p', 'u', 'x')",
+			[$table, $index_name]
+		)->row();
 
-		return $row !== null;
+		return $row === null ? null : (string)$row->contype;
 	}
 
 	/**
@@ -1512,7 +1538,7 @@ class MGR_Migration_builder
 	 */
 	protected function _pg_sequence_name(string $table, string $column): string
 	{
-		return $this->_truncate_identifier("{$table}_{$column}_seq");
+		return $this->dbforge->pg_object_name(table_part: $table, column_part: $column, label: 'seq');
 	}
 
 	/**
@@ -1521,19 +1547,7 @@ class MGR_Migration_builder
 	 */
 	protected function _truncate_identifier(string $identifier, ?int $constraint = null): string
 	{
-		$constraint ??= match ($this->db_driver) {
-			MgrDriver::Postgres,
-			MgrDriver::SQLite    => 63,
-			MgrDriver::SQLServer => 128,
-			MgrDriver::MySQL,
-			MgrDriver::MariaDB   => 64,
-		};
-
-		if (strlen($identifier) <= $constraint) {
-			return $identifier;
-		}
-
-		return substr($identifier, 0, ($constraint - 11)) . '_' . substr(md5($identifier), 0, 10);
+		return $this->dbforge->truncate_identifier(identifier: $identifier, limit: $constraint);
 	}
 
 	/**

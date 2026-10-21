@@ -107,7 +107,7 @@ dbforge array. Named parameters:
 $this->field(
     name: 'price', type: MgrFieldType::Decimal,
     constraint: 191,      // CHAR/VARCHAR length
-    unsigned: true,       // ints/decimals only (validated)
+    unsigned: true,       // numeric types only (validated)
     nullable: false,      // true = NULL, false = NOT NULL (the default, on create, add and modify alike)
     unique: true,
     auto_increment: true, // int types only (validated)
@@ -148,6 +148,15 @@ MySQL-only by design.
 `TinyInt` is unsigned-only on SQL Server (0-255) — use `SmallInt` for a
 column that must hold negative values and stay portable.
 
+`unsigned: true` on PostgreSQL and SQL Server widens an integer to the type
+holding its unsigned range: `SmallInt` to 4 bytes, `Int` to `bigint`, `BigInt`
+to `numeric(20,0)` (`DECIMAL(20,0)` on SQL Server); PostgreSQL `TinyInt` stays
+`smallint`. It is a range change, not a constraint: the column still accepts
+negatives. `Float`, `Double` and `Decimal` are not widened, so an unsigned
+`Float` is a plain `Float` there — use `Double` for more precision. On
+PostgreSQL an `auto_increment` on `BigInt` (or on an unsigned `Int`, which
+`field_id()` is) is a `BIGSERIAL`: a `bigint` column and sequence.
+
 ## Case-insensitive columns
 
 New databases compare text exactly (case- and accent-sensitive). A column that
@@ -184,31 +193,64 @@ $this->dbforge->add_column('user', [
     ...$this->field(name: 'remember_selector', type: MgrFieldType::VarChar, constraint: 255, nullable: true, unique: true),
 ]);
 $this->dbforge->modify_column('user', [
-    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254),
+    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254, unique: true),
     ...$this->field(name: 'last_activity_date', type: MgrFieldType::Timestamp, nullable: true, new_name: 'last_api_date'), // rename
 ]);
 $this->dbforge->drop_column('user', 'salt');
 
-$this->add_index(table: 'user', columns: ['email'], unique: true);  // cross-engine, name-length safe
-$this->drop_index(table: 'user', columns: ['email']);
+$this->add_index(table: 'login_attempt', columns: ['login', 'ip_address']);  // composite: cross-engine, name-length safe
+$this->drop_index(table: 'user', columns: ['email'], unique: true);          // the only way to remove a unique
 ```
 
-Make a column unique on an existing table with `add_index(unique: true)`,
-never `unique: true` inside `modify_column()` — its handling differs per
-engine (PostgreSQL names the index `{table}_{column}_key`, MySQL/MariaDB add
-a second unique index if one exists, SQL Server is unverified).
+Derived index names, shared by `add_index()`, `drop_index()` and
+`dbforge->add_key()`: PostgreSQL `{table}_{columns}_idx` plain and
+`{table}_{columns}_key` unique (the names the engine gives itself, in the
+exact case given, cut its way past 63 bytes); SQL Server `{table}_{columns}`
+and `{table}_{columns}_key`; MySQL/MariaDB `{columns}` for both. `drop_index()` takes the `unique` the
+index was made with: on PostgreSQL and SQL Server omitting it looks for the
+plain name and returns `false`, while on MySQL/MariaDB the same call drops
+either kind — test a `down()` on PostgreSQL.
+
+A unique on a new column is the field's `unique` at `create_table` or
+`add_column`; on an existing column it is `unique: true` in `modify_column()`,
+which adds nothing when a unique already holds the derived name and throws when
+a plain index does. `unique: false` or omitting `unique` never removes one —
+removal is always `drop_index()`. `add_index()` is for composite, prefix-length
+and non-unique indexes. On PostgreSQL a field's `unique` is a constraint and
+`add_index(unique: true)` an index; each finds the other by name.
+
+Renaming a column that already has a unique: `modify_column()` with `new_name`
+and `unique: true` throws, because the old unique would stay beside the new one
+under its old name. Drop it first — `drop_index(table:, columns: <old>,
+unique: true)` — then rename with `unique: true` in one `modify_column()`.
+Inside the DDL transaction that is atomic on PostgreSQL; on MySQL/MariaDB
+uniqueness is not enforced between the two steps.
 
 On a populated table, call `assert_no_duplicates(table:, column:, case_insensitive:)`
-first — before `add_index(unique: true)` or a `modify_column()` that makes the
-column case-insensitive. It throws with the duplicate groups' ids (never their
-values; NULLs ignored), grouping under the CI collation when
+first — before `add_index(unique: true)`, a `modify_column()` with `unique: true`
+(on MySQL/MariaDB the column change has already run when the unique fails), or
+one that makes the column case-insensitive. It throws with the duplicate groups'
+ids (never their values; NULLs ignored), grouping under the CI collation when
 `case_insensitive: true`.
 
 `add_index()`/`drop_index()` and `add_foreign_key()`/`drop_foreign_key()`
 take an optional `name` for an index/FK this builder didn't create. All four
 are idempotent and never throw on a no-op: they return `true` if they
 created/dropped something, `false` if it already existed (`add_*`) or was
-absent (`drop_*`).
+absent (`drop_*`). One exception: `add_index(unique: true)` throws when a
+plain index already holds its name (MySQL/MariaDB, where plain and unique
+share one, or an explicit `name`) — drop the plain one first. A plain
+`add_index()` over an existing unique stays `false`: the unique serves it.
+`drop_index()` also drops a PostgreSQL unique constraint; an index that
+backs a primary key throws — use `drop_primary_key()`.
+
+With `db_debug` off, every DDL statement the builder's helpers run — those four,
+the primary-key helpers, `add_auto_increment()`, `modify_field_timestamp()` (its
+`IF EXISTS` cleanups aside) and `modify_column_cast()` — throws
+`RuntimeException` with the engine's error when the engine rejects it. With it
+on, CI's own error handling halts at the failing statement instead, which is
+what happens under the runner. A plain `dbforge` call in a
+migration follows CI's convention and returns `false` with `db_debug` off.
 
 Tightening `nullable: true` to `false` fails while any row still holds
 `NULL` — a `default` in the same call does not backfill. `UPDATE` those rows
@@ -247,9 +289,11 @@ $this->modify_column_cast('supplier_invoice', $this->field(
 ```
 
 Pass one column's `field()` output directly — not spread, one column per
-call; its `null`, `default` and rename are applied for you. It converts
-nothing the engine would reject: every stored value must already parse as
-the new type, so normalize text labels (`'pending'`, `'paid'`) with an
+call; its `null`, `default` and rename are applied for you. On PostgreSQL it
+sets the forge's `cast` attribute, which adds `USING "col"::type` to the type
+change; a raw `$this->dbforge->modify_column()` can set `cast => true` itself.
+It converts nothing the engine would reject: every stored value must already
+parse as the new type, so normalize text labels (`'pending'`, `'paid'`) with an
 `UPDATE ... CASE` first. There is no per-call `USING` override.
 
 ## Key-prefix-length indexes, foreign keys, and primary keys
@@ -349,10 +393,8 @@ advances once `up()` returns.
   (filename + class together), a refactor emitting byte-identical DDL, a fix
   confined to `down()`, or a non-unique index nothing in code depends on,
   added to the table's create migration (existing installs adopt it with
-  their own `add_index` migration). Use `add_index()` there, never
-  `dbforge->add_key()` — the two name the index differently on
-  Postgres/SQLite, so a later `add_index()` would not see it and would
-  create a duplicate.
+  their own `add_index` migration). Either `add_key()` or `add_index()`
+  works there: both derive one name.
 - Migrations run through dbforge/`$this->db` on the connection being migrated
   — don't load models inside migrations.
 - Engine-neutral DDL only — `MgrFieldType` and the index helpers exist for
@@ -376,7 +418,6 @@ $this->db->query("ALTER TABLE user MODIFY email VARCHAR(254) NOT NULL UNIQUE");
 
 // RIGHT
 $this->dbforge->modify_column('user', [
-    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254),
+    ...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254, unique: true),
 ]);
-$this->add_index(table: 'user', columns: ['email'], unique: true);
 ```

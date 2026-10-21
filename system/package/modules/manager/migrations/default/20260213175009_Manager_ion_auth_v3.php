@@ -17,7 +17,7 @@ class Migration_Manager_ion_auth_v3 extends MGR_Migration_builder
 
 	public function down()
 	{
-		$this->drop_index(table: 'user', columns: 'email');
+		$this->drop_index(table: 'user', columns: 'email', unique: true);
 
 		$this->dbforge->modify_column('user', [
 			...$this->field(name: 'email', type: MgrFieldType::VarChar, constraint: 254),

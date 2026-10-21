@@ -22,9 +22,9 @@ final class MigrationBuilderHarness extends MGR_Migration_builder
 		$this->assert_no_nulls($table, $columns);
 	}
 
-	public function remove_index(string $table, string $column): bool
+	public function remove_index(string $table, string $column, bool $unique = false, ?string $name = null): bool
 	{
-		return $this->drop_index($table, $column);
+		return $this->drop_index(table: $table, columns: $column, name: $name, unique: $unique);
 	}
 
 	public function begin_ddl(): void

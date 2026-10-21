@@ -27,7 +27,7 @@ $this->add_primary_key(table: 'user_client', columns: ['user_id', 'client_identi
 // down()
 $this->drop_primary_key('user_client');
 $this->add_primary_key(table: 'user_client', columns: ['id']);
-$this->drop_index(table: 'user_client', columns: ['id']);
+$this->drop_index(table: 'user_client', columns: ['id'], unique: true);
 ```
 
 The index is created first and dropped last — it stands in for the primary
@@ -64,4 +64,6 @@ the rest alone, then positions the counter past the highest existing value —
 so it both fills a fresh column and resumes a populated one. On Postgres it
 builds the sequence under the name a `SERIAL` column would have gotten
 (`{table}_{column}_seq`). It throws on SQL Server and SQLite, which cannot
-add `IDENTITY`/`AUTOINCREMENT` to an existing column at all.
+add `IDENTITY`/`AUTOINCREMENT` to an existing column at all. On PostgreSQL it
+is also the only way to give an existing column a sequence:
+`$this->dbforge->modify_column()` with `auto_increment` throws there.
