@@ -13,14 +13,16 @@
  * series' support window. A release younger than --hold-days is marked HOLD.
  * Where upstream gives no date, Docker Hub's last push stands in and marks
  * HOLD? — a rebuild moves it too. Report only — never edits a file. Queries
- * Docker Hub, GitHub (60 requests/hour unless GITHUB_TOKEN is set) and
- * endoflife.date; other registries are listed as skipped.
+ * Docker Hub, GitHub (60 requests/hour unless GITHUB_TOKEN is set), Packagist
+ * (`pie install vendor/package:version` pins) and endoflife.date; other
+ * registries are listed as skipped.
  */
 
 const PIN_FILES = ['docker/Dockerfile', 'docker/docker-compose*.yml'];
 
 const PIN_NOTES = [
-	'aptible/supercronic' => 'a bump also needs new checksums: bin/supercronic-checksums.sh <version>',
+	'aptible/supercronic' => 'a bump also needs new checksums: bin/pin-checksums.sh supercronic <version>',
+	'php/pie' => 'a bump also needs the new pie.phar SHA256: bin/pin-checksums.sh pie <version>',
 ];
 
 // endoflife.date product, plus the GitHub repo whose releases carry the real release date
@@ -69,6 +71,10 @@ function run_report(string $root, int $hold_days): int
 
 		if ($pin['kind'] === 'github') {
 			$failures += report_github_pin(pin: $pin, hold_days: $hold_days);
+			continue;
+		}
+		if ($pin['kind'] === 'packagist') {
+			$failures += report_packagist_pin(pin: $pin, hold_days: $hold_days);
 			continue;
 		}
 
@@ -153,6 +159,9 @@ function extract_refs(string $line, array &$stages): array
 	}
 	if (preg_match('#github\.com/([\w.-]+/[\w.-]+)/releases/download/([^/\s"]+)/#', $line, $match) === 1) {
 		$refs[] = ['github', "{$match[1]}@{$match[2]}"];
+	}
+	if (preg_match('#\bpie(?:\.phar)?\s+install\s+([\w.-]+/[\w.-]+):(\d+(?:\.\d+)*)(?=[\s;\\\\]|$)#', $line, $match) === 1) {
+		$refs[] = ['packagist', "{$match[1]}@{$match[2]}"];
 	}
 
 	// ${VAR} refs are the project's own built images
@@ -474,7 +483,55 @@ function report_github_pin(array $pin, int $hold_days): int
 		}
 	}
 
-	$pin_held = print_line(label: 'pin', name: $pinned_tag, release: ['date' => $published[$pinned_tag] ?? null, 'source' => 'released'], hold_days: $hold_days);
+	print_release_pin(pinned_name: $pinned_tag, pin_version: $pin_version, candidates: $candidates, published: $published, hold_days: $hold_days, note: PIN_NOTES[$repository] ?? null);
+
+	return 0;
+}
+
+/**
+ * Print the candidates for one Packagist pin (`vendor/package@version`); returns 1 when the lookup failed.
+ *
+ * @param array{kind: string, ref: string, locations: list<string>} $pin
+ */
+function report_packagist_pin(array $pin, int $hold_days): int
+{
+	[$package, $pinned_version] = explode('@', $pin['ref'], 2);
+	$metadata = http_get_json("https://repo.packagist.org/p2/{$package}.json");
+	if ($metadata === null || !is_array($metadata['packages'][$package] ?? null)) {
+		echo "  LOOKUP FAILED — not compared\n";
+		return 1;
+	}
+
+	$pin_version = array_map('intval', explode('.', $pinned_version));
+	$candidates = [];
+	$published = [];
+	foreach ($metadata['packages'][$package] as $release) {
+		// p2 also lists pre-releases (6.3.0RC1) and branches (dev-main)
+		if (preg_match('/^v?(\d+(?:\.\d+)*)$/', (string) ($release['version'] ?? ''), $match) !== 1) {
+			continue;
+		}
+		$version = array_map('intval', explode('.', $match[1]));
+		if (count($version) === count($pin_version)) {
+			$candidates[] = ['name' => $match[1], 'version' => $version];
+			$published[$match[1]] = $release['time'] ?? null;
+		}
+	}
+
+	print_release_pin(pinned_name: $pinned_version, pin_version: $pin_version, candidates: $candidates, published: $published, hold_days: $hold_days, note: null);
+
+	return 0;
+}
+
+/**
+ * Print the pin line, its fallback while on hold, and the newer series candidates.
+ *
+ * @param list<int> $pin_version
+ * @param list<array{name: string, version: list<int>}> $candidates
+ * @param array<string, ?string> $published release date by candidate name
+ */
+function print_release_pin(string $pinned_name, array $pin_version, array $candidates, array $published, int $hold_days, ?string $note): void
+{
+	$pin_held = print_line(label: 'pin', name: $pinned_name, release: ['date' => $published[$pinned_name] ?? null, 'source' => 'released'], hold_days: $hold_days);
 	$previous = $pin_held ? previous_candidate(pin_version: $pin_version, candidates: $candidates) : null;
 	if ($previous !== null) {
 		print_line(label: 'previous', name: $previous['name'], release: ['date' => $published[$previous['name']], 'source' => 'released'], hold_days: $hold_days);
@@ -485,11 +542,9 @@ function report_github_pin(array $pin, int $hold_days): int
 	foreach ($lines as [$label, $candidate]) {
 		print_line(label: $label, name: $candidate['name'], release: ['date' => $published[$candidate['name']], 'source' => 'released'], hold_days: $hold_days);
 	}
-	if (isset(PIN_NOTES[$repository]) && $lines !== []) {
-		echo '  ' . str_pad('note', LABEL_WIDTH) . PIN_NOTES[$repository] . "\n";
+	if ($note !== null && $lines !== []) {
+		echo '  ' . str_pad('note', LABEL_WIDTH) . $note . "\n";
 	}
-
-	return 0;
 }
 
 /**

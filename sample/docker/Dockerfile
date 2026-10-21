@@ -8,7 +8,7 @@ FROM alpine:3.24.2 AS supercronic-bin
 # Cron daemon binary, safe to run as PID 1. Used by the cron service only.
 # TARGETARCH is populated automatically by BuildKit (amd64 or arm64). The
 # binary is verified against a SHA256 pin per arch. To bump: change the
-# version below and regenerate pins with bin/supercronic-checksums.sh.
+# version below and regenerate pins with bin/pin-checksums.sh supercronic <version>.
 ARG TARGETARCH
 RUN set -eux; \
     case "$TARGETARCH" in \
@@ -21,7 +21,7 @@ RUN set -eux; \
     echo "${sha256}  /usr/local/bin/supercronic" | sha256sum -c -; \
     chmod +x /usr/local/bin/supercronic
 
-FROM php:8.4.26-fpm-alpine3.24 AS php-base
+FROM php:8.4.27-fpm-alpine3.24 AS php-base
 # php-base: PHP + every extension + production php.ini. Shared by
 # vendor-builder and php-app so the extension build runs once.
 
@@ -37,6 +37,7 @@ RUN set -eux; \
     apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
         linux-headers \
+        libtool \
         libpng-dev libjpeg-turbo-dev freetype-dev \
         libzip-dev \
         oniguruma-dev \
@@ -53,11 +54,17 @@ RUN set -eux; \
         gd \
         mbstring \
         zip; \
-    # Extension versions pinned for reproducible builds. To bump: install the
-    # new version, rebuild, and confirm with `pecl list` in the built image.
-    pecl install redis-6.3.0 msgpack-3.0.1; \
-    docker-php-ext-enable redis msgpack; \
-    rm -rf /tmp/pear; \
+    # PIE is pinned like supercronic: bump the version in the
+    # URL and regenerate the SHA256 with bin/pin-checksums.sh pie <version>. Extension
+    # versions are exact; confirm a bump with `php --ri <name>` in the built image.
+    pie_sha256="fe70c59738cf56ec00a818cf9cb9593da171aac86f5f1f859995b8839dfd2cc7"; \
+    curl -fsSL -o /tmp/pie.phar \
+        "https://github.com/php/pie/releases/download/1.5.2/pie.phar"; \
+    echo "${pie_sha256}  /tmp/pie.phar" | sha256sum -c -; \
+    # pie install also writes the conf.d enable files; no docker-php-ext-enable
+    php /tmp/pie.phar install phpredis/phpredis:6.3.0; \
+    php /tmp/pie.phar install msgpack/msgpack-php:3.0.1; \
+    rm -rf /tmp/pie.phar /tmp/pear; \
     apk del --no-network .build-deps; \
     # bin/cli_run.sh (and any tooling) hard-codes /usr/bin/php; the FPM image
     # ships php at /usr/local/bin/php, so provide the expected path.
@@ -166,7 +173,7 @@ EXPOSE 9000
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm", "-F"]
 
-FROM nginx:1.30.5-alpine3.24 AS nginx-app
+FROM nginx:1.30.6-alpine3.24 AS nginx-app
 # nginx-app: serves static assets + reverse-proxies to php:9000. Static
 # files are baked in from php-app (no shared volume needed for code/assets).
 

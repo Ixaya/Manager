@@ -419,7 +419,8 @@ Evidence: during the split, four stale imports from the stack's origin
 project surfaced and were removed — the SVN hard rule ("this repo is
 Subversion" — false here), the SVN_COMMANDS.md references, the already-fixed
 supercronic-amd64 verification gap, and a missing-but-referenced
-`bin/supercronic-checksums.sh` (recreated; verified it reproduces the
+`bin/supercronic-checksums.sh` (now `bin/pin-checksums.sh`; recreated,
+verified it reproduces the
 Dockerfile's existing pins from aptible's published SHA1s).
 Cost: two docs to keep scoped (each carries a scope header naming its
 audience); rationale is deliberately NOT duplicated into shipped files
@@ -751,6 +752,38 @@ endoflife.date date matches the git tag, which can precede general
 availability and under-hold.
 Revisit when: Docker Hub exposes a tag creation date, or a pin moves to a
 registry other than Docker Hub (the report skips those).
+
+**Extensions install through PIE, not PECL.**
+Decision: `redis` and `msgpack` install with a SHA256-pinned `pie.phar` and
+exact-version `pie install phpredis/phpredis:6.3.0` /
+`msgpack/msgpack-php:3.0.1`; `docker-php-ext-enable` is gone and `libtool`
+joins the build-only packages.
+Why: `pecl.php.net` was the sole download source and returned HTTP 500 during
+an outage, which only shows on a build with no layer cache. PIE resolves the
+same packages through Packagist and GitHub. A throwaway build showed PIE
+writes the same `docker-php-ext-*.ini` enable files itself, handles the
+`v`-prefixed msgpack tag transparently, and warns when `libtool` is missing.
+`pie.phar` is one arch-agnostic artifact, so one SHA256 and no per-arch case.
+Cost: the build needs `github.com` and Packagist. Accepted: verified on arm64
+only; amd64 had no emulation in the sandbox, so it is checked on an
+amd64-capable machine before release.
+Revisit when: amd64 is verified, or PIE changes how it places extensions.
+
+**Pin checksums come from one script; PIE trusts an immutable release's digest.**
+Decision: `bin/pin-checksums.sh <supercronic|pie> <version>` prints a
+paste-ready block and never edits a file. The pin report also reads
+`pie install vendor/package:X.Y.Z` lines from Packagist, matching only that
+exact shape.
+Why: supercronic's SHA256 is anchored to aptible's author-published SHA1.
+php/pie publishes no such hash, but its releases are GitHub immutable
+releases, so the release digest cannot change after publication; the script
+refuses a non-immutable release and requires the download to match the
+digest. Rejected: `gh attestation verify` (a new host dependency), and
+parsing `pie install` constraints or ranges (no caller needs them).
+Cost: an immutable release vouches for the bytes GitHub holds, not for what
+the project published first; the pie pin is weaker than the supercronic one.
+Revisit when: PIE publishes a signature or hash of its own, or a second
+`pie install` shape appears in the Dockerfile.
 
 **`valkey-state` sized `2 × maxmemory + 64m`, verified per host by a profiler; 128mb by default.**
 Decision: `VALKEY_STATE_MEM_LIMIT ≥ 2 × VALKEY_STATE_MAXMEMORY + 64m`, shipped

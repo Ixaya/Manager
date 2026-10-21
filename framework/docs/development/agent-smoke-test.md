@@ -58,7 +58,7 @@ which one was used:
    `.env.priv` and a Docker instance for one engine (Postgres keeps the
    stack smallest). No ws/cron containers.
 2. Connectivity preflight from the sample docker doc — sandbox policies
-   commonly block `pecl.php.net`; a blocked domain must be flagged to the
+   commonly block a build host such as `github.com`; a blocked domain must be flagged to the
    operator, not retried for hours.
 3. Build and run the stack; run migrations.
 4. Build the blog module feature; authenticate and exercise the endpoints.

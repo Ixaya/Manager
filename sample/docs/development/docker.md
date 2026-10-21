@@ -138,8 +138,9 @@ directly.
 ## Build and run
 
 **Sandboxed or firewalled environments:** the image build downloads from
-Docker Hub, the Alpine package mirrors, `pecl.php.net`, and (vendor stage)
-Packagist/GitHub. Sandbox network policies commonly block `pecl.php.net` by
+Docker Hub, the Alpine package mirrors, GitHub (`pie.phar`, supercronic), and
+(vendor stage) Packagist. PIE also resolves the two extensions through
+Packagist/GitHub. Sandbox network policies commonly block one of these by
 default, which makes the build fail slowly and confusingly. Check
 connectivity first; if anything is blocked, stop and ask the operator to
 allow the domain instead of retrying the build.
@@ -152,7 +153,7 @@ answers 403/404 while being perfectly reachable — that is NOT a block, so do
 not key the check on the status code.)
 
 ```bash
-for host in dl-cdn.alpinelinux.org pecl.php.net repo.packagist.org \
+for host in dl-cdn.alpinelinux.org github.com repo.packagist.org \
             api.github.com registry-1.docker.io auth.docker.io \
             production.cloudflare.docker.com; do
     body="$(curl -sS --max-time 10 "https://${host}/" 2>/dev/null)" \
@@ -439,11 +440,12 @@ never needs it.
 
 ## Updating image pins
 
-Every base image, the database images, and the supercronic release are
+Every base image, the database images, the supercronic release, `pie.phar`
+and the two PIE extensions are
 pinned to an exact version. Never pick a new one from memory or by browsing
 tag pages; run the pin report, which reads the pins from
-`docker/Dockerfile` and the compose files, queries Docker Hub and GitHub,
-and never edits a file:
+`docker/Dockerfile` and the compose files, queries Docker Hub, GitHub and
+Packagist, and never edits a file:
 
 ```bash
 ./docker_manage.sh -e <instance> run --rm -T [-e GITHUB_TOKEN] tools php bin/docker-pin-report.php [--hold-days=7]
@@ -492,6 +494,10 @@ Acting on it:
 - **Supercronic:** change the version in the Dockerfile's download URL,
   then regenerate the checksums per "Build gotchas" in
   `docker-internals.md`.
+- **`pie.phar` and the extensions:** change the version in the Dockerfile's
+  download URL and run `bin/pin-checksums.sh pie <version>` for the new
+  SHA256; bump the `pie install` versions in the same step, then confirm
+  with `php --ri <name>` in the built image.
 - `composer:2` floats deliberately — it only runs in the discarded
   builder stage.
 

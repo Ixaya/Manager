@@ -332,7 +332,7 @@ the manifests (a moved base image, re-pulled OS packages).
 
 **Common failure modes:**
 - Sandboxed or firewalled build environments: the image build reaches
-  Docker Hub, the Alpine mirrors, the PECL registry, and Packagist/GitHub.
+  Docker Hub, the Alpine mirrors, GitHub, and Packagist.
   If any is blocked, the build fails slowly and confusingly rather than with
   a clear message — run the connectivity check in
   `docs/development/docker.md` first instead of retrying the build.

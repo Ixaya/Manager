@@ -637,3 +637,25 @@ on an 8.2 server today. What a project does:
   old attribute keeps working.
 - The scaffold's `AGENTS.md` rule line now reads 8.3 floor; typed class
   constants and `#[\Override]` are allowed.
+
+### The sample Dockerfile installs `redis` and `msgpack` with PIE instead of PECL
+
+Reaches a project when it reconciles `docker/Dockerfile` and
+`bin/docker-pin-report.php` from the sample; `composer update` alone changes
+nothing. `pecl.php.net` is the sole download source of the old step and
+returned HTTP 500 during an outage, which only shows on a build with no layer
+cache. PIE (PECL's successor) resolves the same two extensions through
+Packagist and GitHub:
+
+- **Same extensions, same versions** (`redis` 6.3.0, `msgpack` 3.0.1); PIE
+  writes the `conf.d` enable files itself, so `docker-php-ext-enable` is gone.
+  `libtool` joins the build-only packages and is removed in the same step.
+- **`pie.phar` is a new pinned download** (version in the URL, SHA256 beside
+  it). `docker-pin-report.php` tracks its version and the two extension
+  pins (via Packagist); a bump needs the new SHA256 from
+  `bin/pin-checksums.sh pie <version>`, which replaces
+  `bin/supercronic-checksums.sh` (now `bin/pin-checksums.sh supercronic
+  <version>`).
+- **The build now needs `github.com` and Packagist, not `pecl.php.net`.** An
+  allowlist built around the old host needs the new ones.
+- Built and checked on arm64; amd64 is not yet verified.
