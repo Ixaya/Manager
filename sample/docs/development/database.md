@@ -257,30 +257,24 @@ between them.
   all; a FK there can only be declared inline in the original
   `CREATE TABLE` statement, and retrofitting one onto an existing table
   needs a full table-recreate, which these helpers don't build.
-- **A plain `dbforge->add_key()` index isn't named the way
-  `add_index()`/`drop_index()` expect, except by coincidence on
-  MySQL/MariaDB.** `_index_name()` derives `{table}_{cols}_key` on
-  Postgres/SQLite and bare `{cols}` on MySQL/MariaDB/SQL Server, but CI's
-  own `add_key()` names a plain index `{table}_{cols}` — no `_key` suffix —
-  everywhere except MySQL/MariaDB, whose forge driver overrides the base
-  naming to already emit that same bare `{cols}` form. The two conventions
-  agree on MySQL/MariaDB by coincidence, not by design. Before this was
-  caught, `drop_index()` against a legacy `add_key()` index issued
-  `DROP INDEX IF EXISTS` against a name that never existed on
-  Postgres/SQLite — a silent no-op reported as success — and threw on SQL
-  Server instead of no-op'ing (that branch had no `IF EXISTS`).
-  `drop_index()`/`drop_foreign_key()` now check the engine's own catalog and
-  return `bool` (found-and-dropped vs. not found) instead of assuming;
-  pass the real name via the new `name` parameter for anything this builder
-  didn't create itself — the mgr-migrations skill covers the call shape.
+- **`dbforge->add_key()` and the builder's index helpers derive one name.**
+  The framework's forge subclass names both, per engine: PostgreSQL
+  `{table}_{cols}_idx` plain and `{table}_{cols}_key` unique, SQL Server
+  `{table}_{cols}` and `{table}_{cols}_key`, MySQL/MariaDB `{cols}` for both.
+  An index created before that, or by hand, can carry a name the builder no
+  longer derives, so `drop_index()`/`drop_foreign_key()` check the engine's
+  own catalog and return `bool` (found-and-dropped vs. not found); pass the
+  real name via the `name` parameter for anything this builder didn't
+  create — the mgr-migrations skill covers the call shape.
 - **`add_index()`/`add_foreign_key()` are idempotent no-ops on a re-run,
   the same as their drop counterparts.** A raw `CREATE INDEX`/
   `ALTER TABLE ADD {INDEX|CONSTRAINT}` throws a duplicate-name error the
   second time a migration runs against a table that already has it — the
   failure a consuming project hit directly. Both now check the same
   catalog `drop_index()`/`drop_foreign_key()` already used and skip
-  silently on a name match, returning `bool` (`true` = created, `false` =
-  already existed) instead of `void`. `add_primary_key()` is the one
+  silently on a name match — except `add_index(unique: true)` over a plain
+  index of that name, which throws — returning `bool` (`true` = created,
+  `false` = already existed) instead of `void`. `add_primary_key()` is the one
   exception: see below.
 - **A primary key is only named on some engines, so both
   `add_primary_key()`/`drop_primary_key()` ask the catalog rather than
@@ -345,12 +339,16 @@ between them.
   statement implicitly, so a failure there leaves the earlier steps applied;
   steps are written idempotent and `migrate` is simply re-run after the
   cause is fixed.
-- **`unique: true` inside `modify_column()` means different things per
-  engine.** PostgreSQL gets a unique index `{table}_{column}_key` (the name
-  `drop_index()` derives); MySQL/MariaDB emit `UNIQUE` in the `MODIFY`, which
-  adds a *second* unique index (`email_2`) when the column already has one;
-  SQL Server's `ALTER COLUMN … UNIQUE` is unverified. `add_index(unique:
-  true)` is the portable form.
+- **`unique: true` inside `modify_column()` becomes each engine's own unique
+  object, once.** PostgreSQL gets a unique constraint `{table}_{column}_key`,
+  the object `add_column()`/`create_table()` make; MySQL/MariaDB get the
+  `MODIFY` followed by a separate `ADD UNIQUE INDEX`, so a duplicate row fails
+  that second statement after the column change has already run, and nothing
+  rolls it back; SQL Server's `CREATE UNIQUE INDEX` after the `ALTER COLUMN`
+  is unverified. A repeat call adds nothing, and a plain index already under
+  the name throws. `add_index(unique: true)` makes a unique index on every
+  engine — on PostgreSQL a bare index, not a constraint; `drop_index()`
+  removes either.
 - **A column restated in `modify_column()` is only as NOT NULL as the call
   says.** MySQL/MariaDB `MODIFY` redefines the whole column, so a restate
   that leaves nullability out makes it nullable; PostgreSQL alters the pieces

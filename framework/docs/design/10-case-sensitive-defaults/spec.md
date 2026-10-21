@@ -72,3 +72,9 @@ engine caveats), the mgr-migrations, mgr-models, mgr-auth and
 mgr-helpers-libraries skills (the API). Evidence: `collation-matrix.md`
 beside this file. Choices and their reasons: `decisions.md`. Validation:
 `review.md`.
+
+Superseded in part (2026-10-21) by `framework/docs/design/12-builder-forge-gaps/`:
+the forge seam became a subclass per driver, `modify_column(unique)` makes a
+constraint on PostgreSQL and no longer adds `email_2` on MySQL/MariaDB, and
+`ion_auth_v4` declares its uniques on the fields instead of
+`add_index(unique: true)`.

@@ -155,20 +155,127 @@ install, a new migration):
   Restore a column with a new migration that calls `assert_no_nulls()` and
   then `modify_column()` with `nullable: false`, or leave it as it is.
 
-### `modify_column(unique: true)` now creates the unique index on PostgreSQL
+### Index and constraint names: one rule per engine, shared by `dbforge` and the migration builder
 
-CI3's PostgreSQL forges never emitted `unique` on a column change. A new
-framework forge subclass (`system/core/MGR/Forge/`, loaded by
-`MGR_Loader::dbforge()`) appends `CREATE UNIQUE INDEX IF NOT EXISTS
-{table}_{column}_key` for each such field, so fresh installs get
-`user_email_key` at v3. Your own migrations that relied on the silent no-op
-now get the index, or fail on duplicates they used to accept. On
-MySQL/MariaDB nothing changes; there, repeating `unique: true` on a column
-that already has a unique key still adds a second one, so prefer
-`add_index(unique: true)`.
+Reaches a project through `composer update`. `dbforge->add_key()` and the
+builder's `add_index()`/`drop_index()` used to derive different names for the
+same index on PostgreSQL, so `add_index()` over an `add_key()` index added a
+duplicate and a derived `drop_index()` missed it. Both now take the name from
+the framework forge subclass (`system/core/MGR/Forge/`, loaded by
+`MGR_Loader::dbforge()`). Indexes that already exist keep their names;
+what changes is migrations that run after you upgrade:
 
-A project `MY_Loader` that does not extend `MGR_Loader` (the sample's does)
-does not get the forge subclass.
+- **PostgreSQL:** a plain index is `{table}_{columns}_idx` (was
+  `{table}_{columns}` from `add_key()`, `{table}_{columns}_key` from
+  `add_index()`); a unique is `{table}_{columns}_key`, the name PostgreSQL
+  itself gives a column's unique constraint. Names keep the exact case of the table and columns and are
+  quoted; past 63 bytes they are cut the way PostgreSQL cuts its own names.
+  SQL Server (unverified) follows `{table}_{columns}` and
+  `{table}_{columns}_key`. MySQL/MariaDB names are unchanged (`{columns}`),
+  except that `add_key()` past 64 characters now gets a hash-cut name instead
+  of `ERROR 1059`.
+- **`drop_index()` has a new trailing `unique:` argument** that picks which
+  derived name it drops. On PostgreSQL and SQL Server a unique's name differs
+  from a plain one's, so a `down()` that drops a unique without `unique: true`
+  returns `false` there and leaves the unique; MySQL/MariaDB do not notice.
+  Add `unique: true` to your own `down()` methods that drop a unique. The
+  package's `ion_auth_v3` and `ion_auth_v4` already do.
+- **Rolling back a migration that ran before the upgrade, on PostgreSQL:** its
+  plain indexes carry the old names, so a derived `drop_index()` in its
+  `down()` finds nothing, returns `false` and leaves the index, and running
+  `up()` again adds a second one under the new name. Pass the old name with
+  `drop_index(name: …)` where it matters.
+- **`drop_index()` drops a PostgreSQL unique constraint** (what a field's
+  `unique` creates) with `DROP CONSTRAINT`; before, the engine refused the
+  `DROP INDEX`, and with `db_debug` off the call still returned `true`. An
+  index behind a primary key or exclusion constraint throws, pointing at
+  `drop_primary_key()`.
+- **`add_index(unique: true)` over a plain index of the same name throws**
+  instead of returning `false` with no unique created. On MySQL/MariaDB plain
+  and unique share a name, so drop the plain one first.
+- **A name another relation already holds** (PostgreSQL tables and indexes
+  share one namespace) fails the statement. Through `dbforge->create_table()`
+  that failure is silent when `db_debug` is off; the migration runner forces
+  it on.
+- **The builder now needs the forge subclass.** It takes every index name and
+  lookup from it, so a project whose `MY_Loader` does not extend `MGR_Loader`
+  (the sample's does) gets a PHP `Error` from `add_index()`, `drop_index()`
+  and every key helper that derives a name. On SQLite, which has no subclass,
+  `add_index()` and `drop_index()` fail the same way.
+
+### `modify_column()` honors a field's `unique` on every engine
+
+Reaches a project through `composer update`; the scaffold's
+`tests/unit/migrations/ModifyColumnUniqueTest.php` and
+`UniqueConstraintTest.php` come with reconciling the sample.
+
+PostgreSQL used to ignore `unique` on a column change, and MySQL/MariaDB added
+a second unique index (`email_2`) on every repeat call. Now each such field
+gets one unique, and a repeat call adds nothing:
+
+- **PostgreSQL:** a unique constraint `{table}_{column}_key`, the same object
+  `add_column()` and `create_table()` make. `add_index(unique: true)` still
+  makes a bare unique index under the same name; `drop_index(…, unique: true)`
+  drops either.
+- **MySQL/MariaDB:** `MODIFY` without `UNIQUE`, then `ADD UNIQUE INDEX`
+  `{column}`. These are two statements, so duplicate rows fail the second after
+  the column change has already run: call `assert_no_duplicates()` first.
+- **A rename in the same call** puts the unique on the new name. If the old
+  name still holds a unique, the call throws before running anything: drop it
+  with `drop_index()`, then rename with `unique`.
+- **A plain index under the unique's name throws**, naming `drop_index()`.
+- **`unique: false`, or leaving it out, never removes a unique.** Removal is
+  `drop_index(…, unique: true)`.
+- **MySQL/MariaDB databases that ran a repeated `modify_column(unique)` keep
+  their extra indexes** (`email_2`, `email_3`). Nothing removes them. Find them
+  with `SHOW INDEX FROM <table>` and drop the extras in your own migration with
+  `drop_index(table: …, columns: …, name: 'email_2')`.
+
+### Column types: `unsigned` widens on PostgreSQL, `auto_increment` becomes `BIGSERIAL`, and `cast` adds `USING`
+
+Reaches a project through `composer update`; the scaffold's
+`tests/unit/migrations/UnsignedWideningTest.php` and
+`ModifyColumnCastTest.php` come with reconciling the sample. Existing columns
+keep their types; what changes is columns created after you upgrade.
+
+- **`unsigned` widens integers on PostgreSQL** for raw `dbforge` calls too,
+  where it was ignored: `SMALLINT` → `INTEGER`, `INT` → `BIGINT`, `BIGINT` →
+  `NUMERIC(20,0)`. Through `field()` the only change is `BigInt` unsigned,
+  from an unconstrained `numeric` to `numeric(20,0)` (the package's
+  `created_on`, `last_login`, `login_attempt.time` and `ci_sessions.timestamp`
+  on fresh installs). SQL Server widens the same way (`INT`, `BIGINT`,
+  `DECIMAL(20,0)`), unverified. MySQL/MariaDB keep `UNSIGNED`.
+- **A `field()` `Float` with `unsigned: true` is no longer widened** to double
+  precision on PostgreSQL or SQL Server; it stays `REAL`/`FLOAT(24)`. Use
+  `Double` for the precision.
+- **PostgreSQL `auto_increment` on a `BIGINT` is `BIGSERIAL`**, a `bigint`
+  column with a `bigint` sequence; it was `SERIAL`, an `integer` with a
+  2,147,483,647 ceiling. `field_id()` primary keys get it on fresh installs.
+  Existing `id` columns stay `integer`.
+- **`modify_column()` with `auto_increment` throws on PostgreSQL** before
+  running anything; it used to fail on `TYPE SERIAL` after the call's earlier
+  statements had run. Use the builder's `add_auto_increment()`.
+- **A field with `cast => true` gets `USING "col"::type`** on a PostgreSQL type
+  change, so a change across type families succeeds, from raw `dbforge` too.
+  `modify_column_cast()` is now that one call; without `cast`, a plain
+  `modify_column()` is unchanged.
+- **`field()` no longer returns a `base_type` key** for a case-insensitive
+  field. Nothing in the framework reads it any more.
+
+### Migration builder helpers throw when a statement fails
+
+With `db_debug` off, `add_index()`, `drop_index()`, the foreign-key and
+primary-key helpers, `add_auto_increment()`, `modify_field_timestamp()` and
+`modify_column_cast()` returned `true` after the engine rejected a statement.
+They now throw `RuntimeException` with the engine's error and the start of the
+statement. Under the migration runner, which forces `db_debug` on, nothing
+changes: CI halts at the failed statement as before. A test, seed or direct
+`up()` call that runs with `db_debug` off and relied on the silence now gets
+the exception. A migration's own `dbforge` calls still return `false`.
+
+The scaffold's `tests/unit/migrations/CaseInsensitiveColumnsTest.php` and
+`tests/support/MigrationBuilderHarness.php` follow these four entries and
+come with reconciling the sample.
 
 ### Migration runner: a throwing migration is rolled back, and an exact-version run stays on one connection
 

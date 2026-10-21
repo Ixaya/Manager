@@ -172,7 +172,9 @@ rules keep proposals themselves worth having:
   more than one proposal has sharpened into a different item under that check.
 
 Refer to a proposal by title, not by path, from anywhere permanent: a promoted
-proposal moves, and a path would need editing back.
+proposal's directory is deleted, its evidence carried into the campaign's own
+files, so a path would dangle. Only a fix-in-place resolution is archived
+(see "Fix-in-place").
 
 ## Writing discipline
 
@@ -412,6 +414,10 @@ the suspect part" is a legitimate way to open an objective.
   upstream-tracked directories (`system/third_party/`) except as a deliberate,
   documented, one-commit exception recorded for re-verification after upstream
   merges (see `framework/docs/development/auth-upstream.md` for the worked example).
+- **A fix in a shared layer records its before/after for direct callers** of
+  that layer (a forge, a base class), not only for the path the finding came
+  through. A raw `dbforge` call and the migration builder reach the same forge,
+  and only the first shows what a project's own migrations will see.
 - **Permanent documentation (`framework/docs/design/*`, the shipped `sample/docs/*`,
   `framework/docs/development/*`) waits for distillation, even for a finding a session
   believes is fully settled.** A session sees only its own item — it can't
@@ -657,7 +663,9 @@ type; only the per-item process changes:
   item, restate the finding, check the handoff verdict, run or design the
   confirming test if it is unverified, then present the options with a
   recommendation and WAIT. Record every verdict inline in the doc as you go,
-  the keep-as-is ones included — the record is the deliverable.
+  the keep-as-is ones included — the record is the deliverable. An item the
+  session adds gets its `spec.md` entry and a `review.md` provenance line in
+  the same session, not only a ruling in the handoff.
 - **Closing review** ("You're the closing reviewer."): the per-item process is
   the one under Endgame below — re-diff against baselines, punch list, fix
   nothing.

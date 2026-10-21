@@ -689,7 +689,7 @@ is your call. To add it, write a migration of your own
 `$this->drop_index(table: 'api_log', columns: ['time']);`. `add_index` is
 idempotent, so it is also safe on an install that already has the index. On a
 large PostgreSQL table, build it first without blocking inserts —
-`CREATE INDEX CONCURRENTLY api_log_time_key ON api_log (time);` — then run
+`CREATE INDEX CONCURRENTLY api_log_time_idx ON api_log (time);` — then run
 the migration, which finds it by name and does nothing (the MySQL/MariaDB
 name is `time`).
 

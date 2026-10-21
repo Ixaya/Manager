@@ -130,14 +130,54 @@ rule exists: renaming a public method or changing a signature on any
 nothing in the resolution mechanism itself would catch that at build time.
 
 **Database forges** resolve through `MGR_Loader::dbforge()`, not through
-either shape. CI3's own `CI_Loader::dbforge()` hardcodes the vendor forge
-file and its `CI_DB_<driver>[_<subdriver>]_forge` class, with no subclass
-hook, and MX does not override it. The framework override asks the vendor
-loader for its forge, derives `MGR_DB_<rest>` from that class name, and
-builds `system/core/MGR/Forge/MGR_DB_<rest>.php` on the same connection when
-the file exists; otherwise the vendor forge is used. A forge-level fix for
-another engine is one new file there. A project `MY_Loader` that does not
-extend `MGR_Loader` skips this.
+either shape; see "Database forges" below.
+
+## Database forges
+
+CI3's own `CI_Loader::dbforge()` hardcodes the vendor forge file and its
+`CI_DB_<driver>[_<subdriver>]_forge` class, with no subclass hook, and MX does
+not override it. The framework override asks the vendor loader for its forge,
+derives `MGR_DB_<rest>` from that class name, and builds
+`system/core/MGR/Forge/MGR_DB_<rest>.php` on the same connection when the file
+exists; otherwise the vendor forge is used.
+
+Every supported driver has a subclass there: `MGR_DB_postgre_forge`,
+`MGR_DB_pdo_pgsql_forge`, `MGR_DB_mysqli_forge`, `MGR_DB_pdo_mysql_forge`,
+`MGR_DB_sqlsrv_forge`, `MGR_DB_pdo_sqlsrv_forge` and `MGR_DB_pdo_dblib_forge`.
+Each is an empty class that extends its vendor forge and `use`s its family's
+trait. The SQLite drivers have none, so they get the vendor forge.
+
+| Trait | Used by | Owns |
+|---|---|---|
+| `MGR_DB_forge_common` | every family trait | `index_name()` default (`{t}_{cols}`, `_key` for unique), `truncate_identifier()` (the one hash cut), `_process_indexes()` (the vendor `add_key()` loop, named by `index_name()`), and `_alter_table()`'s column-change skeleton; abstract `index_uniqueness()`, `_identifier_limit()`, `_unique_statement()` |
+| `MGR_DB_pgsql_forge_family` | `postgre`, `pdo/pgsql` | `index_name()` (`_idx`/`_key`, exact case, cut by `pg_object_name()`, a copy of the engine's own truncation), limit 63, `index_uniqueness()` on `pg_index`, `unsigned` widening, `auto_increment` as `SERIAL`/`BIGSERIAL`, and a `_prepare_change()` that refuses `auto_increment` and adds `USING` for `cast`; the unique is `ADD CONSTRAINT` |
+| `MGR_DB_mysql_forge_family` | `mysqli`, `pdo/mysql` | `index_name()` (`{cols}`), limit 64, `index_uniqueness()` on `information_schema.statistics`, the vendor inline-`KEY` loop named by `index_name()`; the unique is `ADD UNIQUE INDEX` |
+| `MGR_DB_sqlsrv_forge_family` | `sqlsrv`, `pdo/sqlsrv`, `pdo/dblib` | limit 128, `index_uniqueness()` on `sys.indexes`, `unsigned` widening, the existing column name for the unique (the vendor never renames there); the unique is `CREATE UNIQUE INDEX` |
+
+A method a family trait defines overrides the one from the common trait it
+`use`s, including when the common trait's own code calls it. Each subclass
+`require_once`s its family trait, which `require_once`s the common one.
+
+The column-change skeleton runs only on `modify_column()`: it calls the
+`_prepare_change()` hook, builds the vendor statement from a copy of the fields
+without the inline `UNIQUE`, then for each `unique` field asks
+`index_uniqueness()` for the derived name and appends `_unique_statement()` if
+nothing holds it. Every throw inside it calls `_reset()` first, because
+`modify_column()` resets only after `_alter_table()` returns and the dbforge
+is shared.
+
+`MGR_Migration_builder` depends on the subclass. It takes every index name,
+FK/PK name truncation, PostgreSQL sequence name and index lookup from
+`$this->dbforge` (`index_name()`, `truncate_identifier()`, `pg_object_name()`,
+`index_uniqueness()`), so it fails with a PHP `Error` where the vendor forge
+is loaded: `add_index()` and `drop_index()` on SQLite (whose key helpers throw
+before naming anything), and every helper that derives a name or looks an
+index up in a project whose `MY_Loader` does not extend `MGR_Loader`. These
+Forge methods take the table exactly as given; unlike the Forge's own
+`create_table()` or `modify_column()`, they apply no `dbprefix`.
+
+A forge-level fix for one engine is a method on its family trait; a fix for
+an engine with no subclass yet is one new file in the directory.
 
 ## Package resource override precedence
 
