@@ -218,6 +218,18 @@ existing link for an identical DSN, so two handles that are separate sessions
 on every other driver share one there, and a result that only looks right on
 `postgre` proves nothing.
 
+**A second engine beside the running one.** To run a probe or the suite on
+another engine without replacing the instance's database, start only that
+service (`--profile mariadb up -d mariadb`) and give `exec` or `run` the
+engine's whole `DB_*` row as `-e` overrides (the per-engine table in
+`sample/docs/development/database.md`, with `DB_LOCALE_CI` emptied on
+MySQL/MariaDB). REST probes answer on the instance's own engine, so use a CLI
+probe (`probes/<controller>/<method>` through `cli_run.sh`). For migrations,
+create a scratch database as the engine's root user, grant it to the app
+user, and run `manager/tools/migrate` with `-e DB_NAME=<scratch>`. Tear down
+with `rm -s -f -v <service>` and remove that service's one volume: `down -v`
+would take the running engine's volume with it.
+
 **A change to what migrations emit is judged by a schema diff.** Migrate a
 fresh database to the last migration before the one under change
 (`manager/tools/migrate <version> <module_key>`, see the mgr-migrations

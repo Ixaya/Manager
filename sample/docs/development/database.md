@@ -300,17 +300,16 @@ between them.
   Server attach the sequence/IDENTITY to the column independently of any
   key, so nothing is needed. The same rule is why `add_column()` cannot add
   an AUTO_INCREMENT column to an existing table on MySQL/MariaDB at all,
-  while `serial` (Postgres) and `IDENTITY` (SQL Server) do it in one
+  while an identity (Postgres) and `IDENTITY` (SQL Server) do it in one
   statement — the mgr-migrations skill carries the portable recipe for both
   directions.
-- **Numbering existing rows is MySQL behavior the framework homologates.**
-  When `add_auto_increment()` applies the attribute, MySQL/MariaDB
-  renumber every row holding `0` or `NULL` and position the counter past the
-  highest surviving value. PostgreSQL does neither on its own, so the
-  framework issues the equivalent `UPDATE` and `setval()` explicitly —
-  without them the same migration would leave every Postgres row at `0` and
-  fail the next unique key. Rows already holding a real value are untouched
-  on both.
+- **Numbering existing rows is done by the framework on every engine.**
+  When `add_auto_increment()` applies the attribute, it numbers every row
+  holding `0` or `NULL` past the highest existing value, then positions the
+  counter. MySQL/MariaDB would otherwise number those rows in scan order
+  from a running counter, so a `0` ahead of a real id can take its value,
+  and PostgreSQL would leave every row at `0` and fail the next unique key.
+  Rows already holding a real value are untouched.
 - **A cross-family `modify_column()` type change fails on PostgreSQL —
   native driver and `pdo/pgsql` alike.** A bare `ALTER COLUMN ... TYPE ...`
   has no automatic cast between families (string to numeric is the common

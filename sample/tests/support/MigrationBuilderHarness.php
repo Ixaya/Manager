@@ -27,6 +27,16 @@ final class MigrationBuilderHarness extends MGR_Migration_builder
 		return $this->drop_index(table: $table, columns: $column, name: $name, unique: $unique);
 	}
 
+	public function key_column(string $table, string $column): bool
+	{
+		return $this->add_index(table: $table, columns: [$column]);
+	}
+
+	public function make_auto_increment(string $table, string $column): void
+	{
+		$this->add_auto_increment($table, $column);
+	}
+
 	public function begin_ddl(): void
 	{
 		$this->start_ddl_transaction();

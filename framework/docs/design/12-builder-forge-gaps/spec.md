@@ -116,6 +116,11 @@ with. SQL Server is derived from the code and has never run.
 `field_id()` primary keys are `bigint` on PostgreSQL, with a `bigint` owned
 sequence, and match their `Int` unsigned foreign-key columns.
 
+Superseded for PostgreSQL `auto_increment`: it is later made an identity on
+CREATE, ADD and CHANGE, so the `SERIAL`/`BIGSERIAL` and "throws" statements
+above no longer hold (see decisions.md, "PostgreSQL `auto_increment` as an
+identity").
+
 ## Open work
 
 Parked as proposals, by title:
@@ -124,7 +129,6 @@ Parked as proposals, by title:
   record, including the two known defects a live run has to confirm.
 - "SQLite: drop it from the support list or repair it" — the SQLite drivers
   got no subclass, so the builder's `add_index()` and `drop_index()` fail there.
-- "PostgreSQL identity columns instead of `SERIAL` for `auto_increment`".
 - "`modify_column()` with a `default` emits invalid SQL on SQL Server".
 - "Migration builder DDL and Forge-derived names diverge under `dbprefix`" —
   every result here was produced with an empty `dbprefix`.

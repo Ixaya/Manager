@@ -103,6 +103,8 @@ trait MGR_DB_forge_common
 			return $sqls;
 		}
 
+		array_push($sqls, ...$this->_change_statements($table, $field));
+
 		foreach ($field as $column) {
 			if (empty($column['unique'])) {
 				continue;
@@ -152,6 +154,17 @@ trait MGR_DB_forge_common
 	protected function _prepare_change(array $field): array
 	{
 		return $field;
+	}
+
+	/**
+	 * Statements a CHANGE needs beyond the vendor's, run after them and before any unique statement.
+	 *
+	 * @param array<int, array<string, mixed>> $field Fields as prepared by `_prepare_change()`
+	 * @return string[]
+	 */
+	protected function _change_statements(string $table, array $field): array
+	{
+		return [];
 	}
 
 	/**
