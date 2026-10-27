@@ -182,6 +182,9 @@ COPY --from=php-app /var/www/html/public /var/www/html/public
 COPY docker/nginx/nginx.conf   /etc/nginx/nginx.conf
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY docker/nginx/conf.d/      /etc/nginx/conf.d/
+# Run by the stock /docker-entrypoint.sh before nginx; it skips any script
+# without the exec bit, which would leave nginx.conf's include missing.
+COPY --chmod=755 docker/nginx/docker-entrypoint.d/ /docker-entrypoint.d/
 
 # HTTP on :80, WebSocket vhost on :8080. Master runs as root (stock image
 # behavior, needed to bind :80); workers drop to the nginx user.

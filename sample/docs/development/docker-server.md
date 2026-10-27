@@ -19,10 +19,42 @@
   ports or tooling.** The base file publishes nothing and has no `tools`
   service; both live in addon files that only `docker_manage.sh` adds. Pass
   `-f docker-compose.ports.yml` as well where the copy should publish.
-- **Narrow `set_real_ip_from`** in `docker/nginx/nginx.conf` to the proxy's
-  address. The shipped config trusts every private range, so on a shared
-  host any other container can set `X-Forwarded-For` and pick the client IP
-  the app logs and rate-checks against.
+- **Set `NGINX_TRUSTED_PROXIES`** in `<instance>.docker.env` to every proxy
+  between the client and nginx (addresses or CIDRs, space- or
+  comma-separated), then recreate nginx; no rebuild. Empty, the default,
+  trusts no proxy: no client can forge its IP, but behind a proxy every
+  client is logged, locked out and rate-limited as the proxy's address. The
+  `[real-ip]` line in nginx's startup log shows what was applied. A proxy on
+  the host reaches nginx through the published port, usually from the Docker
+  network's gateway; the first field of nginx's access log shows the peer.
+  - With the default header, `X-Forwarded-For`, list every hop: nginx reads
+    the header right to left and takes the first address not on the list,
+    so a value the client sent itself is skipped. Never list a whole private
+    range on a shared host — any container in it can then set the header and
+    pick the client IP the app logs and rate-checks against.
+  - A single-value header (`NGINX_REAL_IP_HEADER`, such as a CDN's
+    connecting-IP header) is taken verbatim from any listed peer. Unless the
+    edge accepts connections only from the CDN's published ranges, or
+    overwrites any copy of the header the client sent, anyone who reaches
+    the edge directly picks their own IP.
+- **FPM's `/status` and `/ping` are not reachable through nginx.** The
+  healthchecks don't use them. A monitor connects over FastCGI to
+  `php:9000` (status path `/status`, ping `/ping`) from a container on the
+  stack's network. Only if it must use HTTP, add a location to
+  `docker/nginx/conf.d/app.conf` that allows loopback or the monitor's exact
+  address. `allow` matches the address after real-IP substitution, so never
+  allow a range that contains a proxy:
+
+  ```nginx
+  location ~ ^/(status|ping)$ {
+      allow 127.0.0.1;
+      deny  all;
+
+      include fastcgi_params;
+      fastcgi_pass  $php_upstream;
+      fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
+  }
+  ```
 - **Image builds run outside every cap.** BuildKit is not in any
   instance's cgroup; compiling PHP extensions on a small box while the sites
   are live can exhaust the host. Build elsewhere and pull, or build while

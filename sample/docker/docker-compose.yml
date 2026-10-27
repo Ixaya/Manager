@@ -124,6 +124,11 @@ services:
     networks: [appnet]
     logging: *logging
     <<: [*security, *fleet]
+    environment:
+      # Read by 15-real-ip.sh at start; empty trusts no proxy, header defaults
+      # to X-Forwarded-For there. Takes effect on recreate, no rebuild.
+      NGINX_TRUSTED_PROXIES: ${NGINX_TRUSTED_PROXIES:-}
+      NGINX_REAL_IP_HEADER:  ${NGINX_REAL_IP_HEADER:-}
     volumes:
       # Serve uploaded media directly (read-only is enough for nginx).
       - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media:ro

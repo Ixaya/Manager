@@ -37,6 +37,7 @@ like it needs that pointer, the content belongs here instead.
 | `docker_manage.sh` (repo root) | The only supported entrypoint — computes per-instance file paths the compose file depends on. |
 | `env/sample.docker.env`, `env/sample.env`, `env/sample.priv.env`, `env/sample.agent.env` | The four committed templates (short comments by design — per-var background lives in "Env template notes" below). Every other file under `env/` is a per-instance, ignored instantiation. |
 | `postgres/entrypoint.sh`, `postgres/initdb/` | The `postgres` service's root wrapper and its init hooks — see "`docker/postgres/entrypoint.sh`" below before touching either. |
+| `nginx/docker-entrypoint.d/` | Scripts the stock nginx entrypoint runs before nginx starts; `15-real-ip.sh` renders the real-client-IP trust — see "`docker/nginx/docker-entrypoint.d/15-real-ip.sh`" below. |
 | `bin/db-backup.sh` (repo root) | Host-side backup of every labelled database container — see "`bin/db-backup.sh`" below. |
 | `php/smoke/` | The smoke-test module's **committed source**. Never ignored anywhere — if you ever see an ignore rule that would catch it, that's a bug; stop and report it. |
 
@@ -287,6 +288,10 @@ when docker's value must differ from that base.
   ports on every interface; the compose `${PUBLISH_IP:+${PUBLISH_IP}:}` form
   drops the prefix entirely when empty, which is what keeps the
   all-interfaces default.
+- `NGINX_TRUSTED_PROXIES`/`NGINX_REAL_IP_HEADER` — reach nginx only through
+  its compose `environment:` block, both defaulted empty there; the header's
+  `X-Forwarded-For` default lives in `15-real-ip.sh` (section below), not
+  compose. Runtime, not build args: recreate nginx to apply.
 - `CGROUP_PARENT` — empty = Docker's default placement. A slice name under
   the `systemd` cgroup driver, a path under `cgroupfs`.
 - `MYSQL_*`/`MARIADB_*`/`POSTGRES_*` limits and engine knobs — bundled db
@@ -450,6 +455,56 @@ sequence. If compose ever adds a `user:` override on these services, both
 steps start failing and fresh-volume ownership needs a different fix —
 don't add `user:` to `valkey-state`/`valkey-cache` without revisiting this
 script first.
+
+## `docker/nginx/docker-entrypoint.d/15-real-ip.sh` — runtime real-IP trust
+
+The trust list is a per-deployment topology fact, so it is rendered at
+start rather than baked: one image serves every topology, and fixing the
+list is a recreate, not a rebuild. The script writes
+`/var/cache/nginx/real_ip.conf` (`.tmp` then `mv`) on the existing tmpfs,
+so the read-only rootfs stays; `nginx.conf` includes that file. It always
+writes `real_ip_header` and `real_ip_recursive on`, and one
+`set_real_ip_from` per entry — with no entries nothing is trusted, and the
+headers are ignored.
+
+What it depends on in the stock image's `/docker-entrypoint.sh` — re-check
+on an nginx bump:
+
+- The scripts run only when the command's first word is `nginx` or
+  `nginx-debug`. Any other command skips the render, and nginx (if started
+  some other way) fails on the missing include.
+- A script without the exec bit is skipped with "Ignoring …, not
+  executable", hence `COPY --chmod=755`. A checkout's file modes never
+  matter.
+- The scripts run inside a `find | sort | while` pipe under `set -e`; the
+  script's `exit 1` stops the container before nginx starts. The stock
+  `15-local-resolvers.envsh` shares the prefix; the names differ, so no
+  clash.
+
+Choices the code can't explain:
+
+- **The header default (`X-Forwarded-For`) lives in the script, not
+  compose.** Compose passes `${NGINX_REAL_IP_HEADER:-}`. A server running
+  its own compose copy without the nginx `environment:` block, under a new
+  image, then still starts — trusting no proxy — instead of failing. Never
+  move the default into compose alone, and never make an empty header
+  fatal. nginx's own default would be `X-Real-IP`: on a multi-hop chain an
+  inner hop's `X-Real-IP` is the previous hop.
+- **Validation is a charset check, fatal on failure**
+  (`[0-9a-fA-F:./]` per entry, `[0-9A-Za-z_-]` for the header); nginx
+  re-validates the addresses itself at start. `set -f` keeps an entry like
+  `*` from expanding to file names before the check.
+- **CI3's `proxy_ips` stays `''`** (`application/config/config.php`).
+  nginx already substituted `REMOTE_ADDR`; setting it too would make CI3
+  re-parse forwarded headers PHP should never trust.
+- **`app.conf` has no `/status`/`/ping` location.** An `allow` list there
+  matches the substituted address: with trust-none behind a proxy, every
+  external client arrives from the proxy's private address, and a
+  single-value header from an edge that doesn't overwrite it can claim
+  `127.0.0.1`. FPM serves its status only when `SCRIPT_NAME` equals the
+  pool's `pm.status_path`, and the PHP location always sends `/index.php`,
+  so nothing else reaches it. How a server enables monitoring is in
+  `docker-server.md`.
 
 ## `docker/postgres/entrypoint.sh` — the root wrapper and the init marker
 

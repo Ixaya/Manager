@@ -1,11 +1,5 @@
 # 1. Line Ending Configurations
-*.sh  text eol=lf
-*.php text eol=lf
-*.js   text eol=lf
-*.css  text eol=lf
-*.json text eol=lf
-*.yml  text eol=lf
-*.yaml text eol=lf
+* text=auto eol=lf
 
 # 2. Composer / Git Export Ignores
 /extras     export-ignore
