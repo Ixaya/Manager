@@ -512,8 +512,19 @@ covers the PHP and nginx side.
 
 FPM defaults to `pm=dynamic` (`PHP_PM_MODE=ondemand` frees idle workers)
 with `pm.max_children` from `PHP_PM_MAX_CHILDREN` (20 dev / 50 prod
-reference). Both are **build args** — baked into the pool at image build
-time — so changing them requires a rebuild, not a restart.
+reference). PHP's `memory_limit` comes from `PHP_MEMORY_LIMIT` for the `php`
+service and `PHP_CLI_MEMORY_LIMIT` for `ws`/`cron`/`cli` (256M each). All
+four apply on recreate (`up -d --force-recreate php`), no rebuild. A CLI job
+started from `php` — an async job, `RUN_MIGRATIONS`, or `exec php …
+cli_run.sh` — inherits the `php` value, not the CLI one. The entrypoint
+refuses to start `php` or `ws` on an invalid value; `cron`/`cli` don't run
+it, so `php` logs a warning about a bad `PHP_CLI_MEMORY_LIMIT` at start.
+
+Request body size is a project requirement, not a server knob, so it stays
+baked: nginx's `client_max_body_size` and PHP's
+`upload_max_filesize`/`post_max_size` (32M) are one setting in two files.
+Size them to the project's real uploads, change both together, and rebuild
+— the smaller one wins.
 
 Size `PHP_MEM_LIMIT` from **measured** average worker RSS, not from PHP's
 `memory_limit` (256M is a per-request ceiling, not a sizing input):

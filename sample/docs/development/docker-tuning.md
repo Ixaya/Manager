@@ -203,8 +203,7 @@ above it is wasted; far below it, reads go to disk.
   128 MB` of OPcache shared memory (see `docker.md`, "Resource limits &
   tuning"). `PHP_PM_MODE=ondemand` forks workers per request and ends them
   after 10s idle, so an idle site holds none; `dynamic` (the default) keeps
-  spares warm and answers bursts faster. Both are build args — rebuild to
-  change them.
+  spares warm and answers bursts faster. Both apply on recreate, no rebuild.
 - **nginx.** ~15 MiB idle; memory follows open connections. Long-lived
   WebSockets are the main driver.
 - **Valkey.** `valkey-cache` needs its dataset plus a little overhead: it

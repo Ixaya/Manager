@@ -118,7 +118,7 @@ optional:
 - **The app identity is compose-only: one `user:` on `*app-image`, no build
   arg, no pool `user`/`group`.** A new service on `*app-image` inherits it;
   never give one its own `user:`, and never re-add `user =`/`group =` to the
-  pool template — a non-root FPM master can't switch users anyway. The build
+  pool — a non-root FPM master can't switch users anyway. The build
   runs `php-fpm -t -R` only because that step is root and FPM refuses to
   validate a user-less pool as root.
 - **`init` is the only root step, and it mounts only `manager-logs`.** Every
@@ -266,9 +266,9 @@ when docker's value must differ from that base.
 
 `sample.docker.env`:
 
-- `PHP_PM_MAX_CHILDREN` — BUILD arg (rebuild to change); 20 dev / 50 prod
-  reference. Size `PHP_MEM_LIMIT` from MEASURED worker RSS (`docker.md`
-  tuning section).
+- `PHP_PM_MAX_CHILDREN` — runtime, takes effect on recreate; 20 dev / 50
+  prod reference. The entrypoint derives start/spares from it. Size
+  `PHP_MEM_LIMIT` from MEASURED worker RSS (`docker.md` tuning section).
 - `HEALTHCHECK_INTERVAL` — steady-state interval for every service's
   healthcheck; takes effect on recreate, no rebuild. Docker probes every 5s
   during each `start_period` regardless, so `depends_on: service_healthy`
@@ -276,9 +276,13 @@ when docker's value must differ from that base.
   nothing restarts an unhealthy container — the status only feeds
   `docker ps` and any external monitor. FPM keeps `/ping` out of its access
   log (`access.suppress_path`), so the interval carries no log cost.
-- `PHP_PM_MODE` — BUILD arg, `dynamic` or `ondemand`; anything else fails
-  the build. The start/spare values rendered into the pool apply to
-  `dynamic` only.
+- `PHP_PM_MODE` — runtime, `dynamic` or `ondemand`; anything else and the
+  entrypoint refuses to start `php`. The derived start/spare values apply
+  to `dynamic` only.
+- `PHP_MEMORY_LIMIT` (`php`) / `PHP_CLI_MEMORY_LIMIT` (`ws`, `cron`, `cli`)
+  — runtime, PHP's `memory_limit`. Compose passes the CLI value to the
+  three CLI services as `PHP_MEMORY_LIMIT`, which `10-app.ini` reads, and
+  to `php` under its own name only so its entrypoint can warn about it.
 - `NGINX_NOFILE` — container FD ceiling; must stay ≥ nginx.conf
   `worker_rlimit_nofile`, raise both together.
 - `HTTP_PORT`/`WS_PORT` — select the ports addon: either one non-empty
@@ -364,9 +368,21 @@ other secret-bearing file here.
   stage has no composer.** Both descend from `php-base`. Never collapse
   this back into a single stage — that reintroduces the composer binary and
   its cache (~114MB) into the runtime image.
-- **The FPM pool `ARG`/`COPY`/render block sits at the end of `php-app`.**
-  Keeping it last means changing `PHP_PM_MAX_CHILDREN` re-runs only the
-  small render, not the big copies.
+- **`www.conf` and `10-app.ini` read their tunables as `${VAR:-default}`,
+  and an empty value does not fall back.** FPM refuses an empty
+  `pm.max_children`; PHP warns on an empty or invalid `memory_limit` and
+  runs at 128M. So compose always passes `${VAR:-default}` (never empty),
+  the default lives in both compose and the file — change both — and the
+  entrypoint validates the memory format, which PHP itself only warns on.
+- **The `conf.d/` and `fpm.d/` `COPY`s carry `--chmod=644`.** A `COPY`
+  takes the build context's file mode, so a checkout made under umask 077
+  bakes `0600` files the app identity can't read — and PHP skips an
+  unreadable scanned ini without a warning. `644` on a directory `COPY` is
+  safe only while the source holds no subdirectories (they'd lose `x`).
+- **Request body size is one setting in two files.** nginx.conf's
+  `client_max_body_size` and `10-app.ini`'s
+  `upload_max_filesize`/`post_max_size` stay baked: change them together
+  and rebuild, or the smaller one wins.
 - **`.dockerignore`'s `docker/` allowlist is scoped to exactly the subdirs
   the Dockerfile `COPY`s** (`docker/php/`, `docker/nginx/`). Never widen it
   to a blanket `!docker/` — that reintroduces `docker/secrets/` and
@@ -403,7 +419,7 @@ other secret-bearing file here.
   only to make interval/timeout/retries configurable without a rebuild — a
   Dockerfile `HEALTHCHECK` can't be partially overridden, so the probe
   command is duplicated in both places. Change one → change both.
-- **`docker/php/fpm.d/www.conf.template`'s `request_terminate_timeout`
+- **`docker/php/fpm.d/www.conf`'s `request_terminate_timeout`
   must stay above `docker/nginx/conf.d/app.conf`'s `fastcgi_read_timeout`**
   (65s vs 60s). `max_execution_time` only counts CPU time — a worker
   blocked on slow I/O runs past it; `request_terminate_timeout` is the real
@@ -413,7 +429,7 @@ other secret-bearing file here.
   up to 3600s; without this, a reload leaves the old worker generation
   alive for the longest connection's lifetime — up to an hour of doubled
   workers.
-- **`docker/php/fpm.d/www.conf.template`'s `access.format` reads
+- **`docker/php/fpm.d/www.conf`'s `access.format` reads
   `%{REQUEST_URI}e`/`%{REMOTE_ADDR}e`, never `%r`/`%R`.** nginx rewrites
   every URL to `/index.php?/<path>`, which leaves FPM's own `%r` empty for
   every request, and `%R` is always the nginx container. Both env values

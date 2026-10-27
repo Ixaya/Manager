@@ -78,9 +78,6 @@ services:
       dockerfile: docker/Dockerfile
       target: php-app
       args:
-        # Baked in at build time — changing this value rebuilds the image.
-        PHP_PM_MAX_CHILDREN: ${PHP_PM_MAX_CHILDREN:-20}
-        PHP_PM_MODE: ${PHP_PM_MODE:-dynamic}
         # Bakes the opt-in smoke-test module into the image; false by default.
         INCLUDE_SMOKE_MODULE: ${INCLUDE_SMOKE_MODULE:-false}
     restart: unless-stopped
@@ -89,6 +86,14 @@ services:
       # Non-secret runtime knobs. App SECRETS come from the mounted .env.priv.
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
       WAIT_FOR_DB:    ${WAIT_FOR_DB:-false}
+      # PHP limits, applied on recreate. Never pass an empty value (PHP and
+      # FPM don't fall back on empty), so each keeps its default here, in
+      # sync with www.conf / 10-app.ini. php doesn't use the CLI limit; it
+      # gets it so its entrypoint warns early about ws/cron/cli's value.
+      PHP_PM_MODE:          ${PHP_PM_MODE:-dynamic}
+      PHP_PM_MAX_CHILDREN:  ${PHP_PM_MAX_CHILDREN:-20}
+      PHP_MEMORY_LIMIT:     ${PHP_MEMORY_LIMIT:-256M}
+      PHP_CLI_MEMORY_LIMIT: ${PHP_CLI_MEMORY_LIMIT:-256M}
     volumes:
       - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
       - manager-logs:/var/log/manager
@@ -220,6 +225,7 @@ services:
     environment:
       RUN_MIGRATIONS: "false"
       WAIT_FOR_DB:    ${WAIT_FOR_DB:-false}
+      PHP_MEMORY_LIMIT: ${PHP_CLI_MEMORY_LIMIT:-256M}
     volumes:
       - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
       - manager-logs:/var/log/manager
@@ -252,6 +258,7 @@ services:
     command: ["/etc/supercronic/crontab"]
     environment:
       RUN_MIGRATIONS: "false"
+      PHP_MEMORY_LIMIT: ${PHP_CLI_MEMORY_LIMIT:-256M}
     volumes:
       - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
       - ./cron/crontab:/etc/supercronic/crontab:ro
@@ -283,6 +290,7 @@ services:
     tty: true
     environment:
       RUN_MIGRATIONS: "false"
+      PHP_MEMORY_LIMIT: ${PHP_CLI_MEMORY_LIMIT:-256M}
     volumes:
       - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
       - manager-logs:/var/log/manager

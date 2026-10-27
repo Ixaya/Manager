@@ -74,8 +74,10 @@ RUN set -eux; \
 # over these defaults, not the other way around.
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
-# PHP runtime configuration (php.ini overrides + opcache).
-COPY docker/php/conf.d/  /usr/local/etc/php/conf.d/
+# PHP runtime configuration (php.ini overrides + opcache). --chmod because the
+# build context's mode is copied as-is, and PHP silently skips an unreadable
+# scanned ini; 644 is safe only while conf.d/ holds no subdirectories.
+COPY --chmod=644 docker/php/conf.d/  /usr/local/etc/php/conf.d/
 
 WORKDIR /var/www/html
 
@@ -130,35 +132,17 @@ RUN --mount=type=bind,source=docker/php/smoke,target=/mnt/smoke \
         echo "INCLUDE_SMOKE_MODULE=true: baked docker/php/smoke into application/modules/smoke"; \
     fi
 
-# FPM pool: {{PM_*}} placeholders rendered here at build time from
-# PHP_PM_MAX_CHILDREN/PHP_PM_MODE, baking an immutable pool for the read-only rootfs.
+# FPM pool: PM values are ${VAR:-default} placeholders FPM reads from the
+# environment at start, so resizing needs a recreate, not a rebuild. The
+# build-time test runs with them unset, validating the shipped defaults.
 # No user/group in the pool: compose starts the container as APP_USER, so
 # FPM has no privilege to drop. -R is needed only because this build step
 # runs as root and FPM refuses to validate a user-less pool as root.
-ARG PHP_PM_MAX_CHILDREN=20
-ARG PHP_PM_MODE=dynamic
-COPY docker/php/fpm.d/www.conf.template /tmp/www.conf.template
-COPY docker/php/fpm.d/zz-global.conf    /usr/local/etc/php-fpm.d/zz-global.conf
+COPY --chmod=644 docker/php/fpm.d/www.conf       /usr/local/etc/php-fpm.d/www.conf
+COPY --chmod=644 docker/php/fpm.d/zz-global.conf /usr/local/etc/php-fpm.d/zz-global.conf
 RUN set -eux; \
-    mc="${PHP_PM_MAX_CHILDREN}"; \
-    case "$mc" in ''|*[!0-9]*) echo "PHP_PM_MAX_CHILDREN must be a positive integer (got '$mc')"; exit 1;; esac; \
-    [ "$mc" -ge 1 ] || { echo "PHP_PM_MAX_CHILDREN must be >= 1"; exit 1; }; \
-    mode="${PHP_PM_MODE}"; \
-    case "$mode" in dynamic|ondemand) ;; *) echo "PHP_PM_MODE must be dynamic or ondemand (got '$mode')"; exit 1;; esac; \
-    min=$(( mc / 4 )); if [ "$min" -lt 1 ]; then min=1; fi; \
-    max=$(( mc / 2 )); if [ "$max" -lt "$min" ]; then max="$min"; fi; \
-    start=$(( min + (max - min) / 2 )); if [ "$start" -lt 1 ]; then start=1; fi; \
-    sed \
-      -e "s/{{PM_MODE}}/$mode/g" \
-      -e "s/{{PM_MAX_CHILDREN}}/$mc/g" \
-      -e "s/{{PM_START_SERVERS}}/$start/g" \
-      -e "s/{{PM_MIN_SPARE}}/$min/g" \
-      -e "s/{{PM_MAX_SPARE}}/$max/g" \
-      /tmp/www.conf.template > /usr/local/etc/php-fpm.d/www.conf; \
-    rm -f /tmp/www.conf.template \
-          /usr/local/etc/php-fpm.d/www.conf.default \
+    rm -f /usr/local/etc/php-fpm.d/www.conf.default \
           /usr/local/etc/php-fpm.d/zz-docker.conf; \
-    echo "Baked FPM pool: pm=$mode pm.max_children=$mc start=$start spare=$min-$max"; \
     php-fpm -t -R
 
 COPY --chmod=755 docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh

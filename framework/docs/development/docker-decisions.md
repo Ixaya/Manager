@@ -224,16 +224,23 @@ Why: `phpspreadsheet`/`pkpass`/`zipstream` (already-used app dependencies)
 hard-require them — composer's platform check fails the build without them.
 Revisit when: never, unless those app dependencies are dropped.
 
-**FPM pool baked at build time, not rendered at runtime.**
-Decision: `PHP_PM_MAX_CHILDREN` is a build arg (`www.conf` is rendered
-during `docker build`, not by the entrypoint).
-Why: this lets `php` run with a **read-only rootfs** (nothing needs to
-write pool config at runtime) — same posture as `nginx` and `valkey`.
-Cost: resizing the pool needs a rebuild
-(`./docker_manage.sh -e <instance> build`),
-not just a restart — see the shipped docker.md tuning section.
-Revisit when: never, unless the pool needs to resize without a rebuild
-(would require reintroducing a writable rootfs for `php`).
+**FPM pool and `memory_limit` read from the environment at start, not baked.**
+Decision: `www.conf` and `10-app.ini` ship as plain files with PHP's
+`${VAR:-default}` placeholders (`PHP_PM_MODE`, `PHP_PM_MAX_CHILDREN`,
+`PHP_MEMORY_LIMIT`); compose sets them per service, and the entrypoint
+validates them and derives the spare counts. Replaces a build-time render
+of the pool (2026-10).
+Why: the build-time render rested on a false premise — that a runtime pool
+needs a writable rootfs. PHP and FPM expand the placeholders themselves, so
+nothing is written at start and `php` keeps its read-only rootfs. It also
+means one image serves every instance, which matters when images are built
+off the server and pulled: a pulled image could not be resized at all.
+Rejected: rendering the pool into a world-writable tmpfs at start (a
+writable config dir, and `sed` on unvalidated values).
+Cost: an empty value doesn't fall back to the default (verified on 8.4), so
+compose always passes `${VAR:-default}` and each default lives in both
+compose and the file.
+Revisit when: a knob is needed that PHP's placeholder syntax can't express.
 
 **`DB_NAME`/`DB_USER`: no fallback value in compose; the postgres wrapper
 refuses them empty, mysql/mariadb accept it.**
