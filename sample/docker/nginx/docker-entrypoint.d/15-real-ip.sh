@@ -2,7 +2,8 @@
 # Renders the real-client-IP trust that nginx.conf includes, at every start:
 # NGINX_TRUSTED_PROXIES (space/comma list of addresses or CIDRs; empty = trust
 # no proxy, the client IP is the TCP peer) and NGINX_REAL_IP_HEADER (default
-# X-Forwarded-For). An invalid value exits 1, so nginx never starts with it.
+# X-Forwarded-For). The same list decides whose X-Forwarded-Proto is honored.
+# An invalid value exits 1, so nginx never starts with it.
 set -eu
 # An entry like '*' must reach the charset check, not expand to file names.
 set -f
@@ -32,6 +33,14 @@ done
     done
     printf 'real_ip_header %s;\n' "$header"
     printf 'real_ip_recursive on;\n'
+    # Gates X-Forwarded-Proto in nginx.conf. Keyed on the TCP peer, not the
+    # substituted client address, so a forged X-Forwarded-For can't pass it.
+    printf 'geo $realip_remote_addr $from_trusted_proxy {\n'
+    printf '    default 0;\n'
+    for entry in $proxies; do
+        printf '    %s 1;\n' "$entry"
+    done
+    printf '}\n'
 } > "$CONF.tmp"
 mv "$CONF.tmp" "$CONF"
 

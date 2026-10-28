@@ -6,7 +6,8 @@ Everything else in a minor release is additive.
 ### nginx trusts no proxy by default: set `NGINX_TRUSTED_PROXIES` before deploying the new image
 
 Reaches a project when it reconciles `docker/Dockerfile`,
-`docker/nginx/nginx.conf`, `docker/nginx/conf.d/app.conf`, the new
+`docker/nginx/nginx.conf`, `docker/nginx/conf.d/app.conf`,
+`docker/nginx/conf.d/ws.conf`, the new
 `docker/nginx/docker-entrypoint.d/15-real-ip.sh`, `docker/docker-compose.yml`
 and `docker/env/sample.docker.env`; `composer update` alone changes nothing.
 nginx's configs are baked into the image, so on a server the change lands
@@ -39,6 +40,15 @@ What an existing project does:
   address in a range is a proxy you run. `docs/development/docker-server.md`,
   "Server readiness", covers multi-hop chains and single-value CDN headers,
   where the edge must accept only the CDN's ranges or overwrite the header.
+- **The forwarded scheme follows the same list.** nginx used to honor
+  `X-Forwarded-Proto` and `Front-End-Https` from any peer, so anyone reaching
+  nginx past the edge could make `is_https()` return true. Now
+  `X-Forwarded-Proto: https` sets `HTTPS=on` only when the peer is on
+  `NGINX_TRUSTED_PROXIES`, and neither raw header reaches PHP or the WebSocket
+  server. With the list empty, a TLS-terminating proxy looks like plain HTTP
+  to the app: `force_https` refuses every request, and secure CSRF cookies
+  are not sent. Code that read
+  `$_SERVER['HTTP_X_FORWARDED_PROTO']` directly calls `is_https()` instead.
 - **FPM's `/status` and `/ping` no longer pass through nginx**; both now
   reach the app, which answers 404. The healthchecks never used them. A
   monitor that polled them over HTTP connects over FastCGI to `php:9000`

@@ -481,7 +481,14 @@ list is a recreate, not a rebuild. The script writes
 so the read-only rootfs stays; `nginx.conf` includes that file. It always
 writes `real_ip_header` and `real_ip_recursive on`, and one
 `set_real_ip_from` per entry — with no entries nothing is trusted, and the
-headers are ignored.
+headers are ignored. It also writes `geo $realip_remote_addr
+$from_trusted_proxy` from the same entries, which `nginx.conf` uses to honor
+`X-Forwarded-Proto` only from a listed peer. It is keyed on
+`$realip_remote_addr`, the TCP peer: `$remote_addr` is already the
+substituted client address, so a trusted proxy forwarding any client would
+fail the check. `app.conf` and `ws.conf` blank `X-Forwarded-Proto` and
+`Front-End-Https` toward PHP and the WebSocket server, since CI3's
+`is_https()` would otherwise trust the raw headers from any peer.
 
 What it depends on in the stock image's `/docker-entrypoint.sh` — re-check
 on an nginx bump:

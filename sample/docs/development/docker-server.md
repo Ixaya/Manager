@@ -37,6 +37,10 @@
     edge accepts connections only from the CDN's published ranges, or
     overwrites any copy of the header the client sent, anyone who reaches
     the edge directly picks their own IP.
+  - The scheme is trusted from the same list: only a listed peer's
+    `X-Forwarded-Proto: https` tells the app the request was HTTPS. Behind
+    a TLS-terminating proxy with the list empty, `is_https()` is always
+    false.
 - **FPM's `/status` and `/ping` are not reachable through nginx.** The
   healthchecks don't use them. A monitor connects over FastCGI to
   `php:9000` (status path `/status`, ping `/ping`) from a container on the
