@@ -39,8 +39,11 @@ framework/docs/workspace/
 │   ├── proposals.md     index of 00-proposals/, a triage table (kind +
 │   │                    urgency + effort, grouped by urgency), `Proposed`
 │   │                    column is a real date, not an index to renumber
-│   └── proposals_priority.md  hand-curated "what's next" shortlist,
-│                        refreshed occasionally — not appended to per session
+│   ├── proposals_priority.md  hand-curated "what's next" shortlist,
+│   │                    refreshed occasionally — not appended to per session
+│   └── proposals_completed.md  closed proposals whose outcome leaves a
+│                        pointer behind (promotions, permanent records,
+│                        spin-offs) — not an index of the archive
 ├── 00-proposals/        one directory per parked item needing more than a title
 │   └── <item>/spec.md   the self-contained write-up proposals.md points at
 └── NN-section/          one numbered directory per domain
@@ -255,7 +258,8 @@ it in the same session. Once the operator has reviewed and committed,
 archive it the same way a campaign is archived: `tar cJf
 framework/docs/workspace/archive/00-proposals/<item>.tar.xz -C
 framework/docs/workspace/00-proposals <item>`, then delete the live directory and
-its `00-shared/proposals.md` row. Tar, not a plain move: `.gitignore`
+its `00-shared/proposals.md` row, logging it in `proposals_completed.md` if
+it leaves a pointer behind. Tar, not a plain move: `.gitignore`
 already keeps a plain file in `framework/docs/workspace/` out of a keyword grep, but
 a raw directory listing (`find`, a Glob-style search) doesn't consult
 `.gitignore` at all, and a direct `Read` doesn't either — an agent that

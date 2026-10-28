@@ -110,8 +110,8 @@ placement" decision tree in `docker-internals.md`.
 | _(core)_ | `init` | One-shot: owns the log volume to `APP_USER`, then exits | Yes |
 | `ws` | `ws` | WebSocket server (internal :9008, published via nginx :8080) | Yes |
 | `cron` | `cron` | supercronic runs `docker/cron/crontab` | Yes |
-| `mysql` | `mysql` | MySQL — Aurora-compatible, use when parity with the server matters | No — dev/local only |
-| `mariadb` | `mariadb` | MariaDB — lighter local alternative, NOT Aurora-compatible | No — dev/local only |
+| `mysql` | `mysql` | MySQL 8 — use when parity with a MySQL 8 server matters | No — dev/local only |
+| `mariadb` | `mariadb` | MariaDB — lighter local alternative, no MySQL 8 server parity | No — dev/local only |
 | `postgres` | `postgres` | PostgreSQL — supported for small server instances; a managed database at scale | Yes, small sites |
 | `cli` | `cli` | Interactive shell / one-off commands | As needed |
 | `tools` | `tools` | composer / PHPStan / PHPUnit — the only supported way to run them, host tree bind-mounted in; exists only through its addon (below) | No — dev only |
@@ -557,16 +557,18 @@ the FPM pool has no `user`/`group` of its own, so its master runs as the
 identity too — and every `exec`/`run` inherits it without a `-u` flag.
 
 Override it only when your storage is shared with something outside this
-stack that already owns files under a different, fixed uid/gid — an
-NFS/EFS mount also written by non-container processes, for example — where
-reowning that storage isn't an option and the container's identity has to
-match instead. Either form works:
+stack that already owns files under a different, fixed uid/gid (a
+network mount also written by processes outside the containers, for
+example), where reowning that storage isn't an option and the container's
+identity has to match instead. Either form works:
 
 - **Numeric** (`APP_USER=1001`, `APP_GROUP=1001`) — needs no user entry in
   the image. `HOME` is `/` and `log_check` reports `no passwd entry
   (uid 1001)` — cosmetic only.
 - **Named** — the name must already exist in the image, so a custom one
-  means adding it in your own Dockerfile, before the `php-app` stage.
+  means adding it in your own Dockerfile, before the `php-app` stage. A
+  custom named `APP_GROUP` must be added to the `nginx-app` stage too,
+  since nginx runs with the same group; a numeric one needs neither.
 
 **The `init` service** is the stack's only root step. It runs before the
 four services on every `up` (and before every `run --rm cli`), creates the
@@ -583,10 +585,19 @@ doing so is exactly what breaks a shared legacy mount. `<instance>.priv.env`
 is a bind mount too: the `chmod 600` in "Your own instance" works only while
 `APP_USER` owns the file; otherwise make it `root:<APP_GID>`, mode `0640`.
 
-**nginx reads media as "other".** Its workers run as the image's own `nginx`
-user (uid 101), not `APP_USER`. Uploads the app writes are world-readable
-(`0644` files, `0755` directories), so this normally just works; a media
-tree kept owner-only (`0750`, say) returns 403 for every static file.
+**nginx reads media through `APP_GROUP`.** nginx runs unprivileged as
+uid 101 (the image's `nginx` user, set by the image itself) with
+`APP_GROUP` as its group, set by its own compose `user:`. Nothing in it
+runs as root, so there is no root master to reset the workers' groups. It
+binds `:80` through Docker's per-container unprivileged-port setting,
+which a container under `network_mode: host` doesn't get, so nginx can't
+run on the host network. nginx is never the owner, and its
+media mount stays read-only. Uploads the app writes are world-readable
+(`0644` files, `0755` directories), so the default needs nothing. A tree
+kept from other users works as long as it is group-readable: a `0750`
+media root with `0640` files serves. A file only its owner can read
+(`0600`) returns 403. The root's mode alone keeps app-written `0755`/`0644`
+entries from host users outside the group, since they can't traverse it.
 
 **`docker exec` takes the daemon's umask, not the container's.** Services
 and `run` get `0022`, but an `exec`'d process inherits whatever umask

@@ -374,11 +374,19 @@ other secret-bearing file here.
   runs at 128M. So compose always passes `${VAR:-default}` (never empty),
   the default lives in both compose and the file — change both — and the
   entrypoint validates the memory format, which PHP itself only warns on.
-- **The `conf.d/` and `fpm.d/` `COPY`s carry `--chmod=644`.** A `COPY`
+- **The `conf.d/` and `fpm.d/` `COPY`s carry `--chmod=644`**, and so do
+  nginx's `nginx.conf` and `conf.d/`. A `COPY`
   takes the build context's file mode, so a checkout made under umask 077
   bakes `0600` files the app identity can't read — and PHP skips an
-  unreadable scanned ini without a warning. `644` on a directory `COPY` is
+  unreadable scanned ini without a warning (non-root nginx refuses to
+  start instead). `644` on a directory `COPY` is
   safe only while the source holds no subdirectories (they'd lose `x`).
+- **nginx is never root, so every path it writes is uid 101's.** The image
+  sets `USER 101`; compose's `user:` keeps that uid and sets the group. A
+  tmpfs keeps the mode of the image directory it covers but is always
+  owned by root, so a `chown` in the Dockerfile doesn't reach it: hence the
+  `uid=101,mode=0700` option on `/var/cache/nginx`. The pid file lives in
+  `/tmp`, the one `1777` tmpfs. A new write path needs the same.
 - **Request body size is one setting in two files.** nginx.conf's
   `client_max_body_size` and `10-app.ini`'s
   `upload_max_filesize`/`post_max_size` stay baked: change them together

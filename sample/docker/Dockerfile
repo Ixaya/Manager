@@ -163,14 +163,17 @@ FROM nginx:1.30.6-alpine3.24 AS nginx-app
 
 COPY --from=php-app /var/www/html/public /var/www/html/public
 
-COPY docker/nginx/nginx.conf   /etc/nginx/nginx.conf
+# --chmod: the context's mode is copied as-is, and non-root nginx can't read
+# a 0600 config. 644 is safe only while conf.d/ holds no subdirectories.
+COPY --chmod=644 docker/nginx/nginx.conf   /etc/nginx/nginx.conf
 RUN rm -f /etc/nginx/conf.d/default.conf
-COPY docker/nginx/conf.d/      /etc/nginx/conf.d/
+COPY --chmod=644 docker/nginx/conf.d/      /etc/nginx/conf.d/
 # Run by the stock /docker-entrypoint.sh before nginx; it skips any script
 # without the exec bit, which would leave nginx.conf's include missing.
 COPY --chmod=755 docker/nginx/docker-entrypoint.d/ /docker-entrypoint.d/
 
-# HTTP on :80, WebSocket vhost on :8080. Master runs as root (stock image
-# behavior, needed to bind :80); workers drop to the nginx user.
+# HTTP on :80, WebSocket vhost on :8080. Never root, even without compose,
+# whose `user:` keeps uid 101 and sets the group to APP_GROUP.
+USER 101
 EXPOSE 80 8080
 CMD ["nginx", "-g", "daemon off;"]

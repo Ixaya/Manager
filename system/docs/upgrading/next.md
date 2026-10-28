@@ -54,6 +54,38 @@ What an existing project does:
   monitor that polled them over HTTP connects over FastCGI to `php:9000`
   instead, or the project re-adds a loopback-only location (same section).
 
+### nginx runs non-root and takes `APP_GROUP`
+
+Reaches a project when it reconciles `docker/Dockerfile`,
+`docker/nginx/nginx.conf`, `docker/docker-compose.yml` and
+`docker/env/sample.docker.env`; `composer update` alone changes nothing.
+The image and the compose file change together; neither starts with the
+other's previous version: the new image on the old compose exits on
+`real_ip.conf.tmp: Permission denied`, and the old image on the new compose
+exits on `open() "/var/run/nginx.pid" failed (30: Read-only file system)`.
+
+nginx used to start as root and drop its workers to the image's `nginx`
+user (101:101), so it read media as "other" and a media tree that "other"
+can't read returned 403. It now runs entirely as uid 101 with `APP_GROUP`
+as its group, so a group-readable tree (`0750` directories, `0640` files)
+serves. The default (`www-data`, gid 82) needs no change.
+
+- **Add nginx's `user: "101:${APP_GROUP:-www-data}"`, the
+  `/var/cache/nginx:uid=101,mode=0700` tmpfs, and remove the `/var/run`
+  tmpfs, in every compose file a server runs, before deploying the new
+  image.** Without the tmpfs options the image restart-loops on
+  `real_ip.conf.tmp: Permission denied`.
+- **Port the `--chmod=644` on nginx's `nginx.conf` and `conf.d/` `COPY`
+  lines, and the `USER 101` before its `EXPOSE`.** A config baked `0600`
+  from the checkout is unreadable to uid 101, and nginx restart-loops on
+  `open() "/etc/nginx/nginx.conf" failed (13: Permission denied)`.
+- **A custom named `APP_GROUP` must exist in the nginx image too**; add it
+  in the `nginx-app` stage, or use a numeric group.
+- `:80` binds through Docker's per-container
+  `ip_unprivileged_port_start=0` (Docker 20.10 or later), which a container
+  under `network_mode: host` doesn't get: nginx can't run on the host
+  network.
+
 ### Build context drops secrets and server data; `cron` mounts media, `ws` no longer mounts private
 
 Reaches a project when it reconciles `.dockerignore` and

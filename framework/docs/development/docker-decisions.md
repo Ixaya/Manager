@@ -570,6 +570,51 @@ inert.
 Revisit when: a service gains a mount that must be writable by the app
 identity but isn't a bind mount — it joins `init`'s mounts, not `group_add`.
 
+**nginx runs entirely non-root as `101:${APP_GROUP}`.**
+Decision: the `nginx-app` image sets `USER 101` and compose sets
+`user: "101:${APP_GROUP:-www-data}"`; no `user` directive, its pid in
+`/tmp`, a `/var/cache/nginx:uid=101,mode=0700` tmpfs, and `--chmod=644` on
+its config `COPY`s, so it reads media through the app's group without being
+its owner. The mount stays `:ro`.
+Why: with a root master, the worker switch calls `initgroups()`, which
+resets the extra groups to `/etc/group`'s entries for `nginx`. That drops
+any group Docker adds, so a group-readable media tree 403'd. Without a root
+master the switch never runs. `USER 101` is in the image so that a compose
+file without `user:` (an unreconciled server file, a bare `docker run`)
+fails loudly instead of starting a root master again.
+Trade-off, accepted: master and workers now share a uid. A compromised worker
+could rewrite `real_ip.conf` (its tmpfs is 101's) and signal a reload, or,
+where the host's Yama `ptrace_scope` is 0, attach to the master. Under a
+root master it could do neither. In exchange the container has no root
+process and `CapEff 0`, where the master used to hold Docker's default
+capabilities. The default (unset `APP_GROUP`) moves from root master plus
+`101:101` workers to `101:82` throughout, with the same trade-off. An
+`nginx-init` service rendering runtime config into a volume nginx mounts
+`:ro` closes the rewrite and is open as its own proposal.
+Rejected: `group_add` (it works now that no root master calls
+`initgroups()`, but adds a second key where `user:` already carries the
+group, as for the app services). nginx as `APP_USER` (owner identity on
+storage it only reads). `user nginx <group>;` under a root master (resolves
+names only, so a numeric `APP_GROUP` would need an `/etc/group` entry baked
+per identity; not run). Host-side ACLs on the media tree (per-server setup,
+not checkable by the framework). `cap_drop: [ALL]`, on the same grounds as
+for the app services above; revisiting it for every non-root service is
+open as its own proposal.
+Evidence: live-verified 2026-10-28. Master and workers `Uid 101`, `Gid 82`,
+`Groups 82`, `CapEff 0`; `ip_unprivileged_port_start` 0, `:80` and `:8080`
+listening; healthy; no `user`-directive warning. Media root `1234:82 0750`:
+a `0640` file 200, `0600` 403. An app-written upload 200; the WebSocket vhost
+answers `101 Switching Protocols`; `APP_GROUP=1234` (numeric, no entry in the
+image) healthy with gid 1234. With `USER 101`, the same checks again, plus:
+without `user:` master and workers run `101:101`, `CapEff 0`. New image on
+the old compose exits 1 on `real_ip.conf.tmp: Permission denied`; the old
+image on the new compose exits 1 on `open() "/var/run/nginx.pid" failed (30:
+Read-only file system)`. On macOS file sharing a `0600` file serves 200, so
+the media boundary was checked on Linux: `0640` 200 and `0600` 403 whether
+the owner is `1234` or the app's `82`, and both 403 as `101:101`.
+Revisit when: nginx needs another writable path. It must be 101's, so give
+it a tmpfs with the `uid` option or put it under `/tmp`.
+
 **`cli_run.sh` sets `umask 022` itself.**
 Decision: `docker/php/bin/cli_run.sh` runs `umask 022` before exec'ing PHP.
 Why: `docker exec` processes inherit the Docker daemon's umask, not the
