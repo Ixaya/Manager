@@ -159,7 +159,7 @@ with `printf`/`openssl` (no trailing newline), then:
 | `secrets/<instance>.db_root_password` | the image's entrypoint, still root | `root:root 0600` |
 | `secrets/<instance>.valkey_password` | the Valkey entrypoint, still root | `root:root 0600` |
 | `env/<instance>.priv.env` | php/ws/cron/cli as `APP_USER:APP_GROUP` | `root:<APP_GID> 0640` |
-| `MEDIA_PATH`, `PRIVATE_PATH` | php as `APP_USER`; nginx (uid 101) reads public media | `<APP_UID>:<APP_GID>`, `0755` / `0750` |
+| `MEDIA_PATH`, `PRIVATE_PATH` | php/cron/cli as `APP_USER`; nginx (uid 101) reads public media | `<APP_UID>:<APP_GID>`, `0755` / `0750` |
 | non-secret env files | compose, as the user running it | that user, `0640` |
 
 - **Run the app as a uid:gid of its own** (`APP_USER`/`APP_GROUP`), not the

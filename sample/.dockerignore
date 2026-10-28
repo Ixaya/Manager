@@ -4,10 +4,17 @@
 # Then allow specific folders
 !application/
 !public/
-!private/
 !bin/
 !patches/
-!docker/
+# Only the docker/ subdirs the Dockerfile reads — never all of docker/,
+# which holds secrets/ and env/*.priv.env
+!docker/php/
+!docker/nginx/
+
+# Server data, bind-mounted at runtime (private/ is never allowlisted)
+public/media/
+# Apache-only; the image serves through nginx
+public/.htaccess
 
 #  System files
 **/.DS_Store

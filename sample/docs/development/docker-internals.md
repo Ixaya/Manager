@@ -387,6 +387,11 @@ other secret-bearing file here.
   the Dockerfile `COPY`s** (`docker/php/`, `docker/nginx/`). Never widen it
   to a blanket `!docker/` — that reintroduces `docker/secrets/` and
   `docker/env/*.priv.env` into the build context.
+- **Server data never enters the build context.** `private/` is not
+  allowlisted and `public/media/` is excluded: both are bind-mounted at
+  runtime (`PRIVATE_PATH`, `MEDIA_PATH`), and `COPY public/` would otherwise
+  bake a checkout's uploads into both images. A service that touches either
+  store needs its mount — `cron` runs its jobs in-process, so it mounts both.
 - **`sockets` needs `linux-headers`** in the build-deps virtual package —
   without it `docker-php-ext-install sockets` fails on base Alpine.
 - **The stock `nginx` image ships its own `default.conf`** with a `:80`

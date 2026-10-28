@@ -229,7 +229,6 @@ services:
     volumes:
       - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
       - manager-logs:/var/log/manager
-      - ${PRIVATE_PATH:-../private}:/var/www/html/private
     tmpfs:
       - /tmp
     mem_limit: ${WS_MEM_LIMIT:-256m}
@@ -263,6 +262,7 @@ services:
       - ${APP_SECRETS_MOUNT:-./env/dev.priv.env}:/var/www/html/.env.priv:ro
       - ./cron/crontab:/etc/supercronic/crontab:ro
       - manager-logs:/var/log/manager
+      - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media
       - ${PRIVATE_PATH:-../private}:/var/www/html/private
     tmpfs:
       - /tmp

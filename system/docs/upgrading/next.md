@@ -54,6 +54,44 @@ What an existing project does:
   monitor that polled them over HTTP connects over FastCGI to `php:9000`
   instead, or the project re-adds a loopback-only location (same section).
 
+### Build context drops secrets and server data; `cron` mounts media, `ws` no longer mounts private
+
+Reaches a project when it reconciles `.dockerignore` and
+`docker/docker-compose.yml`; `composer update` alone changes nothing.
+
+The sample's `.dockerignore` allowlisted all of `docker/`, `private/` and
+`public/` whole, so every build sent each instance's secrets, env files and
+private file store to the builder — on a remote builder, uploaded on every
+build — and `COPY public/` baked the checkout's `public/media/` into both
+images, uploads included. The allowlist now takes only `docker/php/` and
+`docker/nginx/` from `docker/`, drops `private/`, and excludes
+`public/media/` and `public/.htaccess`.
+
+- Replace `!docker/` with `!docker/php/` and `!docker/nginx/`; remove
+  `!private/`; add `public/media/` and `public/.htaccess` as exclusions.
+- A project whose Dockerfile reads another `docker/<dir>` (a `COPY` or a
+  `--mount=type=bind`) allowlists that directory too, or the build fails
+  with a not-found error on that path.
+- **`cron` now mounts `MEDIA_PATH`**, read-write. Its jobs run inside the
+  `cron` container, which saw only the image's build-time copy of
+  `public/media` and could not write to it; once that copy is gone it has
+  no `public/media` at all. Add the mount to every compose file a server
+  runs before deploying the rebuilt image.
+- **`ws` no longer mounts `PRIVATE_PATH`**; the WebSocket server reads no
+  files. A project whose own WebSocket code reads `private/` keeps the
+  mount.
+- Images built before this change still carry whatever `public/media/` held
+  at build time; rebuild, and prune old tags from the registry if that
+  checkout held real uploads.
+
+### nginx no longer serves dotfiles under `/assets/` and `/media/`
+
+Reaches a project when it reconciles `docker/nginx/conf.d/app.conf`, with
+the rebuilt nginx image. The dotfile deny sat below the `/assets/` and
+`/media/` locations, and nginx takes the first matching regex location, so
+a dotfile under either path was served. It now comes first; a project that
+added its own regex locations above it moves the deny above those too.
+
 ### PHP image: `10-app.ini` may never have loaded; pool size and memory limit move to runtime
 
 Reaches a project when it reconciles `docker/Dockerfile`,
