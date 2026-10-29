@@ -169,3 +169,24 @@ the environment and apply on recreate, no rebuild:
 - The entrypoint refuses to start `php`/`ws` on an invalid value.
 - Request body size stays baked: nginx's `client_max_body_size` and PHP's
   `upload_max_filesize`/`post_max_size` change together, with a rebuild.
+
+### nginx leaves `appnet` for its own network, `frontnet`
+
+Reaches a project when it reconciles `docker/docker-compose.yml`;
+`composer update` alone changes nothing.
+
+nginx shared `appnet` with every service, so it could open connections to
+both Valkey services and the database. It now sits on a new bridge,
+`frontnet`, shared only with `php` and `ws`, which join both networks.
+`cron`, `cli`, Valkey and the databases stay on `appnet` only.
+
+- **Add the `frontnet` network, set nginx's `networks:` to `[frontnet]`,
+  and give `php` and `ws` their own `networks: [appnet, frontnet]`**, in
+  every compose file a server runs. Leave `x-app-image` at `[appnet]`: it
+  keeps `cron` and `cli` off `frontnet`. Never mark `frontnet`
+  `internal: true`; Docker then publishes none of nginx's ports.
+- **A proxy container, or any other container that reached nginx over
+  `appnet`, loses nginx with this deploy.** Before deploying, attach it to a
+  network of its own and add that network to nginx's `networks:`. Never use
+  `appnet` or `frontnet` for it: both reach FPM on `php:9000`, and FPM
+  applies PHP settings from any FastCGI client.

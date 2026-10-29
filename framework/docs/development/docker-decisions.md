@@ -1062,3 +1062,32 @@ mirrors three details of the image's entrypoint; the shipped
 `docker-internals.md` lists them for a re-check on every major.
 Revisit when: 19.0 is released (re-check the entrypoint against the
 wrapper before the pin moves), or the image gains an in-place upgrade path.
+
+**nginx is on `frontnet` only, shared with `php` and `ws`.**
+
+Decision: nginx joins one network, `frontnet`; `php` and `ws` join both
+`frontnet` and `appnet`; every other service stays on `appnet`. A proxy
+container reaches nginx through a network of its own added to nginx, never
+`appnet` or `frontnet`.
+
+Why: nginx is the only internet-facing application service and requires
+direct access to `php` and `ws`. Those hops are therefore part of the
+accepted application trust boundary. nginx has no reason to reach the
+database or Valkey services directly, so `frontnet` removes that unnecessary
+network path. Internal services that require application resources remain on
+`appnet`.
+
+Evidence: FPM does not provide a suitable authentication boundary for the
+nginx → PHP FastCGI hop. `listen.allowed_clients` requires IPv4 literals,
+which are unsuitable for dynamic Docker addressing. Live-verified 2026-10-29
+on postgres, with and without `ws`: from nginx, neither Valkey service nor
+the database resolves, while `php:9000` and `ws:9008` connect and the app
+and WebSocket vhosts answer; `php` and `cron` retain their Valkey and
+database access.
+
+Cost: a second network to keep in sync across compose copies; proxies attach
+through their own network.
+
+Revisit when: the nginx → PHP trust boundary can be further restricted
+without relying on container IP addresses, or another service becomes
+internet-facing.

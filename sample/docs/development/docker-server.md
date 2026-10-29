@@ -9,8 +9,11 @@
 ## Server readiness
 
 - **Publish only what the proxy needs.** A proxy that runs as a container
-  on a shared Docker network reaches nginx directly: delete `HTTP_PORT` and
-  `WS_PORT` from `<instance>.docker.env` and nothing is published. With a
+  reaches nginx directly over a Docker network of its own, added to nginx's
+  `networks:`. Never attach it to `appnet` or `frontnet`: both reach FPM on
+  `php:9000`, and FPM applies PHP settings from any FastCGI client. Then
+  delete `HTTP_PORT` and `WS_PORT` from `<instance>.docker.env` and nothing
+  is published. With a
   reverse proxy on the host itself, keep them and set
   `PUBLISH_IP=127.0.0.1`: Docker's published ports bypass the host
   firewall's INPUT rules, so an `HTTP_PORT` published on all interfaces is
@@ -43,8 +46,8 @@
     false.
 - **FPM's `/status` and `/ping` are not reachable through nginx.** The
   healthchecks don't use them. A monitor connects over FastCGI to
-  `php:9000` (status path `/status`, ping `/ping`) from a container on the
-  stack's network. Only if it must use HTTP, add a location to
+  `php:9000` (status path `/status`, ping `/ping`) from a container on
+  `appnet`. Only if it must use HTTP, add a location to
   `docker/nginx/conf.d/app.conf` that allows loopback or the monitor's exact
   address. `allow` matches the address after real-IP substitution, so never
   allow a range that contains a proxy:

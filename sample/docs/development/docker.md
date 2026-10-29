@@ -133,8 +133,9 @@ restore into a fresh volume. Valkey ports are **never** published; only nginx
 publishes `HTTP_PORT` (→ :80) and `WS_PORT` (→ :8080), through the ports
 addon (`docker/docker-compose.ports.yml`) that `docker_manage.sh` includes
 while either key is set in `<instance>.docker.env`. Delete both and nothing
-is published — a proxy container on the same Docker network reaches nginx
-directly.
+is published. A proxy container then reaches nginx over a network of its
+own, added to nginx's `networks:`, never over `appnet` or `frontnet`: both
+reach FPM on `php:9000` (`docker-server.md`, "Server readiness").
 
 ## Build and run
 
@@ -317,7 +318,7 @@ them.
 ```
 
 `run` targets the profile-gated service directly — no `--profile tools`
-needed — and `up` never starts it. `run` joins the instance's network, so
+needed — and `up` never starts it. `run` joins `appnet`, so
 DB-backed tests reach the db/valkey services with no extra wiring. On Linux
 hosts composer's writes (`vendor/`, an updated `composer.lock`) come out
 root-owned — `chown` them back if that gets in your workflow's way.

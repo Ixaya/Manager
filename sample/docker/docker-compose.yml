@@ -88,6 +88,7 @@ services:
         # Bakes the opt-in smoke-test module into the image; false by default.
         INCLUDE_SMOKE_MODULE: ${INCLUDE_SMOKE_MODULE:-false}
     restart: unless-stopped
+    networks: [appnet, frontnet]
     working_dir: /var/www/html
     environment:
       # Non-secret runtime knobs. App SECRETS come from the mounted .env.priv.
@@ -153,7 +154,7 @@ services:
       dockerfile: docker/Dockerfile
       target: nginx-app
     restart: unless-stopped
-    networks: [appnet]
+    networks: [frontnet]
     logging: *logging
     <<: [*security, *fleet]
     # Unprivileged, so workers read media through APP_GROUP; a named group
@@ -252,6 +253,7 @@ services:
   ws:
     <<: *app-image
     restart: unless-stopped
+    networks: [appnet, frontnet]
     working_dir: /var/www/html
     command: ["bash", "/var/www/html/bin/cli_run.sh", "manager", "websockets", "serve"]
     environment:
@@ -509,9 +511,14 @@ volumes:
   postgres-data:
 
 # ── Networks ──────────────────────────────────────────────────────────────────
-# Single private bridge, namespaced per instance via `-p <instance>`.
+# Private bridges, namespaced per instance via `-p <instance>`. appnet: app
+# services, Valkey, databases. frontnet: nginx (on nothing else), php, ws.
+# php/ws set networks: themselves; x-app-image stays appnet-only so cron and
+# cli stay off frontnet. Never `internal: true`: it unpublishes nginx.
 networks:
   appnet:
+    driver: bridge
+  frontnet:
     driver: bridge
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
