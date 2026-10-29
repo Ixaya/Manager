@@ -21,10 +21,10 @@
   `-f docker-compose.ports.yml` as well where the copy should publish.
 - **Set `NGINX_TRUSTED_PROXIES`** in `<instance>.docker.env` to every proxy
   between the client and nginx (addresses or CIDRs, space- or
-  comma-separated), then recreate nginx; no rebuild. Empty, the default,
+  comma-separated), then `up -d`; no rebuild. Empty, the default,
   trusts no proxy: no client can forge its IP, but behind a proxy every
   client is logged, locked out and rate-limited as the proxy's address. The
-  `[real-ip]` line in nginx's startup log shows what was applied. A proxy on
+  `[nginx-runtime]` line in `nginx-init`'s log shows what was applied. A proxy on
   the host reaches nginx through the published port, usually from the Docker
   network's gateway; the first field of nginx's access log shows the peer.
   - With the default header, `X-Forwarded-For`, list every hop: nginx reads
@@ -81,6 +81,12 @@
 - **Host kernel settings** for Valkey (`vm.overcommit_memory = 1`,
   transparent huge pages off) are in `docker.md`, "Resource limits &
   tuning".
+- **Set `kernel.yama.ptrace_scope` to 1 or higher on the host.** nginx's
+  master and workers share one uid, and at 0 a compromised worker can attach
+  to the master and change what nginx serves without touching a file. At 1
+  a process can trace only its own descendants; root keeps its access.
+  nginx logs a `[ptrace-scope] WARNING` at start while it is 0 or Yama is
+  absent.
 
 ## Bundled PostgreSQL as a production tier
 

@@ -7,8 +7,8 @@ Everything else in a minor release is additive.
 
 Reaches a project when it reconciles `docker/Dockerfile`,
 `docker/nginx/nginx.conf`, `docker/nginx/conf.d/app.conf`,
-`docker/nginx/conf.d/ws.conf`, the new
-`docker/nginx/docker-entrypoint.d/15-real-ip.sh`, `docker/docker-compose.yml`
+`docker/nginx/conf.d/ws.conf`, the new `docker/nginx/bin/nginx-runtime.sh`
+and `docker/nginx/docker-entrypoint.d/`, `docker/docker-compose.yml`
 and `docker/env/sample.docker.env`; `composer update` alone changes nothing.
 nginx's configs are baked into the image, so on a server the change lands
 with the **first deploy of the rebuilt image**, whatever its compose file
@@ -16,8 +16,10 @@ says.
 
 nginx used to trust `X-Forwarded-For` from every private range, so any
 client or container inside one could pick the IP the app logs, locks out
-and rate-checks against. The trust list is now rendered at every start
-from two variables, read from nginx's compose `environment:` block:
+and rate-checks against. The trust list is now rendered on every `up` by a
+new one-shot, `nginx-init`, into a volume nginx mounts read-only, from two
+variables both services read through the compose anchor
+`x-nginx-runtime-env`:
 
 - **`NGINX_TRUSTED_PROXIES`** — addresses or CIDRs of every proxy between
   the client and nginx, space- or comma-separated. **Empty, the default,
@@ -27,15 +29,22 @@ from two variables, read from nginx's compose `environment:` block:
 
 What an existing project does:
 
-- **Add the nginx `environment:` block to every compose file a server runs,
-  and set `NGINX_TRUSTED_PROXIES` there, before deploying the new image.**
-  A server whose copy lacks it still starts, trusting no proxy: behind a
+- **Add the `x-nginx-runtime-env` anchor, the `nginx-init` service, the
+  `nginx-runtime` volume (mounted `:ro` on nginx) and nginx's `depends_on`
+  entry for `nginx-init` to every compose file a server runs, and set
+  `NGINX_TRUSTED_PROXIES`, before deploying the new image.** Without
+  `nginx-init` the new image refuses to start (`no render in
+  /etc/nginx/runtime`). After an edit to either variable, apply it with
+  `up -d`, not `up -d --no-deps nginx`, which skips the render: nginx then
+  refuses the stale one rather than serving it.
+  A copy that has the service but not the variables still starts, trusting
+  no proxy: behind a
   proxy every client appears as the proxy's address in the nginx and FPM
   access logs, `api_log`, `login_attempt` and users' IPs; login lockout
   counts every failure for an identity from that one address, so failed
   attempts on a username lock it out for everyone; IP white/blacklists,
   `IP_ADDRESS` limits and `CACHE_BYPASS_IPS` see only the proxy. The
-  `[real-ip]` line in nginx's startup log shows what was applied.
+  `[nginx-runtime]` line in `nginx-init`'s log shows what was applied.
 - **List exact proxy addresses, not the old private ranges**, unless every
   address in a range is a proxy you run. `docs/development/docker-server.md`,
   "Server readiness", covers multi-hop chains and single-value CDN headers,
@@ -61,7 +70,7 @@ Reaches a project when it reconciles `docker/Dockerfile`,
 `docker/env/sample.docker.env`; `composer update` alone changes nothing.
 The image and the compose file change together; neither starts with the
 other's previous version: the new image on the old compose exits on
-`real_ip.conf.tmp: Permission denied`, and the old image on the new compose
+`no render in /etc/nginx/runtime`, and the old image on the new compose
 exits on `open() "/var/run/nginx.pid" failed (30: Read-only file system)`.
 
 nginx used to start as root and drop its workers to the image's `nginx`
@@ -74,7 +83,7 @@ serves. The default (`www-data`, gid 82) needs no change.
   `/var/cache/nginx:uid=101,mode=0700` tmpfs, and remove the `/var/run`
   tmpfs, in every compose file a server runs, before deploying the new
   image.** Without the tmpfs options the image restart-loops on
-  `real_ip.conf.tmp: Permission denied`.
+  `mkdir() "/var/cache/nginx/client_temp" failed (13: Permission denied)`.
 - **Port the `--chmod=644` on nginx's `nginx.conf` and `conf.d/` `COPY`
   lines, and the `USER 101` before its `EXPOSE`.** A config baked `0600`
   from the checkout is unreadable to uid 101, and nginx restart-loops on
@@ -85,6 +94,10 @@ serves. The default (`www-data`, gid 82) needs no change.
   `ip_unprivileged_port_start=0` (Docker 20.10 or later), which a container
   under `network_mode: host` doesn't get: nginx can't run on the host
   network.
+- **Set `kernel.yama.ptrace_scope` to 1 or higher on each server.** Master
+  and workers now share a uid; at 0 a compromised worker can attach to the
+  master. nginx logs `[ptrace-scope] WARNING` at start until it is set
+  (`docs/development/docker-server.md`, "Server readiness").
 
 ### Build context drops secrets and server data; `cron` mounts media, `ws` no longer mounts private
 

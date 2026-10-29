@@ -37,7 +37,7 @@ like it needs that pointer, the content belongs here instead.
 | `docker_manage.sh` (repo root) | The only supported entrypoint — computes per-instance file paths the compose file depends on. |
 | `env/sample.docker.env`, `env/sample.env`, `env/sample.priv.env`, `env/sample.agent.env` | The four committed templates (short comments by design — per-var background lives in "Env template notes" below). Every other file under `env/` is a per-instance, ignored instantiation. |
 | `postgres/entrypoint.sh`, `postgres/initdb/` | The `postgres` service's root wrapper and its init hooks — see "`docker/postgres/entrypoint.sh`" below before touching either. |
-| `nginx/docker-entrypoint.d/` | Scripts the stock nginx entrypoint runs before nginx starts; `15-real-ip.sh` renders the real-client-IP trust — see "`docker/nginx/docker-entrypoint.d/15-real-ip.sh`" below. |
+| `nginx/bin/nginx-runtime.sh`, `nginx/docker-entrypoint.d/` | nginx's runtime config: the script renders it in the `nginx-init` service and checks it in nginx's entrypoint hooks, which also warn on the host's ptrace scope — see "`docker/nginx/bin/nginx-runtime.sh`" below. |
 | `bin/db-backup.sh` (repo root) | Host-side backup of every labelled database container — see "`bin/db-backup.sh`" below. |
 | `php/smoke/` | The smoke-test module's **committed source**. Never ignored anywhere — if you ever see an ignore rule that would catch it, that's a bug; stop and report it. |
 
@@ -292,10 +292,11 @@ when docker's value must differ from that base.
   ports on every interface; the compose `${PUBLISH_IP:+${PUBLISH_IP}:}` form
   drops the prefix entirely when empty, which is what keeps the
   all-interfaces default.
-- `NGINX_TRUSTED_PROXIES`/`NGINX_REAL_IP_HEADER` — reach nginx only through
-  its compose `environment:` block, both defaulted empty there; the header's
-  `X-Forwarded-For` default lives in `15-real-ip.sh` (section below), not
-  compose. Runtime, not build args: recreate nginx to apply.
+- `NGINX_TRUSTED_PROXIES`/`NGINX_REAL_IP_HEADER` — reach `nginx-init` and
+  nginx only through the compose anchor `x-nginx-runtime-env`, both
+  defaulted empty there; the header's `X-Forwarded-For` default lives in
+  `nginx-runtime.sh` (section below), not compose. Runtime, not build args:
+  `up -d` to apply.
 - `CGROUP_PARENT` — empty = Docker's default placement. A slice name under
   the `systemd` cgroup driver, a path under `cgroupfs`.
 - `MYSQL_*`/`MARIADB_*`/`POSTGRES_*` limits and engine knobs — bundled db
@@ -485,14 +486,23 @@ steps start failing and fresh-volume ownership needs a different fix —
 don't add `user:` to `valkey-state`/`valkey-cache` without revisiting this
 script first.
 
-## `docker/nginx/docker-entrypoint.d/15-real-ip.sh` — runtime real-IP trust
+## `docker/nginx/bin/nginx-runtime.sh` — nginx's runtime config
 
 The trust list is a per-deployment topology fact, so it is rendered at
 start rather than baked: one image serves every topology, and fixing the
-list is a recreate, not a rebuild. The script writes
-`/var/cache/nginx/real_ip.conf` (`.tmp` then `mv`) on the existing tmpfs,
-so the read-only rootfs stays; `nginx.conf` includes that file. It always
-writes `real_ip_header` and `real_ip_recursive on`, and one
+list is a recreate, not a rebuild. The `nginx-init` one-shot runs the
+script's `render` mode on every `up`. It writes `real_ip.conf` (`.tmp` then
+`mv`) into the `nginx-runtime` volume, and then the inputs it was made from.
+nginx mounts that volume read-only at `/etc/nginx/runtime`, and
+`nginx.conf` includes the file from there.
+
+nginx runs as the same uid 101 that wrote the volume, so the `:ro` mount
+is the only thing that keeps a compromised worker from rewriting what
+nginx loads; a 101-owned tmpfs inside nginx would not. Any new runtime
+setting goes in this script and its volume, never in an entrypoint script
+that writes inside nginx's own container.
+
+The render always writes `real_ip_header` and `real_ip_recursive on`, and one
 `set_real_ip_from` per entry — with no entries nothing is trusted, and the
 headers are ignored. It also writes `geo $realip_remote_addr
 $from_trusted_proxy` from the same entries, which `nginx.conf` uses to honor
@@ -503,12 +513,29 @@ fail the check. `app.conf` and `ws.conf` blank `X-Forwarded-Proto` and
 `Front-End-Https` toward PHP and the WebSocket server, since CI3's
 `is_https()` would otherwise trust the raw headers from any peer.
 
+**The `check` mode refuses a stale render.**
+`docker-entrypoint.d/15-runtime-check.sh` runs it before nginx starts. It
+exits 1 when the volume has no render, or
+when the recorded inputs differ from nginx's own environment. Both services
+take the variables from the compose anchor `x-nginx-runtime-env`, so an
+edit recreates nginx, and `up` re-runs `nginx-init` first. The case it
+catches is `up -d --no-deps nginx` after an edit, which skips the render.
+A plain restart passes, since the inputs still match. The input list lives
+only in the script, so render and check can't drift. Adding a variable
+means adding it to the script's `inputs` and to the anchor.
+
+`docker-entrypoint.d/16-ptrace-scope.sh` warns when the host's
+`kernel.yama.ptrace_scope` is `0` or Yama is absent. Master and workers
+share a uid, so there a compromised worker can attach to the master,
+which the `:ro` mount doesn't stop. It warns rather than refuses because
+dev VMs often have no Yama at all.
+
 What it depends on in the stock image's `/docker-entrypoint.sh` — re-check
 on an nginx bump:
 
 - The scripts run only when the command's first word is `nginx` or
-  `nginx-debug`. Any other command skips the render, and nginx (if started
-  some other way) fails on the missing include.
+  `nginx-debug`. Any other command skips the check and the warning, and
+  nginx (if started some other way) loads whatever the volume holds.
 - A script without the exec bit is skipped with "Ignoring …, not
   executable", hence `COPY --chmod=755`. A checkout's file modes never
   matter.
@@ -519,10 +546,16 @@ on an nginx bump:
 
 Choices the code can't explain:
 
+- **The volume is a disk-backed named volume, owned by 101 through the
+  image.** A new named volume takes the owner of the image directory it
+  mounts over, which is why the Dockerfile creates `/etc/nginx/runtime` as
+  `101`. That differs from a tmpfs, which always comes up root-owned.
+  Its content isn't secret; it survives `down`, and `nginx-init` rewrites it
+  on every `up`.
 - **The header default (`X-Forwarded-For`) lives in the script, not
   compose.** Compose passes `${NGINX_REAL_IP_HEADER:-}`. A server running
-  its own compose copy without the nginx `environment:` block, under a new
-  image, then still starts — trusting no proxy — instead of failing. Never
+  its own compose copy without the `NGINX_*` variables then still starts —
+  trusting no proxy — instead of failing. Never
   move the default into compose alone, and never make an empty header
   fatal. nginx's own default would be `X-Real-IP`: on a multi-hop chain an
   inner hop's `X-Real-IP` is the previous hop.

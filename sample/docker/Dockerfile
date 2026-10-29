@@ -169,8 +169,12 @@ COPY --chmod=644 docker/nginx/nginx.conf   /etc/nginx/nginx.conf
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY --chmod=644 docker/nginx/conf.d/      /etc/nginx/conf.d/
 # Run by the stock /docker-entrypoint.sh before nginx; it skips any script
-# without the exec bit, which would leave nginx.conf's include missing.
+# without the exec bit, which would leave the runtime render unchecked.
 COPY --chmod=755 docker/nginx/docker-entrypoint.d/ /docker-entrypoint.d/
+COPY --chmod=755 docker/nginx/bin/nginx-runtime.sh /usr/local/bin/nginx-runtime.sh
+# Mount point of the nginx-runtime volume; a new named volume takes this
+# directory's owner, so nginx-init (uid 101) can write it.
+RUN install -d -o 101 -g 101 -m 0755 /etc/nginx/runtime
 
 # HTTP on :80, WebSocket vhost on :8080. Never root, even without compose,
 # whose `user:` keeps uid 101 and sets the group to APP_GROUP.

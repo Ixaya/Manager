@@ -6,7 +6,7 @@
 #   ./docker_manage.sh -e <instance> --profile ws --profile cron up -d
 #
 # Core services (always on): php, nginx, valkey-state, valkey-cache, plus
-# the one-shot init.
+# the one-shots init and nginx-init.
 # Profiles: ws | cron | mysql | mariadb | postgres | cli.
 # Addons, added by docker_manage.sh when their keys are non-empty in
 # <instance>.docker.env: docker-compose.tools.yml (TOOLS_BIND_PATH),
@@ -29,6 +29,13 @@ x-security: &security
 # host-level memory cap bounds the whole fleet. Empty = Docker's default.
 x-fleet: &fleet
   cgroup_parent: ${CGROUP_PARENT:-}
+
+# nginx's runtime render inputs, on both nginx-init (renders) and nginx
+# (refuses a render made from other values), so an edit recreates both.
+# Empty trusts no proxy; the header defaults to X-Forwarded-For.
+x-nginx-runtime-env: &nginx-runtime-env
+  NGINX_TRUSTED_PROXIES: ${NGINX_TRUSTED_PROXIES:-}
+  NGINX_REAL_IP_HEADER:  ${NGINX_REAL_IP_HEADER:-}
 
 # Common wiring for the four services that run the php-app image.
 x-app-image: &app-image
@@ -118,6 +125,26 @@ services:
       retries: 3
       start_period: 30s
 
+  # ── nginx-init (core one-shot) ────────────────────────────────────────────
+  # Renders nginx's runtime config into nginx-runtime on every `up`; nginx
+  # mounts it read-only. Runs as the image's uid 101: the :ro on nginx's
+  # side, not a different uid, is the protection.
+  nginx-init:
+    image: ${IMAGE_REPO_NGINX:-manager/app-nginx}:${IMAGE_TAG:-latest}
+    restart: "no"
+    network_mode: none
+    logging: *logging
+    <<: [*security, *fleet]
+    entrypoint: ["/usr/local/bin/nginx-runtime.sh", "render"]
+    environment: *nginx-runtime-env
+    volumes:
+      - nginx-runtime:/etc/nginx/runtime
+    read_only: true
+    mem_limit: 64m
+    memswap_limit: 64m
+    healthcheck:
+      disable: true
+
   # ── Nginx (core) ──────────────────────────────────────────────────────────
   nginx:
     image: ${IMAGE_REPO_NGINX:-manager/app-nginx}:${IMAGE_TAG:-latest}
@@ -133,14 +160,13 @@ services:
     # must exist in this image too. :80 binds via Docker's (20.10+)
     # per-container unprivileged-port sysctl, absent under network_mode: host.
     user: "101:${APP_GROUP:-www-data}"
-    environment:
-      # Read by 15-real-ip.sh at start; empty trusts no proxy, header defaults
-      # to X-Forwarded-For there. Takes effect on recreate, no rebuild.
-      NGINX_TRUSTED_PROXIES: ${NGINX_TRUSTED_PROXIES:-}
-      NGINX_REAL_IP_HEADER:  ${NGINX_REAL_IP_HEADER:-}
+    # Takes effect on recreate, no rebuild.
+    environment: *nginx-runtime-env
     volumes:
       # Serve uploaded media directly (read-only is enough for nginx).
       - ${MEDIA_PATH:-../public/media}:/var/www/html/public/media:ro
+      # :ro is what keeps a worker from rewriting what it loads.
+      - nginx-runtime:/etc/nginx/runtime:ro
     read_only: true
     # A tmpfs keeps the image dir's mode but is always root-owned, so 101
     # needs it handed over.
@@ -158,7 +184,8 @@ services:
         soft: ${NGINX_NOFILE:-8192}
         hard: ${NGINX_NOFILE:-8192}
     depends_on:
-      php: { condition: service_healthy }
+      nginx-init: { condition: service_completed_successfully }
+      php:        { condition: service_healthy }
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health >/dev/null 2>&1 || exit 1"]
       interval: ${HEALTHCHECK_INTERVAL:-30s}
@@ -475,6 +502,7 @@ services:
 # ── Volumes ─────────────────────────────────────────────────────────────────
 volumes:
   manager-logs:      # unified Manager logs (/var/log/manager: app/, cli/ subdirs)
+  nginx-runtime:     # nginx's rendered runtime config; re-rendered on every up
   valkey-state-data: # AOF/RDB for durable Valkey — cache has NO volume by design
   mysql-data:
   mariadb-data:

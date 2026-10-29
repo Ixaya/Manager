@@ -588,9 +588,9 @@ where the host's Yama `ptrace_scope` is 0, attach to the master. Under a
 root master it could do neither. In exchange the container has no root
 process and `CapEff 0`, where the master used to hold Docker's default
 capabilities. The default (unset `APP_GROUP`) moves from root master plus
-`101:101` workers to `101:82` throughout, with the same trade-off. An
-`nginx-init` service rendering runtime config into a volume nginx mounts
-`:ro` closes the rewrite and is open as its own proposal.
+`101:101` workers to `101:82` throughout, with the same trade-off. The
+rewrite is closed by `nginx-init` (next entry); the attach is a host
+setting, `ptrace_scope` 1 or higher, which nginx warns about at start.
 Rejected: `group_add` (it works now that no root master calls
 `initgroups()`, but adds a second key where `user:` already carries the
 group, as for the app services). nginx as `APP_USER` (owner identity on
@@ -614,6 +614,53 @@ the media boundary was checked on Linux: `0640` 200 and `0600` 403 whether
 the owner is `1234` or the app's `82`, and both 403 as `101:101`.
 Revisit when: nginx needs another writable path. It must be 101's, so give
 it a tmpfs with the `uid` option or put it under `/tmp`.
+
+**nginx's runtime config is rendered by `nginx-init`, and nginx mounts it
+`:ro`.**
+Decision: a core one-shot `nginx-init` (nginx image, uid 101,
+`network_mode: none`, `read_only`) runs `nginx-runtime.sh render` on every
+`up`, writing `real_ip.conf` and its inputs into the disk-backed named
+volume `nginx-runtime`. nginx mounts it `:ro` at `/etc/nginx/runtime` and
+`depends_on` it with `service_completed_successfully`. nginx's entrypoint
+runs `nginx-runtime.sh check`, which exits 1 when there is no render or
+its inputs differ from nginx's own environment. Both services take the
+variables from the anchor `x-nginx-runtime-env`. A second hook warns when
+the host's `ptrace_scope` is 0 or Yama is absent.
+Why: with master and workers on one uid, the render in a 101-owned tmpfs
+was writable by any worker. It is included in `http {}`, so a rewrite and
+reload changed routing and logging for all traffic, persisted, and logged
+nothing at the shipped level. The kernel enforces `:ro` for every uid. The
+check exists because moving the render out of nginx creates a way to run
+stale config: an edit applied with `up -d --no-deps nginx` skips
+`nginx-init`. Refusing the start makes that loud, where a doc note would
+not.
+Rejected: `depends_on: restart: true` to restart nginx after a re-render
+(unverified, and it leaves `--no-deps` serving stale config). A root
+entrypoint that renders, then drops to 101 with `setpriv` (no staleness,
+but root at every start, reverses `USER 101`, keeps `SETUID`/`SETGID`). A
+root master with workers on another uid (also closes the ptrace path, but
+a long-running uid 0 process, and numeric `APP_GROUP` breaks again).
+Baking the list at build (undoes one image per topology). A tmpfs-backed
+volume (not needed; content is not secret). Refusing to start at
+`ptrace_scope` 0 (dev VMs often have no Yama).
+Evidence: live-verified 2026-10-28 (`local`, Compose v5.5.1). `nginx-init`
+exits 0; the new volume comes up `101:101` from the image directory; nginx
+healthy, `/`, `/nginx-health` 200, WebSocket `101`. Writes to
+`/etc/nginx/runtime` from nginx: `Read-only file system`. The render is
+byte-identical to the old `15-real-ip.sh` for three entries and a custom
+header; `*` and `X;evil` still exit 1. An edit applied with `--no-deps
+nginx`: nginx restart-loops on the stale-render error; the same edit with
+`up -d` re-renders and starts; a plain `restart nginx` passes. The new
+image without the volume exits 1 on `no render`; the previous image on the
+new compose still starts, rendering into its own tmpfs. Compose re-runs a
+completed one-shot on every `up`, even with no config change. Ptrace
+access, probed through `/proc/<pid>/mem` with Yama absent: a uid-101
+process in the nginx container reads the master's memory; uid 101 against
+the php-fpm master (uid 82) gets `Permission denied`. Not checked on a host
+running AppArmor.
+Revisit when: a new runtime-adjustable nginx setting appears. It goes in
+`nginx-runtime.sh`, its `inputs` and the anchor, never in an entrypoint
+script that writes inside nginx's container.
 
 **`cli_run.sh` sets `umask 022` itself.**
 Decision: `docker/php/bin/cli_run.sh` runs `umask 022` before exec'ing PHP.

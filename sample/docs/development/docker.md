@@ -108,6 +108,7 @@ placement" decision tree in `docker-internals.md`.
 |---|---|---|---|
 | _(core)_ | `php`, `nginx`, `valkey-state`, `valkey-cache` | Always on | Yes |
 | _(core)_ | `init` | One-shot: owns the log volume to `APP_USER`, then exits | Yes |
+| _(core)_ | `nginx-init` | One-shot: renders nginx's runtime config (proxy trust) into a volume nginx mounts read-only, then exits | Yes |
 | `ws` | `ws` | WebSocket server (internal :9008, published via nginx :8080) | Yes |
 | `cron` | `cron` | supercronic runs `docker/cron/crontab` | Yes |
 | `mysql` | `mysql` | MySQL 8 — use when parity with a MySQL 8 server matters | No — dev/local only |
