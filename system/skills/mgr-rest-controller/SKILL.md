@@ -107,8 +107,11 @@ class Login extends APP_Rest_Controller
 ```
 
 `auth_override` values: `'none'`, `'allow'`, `'basic'`, `'digest'`,
-`'session'`, `'whitelist'`. Scope per method instead of `'*'` with
-`$this->methods['index_get']['auth_override'] = 'none';`.
+`'session'`, `'whitelist'`. Scope per method by URL segment, optionally per
+verb: `$this->methods['index']['auth_override'] = 'none';` or
+`$this->methods['index']['get']['auth_override'] = 'none';`. Unlike
+`group_methods`, there's no `_get` suffix. A key like `methods['index_get']`
+matches nothing, so under a `'*'` of `'none'`/`'allow'` that method stays public.
 
 **`'none'` vs `'allow'`.** Both make the endpoint public; only `'allow'` still
 identifies the caller. `'none'` skips the key lookup entirely — `$_apiuser` is
@@ -129,7 +132,7 @@ public function __construct()
 {
     $this->group_methods['*']['level'] = LEVEL_ADMIN;      // min Ion Auth group level
     // $this->group_methods['*']['group'] = GROUP_ADMIN;   // or named group
-    // $this->group_methods['delete_post']['level'] = LEVEL_ADMIN; // per action_verb
+    // $this->group_methods['delete_post']['level'] = LEVEL_ADMIN; // per segment_verb
     parent::__construct();
 }
 ```
