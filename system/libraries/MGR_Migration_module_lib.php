@@ -220,7 +220,8 @@ class MGR_Migration_module_lib
 	// ---- Internals --------------------------------------------------------
 
 	/**
-	 * Application first, then every module with a migrations/<conn> dir.
+	 * Package modules first (they own tables the project extends), then the
+	 * application, then every other module with a migrations/<conn> dir.
 	 * @return array<int,array{key:?string,label:string,path:string,files:array<int,string>}>
 	 */
 	protected function _discover_targets(string $conn): array
@@ -236,7 +237,8 @@ class MGR_Migration_module_lib
 		]];
 
 		if (class_exists('Modules') && ! empty(Modules::$locations)) {
-			$modules = [];
+			$modules         = [];
+			$package_modules = [];
 			foreach (Modules::$locations as $location => $offset) {
 				foreach (glob($location . '*', GLOB_ONLYDIR) ?: [] as $dir) {
 					$dir = rtrim($dir, '/');
@@ -252,12 +254,19 @@ class MGR_Migration_module_lib
 					// basename($dir) alone collides when an app-level module shadows a
 					// vendor/package one of the same name — use the full key (':'-joined,
 					// matching the CLI's module_key form) so the label stays unambiguous.
-					$label = str_replace('/', ':', $key) . ':' . $conn;
-					$modules[$key] = ['key' => $key, 'label' => $label, 'path' => $mig, 'files' => $files];
+					$label  = str_replace('/', ':', $key) . ':' . $conn;
+					$target = ['key' => $key, 'label' => $label, 'path' => $mig, 'files' => $files];
+
+					if ($location === MGRPATH . 'package/modules/') {
+						$package_modules[$key] = $target;
+						continue;
+					}
+					$modules[$key] = $target;
 				}
 			}
+			ksort($package_modules);
 			ksort($modules);
-			$targets = array_merge($targets, array_values($modules));
+			$targets = array_merge(array_values($package_modules), $targets, array_values($modules));
 		}
 
 		return $targets;

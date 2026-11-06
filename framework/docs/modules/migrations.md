@@ -117,3 +117,29 @@
   stack for a use case that isn't live-code hot-reload — unlikely, since
   that would reintroduce the same class of "container mutates a tree it
   doesn't own" risk the read-only `-b` bind was built to avoid.
+
+- **The runner orders targets package first, then the application, then the
+  other modules by key.**
+  Decision (2026-11-05): `MGR_Migration_module_lib::_discover_targets()`
+  puts the targets under `MGRPATH . 'package/modules/'` ahead of the
+  application target. Before, the application came first and the package
+  sorted last (`modules/*` before `vendor/*`), by accident of the original
+  layout.
+  Why: the dependency runs one way. A project extends the package's Ion
+  Auth tables, and the package never depends on project tables. With the
+  package last, a project migration that added a column to `user` failed on
+  a fresh install (`relation "user" does not exist`), surfacing only when a
+  project that had migrated incrementally since its first day tried a
+  fresh install.
+  Evidence: live-reproduced 2026-11-05 on the `local` Docker instance
+  (PostgreSQL, `pdo/pgsql`) with a throwaway module migration doing
+  `add_column('user', …)`: plain `migrate` failed before the change and
+  passed after it on a fresh database, with the column present.
+  Cost: a fresh install whose app-level history creates a package table
+  itself (`Manager_ion_auth` begins with `drop_table('user', true)`) now
+  collides with that migration instead of being replaced by the package;
+  the project removes or skips its copy. Accepted because the package owns
+  those tables and a database that cannot be rebuilt is the worse failure.
+  Not fixed: other modules still run in key order, not dependency order.
+  Revisit when: a real caller needs one project module to run before
+  another; a declared-dependency mechanism has none today.

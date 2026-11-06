@@ -376,6 +376,12 @@ plus every module with a `migrations/{conn}/` dir, vendor ones included);
 `/`, full offset for a vendor module
 (`vendor:ixaya:manager:system:package:modules:manager`).
 
+Run order per connection: the package's own migrations first, then the app
+dir, then the other modules by key. A migration may therefore alter a
+package table (`user`, `group`, …) on a fresh install; it may not rely on
+another project module having run before it — those go by key, not by
+dependency.
+
 ## Multi-step migrations (PostgreSQL transaction)
 
 PostgreSQL rolls DDL back; MySQL/MariaDB commit it implicitly. A migration
