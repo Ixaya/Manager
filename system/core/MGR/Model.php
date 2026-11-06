@@ -184,7 +184,7 @@ class MGR_Model extends CI_Model
 	 *
 	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
-	public function get(int|string $id, string|array|null $fields = null): ?array
+	public function get(int|string $id, string|array|null $fields = null): array|object|null
 	{
 		$this->apply_common_filters($fields);
 
@@ -197,7 +197,7 @@ class MGR_Model extends CI_Model
 	 *
 	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
-	public function get_where(array $where, string|array|null $fields = null): ?array
+	public function get_where(array $where, string|array|null $fields = null): array|object|null
 	{
 		$this->apply_common_filters($fields);
 
@@ -210,7 +210,7 @@ class MGR_Model extends CI_Model
 	 *
 	 * @return array<string, mixed>|null Keyed min_{$field_alias}/max_{$field_alias}, null if the query failed
 	 */
-	public function get_min_max(string $field, array $where = [], ?string $field_alias = null): ?array
+	public function get_min_max(string $field, array $where = [], ?string $field_alias = null): array|object|null
 	{
 		if ($field_alias === null) {
 			$field_alias = $field;
@@ -632,7 +632,7 @@ class MGR_Model extends CI_Model
 	 *
 	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
-	public function by_hash(string $hash, string $field = 'hash'): ?array
+	public function by_hash(string $hash, string $field = 'hash'): array|object|null
 	{
 		return $this->get_where([$field => $hash]);
 	}
@@ -760,7 +760,7 @@ class MGR_Model extends CI_Model
 	 *
 	 * @return array<string, mixed>|null Associative array of the row, null if not found or query fails
 	 */
-	protected function execute_row(?string $table = null): ?array
+	protected function execute_row(?string $table = null): array|object|null
 	{
 		if ($table !== null) {
 			$Q = $this->my_db->get($table);
