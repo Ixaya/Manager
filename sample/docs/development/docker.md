@@ -503,6 +503,51 @@ Acting on it:
 - `composer:2` floats deliberately — it only runs in the discarded
   builder stage.
 
+### Picking up base-image security fixes
+
+Pins are tags, not digests, so upstream can republish the same tag with
+patched OS packages (an Alpine library or binary) while the
+version does not move. The pin report compares versions and stays silent
+then, and nothing in `docker/Dockerfile` changes. The fix arrives by
+rebuilding:
+
+```bash
+./docker_manage.sh -e <instance> build --pull --no-cache
+```
+
+`--pull` re-resolves each base tag to the registry's current image, which
+is where the patched packages come from; `--no-cache` stops a cached layer
+from keeping the old ones. A plain `build` reuses the local base image and
+changes nothing.
+
+Confirm the fixed version landed, for each image you publish and on the
+architecture you publish it for (substitute the package the advisory
+names):
+
+```bash
+./docker_manage.sh -e <instance> run --rm --no-deps --entrypoint sh php -c 'apk list --installed | grep -i "<package>"'
+./docker_manage.sh -e <instance> run --rm --no-deps --entrypoint sh nginx -c 'apk list --installed | grep -i "<package>"'
+```
+
+Compare the printed version with the advisory's fixed version. If it is
+still the old one, the official image has not been rebuilt yet. Waiting is
+the default. To ship sooner, bridge the gap in `docker/Dockerfile` with a
+temporary upgrade of just that package, in each stage that carries it
+(`php-base`, and `nginx-app` before its `USER` line):
+
+```dockerfile
+RUN apk upgrade --no-cache <package>
+```
+
+Alpine's stable branch usually has the fix before the official image is
+rebuilt. Rebuild and run the check above. Remove the line once the base
+catches up: left in, it is a stale workaround that no longer does anything
+and hides which image actually carries the fix.
+
+Digest pinning is not used here: it would freeze the image at one build and
+block exactly this fix. A project not bound to the framework's release
+cadence may digest-pin its own copy and take on refreshing the digest.
+
 ## Resource limits & tuning
 
 Every service has `mem_limit` + `cpus` (env-overridable in
