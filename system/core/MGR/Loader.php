@@ -336,7 +336,7 @@ class MGR_Loader extends MX_Loader
 	 */
 	public function config_path($file): ?string
 	{
-		return CI::$APP->config->path($file, $this->_module);
+		return CI::$APP->config->path($file, (string) $this->_module);
 	}
 
 	/**
@@ -348,7 +348,7 @@ class MGR_Loader extends MX_Loader
 	 */
 	public function config_read($file): ?array
 	{
-		return CI::$APP->config->read($file, $this->_module);
+		return CI::$APP->config->read($file, (string) $this->_module);
 	}
 
 	/** Load a module library **/

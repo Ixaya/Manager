@@ -27,6 +27,9 @@
     <testsuite name="Tools">
       <directory>tests/unit/tools</directory>
     </testsuite>
+    <testsuite name="Core">
+      <directory>tests/unit/core</directory>
+    </testsuite>
   </testsuites>
   <logging>
     <junit outputFile="tests/reports/logs/junit.xml"/>
