@@ -4,7 +4,8 @@
 # One run covers every site on the host.
 #
 # Usage: bin/db-backup.sh
-# Env:   DB_BACKUP_KEEP (default 7) — good dumps kept per database, 1 to 999999.
+# Env:   DB_BACKUP_KEEP (default 7) — good dumps kept per database and tag
+#        (pg<major> or mariadb in the filename), 1 to 999999.
 #        DB_BACKUP_S3_URI (optional) — e.g. s3://bucket/prefix; each new dump
 #        is uploaded to <uri>/<site>/<engine>/<file>.
 #        DB_BACKUP_ALLOWED_ROOT (optional, blank = any) — only back up sites
@@ -51,6 +52,9 @@ enter_private_dir() {
 dump_postgres() {
 	docker exec -u postgres "$1" pg_dump -U postgres -Fc -Z0 "$2"
 }
+dump_mariadb() {
+	docker exec "$1" sh -c 'MYSQL_PWD="$(cat /run/secrets/db_root_password)" exec mariadb-dump -uroot --single-transaction --routines --triggers --events "$0"' "$2"
+}
 
 containers="$(docker ps -q --filter 'label=mgr.backup')"
 if [[ -z "$containers" ]]; then
@@ -87,6 +91,14 @@ for container in $containers; do
 			tag="pg${pg_major}"
 			ext="dump"
 			dump_command=dump_postgres
+			;;
+		mariadb)
+			env_list="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$container" 2>/dev/null)" \
+				|| { fail_site "$project" "$engine" "container env could not be read"; continue; }
+			db_name="$(sed -n 's/^MARIADB_DATABASE=//p' <<<"$env_list")"
+			tag="mariadb"
+			ext="sql"
+			dump_command=dump_mariadb
 			;;
 		*)
 			fail_site "$project" "$engine" "unsupported engine"

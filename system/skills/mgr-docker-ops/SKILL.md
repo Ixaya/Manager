@@ -24,7 +24,7 @@ Source of truth (only read if something here is insufficient):
   `docker.md` — the deeper reference this skill summarizes;
   `docker-internals.md` — env var placement, for editing `docker/`;
   `docker-tuning.md` — memory caps, sizing, OOM diagnosis;
-  `docker-server.md` — server readiness, bundled PostgreSQL, backups
+  `docker-server.md` — server readiness, bundled PostgreSQL and MariaDB, backups
 
 ## When to use the script vs. a raw `docker` command
 
@@ -54,7 +54,9 @@ wiring for a `grep`/`tail` adds nothing.
   not the app's `DB_USER`: `--profile postgres exec postgres psql -U
   postgres`. Never override its entrypoint; a failed first init makes every
   start refuse (`[postgres-entrypoint] FATAL: the init started … never
-  finished`) — recovery in `docker-server.md`.
+  finished`) — recovery in `docker-server.md`. MariaDB has no wrapper: a
+  failed first init starts anyway and reports `unhealthy` (its check logs in
+  as `DB_USER`; `docker inspect` shows why) — recovery in the same doc.
 - `-b`/`--bind` mounts the app source live (project mode: your own app
   tree; framework mode: `sample/`, run from the framework repo). `-m`/
   `--manager-bind` additionally mounts the framework repo's own `system/`

@@ -387,23 +387,26 @@ services:
       start_period: 30s
     profiles: [mysql]
 
-  # ── MariaDB (profile: mariadb — dev/local only) ────────────────────────────
-  # Lighter local alternative to mysql — no MySQL 8 server parity. Same
-  # secrets pattern and empty DB_NAME/DB_USER caveat as mysql above.
+  # ── MariaDB (profile: mariadb) ──────────────────────────────────────────────
+  # Lighter alternative to mysql — no MySQL 8 server parity.
   mariadb:
     image: mariadb:12.3.3-noble
     restart: unless-stopped
     networks: [appnet]
     logging: *logging
+    labels:
+      mgr.backup: mariadb
     <<: [*security, *fleet]
     environment:
       MARIADB_DATABASE:           ${DB_NAME:-}
       MARIADB_USER:               ${DB_USER:-}
       MARIADB_PASSWORD_FILE:      /run/secrets/db_password
       MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
-      # The healthcheck below needs it: on a datadir created without the
-      # healthcheck user, only this flag makes the entrypoint create one. Also
-      # runs mariadb-upgrade (system tables backed up first) after a version bump.
+      # Init only: a new datadir gets root@localhost alone; an existing one
+      # keeps root@'%' until dropped by hand.
+      MARIADB_ROOT_HOST:          localhost
+      # The first start after a series bump (11.8 → 12.3) backs up the mysql
+      # schema and runs mariadb-upgrade.
       MARIADB_AUTO_UPGRADE:       "1"
     # Sized knobs come from docker.env and must fit inside MARIADB_MEM_LIMIT.
     # tmp_table_size is PER SESSION (unlike MySQL's global temptable pool):
@@ -418,7 +421,7 @@ services:
       - --key-buffer-size=8M
       - --aria-pagecache-buffer-size=16M
     volumes:
-      - mariadb-data:/var/lib/mysql
+      - ${MARIADB_DATA:-mariadb-data}:/var/lib/mysql
     secrets:
       - db_password
       - db_root_password
@@ -426,9 +429,9 @@ services:
     memswap_limit: ${MARIADB_MEM_LIMIT:-640m}
     cpus: ${MARIADB_CPUS:-1.0}
     healthcheck:
-      # The image's own check, authenticating as its USAGE-only healthcheck
-      # user — a credential-less ping logs "Access denied" on every run.
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      # Healthy only once DB_USER can log in to DB_NAME over TCP (the init
+      # server is socket-only); stderr names the cause in `docker inspect`.
+      test: ["CMD-SHELL", "[ -n \"$$MARIADB_USER\" ] && [ -n \"$$MARIADB_DATABASE\" ] || { echo 'DB_USER or DB_NAME is empty' >&2; exit 1; }; MYSQL_PWD=\"$$(cat /run/secrets/db_password)\" mariadb -h127.0.0.1 -u\"$$MARIADB_USER\" \"$$MARIADB_DATABASE\" -Nqe 'select 1' >/dev/null"]
       interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: 5s
       retries: 3
