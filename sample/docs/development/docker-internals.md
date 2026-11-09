@@ -306,11 +306,11 @@ when docker's value must differ from that base.
 - `VALKEY_*_MAXMEMORY` — passed as a `command:` argument, not env.
 - `MEDIA_PATH`/`PRIVATE_PATH` — host bind-mount SOURCE paths; the container
   only ever sees the fixed TARGET.
-- `POSTGRES_DATA`/`VALKEY_STATE_DATA` — the same, for the two stateful
-  services; empty falls back to the named volume (`${VAR:-name}` treats
-  empty as unset). Relative paths resolve against `docker/`, which every
-  instance of one checkout shares — hence the instance name in the
-  documented server value.
+- `POSTGRES_DATA`/`VALKEY_STATE_DATA`/`MARIADB_DATA` — the same, for the
+  three stateful services; empty falls back to the named volume
+  (`${VAR:-name}` treats empty as unset). Relative paths resolve against
+  `docker/`, which every instance of one checkout shares — hence the
+  instance name in the documented server value.
 - `RUN_MIGRATIONS` — set `true` on exactly ONE php instance to migrate on
   boot.
 - `INCLUDE_SMOKE_MODULE` — build arg; local images only.
@@ -633,6 +633,52 @@ before a new Postgres major lands, diff that script against them:
   `PGDATA` at the image default. Never set `PGDATA`: the image's upgrade
   check only works at the default.
 
+## The `mariadb` service — no wrapper, an app-role healthcheck
+
+The service uses the image's entrypoint as it is and mounts no script or
+hook. What the PostgreSQL wrapper and its init marker do there, the
+healthcheck alone does here: it flags a first initialization that went wrong
+and does not refuse it. The image creates the limited app user itself, so
+there is no hook to hang a marker's removal on.
+
+The check logs in as `DB_USER` to `DB_NAME` and runs `select 1`. What it
+depends on:
+
+- **`$$MARIADB_USER`/`$$MARIADB_DATABASE` come from the container's own
+  environment** (the entrypoint leaves them set); compose's `$$` makes the
+  shell see `$`. Empty, the check exits 1 with a one-line reason on stderr.
+- **The password** is read from `/run/secrets/db_password` as root (the
+  healthcheck runs as the container's user, which is root: the entrypoint
+  drops to `mysql` only for the server) and is passed as `MYSQL_PWD` on the
+  one command, never argv.
+- **TCP (`-h127.0.0.1`) on purpose:** the entrypoint's temporary server is
+  socket-only, so an initialization in progress never reads as healthy.
+- **Stderr is not redirected:** Docker keeps the last output of each run,
+  and `docker inspect` shows why a check failed. Only the `select 1` result
+  goes to `/dev/null`.
+- **The database is the client's default schema**, so a missing grant
+  (`ERROR 1044`) and a missing database (`ERROR 1049`) fail the check too.
+- **It takes a connection slot**, so it fails while `max_connections` is
+  used up (`docker-server.md`, "MariaDB known limits").
+
+It does not use the image's `healthcheck` user. `MARIADB_AUTO_UPGRADE=1`
+still makes the entrypoint create that user and `.my-healthcheck.cnf`, so the
+secrets-audit note about that file stays true.
+
+`MARIADB_ROOT_HOST: localhost` applies at initialization only. An existing
+data directory keeps `root@'%'` until the one-time `DROP USER` in
+`docker-server.md`.
+
+**Re-check on every pin change**, against the new image: the entrypoint still
+leaves `MARIADB_USER`/`MARIADB_DATABASE` in the environment; the `mariadb`
+client binary is still present; `MARIADB_ROOT_HOST` is still honored at
+initialization; and `_check_if_upgrade_is_needed` still compares only
+`major.minor`.
+
+**If the framework ever ships a MariaDB initdb hook**, add a root wrapper
+and an init marker as `postgres` has: a hook's partial failure leaves the app
+role logging in, so the check alone no longer sees it.
+
 ## `bin/db-backup.sh` — the cross-version contract and the engine seam
 
 One copy of the script serves every site on a host, whatever framework
@@ -640,15 +686,26 @@ version each site runs. Three things are therefore a contract between
 versions, and changing any of them is a breaking change with an upgrade
 entry: the `mgr.backup=<engine>` label, the `backups/<engine>/` layout
 beside the compose file, and the filename
-`<db>-<tag>-<UTC YYYYMMDDTHHMMSSZ>.<ext>.zst` (Postgres: `pg<major>`,
-`dump`).
+`<db>-<tag>-<UTC YYYYMMDDTHHMMSSZ>.<ext>.zst` (PostgreSQL: `pg<major>`,
+`dump`; MariaDB: the constant `mariadb`, `sql`). A new engine adds to the
+contract and changes nothing existing.
 
 **Adding an engine** is a `dump_<engine>` function plus one `case` branch
 that sets `db_name`, `tag`, `ext` and `dump_command`, and the compose side:
 the service's `mgr.backup` label and a `${<ENGINE>_DATA:-<volume>}` mount.
-Credentials come from the container's own `/run/secrets`, never argv.
-Postgres takes its major from the container's `PG_MAJOR` env, not the
-image reference, which a registry prefix or digest would break.
+Credentials come from the container's own `/run/secrets`, never argv:
+PostgreSQL connects as its `postgres` user over the socket; MariaDB's dump
+reads `db_root_password` inside a `sh -c` and hands it to `exec
+mariadb-dump` as `MYSQL_PWD`. The branch reads the database name from the
+container's env (`POSTGRES_DB`, `MARIADB_DATABASE`), not from the compose
+file.
+
+The tag is the retention pool's key (the glob is `<db>-<tag>-<stamp>`), so a
+tag that changes starts a new pool. PostgreSQL takes its major from the
+container's `PG_MAJOR` env, not the image reference, which a registry prefix
+or digest would break. MariaDB's tag is a constant on purpose: its upgrade
+unit is the series, which the image's env does not carry as a number, and the
+exact server version is in the dump's own header.
 
 Rules the script relies on — keep them when editing it:
 

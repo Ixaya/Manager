@@ -4,9 +4,9 @@
 > troubleshooting. For editing the files under `docker/` themselves, see
 > `docker-internals.md`. For sizing memory/CPU on a real host and tuning the
 > bundled databases, see `docker-tuning.md`. For running on a server
-> (readiness, the bundled PostgreSQL tier, backups), see `docker-server.md`.
-> For picking a database engine/driver, see `database.md` (all beside this
-> file).
+> (readiness, the bundled PostgreSQL and MariaDB tiers, backups), see
+> `docker-server.md`. For picking a database engine/driver, see `database.md`
+> (all beside this file).
 
 All operations that start, stop, build, or exec into a service go through
 the wrapper — never `docker compose` directly. Read-only inspection of an
@@ -112,16 +112,16 @@ placement" decision tree in `docker-internals.md`.
 | `ws` | `ws` | WebSocket server (internal :9008, published via nginx :8080) | Yes |
 | `cron` | `cron` | supercronic runs `docker/cron/crontab` | Yes |
 | `mysql` | `mysql` | MySQL 8 — use when parity with a MySQL 8 server matters | No — dev/local only |
-| `mariadb` | `mariadb` | MariaDB — lighter local alternative, no MySQL 8 server parity | No — dev/local only |
+| `mariadb` | `mariadb` | MariaDB — supported for small server instances, no MySQL 8 server parity; a managed database at scale | Yes, small sites |
 | `postgres` | `postgres` | PostgreSQL — supported for small server instances; a managed database at scale | Yes, small sites |
 | `cli` | `cli` | Interactive shell / one-off commands | As needed |
 | `tools` | `tools` | composer / PHPStan / PHPUnit — the only supported way to run them, host tree bind-mounted in; exists only through its addon (below) | No — dev only |
 
 Production uses one of two database tiers: an **external** managed database
 (`DB_HOST=<managed endpoint>`, no db profile), recommended at scale; or, for
-small sites, the bundled `postgres` service with its data protected from
-`down -v` and backed up, set up per `docker-server.md`. `mysql`/`mariadb`
-remain dev/local only.
+small sites, a bundled `postgres` or `mariadb` service with its data
+protected from `down -v` and backed up, set up per `docker-server.md`.
+`mysql` remains dev/local only.
 
 The bundled databases start with exact (case- and accent-sensitive)
 defaults: `mysql` and `mariadb` set `--collation-server` to the exact values
@@ -483,10 +483,12 @@ Acting on it:
   rolling series stops getting fixes when the next one ships. The `lts`
   alias names only the newest LTS, so an older still-supported LTS series
   reports `channel: none`. When production runs a managed database, the
-  dev profile follows that server's engine version instead. A major bump
-  changes the on-disk data: PostgreSQL needs `pg_upgrade` or a
-  dump/restore; MariaDB runs `mariadb-upgrade` on start. After any
-  database tag change, re-run the load test in `docker-tuning.md`.
+  dev profile follows that server's engine version instead. A series bump
+  (PostgreSQL 18 → 19, MariaDB 11.8 → 12.3) changes the on-disk data:
+  PostgreSQL needs `pg_upgrade` or a dump/restore; MariaDB's first start
+  after the bump runs `mariadb-upgrade`, and putting the old pin back is not
+  a rollback (`docker-server.md`). A patch bump leaves the on-disk format alone.
+  After any database tag change, re-run the load test in `docker-tuning.md`.
 - **nginx stays on `stable`** (even minor), not `mainline` (odd).
 - **Valkey:** profile the candidate before moving the pin —
   `bin/valkey-profile.sh -e <instance> --image valkey/valkey:<tag>` (see

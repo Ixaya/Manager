@@ -144,7 +144,9 @@ an `ORDER BY` over a large table at once:
 
 - **Shipped defaults** — 30 concurrent sessions over ~450 MB of data: MySQL
   peaked at 457 MiB inside 512m; MariaDB and PostgreSQL ran clean at 640m.
-  At 384m and 512m both were OOM-killed.
+  PostgreSQL was OOM-killed at 384m and 512m. MariaDB was killed at 384m and
+  survived one burst at 512m, which leaves no margin for the page cache the
+  cap also counts, so 640m stays the default.
 - **Small tier** — 15 concurrent sessions over ~90 MB, run right after a
   bulk load: MySQL and MariaDB peaked around 255 MiB anonymous memory and ran
   clean at 384m; at 256m both were killed on the first burst. PostgreSQL
@@ -332,8 +334,8 @@ docker exec <c> psql -U <DB_USER> -d <DB_NAME> -c 'SHOW shared_buffers'
 ### Load-testing a tier
 
 Load-test a tier before trusting it, and again whenever a pinned database or
-Valkey image changes — every number in this file belongs to the image
-versions it was measured on. Run it on a throwaway instance, never next to
+Valkey image changes — every number in this file belongs to the image versions
+and the host it was measured on. Run it on a throwaway instance, never next to
 live sites: it saturates the disk it shares with them. The shape that
 validated the tables above, shown for PostgreSQL (MySQL/MariaDB: the same
 table built with a recursive CTE — raise `cte_max_recursion_depth` on MySQL,

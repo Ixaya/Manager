@@ -132,6 +132,10 @@ confirmed by a grep. Two mechanisms, and the split is deliberate:
   order-independent assertions. It is an integration suite against a real
   database, not mocks. `sample/AGENTS.md` covers writing for it.
 
+A container sandbox may not reproduce a bind path's ownership or mode, and
+named volumes keep real uids; a claim about either is settled on a real Linux
+host, not in the sandbox.
+
 ### The vendor mirror lags the working tree
 
 `sample/vendor/ixaya/manager/` is an installed release of the package. It

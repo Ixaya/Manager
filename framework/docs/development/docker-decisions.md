@@ -242,13 +242,13 @@ compose always passes `${VAR:-default}` and each default lives in both
 compose and the file.
 Revisit when: a knob is needed that PHP's placeholder syntax can't express.
 
-**`DB_NAME`/`DB_USER`: no fallback value in compose; the postgres wrapper
-refuses them empty, mysql/mariadb accept it.**
+**`DB_NAME`/`DB_USER`: no fallback value in compose; the postgres wrapper refuses them empty, the mariadb healthcheck reports them, mysql accepts it.**
 Decision: `docker-compose.yml` passes `${DB_NAME:-}`/`${DB_USER:-}` to the
 bundled db services: empty when unset, never a fallback identifier. The
 `postgres` entrypoint refuses any server start with `DB_USER` or
 `POSTGRES_DB` empty, and its healthcheck reads both from the container's own
-environment.
+environment. The `mariadb` service still starts, and its healthcheck fails
+with `DB_USER or DB_NAME is empty`.
 Why: a fallback identifier (formerly `${DB_USER:-ixaya}`) let the
 provisioned user silently diverge from the intended `DB_USER`. The
 `${VAR:?...}` form that replaced it failed differently: compose validates
@@ -256,27 +256,36 @@ every service's variables at load, inactive profiles included, so a stack
 with no bundled database had to carry dummy `DB_NAME`/`DB_USER` values to
 start at all. Rejected: the db services as an addon file (see "Server-safe
 base compose" above).
-Accepted: mysql/mariadb have no wrapper. With the profile active and either
-value empty, the container starts healthy without creating the database or
-user; MySQL's entrypoint logs one `[Warn]` (`MYSQL_PASSWORD specified, but
-missing MYSQL_USER`), MariaDB's nothing.
+Accepted: mysql has no wrapper and no check. With the profile active and
+either value empty, the container starts healthy without creating the
+database or user; MySQL's entrypoint logs one `[Warn]` (`MYSQL_PASSWORD
+specified, but missing MYSQL_USER`). MariaDB creates what it can and says so
+through its health: with `DB_NAME` empty the user exists with `USAGE` only
+and there is no database; with `DB_USER` empty the database exists and there
+is no user.
 The app-side check below does not cover that case: it reads the app
 environment (base `.env.<instance>` + `<instance>.env`), while these values
 reach the db services through compose interpolation (`<instance>.docker.env`
 + `<instance>.env`). On an instance whose `DB_*` live in the base for an
 external database, starting `--profile mysql`/`mariadb` brings up a server
 with no app database or user while the app keeps using the external one,
-silently on both sides. Both engines are dev/local only.
+silently on both sides; on mariadb the container is `unhealthy`, on mysql
+nothing says so. MySQL is dev/local only.
 Evidence: Docker Compose v5.5.1, sandbox — the base file renders with no
 `DB_NAME`/`DB_USER` anywhere, where the `:?` form aborted on all seven
 references. Postgres with either value empty exits `FATAL` before touching
 the volume (a fresh volume stays empty; restored, the same volume
 initializes normally), and an existing cluster restarts with "Skipping
 initialization" and turns healthy under the container-env healthcheck.
-MySQL 8.4 and MariaDB 12.3 with both unset: healthy, no app database, no
-app user.
-Revisit when: mysql/mariadb gain a wrapper for another reason; give it the
-same check.
+MySQL 8.4 and MariaDB 12.3 with both unset: healthy before the MariaDB check
+changed, no app database, no app user. MariaDB 12.3.3 through the shipped
+service with `DB_NAME` empty, `DB_USER` empty and `db_password` empty, each
+alone: `unhealthy` with the reason in `docker inspect`, and the user and
+database as described above.
+Revisit when: mysql gains a wrapper for another reason (give it the same
+check), or the framework ships a MariaDB initdb hook (add a root wrapper and
+an init marker as `postgres` has; a hook's partial failure leaves the app
+role logging in, which the check alone doesn't see).
 
 **The app's own DB identifiers are required-or-fail — the app-side
 counterpart of the compose identifiers above.**
@@ -515,8 +524,132 @@ warnings. `healthcheck.sh` authenticates as the image's USAGE-only
 older datadir, when `MARIADB_AUTO_UPGRADE` is set — without it, a volume
 from before the user existed would stay unhealthy. Verified live: zero
 `Access denied` lines; with the user and `.my-healthcheck.cnf` removed, a
-restart recreated both and came back healthy. Cost of the flag: a version
+restart recreated both and came back healthy. Cost of the flag: a series
 bump now runs `mariadb-upgrade` on start (system tables backed up first).
+Superseded 2026-11-07: the check is a login as the app role,
+`DB_USER` to `DB_NAME` over TCP, `select 1`, with the password from
+`/run/secrets/db_password` in `MYSQL_PWD`; it fails with a one-line reason
+when `DB_USER` or `DB_NAME` is empty. The image's `healthcheck.sh` passed on
+every half-initialized shape (an empty `db_password`: no app user; a kill
+mid-initialization: an unhealthy instance whose `root` has an empty password;
+an empty `DB_NAME`: no database), because it exercises none of the app's
+credentials. A login tests what the app needs: the user, the password, the
+database and the grant. TCP, so the entrypoint's socket-only temporary server
+never counts as healthy. Stderr stays un-redirected so `docker inspect` shows
+why. The check no longer uses the image's `healthcheck` user;
+`MARIADB_AUTO_UPGRADE` stays for the upgrade itself (see the entry below).
+Rejected: a guard-only root wrapper; a wrapper with an init marker and a
+final initdb hook (the Postgres shape: the image creates the limited app user
+itself, so there is no hook to hang the marker's removal on); the image's
+check unchanged; a `docker_manage.sh` preflight (never reaches a server's
+flattened compose).
+Cost: it flags, it does not refuse; and it takes a connection slot (the
+"healthy under connection exhaustion" entry).
+Evidence: MariaDB 12.3.3 through the shipped service, sandbox: healthy on a
+good instance; `unhealthy` with the reason for an empty `DB_NAME`, an empty
+`DB_USER`, an empty `db_password`, a kill mid-initialization, a rotated
+secret, a revoked grant and a dropped database; not healthy while the
+initialization server is socket-only (`ERROR 2002`).
+Revisit when: the framework ships a MariaDB initdb hook (root wrapper plus
+init marker).
+
+**MariaDB's `root` logs in only from inside the container: `MARIADB_ROOT_HOST: localhost`.**
+Decision: the shared `mariadb` service sets `MARIADB_ROOT_HOST` to the
+literal `localhost`, local dev included. A new data directory gets
+`root@localhost` only; logins through `docker exec`, `bin/db-backup.sh` and
+the app user are unaffected. A data directory created before also has
+`root@'%'`: `docker-server.md` documents a one-time `DROP USER` over the
+socket, and a throwaway local volume can `down -v` instead.
+Why: the image's default creates `root@'%'`, so any container on `appnet`
+could log in with the root password. No application container mounts the
+root secret, but a safe default shouldn't rest on that, and one environment
+line closes it.
+Evidence: sandbox, through the shipped service: only `root@localhost`; a
+sibling container refused (`ERROR 1045`), the app role logged in from it,
+`docker exec` login, the dump and the restore (over the socket) worked, root
+over `-h127.0.0.1` inside the container is refused. A data directory created
+by the previous compose file: `root@'%'` present and open to a sibling, still
+so after switching to the new file, closed by the `DROP USER`, and the drop
+survived a restart.
+Rejected: a `${MARIADB_ROOT_HOST:-localhost}` knob (no caller); servers only
+(the base compose must be safe on its own); leaving `%` (not the safe default).
+Cost: no TCP login for `root`, even from loopback inside the container;
+nothing documented uses that form.
+Revisit when: something needs a remote `root`.
+
+**`MARIADB_AUTO_UPGRADE` stays `"1"`; a series bump is dump-first, and rollback is a restore.**
+Decision: the flag stays on, servers and local. The first start after a
+series bump backs up the `mysql` system schema and runs `mariadb-upgrade`.
+`docker-server.md` carries the rule: a patch bump needs nothing; before a
+series bump, a dump whose footer and header are checked; putting the old pin
+back is never a rollback; the rollback is a restore into an empty data
+directory with the old pin.
+Why: with `0` the server starts on the old system tables with one `Note`
+line and nobody is told. The upgrade unit is the series (`x.y`), not the
+leading number: 11.4 → 11.8 ran `mariadb-upgrade` under one number. A series
+downgrade is accepted without a warning and is writable, so "put the old pin
+back", right for PostgreSQL, would silently corrupt a MariaDB site's
+assumptions.
+Evidence: 11.4 → 11.8 and 11.8.9 → 12.3.3 ran the upgrade (a
+`system_mysql_backup_<old>.sql.zst` in the data directory, `Major version
+upgrade detected`, `mariadb_upgrade_info` updated), table and routine
+fingerprints identical; through the shipped service with `MARIADB_ROOT_HOST`
+and the flag together. The older image on the upgraded data directory came
+up healthy and accepted a write. Rollback by restore gave
+identical fingerprints. 12.3.2 → 12.3.3 through the shipped service: `MariaDB
+upgrade not required`, nothing on disk changed. `MARIADB_AUTO_UPGRADE=0`
+on a series bump: one `Note`, nothing upgraded (older image build).
+Rejected: `"0"` plus a manual step (the server runs on old system tables
+until someone remembers); an environment knob (no caller); a wrapper that
+refuses a bump without a dump (no wrapper, see the healthcheck entry).
+Wording: "series bump", never "version bump" or "major bump", for MariaDB.
+Cost: the `system_mysql_backup_*` file stays in the data directory, owned by
+the `mysql` user (uid 999 on the host) and readable by anyone who can reach
+the directory.
+Revisit when: a pin change alters `mariadb-upgrade` or the entrypoint's
+version comparison (it compares `major.minor` only); a kill in the middle of
+`mariadb-upgrade` is untested.
+
+**The MariaDB backup tag is the constant `mariadb`.**
+Decision: the dump is `<db>-mariadb-<UTC stamp>.sql.zst`. No version is read
+or parsed from the container.
+Why: the retention pool is per database and tag, so the tag decides what
+counts as the same history. A bump leaves no leftover pool, and PostgreSQL's
+glob and its `pg<major>` tag are untouched. MariaDB's versioning is not
+consistent enough to encode in a name, and the exact server version is in the
+dump's own header (`-- Server version`, `-- MariaDB dump`). The image's
+environment has no major variable, only the full `MARIADB_VERSION`.
+Evidence: dumps of a seeded schema covering the builder's column shapes at
+their edges, restored both ways between 11.8.9 and 12.3.3 with the target's
+own client: identical row and schema dumps, 25 value probes equal, the
+trigger fires. One series step, a hand-built schema, small data.
+Rejected: `mariadb<major>` (11.4 → 11.8 ran the upgrade under one number);
+`mariadb<major.minor>` (a leftover pool per bump, and no restore need shown);
+the full version (a pool of one file); a change to the retention glob
+(touches PostgreSQL and weakens the exact-stamp guarantee).
+Revisit when: a cross-series restore failure shows up; a version in the tag
+only starts a new pool.
+
+**The database healthchecks go `unhealthy` while `max_connections` is used up, and that stays.**
+Decision: the `postgres` and `mariadb` checks need a real login as `DB_USER`,
+so they fail when every slot is taken (`ERROR 1040 Too many connections` on
+MariaDB). `docker-server.md` states it for both. No grant and no reserved
+connection is added.
+Why: a server at its limit is not healthy, even if it still answers some
+clients. Nothing in the stack acts on unhealthy; if something ever does (a
+second server, a host tool), that is the behaviour wanted. A host tool that
+restarts unhealthy containers would bounce the database under load, which is
+the one thing the sentence warns about.
+Evidence: MariaDB 12.3.3 through the shipped service, sandbox: 40 app-role
+clients against `max_connections` 30: `unhealthy` while saturated, the check's
+output `ERROR 1040 (08004): Too many connections`, no restart, no OOM kill;
+healthy again after the sessions ended. On a real host the default-tier load
+runs left the container `unhealthy` the same way.
+Rejected: treating `ERROR 1040` as alive (reports healthy exactly when the
+app cannot connect); a `CONNECTION ADMIN` grant (the check no longer uses the
+image's `healthcheck` user, and the app role must not get it); a reserved
+admin connection (a new port, user and secret).
+Revisit when: something starts acting on container health.
 
 **Runtime identity is one compose `user:`; a one-shot `init` service is the
 only root step.**
@@ -726,6 +859,16 @@ feature (it logs "memory.pressure not writable" in a stock container)
 becomes usable and can replace static sizing. Making PostgreSQL a server
 tier didn't trigger a re-run: the sizing is per cap, and a server budgets
 its instances with the worksheet.
+Amended 2026-11-07, for MariaDB on the 12.3.3 pin (re-run as the entry asks):
+640m with 30 sessions ran clean (peak anonymous memory 478 and 447 MiB in a
+sandbox with 16 KiB pages; 438 and 422 MiB on a 2-CPU, 4 KiB-page arm64 host)
+and the 384m small tier ran clean (332 and 298 MiB; 223 and 208 MiB on that
+host, transparent huge pages off); 256m was killed. The "OOM-killed at 512m"
+claim for MariaDB did not reproduce: on that host 512m survived one burst (421
+MiB anonymous, after a restart, transparent huge pages off), and the
+default-load run at 384m was killed. The harder condition (right after a bulk
+load) was not run at 512m, so the default stays 640m. PostgreSQL's numbers
+were not re-run.
 
 **Fleet cap via `cgroup_parent`, opt-in and empty by default.**
 Decision: every service merges an `x-fleet` fragment setting
@@ -912,12 +1055,11 @@ condition, a second Redis connection enabling Path A. Queue entries can't be
 evicted and can back up, so the dataset stops being bounded by the session
 TTL.
 
-**The bundled PostgreSQL is a production tier for small sites; a managed database stays the recommendation at scale.**
-Decision: the `postgres` service is supported on server instances, with
-its data protected from `down -v`, a non-superuser app role, and a
-host-side backup script. MySQL and MariaDB stay dev/local only until each
-gets the same treatment. The shipped `docker-server.md` carries the
-procedure.
+**The bundled PostgreSQL and MariaDB are production tiers for small sites; a managed database stays the recommendation at scale.**
+Decision: the `postgres` and `mariadb` services are supported on server
+instances, each with its data protected from `down -v`, a non-superuser app
+role, and a host-side backup script. MySQL stays dev/local only until it gets
+the same treatment. The shipped `docker-server.md` carries the procedure.
 Why: small sites where a managed instance per site costs more than it
 warrants already fit the one-container-per-instance model; what was
 missing was everything production needs around it, and none of that
@@ -928,25 +1070,41 @@ host (Engine 29.8, Compose 5.5.1): data protection, the role and its
 password, migrations including the builder's plpgsql trigger pair running
 as the role, backups with an upload through a write-only credential, and a
 restore drill. A full stack deployed on that host ran end to end, through
-migrations, login and a backup upload.
+migrations, login and a backup upload. For MariaDB (12.3.3): the same
+mechanisms in a sandbox (Engine 29.9, Compose 5.6) through the shipped
+service: first start, the app role's grants, migrations, the sample suite, the
+backup script, the healthcheck against each failed-initialization shape, the
+existing-data-directory step, a series bump with rollback by restore and a
+patch bump. On a real Linux host (Engine 29.9, Compose 5.6), the shipped
+service started from a scratch copy of the compose file showed data
+protection under a locked parent, file-backed secrets read by the shipped
+healthcheck, the backup script as root with root-owned files, `root` only as
+`root@localhost`, the restore drill and the startup noise; a purpose-built
+compose file carrying the service's environment, flags and caps showed the
+load tiers.
 Cost: whoever runs the server owns scheduling, off-host storage and
 alerting; the framework ships requirements and recommendations only. Every
-deploy that recreates the whole stack restarts the database.
-Revisit when: the first production deploy shows a gap the end-to-end run
-didn't, or MariaDB joins the tier (it plugs into the same label, layout and
-engine seam).
+deploy that recreates the whole stack restarts the database. A MariaDB dump
+is consistent for InnoDB tables only.
+Revisit when: the first production deploy of either engine shows a gap the
+end-to-end run didn't, or MySQL joins the tier (it plugs into the same
+label, layout and engine seam).
 
 **No point-in-time recovery on the bundled tier.**
 Decision: the worst-case loss is everything written since the last good
-dump; WAL archiving is not built, and the docs say so.
+dump. PostgreSQL has no WAL archiving built and MariaDB runs with its binary
+log off; the docs say so.
 Why: the tier targets small sites, and a dump interval is a loss window
 those sites can state and accept. For MySQL the equivalent question is the
 binlog (disabled for sizing, see above); it belongs with MySQL's own server
 work.
+Evidence: MariaDB 12.3.3 through the shipped service, sandbox: `log_bin`
+OFF, `SHOW BINARY LOGS` refused ("You are not using binary logging"); the
+compose file passes no binary-log flag, so this is the image default.
 Cost: a site that can't lose a day needs a shorter dump interval or the
 managed tier.
 Revisit when: a site needs a loss window shorter than any practical dump
-interval, or MySQL/MariaDB server-tier work starts.
+interval, or MySQL joins the tier.
 
 **Data protection: bind paths behind a variable, locked at the parent.**
 Decision: `${POSTGRES_DATA:-postgres-data}` and
