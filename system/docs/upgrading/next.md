@@ -57,3 +57,22 @@ alone changes nothing.
   unchanged; what is new is the documented rule: dump first, rollback is a
   restore. Compose and `docker.md` now say "series bump" where they said
   "version bump".
+
+## The bundled `postgres` profile refuses the superuser over TCP
+
+Reaches a project only when it reconciles `docker/postgres/` from the sample
+(a compose copy run by other tooling also needs `postgres/` re-copied beside
+it); `composer update` alone changes nothing.
+
+- **`postgres` logs in only from inside the container**, as MariaDB's `root`
+  now does. A new cluster refuses it over TCP from anywhere but loopback. One
+  created earlier keeps accepting it until a one-time step:
+
+  ```bash
+  ./docker_manage.sh -e <instance> --profile postgres exec -u postgres postgres sh /docker-entrypoint-initdb.d/20-superuser-local-only.sh
+  ./docker_manage.sh -e <instance> --profile postgres exec -u postgres postgres psql -U postgres -Atc 'SELECT pg_reload_conf()'
+  ```
+
+  A throwaway local instance can `down -v` instead. The app role, `docker
+  exec` logins and `bin/db-backup.sh` are unaffected; anything that logged in
+  as `postgres` over the network no longer can.

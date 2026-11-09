@@ -204,8 +204,9 @@ uploader can take):
 The bundled `postgres` service is a supported tier for small sites: one
 database container per site, inside the site's own stack. At scale, a
 managed database remains the recommendation. The stack ships what the
-database needs from it: a non-superuser app role, data that survives
-`down -v`, and `bin/db-backup.sh`. Scheduling, off-host storage and
+database needs from it: a non-superuser app role, a superuser that logs in
+only from inside the container, data that survives `down -v`, and
+`bin/db-backup.sh`. Scheduling, off-host storage and
 alerting belong to whoever runs the server.
 
 There is no point-in-time recovery: the worst-case loss is everything
@@ -261,6 +262,24 @@ Unset, `POSTGRES_DATA` and `VALKEY_STATE_DATA` are named volumes, and
 - **Switching an existing site's `valkey-state` to a bind path starts it
   empty.** The named volume isn't copied, so every user is logged out once.
   Copy the volume's contents into the new path first if that matters.
+
+### A cluster created before the superuser reject rule
+
+A new cluster refuses `postgres` over TCP from anywhere but loopback inside
+the container. One created by an earlier framework version accepts it from
+any container on `appnet` with the root password. Only the database container
+mounts that secret; a service that learns it by other means can log in. Add
+the rule once, then reload:
+
+```bash
+docker exec -u postgres <container> sh /docker-entrypoint-initdb.d/20-superuser-local-only.sh
+docker exec -u postgres <container> psql -U postgres -Atc 'SELECT pg_reload_conf()'
+```
+
+Running the script again changes nothing. The rule lives in the data
+directory's `pg_hba.conf` and survives restarts. Logins through `docker
+exec`, `bin/db-backup.sh` and the app role are unaffected. A local instance
+with disposable data can `down -v` instead.
 
 ### PostgreSQL secrets and app settings
 

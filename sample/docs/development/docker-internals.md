@@ -594,6 +594,15 @@ setting off for that one session first: a failed or logged `CREATE ROLE`
 would otherwise print the password. It refuses outright when the variable
 is unset, which means the wrapper was bypassed.
 
+`initdb/20-superuser-local-only.sh` inserts `host all <POSTGRES_USER> all
+reject` ahead of the `host all all all scram-sha-256` line the image appends
+to `pg_hba.conf` before it runs the hooks, so the superuser logs in over the
+socket or loopback only. It finds that line by its `host all all all ` prefix
+and fails the init when there isn't exactly one. **Re-check on every pin
+change** that the image still appends the line in that form
+(`pg_setup_hba_conf` in `docker-entrypoint.sh`); a changed form stops every
+new site's first initialization rather than leaving it open.
+
 **The init marker.** The image doesn't clean up a half-initialized data
 directory: after a failed hook, the next start logs "Skipping
 initialization" and comes up healthy without the app role. So the wrapper

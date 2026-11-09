@@ -577,6 +577,40 @@ Cost: no TCP login for `root`, even from loopback inside the container;
 nothing documented uses that form.
 Revisit when: something needs a remote `root`.
 
+**PostgreSQL's `postgres` logs in only from inside the container: a reject rule in `pg_hba.conf`.**
+Decision: `initdb/20-superuser-local-only.sh` inserts `host all postgres all
+reject` ahead of the image's catch-all `host all all all scram-sha-256`,
+local dev included. A new cluster refuses the superuser over TCP except from
+loopback; the socket, `docker exec`, `bin/db-backup.sh` and the app role are
+unaffected. A cluster created before keeps accepting it: `docker-server.md`
+documents running the same script by hand, then `pg_reload_conf()`, and a
+throwaway local volume can `down -v` instead.
+Why: parity with MariaDB's `root` (the entry above). The image's catch-all
+admits the superuser from any container on `appnet` that has the root
+password. No application container mounts it, but a safe default shouldn't
+rest on that.
+Evidence: sandbox, `postgres:18.6-alpine3.24`, through the shipped service.
+A fresh cluster: the hook ran between `10-` and `99-`, the init marker
+cleared, healthy; a sibling container refused as `postgres` (`pg_hba.conf
+rejects connection`) with either password, the app role accepted from it and
+refused with the root password; `docker exec` login, loopback TCP inside the
+container, the dump and the restore drill worked. A cluster created by the
+previous compose file: open to a sibling, still so on the new file, closed by
+the script run as root (the file stayed `postgres:postgres 0600`) plus
+`pg_reload_conf()`, a second run changed nothing, still closed after a
+restart. With no catch-all line the script exits 1, executed or sourced.
+Rejected: a mounted `hba_file` (closes an existing cluster on its next
+restart, but ships a full copy of the image's rules, silently ignores hand
+edits to `$PGDATA/pg_hba.conf`, and an unreadable mount stops every start);
+`ALTER ROLE postgres PASSWORD NULL` (a later `\password postgres` silently
+reopens it, and `pg_hba_file_rules` doesn't show it); `listen_addresses` on
+loopback (the app connects over TCP); a knob (no caller); servers only (the
+base compose must be safe on its own).
+Cost: no TCP login for `postgres` from outside the container. The hook
+depends on the form of the image's catch-all line, and fails the first
+initialization when that changes.
+Revisit when: something needs a remote superuser.
+
 **`MARIADB_AUTO_UPGRADE` stays `"1"`; a series bump is dump-first, and rollback is a restore.**
 Decision: the flag stays on, servers and local. The first start after a
 series bump backs up the `mysql` system schema and runs `mariadb-upgrade`.
