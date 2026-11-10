@@ -80,6 +80,32 @@ class MGR_Rest_Controller extends REST_Controller
 	}
 
 	/**
+	 * Finds the auth_override for the request. Later entries win: '*', then the
+	 * deprecated methods[<segment>] and methods[<segment>][<verb>] shapes (matched
+	 * against the suffix-stripped segment), then methods[<controller method>].
+	 */
+	protected function _find_auth_override(): ?string
+	{
+		$controller_method = $this->_resolve_controller_method($this->router->method, segment: $segment);
+
+		$candidates = [
+			$this->methods['*']['auth_override'] ?? null,
+			$this->methods[$segment]['auth_override'] ?? null,
+			$this->methods[$segment][$this->request->method]['auth_override'] ?? null,
+			$this->methods[$controller_method]['auth_override'] ?? null,
+		];
+
+		$auth_override_found = null;
+		foreach ($candidates as $candidate) {
+			if (!empty($candidate)) {
+				$auth_override_found = $candidate;
+			}
+		}
+
+		return $auth_override_found;
+	}
+
+	/**
 	 * Resolves the level/group gate configured for the called action in
 	 * $group_methods (falling back to the '*' wildcard), then responds 401
 	 * before the action runs if the caller doesn't satisfy it.
@@ -96,7 +122,7 @@ class MGR_Rest_Controller extends REST_Controller
 		// through validate_group(), and an Error thrown anywhere here escapes the
 		// catch (Exception) inside parent::_remap() and would answer with no body.
 		try {
-			$controller_method = $object_called . '_' . $this->request->method;
+			$controller_method = $this->_resolve_controller_method($object_called);
 
 			$level = 0;
 			if (isset($this->group_methods[$controller_method]['level'])) {

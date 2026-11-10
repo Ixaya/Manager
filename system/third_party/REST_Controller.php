@@ -605,6 +605,27 @@ abstract class REST_Controller extends MY_Controller
 	}
 
 	/**
+	 * Resolve the controller method a request for $object_called runs: {segment}_{verb},
+	 * or index_{verb} when that method doesn't exist
+	 *
+	 * @access protected
+	 * @param string $object_called URL segment, format suffix included e.g. index.json
+	 * @param-out string $segment $object_called without its format suffix
+	 * @param-out bool $fallback true when index_{verb} was chosen
+	 * @return string
+	 */
+	protected function _resolve_controller_method(string $object_called, ?string &$segment = null, ?bool &$fallback = null): string
+	{
+		// Remove the supported format from the function name e.g. index.json => index
+		$segment = (string) preg_replace('/^(.*)\.(?:' . implode('|', array_keys($this->_supported_formats)) . ')$/', '$1', $object_called);
+
+		$controller_method = $segment . '_' . $this->request->method;
+		$fallback = !method_exists($this, $controller_method);
+
+		return $fallback ? 'index_' . $this->request->method : $controller_method;
+	}
+
+	/**
 	 * Requests are not made to methods directly, the request will be for
 	 * an "object". This simply maps the object and method to the correct
 	 * Controller method
@@ -623,14 +644,11 @@ abstract class REST_Controller extends MY_Controller
 			], self::HTTP_FORBIDDEN);
 		}
 
-		// Remove the supported format from the function name e.g. index.json => index
-		$object_called = preg_replace('/^(.*)\.(?:' . implode('|', array_keys($this->_supported_formats)) . ')$/', '$1', $object_called);
+		$controller_method = $this->_resolve_controller_method($object_called, segment: $segment, fallback: $fallback);
 
-		$controller_method = $object_called . '_' . $this->request->method;
 		// Does this method exist? If not, try executing an index method
-		if (!method_exists($this, $controller_method)) {
-			$controller_method = "index_" . $this->request->method;
-			array_unshift($arguments, $object_called);
+		if ($fallback) {
+			array_unshift($arguments, $segment);
 		}
 
 		// Do we want to log this method (if allowed by config)?
@@ -1219,14 +1237,13 @@ abstract class REST_Controller extends MY_Controller
 	}
 
 	/**
-	 * Check if there is a specific auth type set for the current class/method/HTTP-method being called
+	 * Find the auth type set for the current method/HTTP-method being called
 	 *
 	 * @access protected
-	 * @return bool
+	 * @return string|null
 	 */
-	protected function _auth_override_check(&$check_key_user)
+	protected function _find_auth_override()
 	{
-		$check_key_user = false;
 		$auth_override_found = null;
 
 		// Check to see if the methods override array is even populated
@@ -1246,6 +1263,20 @@ abstract class REST_Controller extends MY_Controller
 				$auth_override_found = $this->methods[$this->router->method][$this->request->method]['auth_override'];
 			}
 		}
+
+		return $auth_override_found;
+	}
+
+	/**
+	 * Check if there is a specific auth type set for the current class/method/HTTP-method being called
+	 *
+	 * @access protected
+	 * @return bool
+	 */
+	protected function _auth_override_check(&$check_key_user)
+	{
+		$check_key_user = false;
+		$auth_override_found = $this->_find_auth_override();
 
 		if ($auth_override_found != null) {
 			// No auth override found, prepare nothing but send back a TRUE override flag

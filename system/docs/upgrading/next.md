@@ -113,3 +113,36 @@ it); `composer update` alone changes nothing.
   A throwaway local instance can `down -v` instead. The app role, `docker
   exec` logins and `bin/db-backup.sh` are unaffected; anything that logged in
   as `postgres` over the network no longer can.
+
+## REST per-method gates follow the method that runs
+
+`group_methods` and `auth_override` entries used to be looked up under the raw
+URL segment, so a format suffix (`/locked.json`) or the `index_{verb}`
+fallback (`/123`, served by `index_get`) skipped a per-method entry that
+`/locked` or `/` honored. They now resolve to the controller method that runs
+(`locked_get`, `index_get`), the same key `group_methods`, `log` and `key`
+already used.
+
+- **Gates that were being skipped now apply.** A client that reached an
+  endpoint through `.json`, `.xml` or `/{id}` while its user failed the
+  per-method `group_methods` level or group now gets 401. A per-method
+  `auth_override` that tightens access under a public `'*'` (`'basic'`,
+  `'digest'`, `'session'`, `'whitelist'` over `'none'`) now also applies
+  under a suffix.
+- **`methods['x_get']['auth_override']` now works.** It used to match nothing.
+  A project that carries such a line, usually written before the key shape
+  was known, now gets what the line says. Review every match before
+  upgrading; each one becomes active:
+
+  ```bash
+  grep -rnE "methods\['[A-Za-z0-9_]+_(get|post|put|patch|delete|options|head)'\]\['auth_override'\]" application/
+  ```
+
+  Confirm an endpoint set to `'none'` or `'allow'` should really be public,
+  or delete the line.
+- **The older shapes are deprecated.** `methods['x']` and
+  `methods['x']['get']` keep working, now matched against the
+  suffix-stripped segment (`/x.json` honors them). Move them to
+  `methods['x_get']`. When both are set for a request, the resolved key wins.
+  `methods['index']` covers `/` and `/index` only, not `/123`; `index_get`
+  covers all three.

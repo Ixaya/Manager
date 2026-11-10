@@ -118,11 +118,16 @@ class Login extends APP_Rest_Controller
 ```
 
 `auth_override` values: `'none'`, `'allow'`, `'basic'`, `'digest'`,
-`'session'`, `'whitelist'`. Scope per method by URL segment, optionally per
-verb: `$this->methods['index']['auth_override'] = 'none';` or
-`$this->methods['index']['get']['auth_override'] = 'none';`. Unlike
-`group_methods`, there's no `_get` suffix. A key like `methods['index_get']`
-matches nothing, so under a `'*'` of `'none'`/`'allow'` that method stays public.
+`'session'`, `'whitelist'`. Scope per method with the key of the controller
+method that runs, `{segment}_{verb}` — the same key `group_methods` uses:
+`$this->methods['index_get']['auth_override'] = 'none';`. The key follows the
+dispatch, not the raw URL: `/users.json` resolves to `users_get`, and `/123`
+to `index_get` when `123_get` doesn't exist.
+
+The older shapes `methods['index']` and `methods['index']['get']` still work
+but are deprecated. They match the suffix-stripped URL segment, so
+`methods['index']` covers `/` and `/index` but not `/123`. When both shapes
+are set for a request, the resolved key wins.
 
 **`'none'` vs `'allow'`.** Both make the endpoint public; only `'allow'` still
 identifies the caller. `'none'` skips the key lookup entirely — `$_apiuser` is
@@ -147,6 +152,9 @@ public function __construct()
     parent::__construct();
 }
 ```
+
+Per-method keys resolve like `auth_override`'s: to the method that runs, so
+`/locked.json` and (for `index_get`) `/123` hit the same entry as `/locked`.
 
 If both `level` and `group` are set, passing **either** grants access.
 Constants (`LEVEL_ADMIN` = 10, `GROUP_ADMIN` = 'admin', `GROUP_ADMIN_ID`,

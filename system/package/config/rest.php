@@ -171,11 +171,11 @@ $config['auth_library_function'] = '';
 | e.g:
 |
 |		   $this->methods['*']['auth_override'] = 'none';
-|		   $this->methods['deals']['auth_override'] = 'digest';
-|		   $this->methods['accounts']['get']['auth_override'] = 'basic';
-|		   $this->methods['dashboard']['post']['auth_override'] = 'basic';
+|		   $this->methods['deals_get']['auth_override'] = 'digest';
+|		   $this->methods['accounts_get']['auth_override'] = 'basic';
+|		   $this->methods['index_get']['auth_override'] = 'allow';
 |
-| Here 'deals', 'accounts' and 'dashboard' are controller names, 'view', 'insert' and 'user' are methods within. An asterisk may also be used to specify an authentication method for an entire classes methods. (NOTE: leave off the '_get' or '_post' from the end of the method name)
+| The key is the controller method that runs, '{segment}_{verb}', the same key group_methods uses; it follows the dispatch, so 'users.json' resolves to 'users_get' and '/123' to 'index_get'. An asterisk may also be used to specify an authentication method for an entire classes methods. The legacy shapes $this->methods['deals'] and $this->methods['accounts']['get'] still work but are deprecated; when both are set the resolved key wins.
 | Acceptable values are; 'none', 'allow', 'digest' and 'basic'.
 |
 */

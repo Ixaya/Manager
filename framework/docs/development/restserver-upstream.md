@@ -55,12 +55,20 @@ on `MY_Model` instead of `CI_Model`.
 
 `system/third_party/REST_Controller.php` is upstream-tracked: fixes go in
 `MGR_Rest_Controller`, and the file stays close to upstream so a merge stays
-clean. It carries two deliberate edits: the `rest->db` seam below, and the
-`rest_language` fallback at the end of this section.
+clean. It carries five deliberate edits, below: the `rest->db` seam, the
+`rest_language` fallback, the dispatch failure hook, the dispatch resolver,
+and the `auth_override` lookup seam. The only other difference is cosmetic: named-argument spacing
+in the `_apply_cors_headers()` call.
+
+**This record is complete from commit `954d3e0` onward** (`git diff
+954d3e0^ -- system/third_party/REST_Controller.php` lists every difference).
+Divergence from before that commit is unreconciled, among it a local rewrite
+of `_auth_override_check()`. It gets reconciled by diffing the file against
+upstream's own version at the next upstream merge.
 
 ### The `rest->db` seam
 
-The first landed in commit `3d0c173`.
+Landed in commit `3d0c173`.
 
 The constructor's block that loads `rest->db` moved, verbatim, into
 `protected function _load_rest_database()`, placed right after
@@ -82,6 +90,8 @@ Upstream's own block reads `rest_database_group` directly, so an upstream
 change to it has to be carried into the method, not restored inline.
 
 ### The `rest_language` fallback
+
+Landed in commit `4658e74`.
 
 In the constructor's language block, a null `rest_language` now falls back to
 `$this->config->item('language')` where upstream falls back to `'english'`:
@@ -107,3 +117,66 @@ following the request language when `REST_LANGUAGE` is unset, with no error.
 A locale in `MGR_LANGUAGES` also needs its own `rest_controller_lang.php`
 (the package ships `english`, `spanish`, `japanese`); a missing one is a 500
 on every REST call in that locale.
+
+### The dispatch failure hook
+
+Landed in commit `954d3e0`.
+
+The body of the `catch (Exception $ex)` in `_remap()` moved verbatim into
+`protected function _handle_dispatch_throwable(\Throwable $ex)`, placed right
+after `_remap()`; the catch now calls it. A docblock was added, nothing else
+changed. The parameter is typed `\Throwable` on purpose: PHP forbids narrowing
+a parameter type in an override. `MGR_Rest_Controller` overrides it to log,
+then render. The reasoning is in the error-contract design record.
+
+**After any upstream merge, re-verify that both the method and the catch's
+call to it survived.** If either is lost, an `Exception` thrown by an action
+is still rendered but no longer logged, with no error.
+
+### The dispatch resolver
+
+`_remap()`'s inline resolution of the method to run moved into
+`_resolve_controller_method(string $object_called, ?string &$segment = null, ?bool &$fallback = null): string`,
+placed right before `_remap()`. It strips the format suffix (the regex
+unchanged), appends the verb, and returns `index_{verb}` when that method
+doesn't exist. The stripped segment and whether it fell back come out through
+the two optional references. `_remap()` calls it, and shifts `$segment` onto
+`$arguments` when `$fallback` is true, where upstream reassigned
+`$object_called`. Dispatch and arguments are unchanged.
+
+`MGR_Rest_Controller` calls it from its `_remap()` for the `group_methods` key
+and from `_find_auth_override()` with `segment:`, so those lookups key on
+exactly what `_remap()` dispatches to.
+
+**After any upstream merge, re-verify the method and its call in `_remap()`.**
+If `_remap()` goes back to inline resolution, nothing errors and dispatch
+keeps working, but a later change to the strip or fallback rules then applies
+to dispatch and not to the gates, and a gate can again be skipped.
+
+### The `auth_override` lookup seam
+
+The block in `_auth_override_check()` that finds the configured override
+(`methods['*']`, `methods[<segment>]`, `methods[<segment>][<verb>]`) moved,
+verbatim, into `protected function _find_auth_override()`, placed right before
+`_auth_override_check()`. Its first line, `$auth_override_found = null;`, moved
+with it, and the method ends with a `return`. `_auth_override_check()` now
+reads `$auth_override_found = $this->_find_auth_override();` and keeps the
+dispatch on the found value (`none`, `allow`, `basic`, `digest`, `session`,
+`whitelist`) untouched. The surrounding function is the local rewrite that
+predates the baseline above.
+
+`MGR_Rest_Controller` overrides `_find_auth_override()` and does not call the
+parent. The parent's block reads the raw `router->method`, so a format suffix
+(`/x.json`) skipped the per-method entries. The override reads the same
+entries against the suffix-stripped segment and adds
+`methods[<controller method>]` (e.g. `index_get`) on top, later entries
+winning; both keys come from the dispatch resolver above.
+
+**After any upstream merge, re-verify the method and the call in
+`_auth_override_check()`.** If either is lost, the override silently stops
+applying: legacy per-method entries that tighten access under a public `'*'`
+do not apply under a suffix, and `methods['x_get']` entries are ignored.
+
+**When the deprecated `methods[<segment>]` and `methods[<segment>][<verb>]`
+shapes are removed,** delete their two lines from the override. This edit stays
+as a harmless default.
