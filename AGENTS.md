@@ -42,7 +42,6 @@ system/
 │   └── MGR/            # Cache + Cache_redis, Migration runner
 ├── package/            # CI package path, autoloaded by consuming apps:
 │   ├── config/         #   lib_*.php configs, manager.php, rest.php, migration.php…
-│   ├── controllers/    #   Language.php
 │   ├── helpers/        #   manager_*_helper.php (mgr_* functions, Mgr* enums)
 │   ├── language/       #   english, japanese, spanish
 │   ├── libraries/      #   unprefixed thin aliases (Async_exec_lib extends MGR_…)

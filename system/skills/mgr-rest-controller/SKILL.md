@@ -57,6 +57,17 @@ PUT/DELETE verbs).
 never the model's own singular name: a `Card` model and a `Card` controller
 in the same module is a same-name class collision, not just a style miss.
 
+## Response language
+
+A caller picks the language of Ion Auth and other framework messages with the
+`X-Language` header (a name listed in `MGR_LANGUAGES`, such as `spanish`);
+anything else is ignored. `REST_LANGUAGE` pins the REST controller's own
+messages; unset, they follow the header too (a locale a project adds to
+`MGR_LANGUAGES` then needs its own `rest_controller_lang.php`). A cross-origin
+frontend must have `X-Language` in `REST_ALLOWED_CORS_HEADERS` when it
+overrides that list.
+Resolution and the override seam: `mgr-web-controllers` ("Request language").
+
 ## Authentication
 
 By default every request must carry a valid API key in the `X-API-KEY` header

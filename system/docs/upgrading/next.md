@@ -3,6 +3,43 @@
 Changes between 2.x releases that alter behavior a project already depends on.
 Everything else in a minor release is additive.
 
+## Language selection is resolved in the controller base
+
+The `Language` controller (`language/change/{locale}`) that the 2.0.0 table
+listed as a package replacement was never routable: the package
+`controllers/` directory was not a module location. It is removed. A project
+that still has `application/controllers/Language.php` deletes that file but
+keeps the (empty) `application/controllers/` directory, which module routing
+resolves through. A project that wants a language picker
+writes `$_SESSION['language']` from its own controller.
+
+The request language is now resolved in the controller base, before anything
+loads a language file, and only values listed in `MGR_LANGUAGES` are accepted
+(exact match; anything else is ignored and the configured `language` stays).
+
+- **Every web and REST controller** reads the `X-Language` request header.
+  Ion Auth messages follow it. The header is in the default
+  `REST_ALLOWED_CORS_HEADERS`; a project that sets that variable replaces the
+  whole list and must add `X-Language` itself for cross-origin frontends.
+- **`?language=` and `$_SESSION['language']` now apply only to controllers
+  that extend `APP_Site_Controller`.** A web controller extending
+  `MY_Controller` that used either stops switching; make it extend
+  `APP_Site_Controller`. `?language=` still needs `$language_enabled`; the
+  session value does not.
+- **A language missing from `MGR_LANGUAGES` is no longer applied.** The
+  default list is `english,spanish`; a project that reaches `japanese` (or
+  any other locale) adds it to `MGR_LANGUAGES`. The REST controller loads its
+  own `rest_controller_lang.php` in the resolved language when `REST_LANGUAGE`
+  is unset (the package ships it for `english`, `spanish` and `japanese`), so
+  a locale a project adds itself needs that file under its language
+  directory, or `REST_LANGUAGE` set to pin the REST messages.
+- **`REST_LANGUAGE` unset follows the request language** (otherwise the
+  configured `language`, `english` by default). Set it to keep REST's own
+  messages fixed; `.env` files that carry `REST_LANGUAGE=english` keep that
+  pin.
+- **`Accept-Language` is not read.** Override `language_candidates()` in a
+  base controller to add it; `mgr-web-controllers` has an example.
+
 ## Migrations: the package runs first
 
 `manager/tools/migrate` (and `plan`) now order targets as the package's own

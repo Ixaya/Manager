@@ -478,7 +478,6 @@ $config['rest_logs_json_params'] = mgr_env_bool('REST_LOGS_JSON_PARAMS', true);
 |
 |	   $this->method['METHOD_NAME']['limit'] = [NUM_REQUESTS_PER_HOUR];
 |
-| See application/controllers/api/example.php for examples
 */
 $config['rest_enable_limits'] = false;
 
@@ -524,10 +523,11 @@ $config['rest_ajax_only'] = false;
 | REST Language File
 |--------------------------------------------------------------------------
 |
-| Language file to load from the language directory
+| Language of the REST controller's own messages. Unset follows the request
+| language (config 'language')
 |
 */
-$config['rest_language'] = mgr_env_strict('REST_LANGUAGE', 'english');
+$config['rest_language'] = mgr_env_strict('REST_LANGUAGE');
 /*
 |--------------------------------------------------------------------------
 | CORS Check
@@ -552,6 +552,7 @@ $config['allowed_cors_headers'] = mgr_env_array('REST_ALLOWED_CORS_HEADERS', [
 	'Content-Type',
 	'Accept',
 	'X-API-Key',
+	'X-Language',
 ]);
 
 /*

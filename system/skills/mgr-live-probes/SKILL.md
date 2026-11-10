@@ -163,6 +163,16 @@ not after each one; the stack has real bring-up overhead. Keep the stack up
 while you work through them; tear down (`down -v`, every profile flag) at the
 end.
 
+**A credential file that still looks valid does not prove the database is
+intact.** `<instance>.agent.env` outlives the database it was claimed
+against: after a reset, the stored password fails to log in (or the claim
+gate is open again) while the file reads fine. A failed login, or a 500 that
+no probe explains, on an instance with that file may mean the database was
+reset rather than the code under test being wrong. Run `manager/tools/plan`
+and look in the app log for a missing table (`api_log`, for example) before
+trusting any probe result, then re-bootstrap per `mgr-auth` if the database
+is fresh.
+
 Of the three log channels (mgr-docker-ops), the probe base's
 `capture_errors()` is the one only a probe has — it alone sees what
 `error_reporting` masks, notably `E_DEPRECATED`. For a 500 with every

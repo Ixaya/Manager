@@ -51,11 +51,16 @@ upstream bump — this record's only job is to preserve provenance
 (Phil Sturgeon, Chris Kacerguis, MIT license) and explain why the file sits
 on `MY_Model` instead of `CI_Model`.
 
-## `REST_Controller` — one local edit: the `rest->db` seam
+## `REST_Controller` — local edits
 
 `system/third_party/REST_Controller.php` is upstream-tracked: fixes go in
 `MGR_Rest_Controller`, and the file stays close to upstream so a merge stays
-clean. It carries one deliberate edit, which landed in commit `3d0c173`.
+clean. It carries two deliberate edits: the `rest->db` seam below, and the
+`rest_language` fallback at the end of this section.
+
+### The `rest->db` seam
+
+The first landed in commit `3d0c173`.
 
 The constructor's block that loads `rest->db` moved, verbatim, into
 `protected function _load_rest_database()`, placed right after
@@ -75,3 +80,30 @@ survived.** If either is lost, the override silently stops applying, and the
 REST handle goes back to an uncached second session on every request.
 Upstream's own block reads `rest_database_group` directly, so an upstream
 change to it has to be carried into the method, not restored inline.
+
+### The `rest_language` fallback
+
+In the constructor's language block, a null `rest_language` now falls back to
+`$this->config->item('language')` where upstream falls back to `'english'`:
+
+```php
+$language = $this->config->item('rest_language');
+if ($language === null) {
+	$language = $this->config->item('language');
+}
+```
+
+`config['language']` is the request language that `MGR_Controller` resolves
+in its constructor (the parent call at the top of this constructor), so with
+`REST_LANGUAGE` unset the REST controller's own messages follow it. The edit
+has to live here: this constructor runs `$this->load->config('rest')` after
+the parent call, which resets `rest_language` from the environment, so a
+value written earlier by the resolver would be overwritten, and the fallback
+is the only point that reads the item after that.
+
+**After any upstream merge, re-check that the null branch still reads
+`config['language']`.** If it reverts to `'english'`, REST messages stop
+following the request language when `REST_LANGUAGE` is unset, with no error.
+A locale in `MGR_LANGUAGES` also needs its own `rest_controller_lang.php`
+(the package ships `english`, `spanish`, `japanese`); a missing one is a 500
+on every REST call in that locale.

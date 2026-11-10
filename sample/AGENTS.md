@@ -113,6 +113,9 @@ The project's own code lives under `application/`:
   `MGR_` parents in the package. They are project code, so they can carry
   local overrides — check them when tracing behavior, don't assume they are
   empty.
+- `application/modules/*/controllers/` — every controller lives in a module.
+  `application/controllers/` stays as an empty directory (with its
+  `index.html`): module routing resolves through it, so do not delete it.
 - `modules/*/controllers/api/` — REST endpoints.
   `modules/auth/controllers/api/Login.php` is the login/registration flow.
 - `modules/<module>/migrations/<connection>/` — new migrations. Older

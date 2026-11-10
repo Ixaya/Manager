@@ -22,7 +22,10 @@ directory doesn't resolve:
   constant; nothing in a project may hardcode a framework path of its own.
 - `APPMGRPATH` — the same location expressed relative to `APPPATH`, because
   MX's module and hook loaders take paths relative to `APPPATH`/
-  `APPPATH/controllers/`, not absolute ones.
+  `APPPATH/controllers/`, not absolute ones. Those relative paths are
+  resolved through `application/controllers/`, so that directory must exist
+  (it can stay empty): with it missing, `…/controllers/../modules/…` does not
+  resolve and every route, package modules included, returns 404.
 
 `application/config/autoload.php` pulls the package in:
 `$autoload['packages'] = [MGRPATH . 'package']`, so everything under

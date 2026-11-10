@@ -444,7 +444,7 @@ abstract class REST_Controller extends MY_Controller
 		// Get the language
 		$language = $this->config->item('rest_language');
 		if ($language === null) {
-			$language = 'english';
+			$language = $this->config->item('language');
 		}
 
 		// Load the language file

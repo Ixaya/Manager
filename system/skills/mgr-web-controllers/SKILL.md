@@ -63,7 +63,7 @@ properties before/in the constructor:
 | `$_theme` | Second segment; also exposed to views as `$module` |
 | `$_layout` | Layout view name; defaults to `layout` |
 | `$session_enabled` | `true` loads the session library (+ flashdata kind default) |
-| `$language_enabled` | `true` loads language file(s) — `$language_file` name(s), defaults to the lowercased class name; `?language=` / `$_SESSION['language']` switch it |
+| `$language_enabled` | `true` loads the controller's own language file(s) — `$language_file` name(s), defaults to the lowercased class name, so set it only where that file exists (a missing file is an error); on `APP_Site_Controller` pages it also allows `?language=` |
 
 `resolve_layout()` builds the layout path as `{container}/{theme}/{layout}`
 (each segment optional). The constructor resolves it once into
@@ -83,6 +83,48 @@ example; the `ixaya/manager` source repository has a legacy shape to port
 (framework repo only, not shipped — a shape, not a style to copy) at
 `extras/backend/application/core/Admin_Controller.php` and
 `extras/site_cms/application/core/Private_Controller.php`.
+
+## Request language
+
+The request language is resolved once, in the `MGR_Controller` constructor,
+before anything loads a language file (Ion Auth, form validation, the
+controller's own file all follow it). Only values listed in `MGR_LANGUAGES`
+are accepted, by exact match; anything else is ignored and the configured
+`language` stays. `language_candidates()` returns the names to try in
+preference order, and the first allowed one wins:
+
+| Where | Candidates |
+|---|---|
+| `MGR_Controller` (every web and REST controller) | the `X-Language` request header |
+| `MGR_Site_Controller` / `APP_Site_Controller` | `?language=` (only with `$language_enabled`), then `$_SESSION['language']`, then the header |
+
+Plain `MY_Controller` pages get the header only, so a page that relied on
+`?language=` or the session extends `APP_Site_Controller`. The project's own
+code writes `$_SESSION['language']` (for example from a language picker); the
+framework never does. For REST, `REST_LANGUAGE` unset makes the controller's
+own messages follow the same language; set, it pins them.
+
+Other sources, such as `Accept-Language`, are a project override that appends
+to the parent's list; the framework does no header negotiation:
+
+```php
+protected function language_candidates(): array
+{
+	$idioms = ['en' => 'english', 'es' => 'spanish'];
+	$candidates = [];
+
+	foreach (explode(',', (string)$this->input->server('HTTP_ACCEPT_LANGUAGE')) as $part) {
+		$tag = strtolower(trim(explode(';', $part)[0]));
+		if (isset($idioms[substr($tag, 0, 2)])) {
+			$candidates[] = $idioms[substr($tag, 0, 2)];
+		}
+	}
+
+	return [...parent::language_candidates(), ...$candidates];
+}
+```
+
+This keeps the header's order and ignores `q` weights.
 
 ## Loading views
 

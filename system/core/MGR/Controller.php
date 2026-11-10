@@ -28,8 +28,36 @@ class MGR_Controller extends CI_Controller
 			$this->load_session();
 		}
 
+		// must run before anything loads a language file, which fixes the idiom
+		$this->resolve_language();
 		$this->load_language();
 		$this->_layout_path = $this->resolve_layout($this->_layout);
+	}
+
+	/**
+	 * Language names to try, in preference order. Override to add sources;
+	 * the first one listed in `config['languages']` wins.
+	 *
+	 * @return list<string>
+	 */
+	protected function language_candidates(): array
+	{
+		$header = $this->input->get_request_header('X-Language');
+
+		return is_string($header) ? [$header] : [];
+	}
+
+	/** Sets `config['language']` to the first allowed candidate; others are ignored. */
+	protected function resolve_language(): void
+	{
+		$allowed = (array)$this->config->item('languages');
+
+		foreach ($this->language_candidates() as $candidate) {
+			if (in_array($candidate, $allowed, true)) {
+				$this->config->set_item('language', $candidate);
+				return;
+			}
+		}
 	}
 
 	// MGR_Site_Controller
@@ -79,12 +107,6 @@ class MGR_Controller extends CI_Controller
 			if ($this->language_file === null) {
 				$this->load->helper('inflector');
 				$this->language_file = strtolower(get_class($this));
-			}
-
-			if (isset($_GET['language'])) {
-				$this->config->set_item('language', $_GET['language']);
-			} elseif (isset($_SESSION['language'])) {
-				$this->config->set_item('language', $_SESSION['language']);
 			}
 
 			if (is_array($this->language_file)) {

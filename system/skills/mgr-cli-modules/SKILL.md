@@ -192,9 +192,8 @@ shadow/extend them with a module of the same name.
 When creating a new module: create only the directories you need (plus
 `migrations/{conn}/` if it owns tables), follow the structures above, and add
 language files per locale dir (`english`, `spanish`, `japanese`) if it has UI
-text. Available locales come from `MGR_LANGUAGES` (`manager.php` config);
-users switch via the framework's `language/change/{locale}` controller — don't
-build a new one.
+text. Available locales come from `MGR_LANGUAGES` (`manager.php` config); how
+a request picks one is in `mgr-web-controllers` ("Request language").
 
 ## Anti-patterns
 
