@@ -81,6 +81,11 @@ creates it from `.env.sample` only if you don't already have one.
 above carries **only** the docker overrides, layered on top of the base by
 compose (last wins).
 
+Set `CF_HOST` in `.env.<instance>` to the host you browse the instance on
+(`localhost:<HTTP_PORT>`, no scheme) when you need absolute links: mail, API
+image URLs, anything built from the CLI. Unset, generated links are
+root-relative.
+
 > Write secret files with `printf`/`openssl` (no trailing newline). The
 > consumers strip a trailing newline anyway, but keeping them clean avoids
 > surprises.

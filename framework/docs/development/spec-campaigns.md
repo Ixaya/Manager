@@ -507,9 +507,10 @@ One prompt per session, each pasted into a CLEAN context (never chain two
 sessions in one window), with the `/model` + `/effort` choice recorded above
 the prompt. Mark sessions that worked or failed; the runbook doubles as the
 campaign's execution log. The file always ENDS with the closing-review and
-distillation prompts — seeded as skeletons when the runbook is written, filled
-in as the campaign closes — so the exit is planned from day one. The runbook
-dies with the campaign directory at distillation; a shared runbook that
+distillation prompts — seeded when the runbook is written; they read their
+inputs from the handoff (see "Closing-review and distillation inputs"), so
+nothing is left to fill in at close and the exit is planned from day one. The
+runbook dies with the campaign directory at distillation; a shared runbook that
 outlives its campaigns only goes stale. Durable prompt lessons belong here, in
 this playbook.
 
@@ -564,6 +565,30 @@ high-effort tax on ten renames because one spicy item is mixed in; pull it
 into its own session. Keep sessions narrow: five items with the section's
 handoff open beats thirty items across sections.
 
+### Closing-review and distillation inputs
+
+The closing-review and distillation prompts carry no content of their
+own. Their inputs collect in `handoff.md` while the campaign runs,
+appended by the session that knows them:
+
+- **Closing-review inputs**
+  - *Greps*: one line per check a fix leaves behind — a removed
+    signature or call shape (must return zero hits), a do-not-regress
+    property, a pair of lists kept in sync, a wording rule the
+    campaign set.
+  - *Out of scope*: findings parked outside the campaign, rulings
+    already settled (rejected options, a declined upgrade-note line),
+    engines or tiers the campaign did not test.
+- **Distillation inputs**: deliverables the campaign owes beyond the
+  standard ones in Endgame step 3, such as a doc a fix promised or a
+  setup step a later check needs.
+
+Every fix-session prompt asks the session to append its inputs; a
+session with nothing to add says so in its exit report. The campaign's
+closing prompt then says only `Consolidated greps and OUT of scope:
+handoff "Closing-review inputs".`, and the distillation prompt points at
+"Distillation inputs" the same way.
+
 ### Prompt skeleton
 
 Every session prompt follows this shape (assembled from the campaign's
@@ -599,6 +624,7 @@ repeat anything load-bearing from the item text, agents skim.> Diff each
 fix against the handoff quote, record deviations in handoff.md
 immediately, delete finished entries from spec.md. <Closing check when
 the batch has one: "verify after: <grep> — must return zero hits".>
+Append your closing-review and distillation inputs to handoff.md.
 No commits. Finish by listing what you fixed and what you skipped and
 why.
 ```
@@ -721,8 +747,9 @@ The failures new operators hit first — each is the negative of a rule above:
 1. **Closing review** (separate session, strong model): for every item marked
    fixed, re-diff current code against the recorded baseline; verify any
    do-not-regress properties verbatim; re-run the campaign's consolidated
-   greps; produce a per-section verdict table and a punch list, **written to
-   a file in the campaign directory (`closing-review.md`) in the same turn —
+   greps (handoff "Closing-review inputs"); produce a per-section verdict
+   table and a punch list, **written to a file in the campaign directory
+   (`closing-review.md`) in the same turn —
    never left only in the chat reply** (fix nothing in that session).
 
    **What reopens work.** A closing review or re-check reopens work only for a

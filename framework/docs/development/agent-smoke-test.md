@@ -56,7 +56,8 @@ which one was used:
 
 1. Scaffold from `vendor/ixaya/manager/sample/`; configure `.env` /
    `.env.priv` and a Docker instance for one engine (Postgres keeps the
-   stack smallest). No ws/cron containers.
+   stack smallest), with `CF_HOST` set if the run checks absolute links.
+   No ws/cron containers.
 2. Connectivity preflight from the sample docker doc — sandbox policies
    commonly block a build host such as `github.com`; a blocked domain must be flagged to the
    operator, not retried for hours.
