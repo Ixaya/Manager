@@ -182,6 +182,9 @@ class MGR_Amazon_aws_lib
 			return null;
 		}
 	}
+	/**
+	 * Saves the object `$file_name` to `$path/$file_name` on local disk. Both are server-chosen, never request input.
+	 */
 	public function save_file(string $file_name, string $path): bool
 	{
 		try {

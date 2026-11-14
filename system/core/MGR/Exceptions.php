@@ -325,23 +325,37 @@ class MGR_Exceptions extends CI_Exceptions
 			}
 		}
 
+		header('Vary: Origin');
+
 		if (!$is_options) {
 			return;
 		}
 
-		if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
-			// Echo back requested headers (more compatible with older browsers)
-			header('Access-Control-Allow-Headers: ' . $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']);
-		} else {
-			header('Access-Control-Allow-Headers: *');
-		}
+		// Defaults mirror $config['allowed_cors_headers'] in package/config/rest.php; keep in sync.
+		$allowed_headers = mgr_env_array('REST_ALLOWED_CORS_HEADERS', [
+			'X-Requested-With',
+			'Content-Type',
+			'Accept',
+			'X-API-Key',
+			'X-Language',
+		]);
+		header('Access-Control-Allow-Headers: ' . implode(', ', $allowed_headers));
 
 		$cors_max_age =  mgr_env_int('REST_CORS_MAX_AGE', 86400);
 		if ($cors_max_age > 0) {
 			header('Access-Control-Max-Age: ' . $cors_max_age);
 		}
 
-		header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
+		// Defaults mirror $config['allowed_cors_methods'] in package/config/rest.php; keep in sync.
+		$allowed_methods = mgr_env_array('REST_ALLOWED_CORS_METHODS', [
+			'GET',
+			'POST',
+			'OPTIONS',
+			'PUT',
+			'PATCH',
+			'DELETE',
+		]);
+		header('Access-Control-Allow-Methods: ' . implode(', ', $allowed_methods));
 	}
 
 	/**

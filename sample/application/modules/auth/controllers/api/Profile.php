@@ -63,26 +63,51 @@ class Profile extends APP_Rest_Controller
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
 
-		if (!empty($_FILES['image']['name'])) {
-			$resolution = [250, 250];
-			$image_field = 'image';
-			$relative_path = "media/user_profile/$this->user_id/";
-
-			$image_data = $this->upload_image($relative_path, $image_field, false, $image_field, $resolution);
-			unset($data);
-			if ($image_data) {
-				$data['image_name'] = $image_data['thumb_name'];
-				$data['image_url'] = $image_data['thumb_url'];
-
-				$this->user->update($data, $this->user_id);
-			}
-		}
-
 		$response['profile'] = $this->get_profile();
 
 		$this->response([
 			'status' => 1,
 			'response' => $response
+		], REST_Controller::HTTP_OK);
+	}
+
+	/**
+	 * Uploads the caller's own profile image.
+	 */
+	public function image_post(): void
+	{
+		$this->load->model('user');
+
+		$image_data = $this->upload_image(
+			relative_path: "media/user_profile/$this->user_id/",
+			desired_file_name: 'image',
+			delete_original: false,
+			field_name: 'image',
+			resolution: [250, 250],
+			error: $error
+		);
+		if ($image_data === null) {
+			$this->response([
+				'status' => 0,
+				'message' => strip_tags($error)
+			], REST_Controller::HTTP_BAD_REQUEST);
+		}
+
+		$saved = $this->user->update([
+			'image_name' => $image_data['thumb_name'],
+			'image_url' => $image_data['thumb_url'],
+		], $this->user_id);
+		if (!$saved) {
+			$this->response([
+				'status' => 0,
+				'message' => 'Something went wrong while saving the image. Please try again.'
+			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+		}
+
+		$this->response([
+			'status' => 1,
+			'message' => 'Image uploaded successfully.',
+			'response' => ['image_url' => image_url($image_data['thumb_url'], 'https:')]
 		], REST_Controller::HTTP_OK);
 	}
 

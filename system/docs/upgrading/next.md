@@ -146,3 +146,75 @@ already used.
   `methods['x_get']`. When both are set for a request, the resolved key wins.
   `methods['index']` covers `/` and `/index` only, not `/123`; `index_get`
   covers all three.
+
+## Upload library: type defaults, generated names, storage URIs
+
+- **Uploads have type defaults.** Without an `upload_config`,
+  `upload_file()` and `attachment_lib` accept
+  `gif|jpg|jpeg|png|webp|pdf|txt|csv|doc|docx|xls|xlsx|ppt|pptx|odt|ods`
+  (was any type), and `upload_image()` accepts `gif|jpg|png|jpeg` (no longer
+  `svg` or `pdf`). With a list, the extension must match the detected content.
+  Page types (`html`, `htm`, `xhtml`, `shtml`, `svg`, `svgz`, `xml`, `xsl`,
+  `js`) are refused under the web root (`media/…`) whatever the config. To
+  accept more, pass `upload_config` (it replaces the defaults: restate
+  `max_size`), set `$this->attachment_lib->upload_config` for attachments, or
+  redefine `DEFAULT_FILE_TYPES` / `DEFAULT_IMAGE_TYPES` in a subclass loaded
+  under its own name. A type with no `mimes.php` entry goes in the project's
+  `config/mimes.php`.
+- **`upload_image()` converts only raster content.** Without
+  `preserve_type`, content detected as anything but jpeg, png, gif, webp or
+  avif (a BMP, a PDF allowed through `upload_config`) is refused with the
+  filetype error. `preserve_type: true` is unchanged.
+- **Failures return `null`.** An error inside an upload, GD's or the S3
+  client's included, returns `null` with `$error` set instead of a 500. Pass
+  `error: $error` and answer the failure; a falsy check alone now carries on
+  silently.
+- **Stored names are generated.** `encrypt_name: false` is ignored. A desired
+  name (`$desired_file_name`, `put_file()`'s `$file_name`, `attachment_lib`'s
+  `$desired_filename`) is built by the server, and is refused (`null` +
+  `$error`; `attachment_lib` throws) when it has `/`, `\`, `?`, NUL, a leading
+  dot or invalid UTF-8, or fails `mgr_is_allowed_file_name()`: ASCII letters,
+  digits and `._-`, starting with a letter or digit, at most 255 bytes.
+  Override that function to widen the charset or the length. To keep a
+  client's original name, let the library generate the stored one and keep
+  the original in `title` (`$extra_data` overrides it). `put_file()` with an
+  empty name generates `<hash>.<ext>`, or `<hash>` alone when no extension is
+  listed for the detected type.
+- **`display_image()` and `get_file_base64()` take a storage URI**
+  (`media/…`, `private/…`, `s3/…`). An absolute filesystem path no longer
+  resolves, and a URI with a `..` segment is refused (empty image / `null`,
+  logged). Add another storage root by overriding `mgr_file_path()`.
+  `display_image()` serves jpeg, png, gif, webp and avif inline, typed from
+  the content, and anything else as a download (`application/octet-stream`,
+  `attachment`).
+
+## Controller helpers are `protected`
+
+`MGR_Controller`'s `load_language`, `load_session`, `load_clean_view`,
+`load_view`, `json_response`, `upload_file`, `upload_image`, `put_file`,
+`get_file_base64` and `display_image` form the controller-internal API and
+are available to controller subclasses. Outside a controller, call
+`upload_lib` instead of the file helpers (the same methods and arguments);
+the others are controller-only. `put_file()` takes `string $data`: an
+override typed `array` must change.
+`load_view()` and `load_clean_view()` throw `InvalidArgumentException` for a
+view name with a `..` segment; map slug pages to view names through an
+allow-list.
+
+## Sample: `base_url` from `CF_HOST` only, and a page-type nginx location
+
+Reaches a project only when it reconciles these files from the sample.
+
+- **`application/config/config.php`:** remove the `$_SERVER['HTTP_HOST']`
+  fallback and set `CF_HOST` to the main public host, no scheme, in every
+  instance env file. Links then follow one configured host on web and CLI
+  alike. The fallback applied only to web requests, so pages looked right
+  while CLI-built links (cron, mail sent from a command) came out host-less;
+  unset, `CF_HOST` now gives root-relative links everywhere, so the gap shows
+  on day one.
+- **`docker/nginx/conf.d/app.conf`:** copy the page-type `location` into your
+  own, before the generic `/media/` block (the first matching regex wins), and
+  keep its `include security-headers.inc`; rebuild or reload nginx. Page types
+  under `/media/` then download instead of rendering; other extensions are
+  unchanged. A server other than the sample nginx needs the equivalent
+  headers.

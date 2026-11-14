@@ -209,6 +209,20 @@ if (!function_exists('mgr_validate_order_by')) {
 	}
 }
 
+if (!function_exists('mgr_validate_id')) {
+	/**
+	 * Validates a request value as a record id: an integer of 1 or more. Use the returned int, never the original.
+	 *
+	 * @return int|null The id, or null for anything else (`5abc`, an array, `0`, a float string).
+	 */
+	function mgr_validate_id(mixed $value): ?int
+	{
+		$id = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+		return $id === false ? null : $id;
+	}
+}
+
 if (!function_exists('mgr_provided')) {
 	/**
 	 * Whether a value was meaningfully provided by the caller.

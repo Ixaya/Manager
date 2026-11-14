@@ -88,6 +88,7 @@ class Login extends APP_Rest_Controller
 		//Implement send email using
 		//$data['forgottenPasswordCode'];
 		//$data['email'];
+		//Build the link with base_url(), from the configured CF_HOST.
 
 		$this->response(['status' => 1, 'message' => "Email succesfully sent."], REST_Controller::HTTP_OK);
 	}

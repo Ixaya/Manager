@@ -139,6 +139,11 @@ The layout view receives `$data` plus `$page` (the content view to render) and
 `$module` (the theme). Don't call `$this->load->view()` directly in page
 controllers — that bypasses layout/theme resolution.
 
+`$page` and `$layout_path` are view names the server chooses. A page picked by
+a request value (a slug) goes through an allow-list or lookup first, never
+straight into `load_view()`; a name with a `..` segment throws
+`InvalidArgumentException`.
+
 `json_response($data)` emits a JSON body and dies. Existing pages use it for
 small AJAX endpoints — leave those alone, but don't write new ones. A new JSON
 endpoint belongs in `APP_Rest_Controller` however small it is (see
@@ -148,12 +153,22 @@ File uploads from web controllers: use the built-in proxies
 (`$this->upload_file()`, `$this->upload_image()`) — see mgr-helpers-libraries
 (`upload_lib`).
 
+**The `MGR_Controller` helpers are `protected`** (`load_language`,
+`load_session`, `load_clean_view`, `load_view`, `json_response`,
+`upload_file`, `upload_image`, `put_file`, `get_file_base64`,
+`display_image`): call them from the controller itself. Outside a
+controller, call `upload_lib` instead of the file helpers; the others are
+controller-only. Only actions are `public` on a controller.
+
 ## Domain-driven theming
 
 Call `resolve_theme()` (typically from a base controller's constructor) to
 theme by request host: it looks up `$_SERVER['HTTP_HOST']` in the `Domain`
 model, follows `redirect_url` if set, stores `$_domain_id` /
 `$domain_client_id`, and overrides `$_theme` from the domain's `Theme` row.
+The row's `shortname` is a view-path segment: a value with a `..` segment, or
+a missing `Theme` row, is not applied (`$_theme` keeps the controller's value)
+and is logged at `error`; `resolve_theme()` never throws.
 
 ## HTML error pages
 

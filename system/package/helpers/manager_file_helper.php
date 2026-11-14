@@ -6,6 +6,10 @@ if (!function_exists('mgr_file_path')) {
 	/**
 	 * Generate the full file path based on the URI, handling private and public files.
 	 *
+	 * `$uri` is a storage URI (`media/…`, `private/…`) built by the server, never request input, and is not
+	 * validated. Another storage root is added by overriding this function in
+	 * `application/helpers/manager_file_helper.php` and mapping a prefix, as `private/` is mapped here, not with `../`.
+	 *
 	 * @param string $uri The file path to be processed.
 	 * @return string The full path to the file, either private or public.
 	 */
@@ -24,6 +28,8 @@ if (!function_exists('mgr_file_path')) {
 if (!function_exists('mgr_private_file_path')) {
 	/**
 	 * Generate the full path for a private file, cleaning the URI and ensuring it starts with 'private/'.
+	 *
+	 * `$uri` is built by the server, never request input, and is not validated.
 	 *
 	 * @param string $uri The file path to be processed.
 	 * @return string The full path to the private file.
@@ -106,6 +112,36 @@ if (!function_exists('mgr_clean_file_s3_path')) {
 		if (($pos = strpos($uri, 's3/')) !== false) {
 			$uri = substr($uri, $pos + 3); // Get everything after 's3/'
 		}
+	}
+}
+
+if (!function_exists('mgr_is_allowed_file_path')) {
+	/**
+	 * Whether a storage URI may be read: false for a `..` segment (query string and leading slash dropped, then split
+	 * on `/` and `\`). `strip_query: false` checks the whole string, for a name that reaches its consumer whole, such
+	 * as a view name. Overridable.
+	 */
+	function mgr_is_allowed_file_path(string $uri, bool $strip_query = true): bool
+	{
+		if ($strip_query) {
+			mgr_clean_file_path($uri);
+		}
+
+		return !in_array('..', explode('/', str_replace('\\', '/', $uri)), true);
+	}
+}
+
+if (!function_exists('mgr_is_allowed_file_name')) {
+	/**
+	 * Whether a server-chosen file name may be stored: ASCII letters, digits, `.`, `_` and `-`, starting with a
+	 * letter or digit, at most 255 bytes. Checks one file name, never a path.
+	 *
+	 * Override in `application/helpers/manager_file_helper.php` to widen the charset or change the length. The
+	 * upload library's fixed rules (valid UTF-8, no `/` `\` `?` or NUL, no leading dot) run first and cannot be widened.
+	 */
+	function mgr_is_allowed_file_name(string $file_name): bool
+	{
+		return strlen($file_name) <= 255 && preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*\z/', $file_name) === 1;
 	}
 }
 

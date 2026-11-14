@@ -35,7 +35,8 @@ Source of truth (only read if something here is insufficient):
 
 `REST_Controller` extends `MY_Controller`, so API controllers inherit
 the framework controller helpers too — `upload_image()`, `upload_file()`,
-`put_file()`, `get_file_base64()`, `display_image()`.
+`put_file()`, `get_file_base64()`, `display_image()`. They are `protected`:
+call them as `$this->…` from your own actions.
 
 ## Placement and routing
 

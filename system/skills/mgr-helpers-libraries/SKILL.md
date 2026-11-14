@@ -31,11 +31,11 @@ required by `public/index.php` at boot. The rest need
 
 | Helper | Key functions |
 |---|---|
-| `manager_helper` | `mgr_provided($v)` — "has a usable value" check (use instead of ad-hoc `!empty()` chains); `mgr_generate_hash($len)`, `mgr_format_hash`/`mgr_unformat_hash` (folio display); `mgr_process_exception($e, $context)` — standard exception logging; `mgr_cache_key($prefix, $params)`; `mgr_build_limit_page($limit, $page)` and `mgr_build_order_by($col, $dir, $allowed_cols)` — pagination/ordering from request params, rejecting (returns `null`) a `$col` not in `$allowed_cols` instead of substituting a default; `mgr_validate_order_by($col, $allowed_cols)` is the same check alone, for validating before running a query; `image_url()`, `secure_url()` |
+| `manager_helper` | `mgr_provided($v)` — "has a usable value" check (use instead of ad-hoc `!empty()` chains); `mgr_generate_hash($len)`, `mgr_format_hash`/`mgr_unformat_hash` (folio display); `mgr_process_exception($e, $context)` — standard exception logging; `mgr_cache_key($prefix, $params)`; `mgr_build_limit_page($limit, $page)` and `mgr_build_order_by($col, $dir, $allowed_cols)` — pagination/ordering from request params, rejecting (returns `null`) a `$col` not in `$allowed_cols` instead of substituting a default; `mgr_validate_order_by($col, $allowed_cols)` is the same check alone, for validating before running a query; `mgr_validate_id($value): ?int` — a request value as a record id (integer ≥ 1, else `null`); answer 400 on `null`, look the record up, then use the id the database returns, never the request value; `image_url()`, `secure_url()` |
 | `manager_env_helper` | `mgr_env($key, $default)` + typed `mgr_env_bool/int/float/array/json`, `mgr_env_strict` — ALWAYS, never `getenv()`/`$_ENV`. An empty value from any source collapses to `$default` (`strict=false` opts out when `$default` is non-null); a matched quote pair (`KEY="value"`) is stripped first, a mismatched one stays literal |
 | `manager_time_helper` (load it) | `mgr_get_date_option($option, $date)` / `_obj` / `_unix` — named ranges (today, month starts…); `mgr_create_date_time($string, $format): ?DateTime`; `mgr_format_date_time_iso($raw_value)` / `mgr_format_date_time_sql($raw_value)` — normalize a `Timestamp` column's raw value (naive on MySQL, offset-suffixed on Postgres/SQL Server) to ISO-8601 / `Y-m-d H:i:s`; opt-in at response time, never automatic; `mgr_to_unix($date)` |
 | `manager_timezone_helper` | `mgr_date_default_timezone_set($tz)` — after boot use it, never `date_default_timezone_set()`: it also re-sends the offset to cached DB handles; a non-identifier is logged at `error` and ignored; `mgr_get_time_zone_offset($tz)`, `mgr_get_now_date_time($tz): DateTime`, `mgr_get_now_date_time_sql_format($tz): string` — SQL-literal (`Y-m-d H:i:s`) form, used for `last_update`-style write sites |
-| `manager_file_helper` | `mgr_file_path()` / `mgr_private_file_path()` — public vs private storage roots; `mgr_clean_file_path()`, `mgr_clean_file_s3_path()`; `mgr_get_temp_upload_path*($field)` — `$_FILES` handling |
+| `manager_file_helper` | `mgr_file_path()` / `mgr_private_file_path()` — public vs private storage roots; paths are storage URIs (`media/…`, `private/…`) built by the server, never request input, and are not validated; add another root by overriding `mgr_file_path()` in `application/helpers/manager_file_helper.php`, not with `../`; `mgr_clean_file_path()`, `mgr_clean_file_s3_path()`; `mgr_is_allowed_file_name($name)` — overridable bool check on one stored file name (see "Desired names"); `mgr_is_allowed_file_path($uri)` — overridable bool check the two read methods (`get_file_base64()`, local `display_image()`) apply to a storage URI: false for a `..` segment, which they refuse (`null` / the empty image) and log; `strip_query: false` checks the whole string, as `load_view()` and `resolve_theme()` do for view names; `mgr_get_temp_upload_path*($field)` — `$_FILES` handling |
 | `manager_mime_helper` | `mgr_file_extention()`, `mgr_mime_extention()`, `mgr_detect_mime_from_file/data()` — never trust client mime types |
 | `manager_db_driver` | `MgrDriver` enum (`MySQL, MariaDB, Postgres, SQLServer, SQLite`): `MgrDriver::fromCI($db->dbdriver, subdriver: $db->subdriver ?? null)` (resolves `pdo/<engine>`); `->isMysqlFamily()`, `->supportsUnsigned()` — use for any driver-conditional SQL |
 | `manager_db_function` | `MgrFunctionType` enum (`FromUnixtime, ToUnixtime, Now, DateFormat, DateDiff, Round, Floor, Ceil, Abs`) + `mgr_build_function()` / `mgr_build_field_select()` — cross-engine SQL functions in SELECTs (models: `$this->build_field_select()`, see mgr-models). `mgr_is_sql_identifier()` — validate a config/user-sourced column or `table.column` name before concatenating it into SQL (callers throw on false; CI's `escape_identifiers()` is NOT a guard, it passes parens/quotes through) |
@@ -75,9 +75,9 @@ signatures). Load in the method that uses the library, not the constructor
 | Library | Purpose |
 |---|---|
 | `async_exec_lib` | Fire-and-forget background execution of controller URIs or module library calls (see mgr-cli-modules). Use instead of `exec()` |
-| `upload_lib` | File/image uploads: validation, unique naming, resizing/thumbnails (`upload_image` with `$resolution`), `put_file` for generated content, `display_image`. Controllers already proxy it: `$this->upload_file()`, `$this->upload_image()`, `$this->get_file_base64()` on any `MY_Controller` descendant (REST included) |
-| `attachment_lib` | Uploads tied to DB records: stores files AND rows in the `attachment` table keyed by `(model_name, model_hash)` — use when a file belongs to an entity |
-| `amazon_aws_lib` | S3: `upload_file`, `upload_data`, `get_file`, `save_file`, `get_presigned_url`, `list_files`; multiple configs via `set_config_key()` |
+| `upload_lib` | File/image uploads: validation, unique naming, resizing/thumbnails (`upload_image` with `$resolution`), `put_file` for generated content, `display_image` (serves jpeg/png/gif/webp/avif inline by detected type; any other file is sent as a download). Controllers already proxy it: `$this->upload_file()`, `$this->upload_image()`, `$this->put_file()`, `$this->get_file_base64()` on any `MY_Controller` descendant (REST included) |
+| `attachment_lib` | Uploads tied to DB records: stores files AND rows in the `attachment` table keyed by `(model_name, model_hash)` — use when a file belongs to an entity. Accepted types follow its public `$upload_config` property (see "Upload defaults") |
+| `amazon_aws_lib` | S3: `upload_file`, `upload_data`, `get_file`, `save_file` (`$file_name` is a server-chosen key that becomes a local path under `$path`; never request input), `get_presigned_url`, `list_files`; multiple configs via `set_config_key()` |
 | `jwt_lib` | `generate_token($user_id, $aud, $scopes, $extra)` / `decode_token($token, $aud)`; config-keyed secrets via `set_config_key()` |
 | `mailing_lib` | Themed email: `send_email($email, $data, $subject, $view)` renders a mailing view; transport is the active profile's `protocol` (`smtp`/`sendmail`/`sendgrid`). `send_template($email, $template_key, $data)` is `sendgrid`-only, `$template_key` declared in the subclass's `$templates`; `set_theme()`, `set_config_key()` |
 | `sendgrid_lib` | SendGrid v3 Mail Send client: `send()`, `send_template()`, `get_template_id($key)`, `set_config_key()` — directly, or via `mailing_lib`'s `sendgrid` protocol |
@@ -87,6 +87,46 @@ signatures). Load in the method that uses the library, not the constructor
 | `log_prune_lib` | Age/size retention over caller-passed log directories (`prune_app`, `prune_cli`) and the REST `api_log` table (`prune_api`, given a connection and table); thresholds from `lib_log_prune.php` as public properties a caller may override — used through `manager/tools/log_prune` |
 | `ion_auth` | Authentication, users and groups (see mgr-auth) |
 | `format`, `seeder` | REST output formatting (used internally by `response()`); DB seeding base class for `application/database/seeds/` |
+
+**Upload defaults.** Without an `upload_config`, `upload_file()` accepts
+`gif|jpg|jpeg|png|webp|pdf|txt|csv|doc|docx|xls|xlsx|ppt|pptx|odt|ods` and
+`upload_image()` accepts `gif|jpg|png|jpeg`. Page types (`html`, `htm`,
+`xhtml`, `shtml`, `svg`, `svgz`, `xml`, `xsl`, `js`) are refused under the
+web root whatever the config. `s3/…` paths apply the same lists and rule
+against the file's detected type (never the client-declared one), and also
+refuse a file whose detected type is a page type's (`text/html`, SVG, XML…)
+whatever the config; there only the `allowed_types` of an `upload_config` is
+honored. To accept more, pass
+`upload_config` — it replaces the defaults entirely, so restate `allowed_types`
+and `max_size` — or set `$this->attachment_lib->upload_config` for attachments.
+A project subclass of `MGR_Upload_lib` loaded under its own name can instead
+redefine the `DEFAULT_FILE_TYPES` / `DEFAULT_IMAGE_TYPES` constants; the
+controller proxies and `attachment_lib` load the unprefixed alias, so only
+`upload_config` reaches them.
+
+Without `preserve_type`, `upload_image()` converts only content detected as
+jpeg, png, gif, webp or avif; any other detected type (a PDF or BMP allowed
+through `upload_config`, say) is refused with the filetype error and not
+stored. Any failure inside an upload, including an error thrown by GD or the
+S3 client, is logged and comes back as `null` with the reason in `$error`;
+the call's files are removed, never a 500.
+
+**Desired names.** A `$desired_file_name` (`upload_file()`, `upload_image()`),
+`put_file()`'s `$file_name` and `attachment_lib`'s `$desired_filename` are names
+the server builds — `<id>.pdf`, `invoice_<hash>.pdf` — never request input. To
+keep a client's original name, store it in the DB (`attachment_lib` keeps it in
+`title`; `$extra_data` overrides it) and let the library generate the stored
+name. A name that fails is refused with `$error` (`attachment_lib` throws),
+never rewritten. Two layers decide: fixed rules in `upload_lib` (valid UTF-8,
+no `/`, `\`, `?` or NUL, no leading dot) and the overridable
+`mgr_is_allowed_file_name()` — ASCII letters, digits, `.`, `_`, `-`, starting
+with a letter or digit, at most 255 bytes. To accept more (CJK, Thai, a longer
+limit), declare that one function in
+`application/helpers/manager_file_helper.php`; the fixed rules still run first.
+The helper checks one file name, never a path or directory segment. A name is
+checked as given, so one near 255 bytes can still fail once the extension (or
+`_thumb`/`_original`) is added. `put_file()` with an empty name generates
+`<hash>.<ext>`, the extension looked up from the detected content type.
 
 Library configuration lives in `vendor/ixaya/manager/system/package/config/`,
 in two different shapes:

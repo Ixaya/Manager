@@ -60,7 +60,10 @@ class MGR_Controller extends CI_Controller
 		}
 	}
 
-	// MGR_Site_Controller
+	/**
+	 * Applies the request host's domain: redirect, domain ids, and `$_theme` from its theme row. A missing row or a
+	 * shortname with a `..` segment is skipped and logged; never throws (it runs in a constructor).
+	 */
 	protected function resolve_theme(): void
 	{
 		$this->load->model('domain');
@@ -76,8 +79,14 @@ class MGR_Controller extends CI_Controller
 
 			if (!empty($domain['theme_id'])) {
 				$this->load->model('theme');
-				$theme_row    = $this->theme->get($domain['theme_id']);
-				$this->_theme = $theme_row['shortname'];
+				$theme_row = $this->theme->get($domain['theme_id']);
+				$shortname = $theme_row['shortname'] ?? null;
+
+				if (is_string($shortname) && mgr_is_allowed_file_path($shortname, strip_query: false)) {
+					$this->_theme = $shortname;
+				} else {
+					log_message('error', __METHOD__ . ": theme not applied for domain id {$this->_domain_id}, theme id {$domain['theme_id']}: missing theme row or a `..` segment in shortname");
+				}
 			}
 		}
 
@@ -101,7 +110,7 @@ class MGR_Controller extends CI_Controller
 		return $layout_path;
 	}
 
-	public function load_language(): void
+	protected function load_language(): void
 	{
 		if ($this->language_enabled) {
 			if ($this->language_file === null) {
@@ -121,7 +130,7 @@ class MGR_Controller extends CI_Controller
 		}
 	}
 
-	public function load_session(): void
+	protected function load_session(): void
 	{
 		$this->load->library('session');
 
@@ -130,12 +139,24 @@ class MGR_Controller extends CI_Controller
 		}
 	}
 
-	public function load_clean_view(string $page, array $data = []): void
+	/**
+	 * Renders `$page` inside the `layout_clean` layout; same view-name contract as load_view().
+	 *
+	 * @throws InvalidArgumentException when `$page` has a `..` segment
+	 */
+	protected function load_clean_view(string $page, array $data = []): void
 	{
 		$layout_path = $this->resolve_layout('layout_clean');
 		$this->load_view($page, $data, $layout_path);
 	}
-	public function load_view(string $page, array $data = [], ?string $layout_path = null): void
+
+	/**
+	 * Renders `$page` inside the resolved layout. `$page` and `$layout_path` are view names chosen by the server;
+	 * a page picked by a request value (a slug) is mapped through an allow-list or lookup first.
+	 *
+	 * @throws InvalidArgumentException when `$page` or the resolved layout path has a `..` segment
+	 */
+	protected function load_view(string $page, array $data = [], ?string $layout_path = null): void
 	{
 		//modify default layout after constructing the controller
 		if (empty($layout_path)) {
@@ -144,11 +165,15 @@ class MGR_Controller extends CI_Controller
 			$layout_path  = $this->resolve_layout($layout_path);
 		}
 
+		if (!mgr_is_allowed_file_path($page, strip_query: false) || !mgr_is_allowed_file_path($layout_path, strip_query: false)) {
+			throw new InvalidArgumentException(__METHOD__ . ': view name refused, a `..` segment is not allowed: ' . json_encode([$page, $layout_path], JSON_INVALID_UTF8_SUBSTITUTE));
+		}
+
 		$data['page'] = $page;
 		$data['module'] = $this->_theme;
 		$this->load->view($layout_path, $data);
 	}
-	public function json_response(mixed $data): void
+	protected function json_response(mixed $data): void
 	{
 		header('Content-Type: application/json');
 
@@ -156,31 +181,32 @@ class MGR_Controller extends CI_Controller
 		die();
 	}
 
-	public function upload_file(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
+	protected function upload_file(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
 		$this->load->library('upload_lib');
 		return $this->upload_lib->upload_file($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 	}
 
-	public function upload_image(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
+	protected function upload_image(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
 	{
 		$this->load->library('upload_lib');
 		return $this->upload_lib->upload_image($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
 	}
 
-	public function put_file(string $relative_path, string $file_name, array $data, ?string &$error = null): ?array
+	protected function put_file(string $relative_path, string $file_name, string $data, ?string &$error = null): ?array
 	{
 		$this->load->library('upload_lib');
 		return $this->upload_lib->put_file($relative_path, $file_name, $data, $error);
 	}
 
-	public function get_file_base64(?string $file_path, string &$file_name = '', string &$file_ext = '', string &$file_mime = ''): ?string
+	/** Proxy for upload_lib::get_file_base64(), same contract. */
+	protected function get_file_base64(?string $file_path, string &$file_name = '', string &$file_ext = '', string &$file_mime = ''): ?string
 	{
 		$this->load->library('upload_lib');
 		return $this->upload_lib->get_file_base64($file_path, $file_name, $file_ext, $file_mime);
 	}
 
-	public function display_image(?string $file_path): void
+	protected function display_image(?string $file_path): void
 	{
 		$this->load->library('upload_lib');
 		$this->upload_lib->display_image($file_path);

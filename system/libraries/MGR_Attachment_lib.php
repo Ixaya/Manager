@@ -8,6 +8,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class MGR_Attachment_lib
 {
 	/**
+	 * Settings passed to upload_lib as `upload_config`; null keeps its defaults.
+	 * A non-null array replaces the defaults entirely, so include `allowed_types` and `max_size`.
+	 *
+	 * @var array<string, mixed>|null
+	 */
+	public ?array $upload_config = null;
+
+	/**
 	 * __get
 	 *
 	 * Enables the use of CI super-global without having to define an extra variable.
@@ -102,7 +110,7 @@ class MGR_Attachment_lib
 	 * @param string|null $field_name Name of the multipart form field carrying the file. Untyped at runtime; validated against null before use.
 	 * @param string|null $module Owning model name, stored in `model_name` and used in the storage path. Untyped at runtime; validated against null before use.
 	 * @param string|null $hash Model hash, stored in `model_hash` and used in the storage path. Untyped at runtime; validated against null before use.
-	 * @param string $desired_filename Preferred stored file name; empty to auto-generate.
+	 * @param string $desired_filename Stored file name built by the server, never request input; empty to auto-generate. A name the upload library refuses fails the upload.
 	 * @param bool $return_data When true return the full attachment data array; when false return only the stored file URL.
 	 * @param bool $public_file When true store under the public path; when false under the private (S3) path.
 	 * @param array<string, mixed> $extra_data Extra column => value pairs merged into the inserted row.
@@ -129,7 +137,7 @@ class MGR_Attachment_lib
 			$relative_path,
 			$desired_filename,
 			$field_name,
-			null, // upload_config
+			$this->upload_config, // upload_config
 			true, // encrypt_name
 			$error
 		);
@@ -167,7 +175,7 @@ class MGR_Attachment_lib
 	 * @param string|null $data Raw file contents to store. Untyped at runtime; validated against null before use.
 	 * @param string|null $module Owning model name, stored in `model_name` and used in the storage path. Untyped at runtime; validated against null before use.
 	 * @param string|null $hash Model hash, stored in `model_hash` and used in the storage path. Untyped at runtime; validated against null before use.
-	 * @param string $desired_filename Preferred stored file name; empty to auto-generate.
+	 * @param string $desired_filename Stored file name built by the server, never request input; empty to auto-generate. A name the upload library refuses fails the upload.
 	 * @param bool $return_data When true return the full attachment data array; when false return only the stored file URL.
 	 * @param bool $public_file When true store under the public path; when false under the private (S3) path.
 	 * @param array<string, mixed> $extra_data Extra column => value pairs merged into the inserted row.

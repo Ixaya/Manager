@@ -176,6 +176,7 @@ class MGR_Rest_Controller extends REST_Controller
 
 	/**
 	 * Lazy-loads $model as $model_name and injects user_id if it's an API_Model.
+	 * Both names are server-chosen, never request input.
 	 *
 	 * @param string $model      Model class/file name to load.
 	 * @param string $model_name Property name the loaded model is assigned to.
@@ -319,7 +320,7 @@ class MGR_Rest_Controller extends REST_Controller
 			}
 		}
 
-		header('Vary: Origin ');
+		header('Vary: Origin');
 	}
 
 	/**

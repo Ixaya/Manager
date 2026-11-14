@@ -56,7 +56,7 @@ class Sysusers extends APP_Rest_Controller
 	}
 
 	/**
-	 * Registers a user, assigns a group, and uploads an optional profile image.
+	 * Registers a user and assigns a group.
 	 */
 	public function create_post(): void
 	{
@@ -96,21 +96,6 @@ class Sysusers extends APP_Rest_Controller
 			$this->ion_auth->activate($user);
 		}
 
-		if (!empty($_FILES['image']['name'])) {
-			$resolution = [250, 250];
-			$image_field = 'image';
-			$relative_path = "media/user_profile/$user/";
-
-			$image_data = $this->upload_image($relative_path, $image_field, false, $image_field, $resolution);
-			unset($data);
-			if ($image_data) {
-				$data['image_name'] = $image_data['thumb_name'];
-				$data['image_url'] = $image_data['thumb_url'];
-
-				$this->user->update($data, $user);
-			}
-		}
-
 		$this->response([
 			'status' => 1,
 			'message' => 'User created successfully.',
@@ -119,7 +104,7 @@ class Sysusers extends APP_Rest_Controller
 	}
 
 	/**
-	 * Updates a user's profile, group, and optional profile image.
+	 * Updates a user's profile and group.
 	 */
 	public function update_post(): void
 	{
@@ -134,7 +119,7 @@ class Sysusers extends APP_Rest_Controller
 			], REST_Controller::HTTP_BAD_REQUEST);
 		}
 
-		$id = $this->post('id');
+		$id = $this->get_requested_user()['id'];
 		$data = [
 			'first_name' => $this->post('first_name'),
 			'last_name'  => $this->post('last_name'),
@@ -168,26 +153,79 @@ class Sysusers extends APP_Rest_Controller
 			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
 
-		if (!empty($_FILES['image']['name'])) {
-			$resolution = [250, 250];
-			$image_field = 'image';
-			$relative_path = "media/user_profile/$id/";
-
-			$image_data = $this->upload_image($relative_path, $image_field, false, $image_field, $resolution);
-			unset($data);
-			if ($image_data) {
-				$data['image_name'] = $image_data['thumb_name'];
-				$data['image_url'] = $image_data['thumb_url'];
-
-				$this->user->update($data, $id);
-			}
-		}
-
 		$this->response([
 			'status' => 1,
 			'message' => 'User updated successfully',
 			'response' => ['id' => $id]
 		], REST_Controller::HTTP_OK);
+	}
+
+	/**
+	 * Uploads a user's profile image; the user is named by the request `id`.
+	 */
+	public function image_post(): void
+	{
+		$id = $this->get_requested_user()['id'];
+
+		$image_data = $this->upload_image(
+			relative_path: "media/user_profile/$id/",
+			desired_file_name: 'image',
+			delete_original: false,
+			field_name: 'image',
+			resolution: [250, 250],
+			error: $error
+		);
+		if ($image_data === null) {
+			$this->response([
+				'status' => 0,
+				'message' => strip_tags($error)
+			], REST_Controller::HTTP_BAD_REQUEST);
+		}
+
+		$saved = $this->user->update([
+			'image_name' => $image_data['thumb_name'],
+			'image_url' => $image_data['thumb_url'],
+		], $id);
+		if (!$saved) {
+			$this->response([
+				'status' => 0,
+				'message' => 'Something went wrong while saving the image. Please try again.'
+			], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+		}
+
+		$this->response([
+			'status' => 1,
+			'message' => 'Image uploaded successfully.',
+			'response' => ['id' => $id]
+		], REST_Controller::HTTP_OK);
+	}
+
+	/**
+	 * Resolves the user named by the request `id`; answers 400 for an invalid id and 404 for an unknown user.
+	 *
+	 * @return array The full user record (not a response body); use its `id`, never the request value.
+	 */
+	private function get_requested_user(): array
+	{
+		$this->load->model('admin/user');
+
+		$id = mgr_validate_id($this->post('id'));
+		if ($id === null) {
+			$this->response([
+				'status' => 0,
+				'message' => 'A valid user ID is required.'
+			], REST_Controller::HTTP_BAD_REQUEST);
+		}
+
+		$user = $this->user->get($id);
+		if (empty($user)) {
+			$this->response([
+				'status' => 0,
+				'message' => 'The user ID not found.'
+			], REST_Controller::HTTP_NOT_FOUND);
+		}
+
+		return $user;
 	}
 
 	/**

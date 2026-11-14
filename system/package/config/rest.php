@@ -547,6 +547,7 @@ $config['check_cors'] = mgr_env_bool('REST_CHECK_CORS', true);
 | If using CORS checks, set the allowable headers here
 |
 */
+// Defaults mirrored in MGR_Exceptions::_add_cors(); keep in sync.
 $config['allowed_cors_headers'] = mgr_env_array('REST_ALLOWED_CORS_HEADERS', [
 	'X-Requested-With',
 	'Content-Type',
@@ -563,6 +564,7 @@ $config['allowed_cors_headers'] = mgr_env_array('REST_ALLOWED_CORS_HEADERS', [
 | If using CORS checks, you can set the methods you want to be allowed
 |
 */
+// Defaults mirrored in MGR_Exceptions::_add_cors(); keep in sync.
 $config['allowed_cors_methods'] = mgr_env_array('REST_ALLOWED_CORS_METHODS', [
 	'GET',
 	'POST',

@@ -35,9 +35,6 @@ include MGRPATH . 'config/config.php';
 */
 
 $host = mgr_env('CF_HOST', null);
-if (!is_cli() && $host === null) {
-	$host = $_SERVER['HTTP_HOST'];
-}
 $config['base_url'] = "//$host";
 
 //$config['image_url'] = mgr_env('CF_IMAGE_URL', null);
