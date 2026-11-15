@@ -8,13 +8,28 @@ class MGR_Upload_lib
 	protected const string DEFAULT_FILE_TYPES = 'gif|jpg|jpeg|png|webp|pdf|txt|csv|doc|docx|xls|xlsx|ppt|pptx|odt|ods';
 
 	/** Default `allowed_types` of upload_image() when no `$upload_config` is given. */
-	protected const string DEFAULT_IMAGE_TYPES = 'gif|jpg|png|jpeg';
+	protected const string DEFAULT_IMAGE_TYPES = 'gif|jpg|png|jpeg|webp';
 
 	/** Extensions never stored under the web root, whatever the config. Keep in sync with the page-type location in docker/nginx/conf.d/app.conf. */
 	protected const array PAGE_TYPES = ['html', 'htm', 'xhtml', 'shtml', 'svg', 'svgz', 'xml', 'xsl', 'js'];
 
+	/** Extensions generate_file_name() never gives a generated name. */
+	protected const array PHP_FAMILY_TYPES = ['php', 'php3', 'php4', 'phtml', 'phps'];
+
 	/** Detected types display_image() serves inline and the only ones upload_image() converts; any other type is sent as a download. */
 	protected const array RASTER_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+
+	/** Largest width × height upload_image() decodes, whatever `upload_config` says. */
+	protected const int MAX_IMAGE_PIXELS = 16_777_216;
+
+	/** Detected types upload_image() builds a thumbnail for. */
+	protected const array THUMBNAIL_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+	/** Targets upload_image() re-encodes to, with the type each is stored as. */
+	protected const array CONVERT_TARGETS = ['jpg' => 'image/jpeg', 'webp' => 'image/webp'];
+
+	/** Default upload_image() target, a CONVERT_TARGETS key; a same-named project subclass sets it project-wide. */
+	protected string $convert_to = 'jpg';
 
 	/**
 	 * Whether to show flashdata in the response
@@ -53,21 +68,15 @@ class MGR_Upload_lib
 	}
 
 	/**
-	 * Uploads a file and returns an array with file details.
+	 * Uploads a file and returns its details.
 	 *
-	 * Without `$upload_config` it accepts gif, jpg, jpeg, png, webp, pdf, txt, csv and the Office/OpenDocument
-	 * document types. Page types (html, svg, xml, js…) are refused under the web root whatever the config.
+	 * Refused: page types under the web root and on S3, whatever the config.
 	 *
-	 * @param string      $relative_path    Destination storage URI (`media/…`, `private/…`, `s3/…`), built by the server, never request input; not validated.
-	 * @param string|null $desired_file_name Name to store as, built by the server and never request input; null generates one. A name with `/`, `\`, `?`, NUL, a leading dot or characters outside mgr_is_allowed_file_name() is refused with `$error`.
-	 * @param string      $field_name       The form field name of the file input.
-	 * @param array|null  $upload_config    CI Upload settings; replaces the defaults entirely, so include `allowed_types` and `max_size`.
-	 * @param bool        $encrypt_name     Ignored, kept for compatibility: a name is always generated unless `$desired_file_name` is given.
-	 * @param string|null &$error           Reference variable to store an error message (null if no error).
-	 *
-	 *
-	 * @return array|null Array with file details on success, null on failure.
-	 *
+	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
+	 * @param ?string $desired_file_name Built by the server, never request input; null generates one.
+	 * @param ?array $upload_config Replaces the defaults (images, pdf, txt, csv, Office and OpenDocument) entirely.
+	 * @param bool $encrypt_name Ignored; a name is generated unless `$desired_file_name` is given.
+	 * @return array|null Null on failure, reason in `$error`.
 	 */
 	public function upload_file(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
@@ -77,7 +86,7 @@ class MGR_Upload_lib
 			return null;
 		}
 
-		if (strpos($relative_path, 's3/') !== false) {
+		if (mgr_is_s3_path($relative_path)) {
 			return $this->upload_file_s3($relative_path, $desired_file_name, $field_name, $upload_config, $encrypt_name, $error);
 		}
 
@@ -241,17 +250,13 @@ class MGR_Upload_lib
 	/**
 	 * Stores generated content under a server-chosen name.
 	 *
-	 * `$relative_path` is a storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input,
-	 * and is not validated.
-	 * `$file_name` is built by the server, never request input. A name with `/`, `\`, `?`, NUL, a leading dot or
-	 * characters outside mgr_is_allowed_file_name() is refused with `$error`. An empty name generates
-	 * `<hash>.<ext>`, the extension looked up from the detected content type.
-	 *
-	 * @return array|null File details on success, null on failure with the reason in `$error`.
+	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
+	 * @param string $file_name Built by the server, never request input; empty generates `<hash>.<ext>` from the detected type.
+	 * @return array|null Null on failure, reason in `$error`.
 	 */
 	public function put_file(string $relative_path, string $file_name, string $data, ?string &$error = null): ?array
 	{
-		if (strpos($relative_path, 's3/') !== false) {
+		if (mgr_is_s3_path($relative_path)) {
 			return $this->put_file_s3($relative_path, $file_name, $data, $error);
 		}
 
@@ -365,36 +370,63 @@ class MGR_Upload_lib
 	}
 
 	/**
-	 * Uploads an image, converting it to JPEG unless `$preserve_type`, with an optional thumbnail for `$resolution`.
+	 * Uploads an image, re-encoded to the conversion target, with an optional thumbnail.
 	 *
-	 * Without `$upload_config` it accepts gif, jpg, jpeg and png. A given `$upload_config` replaces the defaults
-	 * entirely. Page types (html, svg, xml, js…) are refused under the web root whatever the config. Without
-	 * `$preserve_type` only jpeg, png, gif, webp and avif content is converted; any other detected type is refused.
+	 * Refused: page types, content GD cannot decode, images over MAX_IMAGE_PIXELS.
 	 *
-	 * `$relative_path` is a storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input,
-	 * and is not validated.
-	 *
-	 * `$desired_file_name` is built by the server, never request input; null generates one. A name with `/`, `\`,
-	 * `?`, NUL, a leading dot or characters outside mgr_is_allowed_file_name() is refused with `$error`.
-	 *
-	 * @return array|null Image details on success, null on failure with the reason in `$error`.
+	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
+	 * @param ?string $desired_file_name Built by the server, never request input; null generates one.
+	 * @param ?array $resolution `[width, height]` box; a thumbnail is built only when the image is larger.
+	 * @param bool $preserve_type Store as uploaded: no conversion, an animated GIF keeps its frames.
+	 * @param ?array $upload_config Replaces the defaults (gif, jpg, jpeg, png, webp) entirely.
+	 * @param ?string $convert_to `jpg` or `webp`; null uses the `$convert_to` property. JPEG flattens alpha onto white.
+	 * @return array|null Null on failure, reason in `$error`. `thumb_*` name the main when no thumbnail was stored;
+	 *                    `original_*` are empty when no original was kept.
+	 * @throws InvalidArgumentException On an unknown `$convert_to`.
 	 */
-	public function upload_image(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
+	public function upload_image(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null, ?string $convert_to = null): ?array
 	{
+		$convert_to ??= $this->convert_to;
+		if (!isset(static::CONVERT_TARGETS[$convert_to])) {
+			throw new InvalidArgumentException("MGR_Upload_lib: unknown conversion target '{$convert_to}'.");
+		}
+
 		$validate_result = $this->validate_files_field($field_name);
 		if ($validate_result !== null) {
 			$error = $validate_result;
 			return null;
 		}
 
-		if (strpos($relative_path, 's3/') === 0) {
-			return $this->upload_image_s3($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
+		// Runs on PHP's temp file, so a refusal leaves any previous image under the same name untouched.
+		$temp_path = $_FILES[$field_name]['tmp_name'];
+		$detected_type = (string) mgr_detect_mime_from_file($temp_path);
+
+		if (!$preserve_type && !$this->has_image_decoder($detected_type)) {
+			return $this->refuse_upload($relative_path, 'The filetype you are attempting to upload is not allowed.', $error);
 		}
 
-		return $this->upload_image_local($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error);
+		// A server-side gap, so the caller gets the generic message and the log names the missing encoder.
+		if (!$preserve_type && !$this->has_image_encoder($convert_to)) {
+			log_message('error', "Error uploading($relative_path): no GD encoder for the '{$convert_to}' target");
+			$this->report_upload_error('Error al subir imagen', $error);
+
+			return null;
+		}
+
+		$will_decode = !$preserve_type || ($resolution !== null && in_array($detected_type, static::THUMBNAIL_TYPES, true));
+		if ($will_decode && !$this->fits_pixel_ceiling($temp_path)) {
+			return $this->refuse_upload($relative_path, 'The image you are attempting to upload does not fit into the allowed dimensions.', $error);
+		}
+
+		if (mgr_is_s3_path($relative_path)) {
+			return $this->upload_image_s3($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error, $convert_to);
+		}
+
+		return $this->upload_image_local($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error, $convert_to);
 	}
-	protected function upload_image_local(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
+	protected function upload_image_local(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null, ?string $convert_to = null): ?array
 	{
+		$convert_to ??= $this->convert_to;
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
 		}
@@ -431,7 +463,7 @@ class MGR_Upload_lib
 			//initialize in second line in case you want to do multiple uploads on same instance
 			$this->load->library('upload');
 			$this->upload->initialize($config);
-			if ($this->upload->do_upload($field_name) && !$this->refuse_public_page_type($file_path) && !$this->refuse_unconvertible_image($preserve_type)) {
+			if ($this->upload->do_upload($field_name) && !$this->refuse_public_page_type($file_path)) {
 				$written_paths[] = $this->upload->data('full_path');
 
 				if ($this->show_flashdata == true) {
@@ -446,28 +478,33 @@ class MGR_Upload_lib
 				$file_type = $upload_data['file_type'];
 
 				if (!$preserve_type) {
-					$file_ext = '.jpg';
-					$file_type = 'image/jpeg';
+					$file_ext = '.' . $convert_to;
+					$file_type = static::CONVERT_TARGETS[$convert_to];
 				}
 
 				$new_file_name = $upload_data['raw_name'] . $file_ext;
-				$new_file_path = $file_path . $new_file_name;
-
+				// CI's own resolved directory, so path comparisons with its full_path hold through a symlinked root.
+				$new_file_path = $upload_data['file_path'] . $new_file_name;
 
 				if (!$preserve_type) {
-					//advanced convert to JPG that sets background to white
-					$input_image = imagecreatefromstring(file_get_contents($original_file_path));
-					list($width, $height) = getimagesize($original_file_path);
-					$output_image = imagecreatetruecolor($width, $height);
-					$white = imagecolorallocate($output_image, 255, 255, 255);
-					imagefilledrectangle($output_image, 0, 0, $width, $height, $white);
-					imagecopy($output_image, $input_image, 0, 0, 0, 0, $width, $height);
-					imagejpeg($output_image, $new_file_path);
+					// The main would overwrite the upload; a kept original moves aside as `_original`.
+					if ($original_file_path === $new_file_path && !$delete_original) {
+						$moved_file_path = $upload_data['file_path'] . $upload_data['raw_name'] . '_original' . $upload_data['file_ext'];
+						if (!rename($original_file_path, $moved_file_path)) {
+							throw new RuntimeException("MGR_Upload_lib: cannot keep the original as {$moved_file_path}.");
+						}
+
+						$written_paths[] = $moved_file_path;
+						$original_file_path = $moved_file_path;
+					}
+
+					$this->convert_image(source_path: $original_file_path, detected_type: $upload_data['file_type'], target_path: $new_file_path, convert_to: $convert_to);
 					$written_paths[] = $new_file_path;
 				}
 
-				$new_file_thumb = '';
-				if ($resolution !== null && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
+				// The main image stands in for any thumbnail that was not built or stored.
+				$new_file_thumb = $new_file_name;
+				if ($resolution !== null && in_array($file_type, static::THUMBNAIL_TYPES, true)) {
 					$image_info = getimagesize($new_file_path);
 					$original_width = $image_info[0];
 					$original_height = $image_info[1];
@@ -475,23 +512,30 @@ class MGR_Upload_lib
 					// Only resize if image is larger than desired resolution
 					if ($original_width > $resolution[0] || $original_height > $resolution[1]) {
 						// Create thumbnail
-						$new_file_thumb = $upload_data['raw_name'] . '_thumb' . $file_ext;
+						$thumb_file_name = $upload_data['raw_name'] . '_thumb' . $file_ext;
 						$img_config['image_library'] = 'gd2';
 						$img_config['source_image'] = $new_file_path;
 						$img_config['create_thumb'] = true;
 						$img_config['maintain_ratio'] = true;
 						$img_config['width'] = $resolution[0];
 						$img_config['height'] = $resolution[1];
-						$this->load->library('image_lib', $img_config);
-						if ($this->image_lib->resize()) {
-							$written_paths[] = $file_path . $new_file_thumb;
+						$this->load->library('image_lib');
+						// The loader keeps one instance per request; reset it so a second call does not resize the first image.
+						$this->image_lib->clear();
+						if ($this->image_lib->initialize($img_config) && $this->image_lib->resize()) {
+							$written_paths[] = $upload_data['file_path'] . $thumb_file_name;
+							$new_file_thumb = $thumb_file_name;
+						} else {
+							log_message('error', "Error uploading($relative_path): thumbnail not created");
 						}
-					} else {
-						// Image is already smaller, just use the original
-						$new_file_thumb = $upload_data['raw_name'] . $file_ext;
 					}
 				}
 
+				if ($delete_original && !$preserve_type && $original_file_path !== $new_file_path) {
+					unlink($original_file_path);
+				}
+
+				$original_kept = $original_file_path !== $new_file_path && file_exists($original_file_path);
 
 				//return thumbnail name and image_name
 				$v = '';
@@ -508,8 +552,8 @@ class MGR_Upload_lib
 				$return_data['fullsize_type'] = $file_type;
 				$return_data['fullsize_url']  = $relative_path . $new_file_name . $v;
 
-				$return_data['original_link'] = $upload_data['full_path'];
-				$return_data['original_name'] = $upload_data['file_name'] . $v;
+				$return_data['original_link'] = $original_kept ? $original_file_path : '';
+				$return_data['original_name'] = $original_kept ? basename($original_file_path) . $v : '';
 
 				$return_data['thumb_name']	  = $new_file_thumb . $v;
 				$return_data['thumb_url']     = $relative_path . $new_file_thumb . $v;
@@ -519,11 +563,6 @@ class MGR_Upload_lib
 				// $return_data['fullsize_image_name'] = $return_data['fullsize_name'];
 				// $return_data['url_image'] = $return_data['fullsize_url'];
 
-				//delete original image in case its not a jpg
-				if ($delete_original && !$preserve_type && $upload_data['file_ext'] != '.jpg') {
-					//delete
-					unlink($upload_data['full_path']);
-				}
 				return $return_data;
 			} else {
 				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
@@ -543,8 +582,10 @@ class MGR_Upload_lib
 
 		return null;
 	}
-	protected function upload_image_s3(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null): ?array
+	protected function upload_image_s3(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null, ?string $convert_to = null): ?array
 	{
+		$convert_to ??= $this->convert_to;
+
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
 		}
@@ -565,10 +606,8 @@ class MGR_Upload_lib
 			$s3_file_path = '';
 
 			$s3_orig_file_name = '';
-			$s3_orig_file_path = '';
 
 			$s3_thumb_file_name = '';
-			$s3_thumb_file_path = '';
 
 			$original_file_path = mgr_get_temp_upload_path(field_name: $field_name, file_extension: $file_ext);
 			$file_type = (string) mgr_detect_mime_from_file($original_file_path);
@@ -577,49 +616,45 @@ class MGR_Upload_lib
 				return $this->refuse_s3_file($relative_path, $error);
 			}
 
-			if (!$preserve_type && $file_type != 'image/jpeg') {
-				if (!in_array($file_type, self::RASTER_TYPES, true)) {
-					return $this->refuse_s3_file($relative_path, $error);
-				}
+			$keep_original = false;
+			$original_ext = $file_ext;
 
+			if (!$preserve_type) {
 				$base_file_path = "{$original_file_path}_optimized";
-				$input_image = imagecreatefromstring(file_get_contents($original_file_path));
-				list($width, $height) = getimagesize($original_file_path);
-				$output_image = imagecreatetruecolor($width, $height);
-				$white = imagecolorallocate($output_image, 255, 255, 255);
-				imagefilledrectangle($output_image, 0, 0, $width, $height, $white);
-				imagecopy($output_image, $input_image, 0, 0, 0, 0, $width, $height);
-				imagejpeg($output_image, $base_file_path);
+				$this->convert_image(source_path: $original_file_path, detected_type: $file_type, target_path: $base_file_path, convert_to: $convert_to);
 
-				// After the conversion, so a failed one leaves no `_original` object behind.
-				if ($delete_original == false) {
-					$s3_orig_file_name = "{$desired_file_name}_original.{$file_ext}";
-					$s3_orig_file_path = "{$s3_relative_path}{$s3_orig_file_name}";
-
-					$orig_image_url = $this->amazon_aws_lib->upload_file($original_file_path, $s3_orig_file_path);
-					if (empty($orig_image_url)) {
-						$s3_orig_file_path = '';
-					}
-				}
-
-				$file_ext = 'jpg';
-				$file_type = 'image/jpeg';
+				$keep_original = $delete_original == false;
+				$file_ext = $convert_to;
+				$file_type = static::CONVERT_TARGETS[$convert_to];
 			} else {
 				$base_file_path = $original_file_path;
 			}
 
+			// Put order: main, original, thumbnail. A failed main stores nothing; a later failure falls back.
 			$s3_file_name = "{$desired_file_name}.{$file_ext}";
 			$s3_file_path = "{$s3_relative_path}{$s3_file_name}";
 
 			$image_url = $this->amazon_aws_lib->upload_file($base_file_path, $s3_file_path);
 			if (empty($image_url)) {
-				$s3_file_path = '';
-			} elseif ($this->show_flashdata == true) {
+				return $this->refuse_upload($relative_path, 'Error al subir imagen', $error);
+			}
+
+			if ($this->show_flashdata == true) {
 				$this->session->set_flashdata('message', 'Imagen agregada correctamente');
 				$this->session->set_flashdata('message_kind', 'success');
 			}
 
-			if ($resolution !== null && ($file_type == 'image/jpeg' || $file_type == 'image/png')) {
+			if ($keep_original) {
+				$s3_orig_file_name = "{$desired_file_name}_original.{$original_ext}";
+
+				$orig_image_url = $this->amazon_aws_lib->upload_file($original_file_path, "{$s3_relative_path}{$s3_orig_file_name}");
+				if (empty($orig_image_url)) {
+					log_message('error', "Error uploading($relative_path): original not stored");
+					$s3_orig_file_name = '';
+				}
+			}
+
+			if ($resolution !== null && in_array($file_type, static::THUMBNAIL_TYPES, true)) {
 				$image_info = getimagesize($base_file_path);
 				$original_width = $image_info[0];
 				$original_height = $image_info[1];
@@ -634,15 +669,21 @@ class MGR_Upload_lib
 					$img_config['maintain_ratio'] = true;
 					$img_config['width']		  = $resolution[0];
 					$img_config['height']		 = $resolution[1];
-					$this->load->library('image_lib', $img_config);
-					$this->image_lib->resize();
+					$this->load->library('image_lib');
+					// The loader keeps one instance per request; reset it so a second call does not resize the first image.
+					$this->image_lib->clear();
 
-					$s3_thumb_file_name = "{$desired_file_name}_thumb.{$file_ext}";
-					$s3_thumb_file_path = "{$s3_relative_path}{$s3_thumb_file_name}";
+					if ($this->image_lib->initialize($img_config) && $this->image_lib->resize()) {
+						$thumb_file_name = "{$desired_file_name}_thumb.{$file_ext}";
 
-					$thumb_image_url = $this->amazon_aws_lib->upload_file($thumb_file_path, $s3_thumb_file_path);
-					if (empty($thumb_image_url)) {
-						$s3_thumb_file_path = '';
+						$thumb_image_url = $this->amazon_aws_lib->upload_file($thumb_file_path, "{$s3_relative_path}{$thumb_file_name}");
+						if (empty($thumb_image_url)) {
+							log_message('error', "Error uploading($relative_path): thumbnail not stored");
+						} else {
+							$s3_thumb_file_name = $thumb_file_name;
+						}
+					} else {
+						log_message('error', "Error uploading($relative_path): thumbnail not created");
 					}
 
 					// Clean up local thumbnail file after S3 upload
@@ -651,8 +692,11 @@ class MGR_Upload_lib
 					}
 				} else {
 					$s3_thumb_file_name = $s3_file_name;
-					$s3_thumb_file_path = "{$s3_relative_path}{$s3_thumb_file_name}";
 				}
+			}
+
+			if ($s3_thumb_file_name === '') {
+				$s3_thumb_file_name = $s3_file_name;
 			}
 
 			//Clean up optimized image
@@ -675,8 +719,8 @@ class MGR_Upload_lib
 			$return_data['fullsize_url']  = $relative_path . $s3_file_name . $v;
 
 
-			$return_data['original_name'] = $s3_orig_file_name . $v;
-			$return_data['original_url'] = $relative_path . $s3_orig_file_name . $v;
+			$return_data['original_name'] = $s3_orig_file_name === '' ? '' : $s3_orig_file_name . $v;
+			$return_data['original_url'] = $s3_orig_file_name === '' ? '' : $relative_path . $s3_orig_file_name . $v;
 
 			$return_data['thumb_name']	  = $s3_thumb_file_name . $v;
 			$return_data['thumb_url']     = $relative_path . $s3_thumb_file_name . $v;
@@ -716,7 +760,7 @@ class MGR_Upload_lib
 			return;
 		}
 
-		if (strpos($file_path, 's3/') !== false) {
+		if (mgr_is_s3_path($file_path)) {
 			$this->display_image_s3($file_path);
 			return;
 		}
@@ -788,7 +832,7 @@ class MGR_Upload_lib
 			return null;
 		}
 
-		if (strpos($file_path, 's3/') !== false) {
+		if (mgr_is_s3_path($file_path)) {
 			mgr_clean_file_s3_path($file_path);
 			$this->load->library('amazon_aws_lib');
 
@@ -847,17 +891,116 @@ class MGR_Upload_lib
 		return true;
 	}
 
-	/** Deletes the file CI just stored and queues CI's filetype error when the conversion would hand GD a type outside RASTER_TYPES. */
-	protected function refuse_unconvertible_image(bool $preserve_type): bool
+	/** True when the detected type is one upload_image() converts and this stack's GD has its decoder. */
+	protected function has_image_decoder(string $detected_type): bool
 	{
-		if ($preserve_type || in_array($this->upload->data('file_type'), self::RASTER_TYPES, true)) {
+		return in_array($detected_type, self::RASTER_TYPES, true)
+			&& function_exists('imagecreatefrom' . substr($detected_type, strlen('image/')));
+	}
+
+	/** True when this stack's GD has the encoder for a CONVERT_TARGETS key (imagejpeg, imagewebp). */
+	protected function has_image_encoder(string $convert_to): bool
+	{
+		return function_exists('image' . substr(static::CONVERT_TARGETS[$convert_to], strlen('image/')));
+	}
+
+	/** False over MAX_IMAGE_PIXELS, or when the dimensions cannot be read. */
+	protected function fits_pixel_ceiling(string $file_path): bool
+	{
+		$image_size = getimagesize($file_path);
+
+		return $image_size !== false && $image_size[0] * $image_size[1] <= static::MAX_IMAGE_PIXELS;
+	}
+
+	/**
+	 * Re-encodes a raster image to `$convert_to`; metadata is dropped and a JPEG's EXIF orientation applied when `exif` is loaded.
+	 * JPEG flattens transparency onto white; WebP keeps it.
+	 *
+	 * @throws RuntimeException When GD cannot decode the source or the encoder fails.
+	 * @throws InvalidArgumentException On an unknown target.
+	 */
+	protected function convert_image(string $source_path, string $detected_type, string $target_path, string $convert_to): void
+	{
+		$input_image = imagecreatefromstring(file_get_contents($source_path));
+		if ($input_image === false) {
+			throw new RuntimeException("MGR_Upload_lib: cannot decode the {$detected_type} image.");
+		}
+
+		$input_image = $this->apply_exif_orientation(image: $input_image, source_path: $source_path, detected_type: $detected_type);
+
+		$written = match ($convert_to) {
+			'jpg' => imagejpeg($this->flatten_on_white($input_image), $target_path),
+			'webp' => $this->encode_webp(image: $input_image, target_path: $target_path),
+			default => throw new InvalidArgumentException("MGR_Upload_lib: unknown conversion target '{$convert_to}'."),
+		};
+
+		if (!$written) {
+			throw new RuntimeException("MGR_Upload_lib: the {$convert_to} encoder failed.");
+		}
+	}
+
+	/** A truecolor copy of `$image` drawn over a white background, for targets without alpha. */
+	protected function flatten_on_white(GdImage $image): GdImage
+	{
+		// Read from the decoded image: an EXIF quarter turn swaps the dimensions getimagesize() reports.
+		$width = imagesx($image);
+		$height = imagesy($image);
+
+		$output_image = imagecreatetruecolor($width, $height);
+		imagefilledrectangle($output_image, 0, 0, $width, $height, imagecolorallocate($output_image, 255, 255, 255));
+		imagecopy($output_image, $image, 0, 0, 0, 0, $width, $height);
+
+		return $output_image;
+	}
+
+	protected function encode_webp(GdImage $image, string $target_path): bool
+	{
+		// GD's WebP encoder refuses palette images (GIF, 8-bit PNG); the conversion keeps their transparency as alpha.
+		if (!imagepalettetotruecolor($image)) {
 			return false;
 		}
 
-		unlink($this->upload->data('full_path'));
-		$this->upload->set_error('upload_invalid_filetype', 'debug');
+		imagesavealpha($image, true);
 
-		return true;
+		return imagewebp($image, $target_path);
+	}
+
+	/** Rotates and mirrors a decoded JPEG upright per its EXIF Orientation tag; any other type comes back as given. */
+	protected function apply_exif_orientation(GdImage $image, string $source_path, string $detected_type): GdImage
+	{
+		if ($detected_type !== 'image/jpeg' || !function_exists('exif_read_data')) {
+			return $image;
+		}
+
+		$exif_data = exif_read_data($source_path);
+		$orientation = is_array($exif_data) ? (int) ($exif_data['Orientation'] ?? 1) : 1;
+
+		// imagerotate() turns counterclockwise; the rotation runs before the mirror.
+		[$angle, $flip_mode] = match ($orientation) {
+			2 => [0, IMG_FLIP_HORIZONTAL],
+			3 => [180, null],
+			4 => [0, IMG_FLIP_VERTICAL],
+			5 => [-90, IMG_FLIP_HORIZONTAL],
+			6 => [-90, null],
+			7 => [90, IMG_FLIP_HORIZONTAL],
+			8 => [90, null],
+			default => [0, null],
+		};
+
+		if ($angle !== 0) {
+			$rotated_image = imagerotate($image, $angle, 0);
+			if ($rotated_image === false) {
+				throw new RuntimeException("MGR_Upload_lib: cannot apply EXIF orientation {$orientation}.");
+			}
+
+			$image = $rotated_image;
+		}
+
+		if ($flip_mode !== null && !imageflip($image, $flip_mode)) {
+			throw new RuntimeException("MGR_Upload_lib: cannot apply EXIF orientation {$orientation}.");
+		}
+
+		return $image;
 	}
 
 	/**
@@ -919,13 +1062,17 @@ class MGR_Upload_lib
 		return mgr_is_allowed_file_name($file_name);
 	}
 
-	/** `<hash>.<ext>` with the extension looked up from the detected type; `<hash>` alone when none is listed. */
+	/** `<hash>.<ext>` with the extension looked up from the detected type; `<hash>` alone when none is listed or it is a PHP extension. */
 	protected function generate_file_name(string|false $content_type): string
 	{
 		$file_name = mgr_generate_hash(32);
 		$file_ext = mgr_file_extension(mime_type: (string) $content_type);
 
-		return $file_ext ? "$file_name.$file_ext" : $file_name;
+		if (!$file_ext || in_array($file_ext, static::PHP_FAMILY_TYPES, true)) {
+			return $file_name;
+		}
+
+		return "$file_name.$file_ext";
 	}
 
 	protected function refuse_desired_name(string $relative_path, ?string &$error): null

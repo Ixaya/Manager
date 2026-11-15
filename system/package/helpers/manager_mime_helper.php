@@ -27,10 +27,10 @@ if (!function_exists('mgr_file_kind_extention')) {
 
 if (!function_exists('mgr_file_extension')) {
 	/**
-	 * Get file extension from MIME type with filename fallback
+	 * Get a file extension: the path's own extension when it has one, else the one for the MIME type
 	 *
-	 * @param string $mime_type MIME type to convert to extension
-	 * @param string $filepath Optional filename or file path for fallback extension extraction
+	 * @param string $filepath Optional filename or file path; its extension wins
+	 * @param string $mime_type MIME type to convert to extension when the path has none
 	 * @return string|false File extension (without dot) or false if not found
 	 */
 	function mgr_file_extension($filepath = '', $mime_type = '')
@@ -46,13 +46,22 @@ if (!function_exists('mgr_file_extension')) {
 			return false;
 		}
 
-		// Fallback: extract extension from filename/path
+		// Each entry is the preferred extension of the standard MIME database; keep it that way.
+		$corrections = [
+			'application/zip' => 'zip',
+			'text/plain' => 'txt',
+			'application/msword' => 'doc',
+			'application/vnd.ms-excel' => 'xls',
+		];
+		if (isset($corrections[$mime_type])) {
+			return $corrections[$mime_type];
+		}
+
 		$mimes = mgr_mimes_config();
 		if (empty($mimes)) {
 			return false;
 		}
 
-		// Try to find extension by MIME type first
 		foreach ($mimes as $extension => $mime_values) {
 			$mime_values = (array) $mime_values;
 			if (in_array($mime_type, $mime_values)) {

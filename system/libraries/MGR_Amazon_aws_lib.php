@@ -359,7 +359,7 @@ class MGR_Amazon_aws_lib
 	}
 	public function textract_document_config(string $file_path)
 	{
-		if (strpos($file_path, 's3/') !== false) {
+		if (mgr_is_s3_path($file_path)) {
 			mgr_clean_file_s3_path($file_path);
 
 			return [

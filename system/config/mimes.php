@@ -6,10 +6,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 | -------------------------------------------------------------------
 | MIME TYPES
 | -------------------------------------------------------------------
-| This file contains an array of mime types.  It is used by the
+| This file contains an array of mime types. It is used by the
 | Upload class to help identify allowed file types.
 |
 */
+// CodeIgniter's upstream list with local changes a resync must keep: `jpg` before `jpeg`
+// (mgr_file_extension() returns the first key), the `webp` and `avif` keys, short array syntax.
 return [
 	'hqx'	=>	['application/mac-binhex40', 'application/mac-binhex', 'application/x-binhex40', 'application/x-mac-binhex40'],
 	'cpt'	=>	'application/mac-compactpro',
@@ -91,6 +93,8 @@ return [
 	'avif'	=>	'image/avif',
 	'tiff'	=>	'image/tiff',
 	'tif'	=>	'image/tiff',
+	'heic'	=>	'image/heic',
+	'heif'	=>	'image/heif',
 	'css'	=>	['text/css', 'text/plain'],
 	'html'	=>	['text/html', 'text/plain'],
 	'htm'	=>	['text/html', 'text/plain'],
@@ -113,9 +117,7 @@ return [
 	'docx'	=>	['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/msword', 'application/x-zip'],
 	'dot'	=>	['application/msword', 'application/vnd.ms-office'],
 	'dotx'	=>	['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/msword'],
-	'odt'	=>	'application/vnd.oasis.opendocument.text',
-	'xlsx'	=>	['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/vnd.ms-excel', 'application/msword', 'application/x-zip', 'application/octet-stream'],
-	'ods'	=>	'application/vnd.oasis.opendocument.spreadsheet',
+	'xlsx'	=>	['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/vnd.ms-excel', 'application/msword', 'application/x-zip'],
 	'word'	=>	['application/msword', 'application/octet-stream'],
 	'xl'	=>	'application/excel',
 	'eml'	=>	'message/rfc822',
@@ -145,28 +147,45 @@ return [
 	'f4v'   =>	['video/mp4', 'video/x-f4v'],
 	'flv'	=>	'video/x-flv',
 	'webm'	=>	'video/webm',
-	'aac'   =>	'audio/x-acc',
-	'm4u'   =>	'application/vnd.mpegurl',
-	'm3u'   =>	'text/plain',
-	'xspf'  =>	'application/xspf+xml',
-	'vlc'   =>	'application/videolan',
-	'wmv'   =>	['video/x-ms-wmv', 'video/x-ms-asf'],
+	'aac'	=>	['audio/x-aac', 'audio/aac'],
+	'm4u'	=>	'application/vnd.mpegurl',
+	'm3u'	=>	'text/plain',
+	'xspf'	=>	'application/xspf+xml',
+	'vlc'	=>	'application/videolan',
+	'wmv'	=>	['video/x-ms-wmv', 'video/x-ms-asf'],
 	'au'	=>	'audio/x-au',
-	'ac3'   =>	'audio/ac3',
-	'flac'  =>	'audio/x-flac',
-	'ogg'   =>	['audio/ogg', 'video/ogg', 'application/ogg'],
+	'ac3'	=>	'audio/ac3',
+	'flac'	=>	'audio/x-flac',
+	'ogg'	=>	['audio/ogg', 'video/ogg', 'application/ogg'],
 	'kmz'	=>	['application/vnd.google-earth.kmz', 'application/zip', 'application/x-zip'],
 	'kml'	=>	['application/vnd.google-earth.kml+xml', 'application/xml', 'text/xml'],
 	'ics'	=>	'text/calendar',
 	'ical'	=>	'text/calendar',
 	'zsh'	=>	'text/x-scriptzsh',
-	'7zip'	=>	['application/x-compressed', 'application/x-zip-compressed', 'application/zip', 'multipart/x-zip'],
+	'7z'	=>	['application/x-7z-compressed', 'application/x-compressed', 'application/x-zip-compressed', 'application/zip', 'multipart/x-zip'],
+	'7zip'	=>	['application/x-7z-compressed', 'application/x-compressed', 'application/x-zip-compressed', 'application/zip', 'multipart/x-zip'],
 	'cdr'	=>	['application/cdr', 'application/coreldraw', 'application/x-cdr', 'application/x-coreldraw', 'image/cdr', 'image/x-cdr', 'zz-application/zz-winassoc-cdr'],
 	'wma'	=>	['audio/x-ms-wma', 'video/x-ms-asf'],
 	'jar'	=>	['application/java-archive', 'application/x-java-application', 'application/x-jar', 'application/x-compressed'],
-	'svg'	=>	['image/svg+xml', 'application/xml', 'text/xml'],
+	'svg'	=>	['image/svg+xml', 'image/svg', 'application/xml', 'text/xml'],
 	'vcf'	=>	'text/x-vcard',
 	'srt'	=>	['text/srt', 'text/plain'],
 	'vtt'	=>	['text/vtt', 'text/plain'],
-	'ico'	=>	['image/x-icon', 'image/x-ico', 'image/vnd.microsoft.icon']
+	'ico'	=>	['image/x-icon', 'image/x-ico', 'image/vnd.microsoft.icon'],
+	'odc'	=>	'application/vnd.oasis.opendocument.chart',
+	'otc'	=>	'application/vnd.oasis.opendocument.chart-template',
+	'odf'	=>	'application/vnd.oasis.opendocument.formula',
+	'otf'	=>	'application/vnd.oasis.opendocument.formula-template',
+	'odg'	=>	'application/vnd.oasis.opendocument.graphics',
+	'otg'	=>	'application/vnd.oasis.opendocument.graphics-template',
+	'odi'	=>	'application/vnd.oasis.opendocument.image',
+	'oti'	=>	'application/vnd.oasis.opendocument.image-template',
+	'odp'	=>	'application/vnd.oasis.opendocument.presentation',
+	'otp'	=>	'application/vnd.oasis.opendocument.presentation-template',
+	'ods'	=>	'application/vnd.oasis.opendocument.spreadsheet',
+	'ots'	=>	'application/vnd.oasis.opendocument.spreadsheet-template',
+	'odt'	=>	'application/vnd.oasis.opendocument.text',
+	'odm'	=>	'application/vnd.oasis.opendocument.text-master',
+	'ott'	=>	'application/vnd.oasis.opendocument.text-template',
+	'oth'	=>	'application/vnd.oasis.opendocument.text-web'
 ];

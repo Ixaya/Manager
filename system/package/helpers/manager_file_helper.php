@@ -96,9 +96,19 @@ if (!function_exists('mgr_clean_file_path')) {
 	}
 }
 
+if (!function_exists('mgr_is_s3_path')) {
+	/**
+	 * Whether a storage URI is stored on S3: `s3/` is its first segment, like `media/` and `private/`.
+	 */
+	function mgr_is_s3_path(string $uri): bool
+	{
+		return str_starts_with($uri, 's3/');
+	}
+}
+
 if (!function_exists('mgr_clean_file_s3_path')) {
 	/**
-	 * Clean a s3 file path by removing query strings and s3 base path.
+	 * Clean an S3 storage URI into its key: removes the query string and the leading `s3/`.
 	 *
 	 * @param string &$uri The file path to clean (passed by reference).
 	 * @return void
@@ -109,8 +119,8 @@ if (!function_exists('mgr_clean_file_s3_path')) {
 			$uri = substr($uri, 0, $pos);
 		}
 
-		if (($pos = strpos($uri, 's3/')) !== false) {
-			$uri = substr($uri, $pos + 3); // Get everything after 's3/'
+		if (mgr_is_s3_path($uri)) {
+			$uri = substr($uri, 3);
 		}
 	}
 }

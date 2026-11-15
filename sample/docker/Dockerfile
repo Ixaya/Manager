@@ -30,7 +30,7 @@ RUN set -eux; \
         bash \
         fcgi \
         procps \
-        libpng libjpeg-turbo freetype \
+        libpng libjpeg-turbo freetype libwebp \
         libzip \
         oniguruma \
         libpq; \
@@ -38,11 +38,11 @@ RUN set -eux; \
         $PHPIZE_DEPS \
         linux-headers \
         libtool \
-        libpng-dev libjpeg-turbo-dev freetype-dev \
+        libpng-dev libjpeg-turbo-dev freetype-dev libwebp-dev \
         libzip-dev \
         oniguruma-dev \
         postgresql-dev; \
-    docker-php-ext-configure gd --with-freetype --with-jpeg; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
     docker-php-ext-install -j"$(nproc)" \
         mysqli \
         pgsql \
@@ -52,6 +52,7 @@ RUN set -eux; \
         sockets \
         opcache \
         gd \
+        exif \
         mbstring \
         zip; \
     # PIE is pinned like supercronic: bump the version in the
