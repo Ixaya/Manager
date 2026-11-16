@@ -172,7 +172,10 @@ already used.
   thumbnail) is refused above `MAX_IMAGE_PIXELS` (16,777,216 pixels) with the
   dimensions error, whatever `upload_config` says. Both refusals happen before
   anything is stored. An animated GIF is stored as its first frame; an animated
-  WebP is refused as a failed upload.
+  WebP is refused as a failed upload. The GD work lives in the new
+  `image_process_lib`, usable on its own; raise `MAX_IMAGE_PIXELS` in a
+  same-named `application/libraries/Image_process_lib.php`, not in an
+  `Upload_lib` subclass.
 - **Conversion target `$convert_to`:** `jpg` (default) or `webp`. Set
   project-wide with a same-named `application/libraries/Upload_lib.php`
   subclass (the sample ships one with `webp`), or per call with the new

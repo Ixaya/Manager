@@ -18,7 +18,7 @@ Textract config); `mgr_clean_file_s3_path()` strips a leading `s3/` only.
 - `upload_image()` checks PHP's temp file before either backend stores
   anything: a GD decoder for the detected type (unless `preserve_type`), an
   encoder for the target, and `MAX_IMAGE_PIXELS` whenever GD will decode.
-- One `convert_image()` serves both backends. Every raster upload is
+- One `convert_image()`, in `image_process_lib` with the rest of the GD code, serves both backends. Every raster upload is
   re-encoded, JPEG included; metadata is not kept; a JPEG's EXIF orientation
   is applied when `exif` is loaded.
 - The target is `$convert_to` (`jpg`, `webp`): a property for the project

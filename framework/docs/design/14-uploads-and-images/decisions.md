@@ -17,8 +17,16 @@ start capping. So no floor may be an `upload_config` key.
 
 ## Floors are constants, defaults are properties (2026-11-14)
 
-`MAX_IMAGE_PIXELS` is a floor a subclass may raise; `$convert_to` is a
-runtime default a project sets.
+`MAX_IMAGE_PIXELS` is a floor a subclass of `image_process_lib` may raise;
+`$convert_to` is a runtime default a project sets on the upload library.
+
+## Image processing is its own library (2026-11-16)
+
+The GD half moved out of `upload_lib` before it shipped, while no project
+could have overridden it. The library keeps no state, so the one instance
+the loader caches per request is harmless, and its constants stay
+`protected`: `upload_lib` asks through readers, because naming the base
+class's constant would bypass a project's same-named subclass.
 
 ## The pixel ceiling is measured, not derived (2026-11-16)
 

@@ -82,6 +82,7 @@ signatures). Load in the method that uses the library, not the constructor
 |---|---|
 | `async_exec_lib` | Fire-and-forget background execution of controller URIs or module library calls (see mgr-cli-modules). Use instead of `exec()` |
 | `upload_lib` | File/image uploads: validation, unique naming, resizing/thumbnails (`upload_image` with `$resolution`), `put_file` for generated content, `display_image` (serves jpeg/png/gif/webp/avif inline by detected type; any other file is sent as a download). Controllers already proxy it: `$this->upload_file()`, `$this->upload_image()`, `$this->put_file()`, `$this->get_file_base64()` on any `MY_Controller` descendant (REST included) |
+| `image_process_lib` | GD image processing behind `upload_lib`, stateless and usable on its own, e.g. re-encoding stored images: `convert_image($source_path, $detected_type, $target_path, $convert_to)` (`jpg` or `webp`; see "Conversion target"), `has_image_decoder()`, `has_image_encoder()`, `fits_pixel_ceiling()`, and the readers `is_raster_type()`, `is_convert_target()`, `convert_target_type()`, `is_thumbnail_type()` |
 | `attachment_lib` | Uploads tied to DB records: stores files AND rows in the `attachment` table keyed by `(model_name, model_hash)` — use when a file belongs to an entity. Accepted types follow its public `$upload_config` property (see "Upload defaults"). The `title` and `file_name` limits (100 characters each) are the protected `$title_max_length` / `$file_name_max_length`, which a project with its own wider table sets in a subclass; `title` is stored cut to its limit (extension kept, invalid UTF-8 bytes dropped), and a row that cannot be saved throws `RuntimeException` (the stored file stays) |
 | `amazon_aws_lib` | S3: `upload_file`, `upload_data`, `get_file`, `save_file` (`$file_name` is a server-chosen key that becomes a local path under `$path`; never request input), `get_presigned_url`, `list_files`; multiple configs via `set_config_key()` |
 | `jwt_lib` | `generate_token($user_id, $aud, $scopes, $extra)` / `decode_token($token, $aud)`; config-keyed secrets via `set_config_key()` |
@@ -133,7 +134,11 @@ detected type (a PDF or BMP allowed through `upload_config`, or a WebP on a
 GD built without WebP) is refused with the filetype error. An image GD would
 decode (always without `preserve_type`, otherwise when a thumbnail is built)
 is refused with the dimensions error above `MAX_IMAGE_PIXELS` (width × height,
-16,777,216), whatever `upload_config` says. Both checks run on PHP's temp file
+16,777,216), whatever `upload_config` says; the constant belongs to
+`image_process_lib`, raised in a same-named
+`application/libraries/Image_process_lib.php` (`class Image_process_lib
+extends MGR_Image_process_lib`, after a `require_once MGRPATH .
+'libraries/MGR_Image_process_lib.php';`). Both checks run on PHP's temp file
 before either backend stores anything, so a refused re-upload leaves the
 previous image in place. Without `preserve_type`, every raster upload is
 re-encoded to the conversion target (above) on both local and `s3/…`, JPEG

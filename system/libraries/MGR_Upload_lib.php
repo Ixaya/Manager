@@ -16,19 +16,7 @@ class MGR_Upload_lib
 	/** Extensions generate_file_name() never gives a generated name. */
 	protected const array PHP_FAMILY_TYPES = ['php', 'php3', 'php4', 'phtml', 'phps'];
 
-	/** Detected types display_image() serves inline and the only ones upload_image() converts; any other type is sent as a download. */
-	protected const array RASTER_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
-
-	/** Largest width × height upload_image() decodes, whatever `upload_config` says. */
-	protected const int MAX_IMAGE_PIXELS = 16_777_216;
-
-	/** Detected types upload_image() builds a thumbnail for. */
-	protected const array THUMBNAIL_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
-	/** Targets upload_image() re-encodes to, with the type each is stored as. */
-	protected const array CONVERT_TARGETS = ['jpg' => 'image/jpeg', 'webp' => 'image/webp'];
-
-	/** Default upload_image() target, a CONVERT_TARGETS key; a same-named project subclass sets it project-wide. */
+	/** Default upload_image() target, `jpg` or `webp`; a same-named project subclass sets it project-wide. */
 	protected string $convert_to = 'jpg';
 
 	/**
@@ -372,7 +360,7 @@ class MGR_Upload_lib
 	/**
 	 * Uploads an image, re-encoded to the conversion target, with an optional thumbnail.
 	 *
-	 * Refused: page types, content GD cannot decode, images over MAX_IMAGE_PIXELS.
+	 * Refused: page types, content GD cannot decode, images over the pixel ceiling.
 	 *
 	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
 	 * @param ?string $desired_file_name Built by the server, never request input; null generates one.
@@ -386,8 +374,11 @@ class MGR_Upload_lib
 	 */
 	public function upload_image(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null, ?string $convert_to = null): ?array
 	{
+		$CI = get_instance();
+		$CI->load->library('image_process_lib');
+
 		$convert_to ??= $this->convert_to;
-		if (!isset(static::CONVERT_TARGETS[$convert_to])) {
+		if (!$CI->image_process_lib->is_convert_target($convert_to)) {
 			throw new InvalidArgumentException("MGR_Upload_lib: unknown conversion target '{$convert_to}'.");
 		}
 
@@ -401,20 +392,20 @@ class MGR_Upload_lib
 		$temp_path = $_FILES[$field_name]['tmp_name'];
 		$detected_type = (string) mgr_detect_mime_from_file($temp_path);
 
-		if (!$preserve_type && !$this->has_image_decoder($detected_type)) {
+		if (!$preserve_type && !$CI->image_process_lib->has_image_decoder($detected_type)) {
 			return $this->refuse_upload($relative_path, 'The filetype you are attempting to upload is not allowed.', $error);
 		}
 
 		// A server-side gap, so the caller gets the generic message and the log names the missing encoder.
-		if (!$preserve_type && !$this->has_image_encoder($convert_to)) {
+		if (!$preserve_type && !$CI->image_process_lib->has_image_encoder($convert_to)) {
 			log_message('error', "Error uploading($relative_path): no GD encoder for the '{$convert_to}' target");
 			$this->report_upload_error('Error al subir imagen', $error);
 
 			return null;
 		}
 
-		$will_decode = !$preserve_type || ($resolution !== null && in_array($detected_type, static::THUMBNAIL_TYPES, true));
-		if ($will_decode && !$this->fits_pixel_ceiling($temp_path)) {
+		$will_decode = !$preserve_type || ($resolution !== null && $CI->image_process_lib->is_thumbnail_type($detected_type));
+		if ($will_decode && !$CI->image_process_lib->fits_pixel_ceiling($temp_path)) {
 			return $this->refuse_upload($relative_path, 'The image you are attempting to upload does not fit into the allowed dimensions.', $error);
 		}
 
@@ -426,6 +417,9 @@ class MGR_Upload_lib
 	}
 	protected function upload_image_local(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null, ?string $convert_to = null): ?array
 	{
+		$CI = get_instance();
+		$CI->load->library('image_process_lib');
+
 		$convert_to ??= $this->convert_to;
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
@@ -479,7 +473,7 @@ class MGR_Upload_lib
 
 				if (!$preserve_type) {
 					$file_ext = '.' . $convert_to;
-					$file_type = static::CONVERT_TARGETS[$convert_to];
+					$file_type = $CI->image_process_lib->convert_target_type($convert_to);
 				}
 
 				$new_file_name = $upload_data['raw_name'] . $file_ext;
@@ -498,13 +492,13 @@ class MGR_Upload_lib
 						$original_file_path = $moved_file_path;
 					}
 
-					$this->convert_image(source_path: $original_file_path, detected_type: $upload_data['file_type'], target_path: $new_file_path, convert_to: $convert_to);
+					$CI->image_process_lib->convert_image(source_path: $original_file_path, detected_type: $upload_data['file_type'], target_path: $new_file_path, convert_to: $convert_to);
 					$written_paths[] = $new_file_path;
 				}
 
 				// The main image stands in for any thumbnail that was not built or stored.
 				$new_file_thumb = $new_file_name;
-				if ($resolution !== null && in_array($file_type, static::THUMBNAIL_TYPES, true)) {
+				if ($resolution !== null && $CI->image_process_lib->is_thumbnail_type($file_type)) {
 					$image_info = getimagesize($new_file_path);
 					$original_width = $image_info[0];
 					$original_height = $image_info[1];
@@ -584,6 +578,9 @@ class MGR_Upload_lib
 	}
 	protected function upload_image_s3(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null, ?string $convert_to = null): ?array
 	{
+		$CI = get_instance();
+		$CI->load->library('image_process_lib');
+
 		$convert_to ??= $this->convert_to;
 
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
@@ -621,11 +618,11 @@ class MGR_Upload_lib
 
 			if (!$preserve_type) {
 				$base_file_path = "{$original_file_path}_optimized";
-				$this->convert_image(source_path: $original_file_path, detected_type: $file_type, target_path: $base_file_path, convert_to: $convert_to);
+				$CI->image_process_lib->convert_image(source_path: $original_file_path, detected_type: $file_type, target_path: $base_file_path, convert_to: $convert_to);
 
 				$keep_original = $delete_original == false;
 				$file_ext = $convert_to;
-				$file_type = static::CONVERT_TARGETS[$convert_to];
+				$file_type = $CI->image_process_lib->convert_target_type($convert_to);
 			} else {
 				$base_file_path = $original_file_path;
 			}
@@ -654,7 +651,7 @@ class MGR_Upload_lib
 				}
 			}
 
-			if ($resolution !== null && in_array($file_type, static::THUMBNAIL_TYPES, true)) {
+			if ($resolution !== null && $CI->image_process_lib->is_thumbnail_type($file_type)) {
 				$image_info = getimagesize($base_file_path);
 				$original_width = $image_info[0];
 				$original_height = $image_info[1];
@@ -805,7 +802,10 @@ class MGR_Upload_lib
 	/** Raster types go out with their detected type inline; anything else as an octet-stream attachment. */
 	protected function send_file_headers(string $file_name, string|false $detected_type): void
 	{
-		$is_raster = in_array($detected_type, self::RASTER_TYPES, strict: true);
+		$CI = get_instance();
+		$CI->load->library('image_process_lib');
+
+		$is_raster = $CI->image_process_lib->is_raster_type((string) $detected_type);
 		$ascii_name = preg_replace('/[^\x20-\x7e]|["\\\\%]/', '_', $file_name);
 		$disposition = $is_raster ? 'inline' : 'attachment';
 
@@ -889,118 +889,6 @@ class MGR_Upload_lib
 		$this->upload->set_error('upload_invalid_filetype', 'debug');
 
 		return true;
-	}
-
-	/** True when the detected type is one upload_image() converts and this stack's GD has its decoder. */
-	protected function has_image_decoder(string $detected_type): bool
-	{
-		return in_array($detected_type, self::RASTER_TYPES, true)
-			&& function_exists('imagecreatefrom' . substr($detected_type, strlen('image/')));
-	}
-
-	/** True when this stack's GD has the encoder for a CONVERT_TARGETS key (imagejpeg, imagewebp). */
-	protected function has_image_encoder(string $convert_to): bool
-	{
-		return function_exists('image' . substr(static::CONVERT_TARGETS[$convert_to], strlen('image/')));
-	}
-
-	/** False over MAX_IMAGE_PIXELS, or when the dimensions cannot be read. */
-	protected function fits_pixel_ceiling(string $file_path): bool
-	{
-		$image_size = getimagesize($file_path);
-
-		return $image_size !== false && $image_size[0] * $image_size[1] <= static::MAX_IMAGE_PIXELS;
-	}
-
-	/**
-	 * Re-encodes a raster image to `$convert_to`; metadata is dropped and a JPEG's EXIF orientation applied when `exif` is loaded.
-	 * JPEG flattens transparency onto white; WebP keeps it.
-	 *
-	 * @throws RuntimeException When GD cannot decode the source or the encoder fails.
-	 * @throws InvalidArgumentException On an unknown target.
-	 */
-	protected function convert_image(string $source_path, string $detected_type, string $target_path, string $convert_to): void
-	{
-		$input_image = imagecreatefromstring(file_get_contents($source_path));
-		if ($input_image === false) {
-			throw new RuntimeException("MGR_Upload_lib: cannot decode the {$detected_type} image.");
-		}
-
-		$input_image = $this->apply_exif_orientation(image: $input_image, source_path: $source_path, detected_type: $detected_type);
-
-		$written = match ($convert_to) {
-			'jpg' => imagejpeg($this->flatten_on_white($input_image), $target_path),
-			'webp' => $this->encode_webp(image: $input_image, target_path: $target_path),
-			default => throw new InvalidArgumentException("MGR_Upload_lib: unknown conversion target '{$convert_to}'."),
-		};
-
-		if (!$written) {
-			throw new RuntimeException("MGR_Upload_lib: the {$convert_to} encoder failed.");
-		}
-	}
-
-	/** A truecolor copy of `$image` drawn over a white background, for targets without alpha. */
-	protected function flatten_on_white(GdImage $image): GdImage
-	{
-		// Read from the decoded image: an EXIF quarter turn swaps the dimensions getimagesize() reports.
-		$width = imagesx($image);
-		$height = imagesy($image);
-
-		$output_image = imagecreatetruecolor($width, $height);
-		imagefilledrectangle($output_image, 0, 0, $width, $height, imagecolorallocate($output_image, 255, 255, 255));
-		imagecopy($output_image, $image, 0, 0, 0, 0, $width, $height);
-
-		return $output_image;
-	}
-
-	protected function encode_webp(GdImage $image, string $target_path): bool
-	{
-		// GD's WebP encoder refuses palette images (GIF, 8-bit PNG); the conversion keeps their transparency as alpha.
-		if (!imagepalettetotruecolor($image)) {
-			return false;
-		}
-
-		imagesavealpha($image, true);
-
-		return imagewebp($image, $target_path);
-	}
-
-	/** Rotates and mirrors a decoded JPEG upright per its EXIF Orientation tag; any other type comes back as given. */
-	protected function apply_exif_orientation(GdImage $image, string $source_path, string $detected_type): GdImage
-	{
-		if ($detected_type !== 'image/jpeg' || !function_exists('exif_read_data')) {
-			return $image;
-		}
-
-		$exif_data = exif_read_data($source_path);
-		$orientation = is_array($exif_data) ? (int) ($exif_data['Orientation'] ?? 1) : 1;
-
-		// imagerotate() turns counterclockwise; the rotation runs before the mirror.
-		[$angle, $flip_mode] = match ($orientation) {
-			2 => [0, IMG_FLIP_HORIZONTAL],
-			3 => [180, null],
-			4 => [0, IMG_FLIP_VERTICAL],
-			5 => [-90, IMG_FLIP_HORIZONTAL],
-			6 => [-90, null],
-			7 => [90, IMG_FLIP_HORIZONTAL],
-			8 => [90, null],
-			default => [0, null],
-		};
-
-		if ($angle !== 0) {
-			$rotated_image = imagerotate($image, $angle, 0);
-			if ($rotated_image === false) {
-				throw new RuntimeException("MGR_Upload_lib: cannot apply EXIF orientation {$orientation}.");
-			}
-
-			$image = $rotated_image;
-		}
-
-		if ($flip_mode !== null && !imageflip($image, $flip_mode)) {
-			throw new RuntimeException("MGR_Upload_lib: cannot apply EXIF orientation {$orientation}.");
-		}
-
-		return $image;
 	}
 
 	/**
