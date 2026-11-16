@@ -808,18 +808,20 @@ The failures new operators hit first — each is the negative of a rule above:
    that instinct as an input to the rest of this distillation, not a
    coincidence to override.
 
-   **Then prune the agent memory the new documentation replaces.** A rule is
-   usually written to memory the moment it is agreed, and documented in the
-   repo weeks later; without this step the memory survives as a second copy
-   and slowly rots. So for every convention this distillation just wrote into
-   a skill, `AGENTS.md`, or a `framework/docs/` file, delete or trim the memory that was
-   standing in for it, leaving only the residue the new home does not carry.
-   Memory keeps judgment, corrections, and live state — never a procedure the
-   repo now documents. The same pass fixes the two failure modes this has
-   already produced: a "current state" memory that accumulated closed work
-   into a changelog, and cross-links that dangled because two naming
-   conventions were in use. Verify every index entry resolves to a real file
-   before finishing, and re-sync the operator's manual backup afterwards.
+   **Then prune the agent's own memory, if it keeps one.** This is the notes
+   an agent saves for itself while a campaign runs (live state, a rule the
+   moment it was agreed), read back only by that agent in later sessions.
+   Skip this step when there are none. A rule is usually written there the
+   day it is agreed and documented in the repo weeks later; without this
+   step the note survives as a second copy and slowly rots. For every
+   convention this distillation just wrote into a skill, `AGENTS.md` or a
+   `framework/docs/` file, delete or trim the note that stood in for it,
+   leaving only what the new home does not carry: judgment, corrections,
+   live state. The same pass fixes the two failure modes this has already
+   produced: a "current state" note that accumulated closed work into a
+   changelog, and cross-links that dangled because two naming conventions
+   were in use. Verify every index entry resolves to a real file, and
+   re-sync the operator's backup of the notes if one exists.
 
    Then list what remains, get operator approval, and archive:
    `tar cJf framework/docs/workspace/archive/<n>-<name>.tar.xz -C framework/docs/workspace

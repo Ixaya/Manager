@@ -50,7 +50,9 @@ Naming, how the library reaches CI, and the two config modes are in the
 REST_Controller stay close to their upstreams so updates merge cleanly — fix
 in the `MGR_` subclass layer instead. When there is no subclass seam, the
 deliberate-exception procedure and the worked example are in
-`framework/docs/development/auth-upstream.md`.
+`framework/docs/development/auth-upstream.md`. Files copied from CodeIgniter 3
+outside `third_party/` (`system/config/mimes.php`) and the local changes a
+resync must keep: `framework/docs/development/codeigniter-upstream.md`.
 
 **Write the `sample/` prefix explicitly, always.** A bare `application/…` or
 `docker/…` path is ambiguous between a consuming project's tree and the

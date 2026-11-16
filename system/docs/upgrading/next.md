@@ -147,24 +147,54 @@ already used.
   `methods['index']` covers `/` and `/index` only, not `/123`; `index_get`
   covers all three.
 
-## Upload library: type defaults, generated names, storage URIs
+## Upload library: type defaults, conversion, generated names, storage URIs
 
 - **Uploads have type defaults.** Without an `upload_config`,
   `upload_file()` and `attachment_lib` accept
   `gif|jpg|jpeg|png|webp|pdf|txt|csv|doc|docx|xls|xlsx|ppt|pptx|odt|ods`
-  (was any type), and `upload_image()` accepts `gif|jpg|png|jpeg` (no longer
-  `svg` or `pdf`). With a list, the extension must match the detected content.
-  Page types (`html`, `htm`, `xhtml`, `shtml`, `svg`, `svgz`, `xml`, `xsl`,
-  `js`) are refused under the web root (`media/…`) whatever the config. To
+  (was any type), and `upload_image()` accepts `gif|jpg|png|jpeg|webp` (no
+  longer `svg` or `pdf`). With a list, the extension must match the detected
+  content. Page types (`html`, `htm`, `xhtml`, `shtml`, `svg`, `svgz`, `xml`,
+  `xsl`, `js`) are refused under the web root (`media/…`) whatever the config.
+  On `s3/…` paths the same lists and page-type rule apply against the type
+  detected from the content, and only `allowed_types` of an `upload_config` is
+  honored there; `file_type` / `fullsize_type` report the detected type. To
   accept more, pass `upload_config` (it replaces the defaults: restate
   `max_size`), set `$this->attachment_lib->upload_config` for attachments, or
   redefine `DEFAULT_FILE_TYPES` / `DEFAULT_IMAGE_TYPES` in a subclass loaded
   under its own name. A type with no `mimes.php` entry goes in the project's
   `config/mimes.php`.
-- **`upload_image()` converts only raster content.** Without
-  `preserve_type`, content detected as anything but jpeg, png, gif, webp or
-  avif (a BMP, a PDF allowed through `upload_config`) is refused with the
-  filetype error. `preserve_type: true` is unchanged.
+- **`upload_image()` re-encodes every raster upload** on local and `s3/…`,
+  JPEG included, to the conversion target. Metadata is not kept; a JPEG's EXIF
+  orientation is applied when PHP has the `exif` extension. Without
+  `preserve_type`, content GD cannot decode is refused with the filetype error,
+  and an image GD would decode (always without `preserve_type`, else for a
+  thumbnail) is refused above `MAX_IMAGE_PIXELS` (16,777,216 pixels) with the
+  dimensions error, whatever `upload_config` says. Both refusals happen before
+  anything is stored. An animated GIF is stored as its first frame; an animated
+  WebP is refused as a failed upload.
+- **Conversion target `$convert_to`:** `jpg` (default) or `webp`. Set
+  project-wide with a same-named `application/libraries/Upload_lib.php`
+  subclass (the sample ships one with `webp`), or per call with the new
+  trailing `upload_image(convert_to: …)` argument. Any other value throws
+  `InvalidArgumentException` before anything is stored. WebP keeps
+  transparency, JPEG flattens it onto white. A target the stack's GD cannot
+  encode is refused with the generic upload error and a log line naming it.
+  Adopting WebP leaves files stored under the old `.jpg` names in place, to
+  convert or prune.
+- **New trailing parameter:** `upload_image()`, `MGR_Controller::upload_image()`
+  and the protected `upload_image_local()` / `upload_image_s3()` take
+  `?string $convert_to = null`. An override with the old signature must add it.
+- **Return keys, local and S3:** `thumb_*` name the main image whenever no
+  thumbnail was stored; `original_*` (and local `original_link`) are `''` when
+  no separate original was kept (`delete_original`, `preserve_type`); `?v=`
+  follows only a non-empty name. A kept original whose name the converted main
+  would take (an upload already in the target's format) is stored as
+  `<name>_original.<ext>`. On `s3/…` the call returns `null` with `$error` when
+  the main image is not stored; a failed `_original` or thumbnail store is
+  logged and the call succeeds with that variant falling back. Thumbnails are
+  built for WebP too, and two `upload_image()` calls with `$resolution` in one
+  request each get their own.
 - **Failures return `null`.** An error inside an upload, GD's or the S3
   client's included, returns `null` with `$error` set instead of a 500. Pass
   `error: $error` and answer the failure; a falsy check alone now carries on
@@ -179,7 +209,36 @@ already used.
   client's original name, let the library generate the stored one and keep
   the original in `title` (`$extra_data` overrides it). `put_file()` with an
   empty name generates `<hash>.<ext>`, or `<hash>` alone when no extension is
-  listed for the detected type.
+  listed for the detected type or the content is PHP source. Plain text gets
+  `.txt`, a plain zip `.zip`, a legacy Word file `.doc`, a legacy Excel file
+  `.xls`; `mgr_file_extension()` with only a MIME type returns the same. Files
+  already stored keep their names.
+- **Storage URIs route by their first segment.** A URI is on S3 only when it
+  starts with `s3/`, in every method (`upload_file()`, `upload_image()`,
+  `put_file()`, `display_image()`, `get_file_base64()` and the Textract
+  helper). `media/s3/…` and `/s3/…` are local paths. `mgr_clean_file_s3_path()`
+  removes the query string and a leading `s3/` only. New
+  `mgr_is_s3_path(string $uri): bool` is the one check; a project override of
+  `mgr_clean_file_s3_path()` should use it. Objects already stored keep their
+  keys.
+- **`attachment_lib` `upload_file()` and `put_file()`:** a non-empty
+  `$desired_filename` over 89 characters (the `file_name` column's 100, less
+  the 11 of `?v=`) throws `InvalidArgumentException` before anything is stored.
+  `title` is stored cut to 100 characters, extension kept, invalid UTF-8 bytes
+  dropped. A row that cannot be saved throws `RuntimeException`, and the call
+  no longer returns `attachment_id` `false` or `null`. "Cannot be saved" means
+  a database refusal, or a stored `file_name` over 100 characters (an extension
+  the library appends counts). With `db_debug` on, a database refusal still
+  ends in CI's own error first. The stored file stays; its path is in the app
+  log. The limits are protected properties (`$title_max_length`,
+  `$file_name_max_length`) for a project with a wider table.
+- **`mimes.php` follows CodeIgniter's upstream list.** `application/octet-stream`
+  no longer matches `.xlsx`. New types: `heic`, `heif`, `7z` and the
+  OpenDocument chart, formula, graphics, image, presentation, template and
+  master formats. `aac` accepts `audio/x-aac` and `audio/aac` (`audio/x-acc` is
+  gone), and `svg` also matches `image/svg`. A project `config/mimes.php` that
+  includes the framework file picks these up; one that copied the list does
+  not.
 - **`display_image()` and `get_file_base64()` take a storage URI**
   (`media/…`, `private/…`, `s3/…`). An absolute filesystem path no longer
   resolves, and a URI with a `..` segment is refused (empty image / `null`,
@@ -218,3 +277,7 @@ Reaches a project only when it reconciles these files from the sample.
   under `/media/` then download instead of rendering; other extensions are
   unchanged. A server other than the sample nginx needs the equivalent
   headers.
+- **`docker/Dockerfile`:** GD gains WebP (`libwebp`, `libwebp-dev`,
+  `--with-webp`) and the `exif` extension, needed for the WebP target and for
+  orientation. **`application/libraries/Upload_lib.php`** (new) sets the WebP
+  target project-wide; copy it only together with the image change.
