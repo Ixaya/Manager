@@ -13,8 +13,8 @@ class MGR_Upload_lib
 	/** Extensions never stored under the web root, whatever the config. Keep in sync with the page-type location in docker/nginx/conf.d/app.conf. */
 	protected const array PAGE_TYPES = ['html', 'htm', 'xhtml', 'shtml', 'svg', 'svgz', 'xml', 'xsl', 'js'];
 
-	/** Extensions generate_file_name() never gives a generated name. */
-	protected const array PHP_FAMILY_TYPES = ['php', 'php3', 'php4', 'phtml', 'phps'];
+	/** Extensions never stored under the web root or on S3, whatever the config, and never given to a generated name. */
+	protected const array PHP_FAMILY_TYPES = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'pht', 'phtml', 'phps', 'phar'];
 
 	/** Default upload_image() target, `jpg` or `webp`; a same-named project subclass sets it project-wide. */
 	protected string $convert_to = 'jpg';
@@ -58,10 +58,10 @@ class MGR_Upload_lib
 	/**
 	 * Uploads a file and returns its details.
 	 *
-	 * Refused: page types under the web root and on S3, whatever the config.
+	 * Refused: page types and PHP-family types under the web root and on S3, whatever the config.
 	 *
 	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
-	 * @param ?string $desired_file_name Built by the server, never request input; null generates one.
+	 * @param ?string $desired_file_name Built by the server, never request input; null generates one. One dot at most: the text after it is the extension, which must fit the content; stored lowercase.
 	 * @param ?array $upload_config Replaces the defaults (images, pdf, txt, csv, Office and OpenDocument) entirely.
 	 * @param bool $encrypt_name Ignored; a name is generated unless `$desired_file_name` is given.
 	 * @return array|null Null on failure, reason in `$error`.
@@ -86,6 +86,11 @@ class MGR_Upload_lib
 			return $this->refuse_desired_name($relative_path, $error);
 		}
 
+		$name_parts = $this->split_desired_name($desired_file_name);
+		if ($name_parts === null || !$this->is_desired_extension_allowed($name_parts['extension'], (string) mgr_detect_mime_from_file(mgr_get_temp_upload_path(field_name: $field_name)), null, $upload_config, static::DEFAULT_FILE_TYPES)) {
+			return $this->refuse_filetype($relative_path, $error);
+		}
+
 		$written_paths = [];
 
 		try {
@@ -106,8 +111,9 @@ class MGR_Upload_lib
 			$config['upload_path']		  = $file_path;
 			$config['remove_spaces']  = true;
 			$config['detect_mime']   = true;
+			$config['file_ext_tolower'] = true;
 
-			if ($desired_file_name) {
+			if ($desired_file_name !== null && $desired_file_name !== '') {
 				$config['file_name'] = $desired_file_name;
 				$config['overwrite'] = true;
 			} else {
@@ -131,7 +137,7 @@ class MGR_Upload_lib
 				$file_type = $upload_data['file_type'];
 
 				$v = '';
-				if ($desired_file_name) {
+				if ($desired_file_name !== null && $desired_file_name !== '') {
 					$v = dechex(time());
 					$v = "?v=$v";
 				}
@@ -177,14 +183,17 @@ class MGR_Upload_lib
 
 		try {
 			$v = '';
-			if ($desired_file_name) {
+			if ($desired_file_name !== null && $desired_file_name !== '') {
 				$v = dechex(time());
 				$v = "?v=$v";
 			}
 
-			if (empty($desired_file_name)) {
-				$desired_file_name = mgr_generate_hash($lenght = 32);
+			$name_parts = $this->split_desired_name($desired_file_name);
+			if ($name_parts === null) {
+				return $this->refuse_s3_file($relative_path, $error);
 			}
+
+			$stem = $name_parts['stem'] === '' ? mgr_generate_hash(32) : $name_parts['stem'];
 
 			$file_ext = '';
 			$file_name = '';
@@ -192,9 +201,13 @@ class MGR_Upload_lib
 			$original_file_path = mgr_get_temp_upload_path(field_name: $field_name, file_extension: $file_ext, file_name: $file_name);
 			$file_type = (string) mgr_detect_mime_from_file($original_file_path);
 
-			$s3_file_name = "{$desired_file_name}.{$file_ext}";
+			$file_ext = strtolower($file_ext);
+			$s3_file_name = "{$stem}." . ($name_parts['extension'] ?? $file_ext);
 
-			if (!$this->is_s3_file_allowed($s3_file_name, $file_type, $upload_config, static::DEFAULT_FILE_TYPES)) {
+			// The client's own extension is checked against the content too, so a dotted name cannot skip it.
+			if (!$this->is_s3_file_allowed("{$stem}.{$file_ext}", $file_type, $upload_config, static::DEFAULT_FILE_TYPES)
+				|| ($name_parts['extension'] !== null && !$this->is_s3_file_allowed($s3_file_name, $file_type, $upload_config, static::DEFAULT_FILE_TYPES))
+			) {
 				return $this->refuse_s3_file($relative_path, $error);
 			}
 
@@ -266,12 +279,12 @@ class MGR_Upload_lib
 			}
 
 			$v = '';
-			if ($file_name) {
+			if ($file_name !== '') {
 				$v = dechex(time());
 				$v = "?v=$v";
 			}
 
-			if (empty($file_name)) {
+			if ($file_name === '') {
 				$file_name = $this->generate_file_name(mgr_detect_mime_from_data($data));
 			}
 
@@ -309,14 +322,14 @@ class MGR_Upload_lib
 
 		try {
 			$v = '';
-			if ($file_name) {
+			if ($file_name !== '') {
 				$v = dechex(time());
 				$v = "?v=$v";
 			}
 
 			$content_type = mgr_detect_mime_from_data($data);
 
-			if (empty($file_name)) {
+			if ($file_name === '') {
 				$file_name = $this->generate_file_name($content_type);
 			}
 
@@ -360,10 +373,10 @@ class MGR_Upload_lib
 	/**
 	 * Uploads an image, re-encoded to the conversion target, with an optional thumbnail.
 	 *
-	 * Refused: page types, content GD cannot decode, images over the pixel ceiling.
+	 * Refused: page types and PHP-family types, content GD cannot decode, images over the pixel ceiling.
 	 *
 	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
-	 * @param ?string $desired_file_name Built by the server, never request input; null generates one.
+	 * @param ?string $desired_file_name Built by the server, never request input; null generates one. One dot at most: the text after it is the extension, which must be the conversion target (listed in `allowed_types`), or fit the content under `$preserve_type`; stored lowercase.
 	 * @param ?array $resolution `[width, height]` box; a thumbnail is built only when the image is larger.
 	 * @param bool $preserve_type Store as uploaded: no conversion, an animated GIF keeps its frames.
 	 * @param ?array $upload_config Replaces the defaults (gif, jpg, jpeg, png, webp) entirely.
@@ -425,6 +438,14 @@ class MGR_Upload_lib
 			return $this->refuse_desired_name($relative_path, $error);
 		}
 
+		$temp_path = mgr_get_temp_upload_path(field_name: $field_name);
+
+		$name_parts = $this->split_desired_name($desired_file_name);
+		if ($name_parts === null || !$this->is_desired_extension_allowed($name_parts['extension'], (string) mgr_detect_mime_from_file($temp_path), $preserve_type ? null : $convert_to, $upload_config, static::DEFAULT_IMAGE_TYPES)) {
+			return $this->refuse_filetype($relative_path, $error);
+		}
+
+		$stem = $name_parts['stem'] === '' ? mgr_generate_hash(32) : $name_parts['stem'];
 		$written_paths = [];
 
 		try {
@@ -446,8 +467,14 @@ class MGR_Upload_lib
 			$config['upload_path']		  = $file_path;
 			$config['remove_spaces']  = true;
 			$config['detect_mime']   = true;
+			$config['file_ext_tolower'] = true;
 
-			if ($desired_file_name) {
+			// Under conversion the upload is stored aside as `<stem>_original.<client ext>`, so the main never
+			// overwrites its own source and CI never sees the desired extension.
+			if (!$preserve_type) {
+				$config['file_name'] = "{$stem}_original";
+				$config['overwrite'] = true;
+			} elseif ($desired_file_name !== null && $desired_file_name !== '') {
 				$config['file_name'] = $desired_file_name;
 				$config['overwrite'] = true;
 			} else {
@@ -476,22 +503,12 @@ class MGR_Upload_lib
 					$file_type = $CI->image_process_lib->convert_target_type($convert_to);
 				}
 
-				$new_file_name = $upload_data['raw_name'] . $file_ext;
+				$main_stem = $preserve_type ? $upload_data['raw_name'] : $stem;
+				$new_file_name = $main_stem . $file_ext;
 				// CI's own resolved directory, so path comparisons with its full_path hold through a symlinked root.
 				$new_file_path = $upload_data['file_path'] . $new_file_name;
 
 				if (!$preserve_type) {
-					// The main would overwrite the upload; a kept original moves aside as `_original`.
-					if ($original_file_path === $new_file_path && !$delete_original) {
-						$moved_file_path = $upload_data['file_path'] . $upload_data['raw_name'] . '_original' . $upload_data['file_ext'];
-						if (!rename($original_file_path, $moved_file_path)) {
-							throw new RuntimeException("MGR_Upload_lib: cannot keep the original as {$moved_file_path}.");
-						}
-
-						$written_paths[] = $moved_file_path;
-						$original_file_path = $moved_file_path;
-					}
-
 					$CI->image_process_lib->convert_image(source_path: $original_file_path, detected_type: $upload_data['file_type'], target_path: $new_file_path, convert_to: $convert_to);
 					$written_paths[] = $new_file_path;
 				}
@@ -506,7 +523,7 @@ class MGR_Upload_lib
 					// Only resize if image is larger than desired resolution
 					if ($original_width > $resolution[0] || $original_height > $resolution[1]) {
 						// Create thumbnail
-						$thumb_file_name = $upload_data['raw_name'] . '_thumb' . $file_ext;
+						$thumb_file_name = $main_stem . '_thumb' . $file_ext;
 						$thumb_file_path = $upload_data['file_path'] . $thumb_file_name;
 						if ($CI->image_process_lib->create_thumbnail(source_path: $new_file_path, detected_type: $file_type, target_path: $thumb_file_path, resolution: $resolution)) {
 							$written_paths[] = $thumb_file_path;
@@ -517,7 +534,7 @@ class MGR_Upload_lib
 					}
 				}
 
-				if ($delete_original && !$preserve_type && $original_file_path !== $new_file_path) {
+				if ($delete_original && !$preserve_type) {
 					unlink($original_file_path);
 				}
 
@@ -525,7 +542,7 @@ class MGR_Upload_lib
 
 				//return thumbnail name and image_name
 				$v = '';
-				if ($desired_file_name) {
+				if ($desired_file_name !== null && $desired_file_name !== '') {
 					$v = dechex(time());
 					$v = "?v=$v";
 				}
@@ -585,9 +602,12 @@ class MGR_Upload_lib
 			$s3_relative_path = $relative_path;
 			mgr_clean_file_s3_path($s3_relative_path);
 
-			if (empty($desired_file_name)) {
-				$desired_file_name = mgr_generate_hash($lenght = 32);
+			$name_parts = $this->split_desired_name($desired_file_name);
+			if ($name_parts === null) {
+				return $this->refuse_s3_file($relative_path, $error);
 			}
+
+			$stem = $name_parts['stem'] === '' ? mgr_generate_hash(32) : $name_parts['stem'];
 
 			$file_ext = '';
 
@@ -601,7 +621,15 @@ class MGR_Upload_lib
 			$original_file_path = mgr_get_temp_upload_path(field_name: $field_name, file_extension: $file_ext);
 			$file_type = (string) mgr_detect_mime_from_file($original_file_path);
 
-			if (!$this->is_s3_file_allowed("{$desired_file_name}.{$file_ext}", $file_type, $upload_config, static::DEFAULT_IMAGE_TYPES)) {
+			$file_ext = strtolower($file_ext);
+			$desired_ext = $name_parts['extension'];
+
+			// The client's own extension is checked against the content too, so a dotted name cannot skip it.
+			$desired_ext_allowed = $desired_ext === null || ($preserve_type
+				? $this->is_s3_file_allowed("{$stem}.{$desired_ext}", $file_type, $upload_config, static::DEFAULT_IMAGE_TYPES)
+				: $this->is_desired_extension_allowed($desired_ext, $file_type, $convert_to, $upload_config, static::DEFAULT_IMAGE_TYPES));
+
+			if (!$this->is_s3_file_allowed("{$stem}.{$file_ext}", $file_type, $upload_config, static::DEFAULT_IMAGE_TYPES) || !$desired_ext_allowed) {
 				return $this->refuse_s3_file($relative_path, $error);
 			}
 
@@ -617,10 +645,11 @@ class MGR_Upload_lib
 				$file_type = $CI->image_process_lib->convert_target_type($convert_to);
 			} else {
 				$base_file_path = $original_file_path;
+				$file_ext = $desired_ext ?? $file_ext;
 			}
 
 			// Put order: main, original, thumbnail. A failed main stores nothing; a later failure falls back.
-			$s3_file_name = "{$desired_file_name}.{$file_ext}";
+			$s3_file_name = "{$stem}.{$file_ext}";
 			$s3_file_path = "{$s3_relative_path}{$s3_file_name}";
 
 			$image_url = $this->amazon_aws_lib->upload_file($base_file_path, $s3_file_path);
@@ -634,7 +663,7 @@ class MGR_Upload_lib
 			}
 
 			if ($keep_original) {
-				$s3_orig_file_name = "{$desired_file_name}_original.{$original_ext}";
+				$s3_orig_file_name = "{$stem}_original.{$original_ext}";
 
 				$orig_image_url = $this->amazon_aws_lib->upload_file($original_file_path, "{$s3_relative_path}{$s3_orig_file_name}");
 				if (empty($orig_image_url)) {
@@ -654,7 +683,7 @@ class MGR_Upload_lib
 					$thumb_file_path = "{$base_file_path}_thumb";
 
 					if ($CI->image_process_lib->create_thumbnail(source_path: $base_file_path, detected_type: $file_type, target_path: $thumb_file_path, resolution: $resolution)) {
-						$thumb_file_name = "{$desired_file_name}_thumb.{$file_ext}";
+						$thumb_file_name = "{$stem}_thumb.{$file_ext}";
 
 						$thumb_image_url = $this->amazon_aws_lib->upload_file($thumb_file_path, "{$s3_relative_path}{$thumb_file_name}");
 						if (empty($thumb_image_url)) {
@@ -685,7 +714,7 @@ class MGR_Upload_lib
 			}
 
 			$v = '';
-			if ($desired_file_name) {
+			if ($desired_file_name !== null && $desired_file_name !== '') {
 				$v = dechex(time());
 				$v = "?v=$v";
 			}
@@ -857,14 +886,20 @@ class MGR_Upload_lib
 		return in_array(strtolower(pathinfo($file_name, PATHINFO_EXTENSION)), self::PAGE_TYPES, true);
 	}
 
+	protected function is_php_family_type(string $file_name): bool
+	{
+		return in_array(strtolower(pathinfo($file_name, PATHINFO_EXTENSION)), static::PHP_FAMILY_TYPES, true);
+	}
+
 	/**
-	 * Deletes the file CI just stored and queues CI's filetype error when it is a page type under the web root.
+	 * Deletes the file CI just stored and queues CI's filetype error when it is a page or PHP-family type under the web root.
 	 *
 	 * @param string $file_path Upload directory as requested; CI resolves symlinks in its own copy.
 	 */
 	protected function refuse_public_page_type(string $file_path): bool
 	{
-		if (!str_starts_with($file_path, FCPATH) || !$this->is_page_type($this->upload->data('file_name'))) {
+		$file_name = $this->upload->data('file_name');
+		if (!str_starts_with($file_path, FCPATH) || (!$this->is_page_type($file_name) && !$this->is_php_family_type($file_name))) {
 			return false;
 		}
 
@@ -877,24 +912,75 @@ class MGR_Upload_lib
 	/**
 	 * CI Upload's rule for the S3 paths, which never reach CI: extension on the allowed list and the detected type
 	 * listed for it. Only `allowed_types` of `$upload_config` is honored. A page type, by extension or by detected
-	 * type, is refused whatever the list.
+	 * type, and a PHP-family extension are refused whatever the list.
 	 */
 	protected function is_s3_file_allowed(string $s3_file_name, string $detected_type, ?array $upload_config, string $default_types): bool
 	{
-		if ($this->is_page_type($s3_file_name) || $this->is_page_mime($detected_type)) {
+		if ($this->is_page_type($s3_file_name) || $this->is_php_family_type($s3_file_name) || $this->is_page_mime($detected_type)) {
 			return false;
 		}
 
-		$allowed_types = $upload_config == null ? $default_types : ($upload_config['allowed_types'] ?? '');
-		if ($allowed_types === '*') {
+		return $this->is_extension_listed_for_type(strtolower(pathinfo($s3_file_name, PATHINFO_EXTENSION)), $detected_type, $upload_config, $default_types);
+	}
+
+	/** An extension on the allowed list whose `mimes.php` entry lists the detected type; `*` allows any. */
+	protected function is_extension_listed_for_type(string $extension, string $detected_type, ?array $upload_config, string $default_types): bool
+	{
+		$allowed_types = $this->allowed_types_list($upload_config, $default_types);
+		if ($allowed_types === null) {
 			return true;
 		}
 
-		$allowed_types = is_array($allowed_types) ? $allowed_types : explode('|', $allowed_types);
-		$extension = strtolower(pathinfo($s3_file_name, PATHINFO_EXTENSION));
 		$allowed_mimes = (array) (mgr_mimes_config()[$extension] ?? []);
 
 		return in_array($extension, $allowed_types, true) && in_array($detected_type, $allowed_mimes, true);
+	}
+
+	/** The `allowed_types` in force as a list; null when `*` allows any. */
+	protected function allowed_types_list(?array $upload_config, string $default_types): ?array
+	{
+		$allowed_types = $upload_config == null ? $default_types : ($upload_config['allowed_types'] ?? '');
+		if ($allowed_types === '*') {
+			return null;
+		}
+
+		return is_array($allowed_types) ? $allowed_types : explode('|', $allowed_types);
+	}
+
+	/**
+	 * Stem and lowercased extension of a desired name, which has at most one dot: the text after it is the extension.
+	 *
+	 * @return array{stem: string, extension: ?string}|null Null for more than one dot or a trailing dot.
+	 */
+	protected function split_desired_name(?string $desired_file_name): ?array
+	{
+		$desired_file_name ??= '';
+		if (substr_count($desired_file_name, '.') > 1 || str_ends_with($desired_file_name, '.')) {
+			return null;
+		}
+
+		$dot_position = strpos($desired_file_name, '.');
+		if ($dot_position === false) {
+			return ['stem' => $desired_file_name, 'extension' => null];
+		}
+
+		return ['stem' => substr($desired_file_name, 0, $dot_position), 'extension' => strtolower(substr($desired_file_name, $dot_position + 1))];
+	}
+
+	/** A desired extension must agree with the file it names: the conversion target (also on the allowed list) when converting, else a type listed for the detected content. */
+	protected function is_desired_extension_allowed(?string $extension, string $detected_type, ?string $convert_target, ?array $upload_config, string $default_types): bool
+	{
+		if ($extension === null) {
+			return true;
+		}
+
+		if ($convert_target !== null) {
+			$allowed_types = $this->allowed_types_list($upload_config, $default_types);
+
+			return $extension === $convert_target && ($allowed_types === null || in_array($extension, $allowed_types, true));
+		}
+
+		return $this->is_extension_listed_for_type($extension, $detected_type, $upload_config, $default_types);
 	}
 
 	/** True when a page-type extension is listed under this type in mimes.php; text/plain is listed under several and excluded. */
@@ -915,6 +1001,11 @@ class MGR_Upload_lib
 	}
 
 	protected function refuse_s3_file(string $relative_path, ?string &$error): null
+	{
+		return $this->refuse_filetype($relative_path, $error);
+	}
+
+	protected function refuse_filetype(string $relative_path, ?string &$error): null
 	{
 		return $this->refuse_upload($relative_path, 'The filetype you are attempting to upload is not allowed.', $error);
 	}

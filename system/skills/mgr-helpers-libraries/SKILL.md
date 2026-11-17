@@ -99,9 +99,10 @@ signatures). Load in the method that uses the library, not the constructor
 `gif|jpg|jpeg|png|webp|pdf|txt|csv|doc|docx|xls|xlsx|ppt|pptx|odt|ods` and
 `upload_image()` accepts `gif|jpg|png|jpeg|webp`. Page types (`html`, `htm`,
 `xhtml`, `shtml`, `svg`, `svgz`, `xml`, `xsl`, `js`) are refused under the
-web root whatever the config. A storage URI is on S3 only when it starts with
-`s3/` (`mgr_is_s3_path()`), in every method; `media/s3/…` is a local path.
-`s3/…` paths apply the same lists and rule
+web root whatever the config. So are PHP-family extensions (`php`, `phtml`,
+`phar`…), even under `allowed_types` `*`. A storage URI is on S3 only when
+it starts with `s3/` (`mgr_is_s3_path()`), in every method; `media/s3/…` is
+a local path. `s3/…` paths apply the same lists and rules
 against the file's detected type (never the client-declared one), and also
 refuse a file whose detected type is a page type's (`text/html`, SVG, XML…)
 whatever the config; there only the `allowed_types` of an `upload_config` is
@@ -145,14 +146,13 @@ previous image in place. Without `preserve_type`, every raster upload is
 re-encoded to the conversion target (above) on both local and `s3/…`, JPEG
 included: metadata is dropped and a JPEG's EXIF orientation is applied when
 the `exif` extension is loaded (without it the image keeps its stored pixel
-order). A kept original whose name the converted main would take (an upload
-already in the target's format) is stored as `<name>_original.<ext>`, the
-name S3 always uses. Re-encoding keeps only the first frame of an animated
-GIF; an animated WebP cannot be decoded by GD and comes back as the generic
-failure. `preserve_type` stores an animated GIF with its frames (no
-thumbnail). Any failure inside an upload, including an error thrown by GD or
-the S3 client, is logged and comes back as `null` with the reason in
-`$error`; the call's files are removed, never a 500.
+order). A kept original is stored as `<name>_original.<ext>` on both
+backends, with the client's extension. Re-encoding keeps only the first
+frame of an animated GIF; an animated WebP cannot be decoded by GD and comes
+back as the generic failure. `preserve_type` stores an animated GIF with its
+frames (no thumbnail). Any failure inside an upload, including an error
+thrown by GD or the S3 client, is logged and comes back as `null` with the
+reason in `$error`; the call's files are removed, never a 500.
 
 `upload_image()` returns `fullsize_*` for the stored main image. `thumb_*`
 name the thumbnail when one was built and stored, otherwise the main image
@@ -171,11 +171,20 @@ falling back as above.
 the server builds — `<id>.pdf`, `invoice_<hash>.pdf` — never request input. To
 keep a client's original name, store it in the DB (`attachment_lib` keeps it in
 `title`; `$extra_data` overrides it) and let the library generate the stored
-name. A name that fails is refused with `$error` (`attachment_lib` throws),
-never rewritten. `attachment_lib` also throws `InvalidArgumentException` for a
-desired name over 89 characters (its `file_name` column of 100, less the 11
-characters of the `?v=` suffix), and `RuntimeException` when the stored
-`file_name` still would not fit (an extension the library appends counts). Two
+name. For `upload_file()` and `upload_image()` pass a stem (`<id>`, the library
+appends the extension) or `<stem>.<ext>` with one dot at most; the text after
+the dot is the extension and must agree with the file it names: the detected
+content for `upload_file()` and `preserve_type`, the conversion target for
+`upload_image()` (`<id>.jpg` with the `jpg` target, which `allowed_types` must
+also list; `<id>.png` is refused, `report.v2`, `a.b.jpg` and `X.` too). On
+`s3/…` the key carries that one extension. A stored extension is lowercase on
+both backends, a desired one included (`report.PDF` is stored `report.pdf`);
+the stem keeps its case. `put_file()` stores its name whole. A name that fails
+is refused with `$error` (`attachment_lib` throws), never rewritten.
+`attachment_lib` also throws `InvalidArgumentException` for a desired name
+over 89 characters (its `file_name` column of 100, less the 11 characters of
+the `?v=` suffix), and `RuntimeException` when the stored `file_name` still
+would not fit (an extension the library appends counts). Two
 layers decide: fixed rules in `upload_lib` (valid UTF-8,
 no `/`, `\`, `?` or NUL, no leading dot) and the overridable
 `mgr_is_allowed_file_name()` — ASCII letters, digits, `.`, `_`, `-`, starting

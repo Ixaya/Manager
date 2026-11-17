@@ -156,7 +156,9 @@ already used.
   longer `svg` or `pdf`). With a list, the extension must match the detected
   content. Page types (`html`, `htm`, `xhtml`, `shtml`, `svg`, `svgz`, `xml`,
   `xsl`, `js`) are refused under the web root (`media/…`) whatever the config.
-  On `s3/…` paths the same lists and page-type rule apply against the type
+  So are PHP-family extensions (`php`, `phtml`, `phar`…), even under
+  `allowed_types` `*`; a caller that stores PHP source moves it to `private/…`.
+  On `s3/…` paths the same lists and rules apply against the type
   detected from the content, and only `allowed_types` of an `upload_config` is
   honored there; `file_type` / `fullsize_type` report the detected type. To
   accept more, pass `upload_config` (it replaces the defaults: restate
@@ -191,9 +193,11 @@ already used.
 - **Return keys, local and S3:** `thumb_*` name the main image whenever no
   thumbnail was stored; `original_*` (and local `original_link`) are `''` when
   no separate original was kept (`delete_original`, `preserve_type`); `?v=`
-  follows only a non-empty name. A kept original whose name the converted main
-  would take (an upload already in the target's format) is stored as
-  `<name>_original.<ext>`. On `s3/…` the call returns `null` with `$error` when
+  follows only a non-empty name. A kept original is stored as
+  `<name>_original.<ext>` on both backends (locally it kept the upload's own
+  name, `X.png` beside `X.jpg`, unless the main would take it); files already
+  stored keep their names, and a re-upload leaves the old `X.png` in place.
+  On `s3/…` the call returns `null` with `$error` when
   the main image is not stored; a failed `_original` or thumbnail store is
   logged and the call succeeds with that variant falling back. Thumbnails are
   built for WebP too, and two `upload_image()` calls with `$resolution` in one
@@ -217,6 +221,28 @@ already used.
   `.txt`, a plain zip `.zip`, a legacy Word file `.doc`, a legacy Excel file
   `.xls`; `mgr_file_extension()` with only a MIME type returns the same. Files
   already stored keep their names.
+- **A desired name is a stem, or carries one extension that agrees with its
+  file.** For `upload_file()` and `upload_image()` (`put_file()` stores its
+  name whole), omit the extension and the library appends the right one; a
+  dot makes the text after it the extension, which must agree with the file
+  it names: the detected content for `upload_file()` and `preserve_type`, the
+  conversion target for `upload_image()`, which `allowed_types` must also
+  list. `<id>.jpg` with the `jpg` target passes for any image; `<id>.png`,
+  `<id>.jpeg` and `<id>.jpe` there are refused instead of stored as
+  `<id>.jpg`. A name with more than one dot (`report.v2`, `a.b.jpg`) or a
+  trailing dot (`X.`) is refused on both backends. Refusals are `null` +
+  `$error`. On `s3/…` the key carries that one extension and the thumbnail
+  and kept original are named from the stem (`photo_thumb.jpg`,
+  `photo_original.png`); keys stored earlier (`doc.pdf.png`,
+  `photo.png_thumb.jpg`) and any URL stored for them stay in place, and a
+  re-upload writes the new key.
+- **Stored extensions are lowercase** on both backends, a desired one
+  included (`report.PDF` is stored `report.pdf`); the stem keeps its case. A
+  kept original takes the client's extension, lowercased (`<id>_original.png`
+  for a PNG upload). Files already stored keep their names: on S3 or a
+  case-sensitive filesystem a re-upload of a former `X.JPG` writes `X.jpg`
+  beside it, and a project that rebuilds a key from the client's file name
+  sees the difference.
 - **Storage URIs route by their first segment.** A URI is on S3 only when it
   starts with `s3/`, in every method (`upload_file()`, `upload_image()`,
   `put_file()`, `display_image()`, `get_file_base64()` and the Textract
@@ -285,3 +311,20 @@ Reaches a project only when it reconciles these files from the sample.
   `--with-webp`) and the `exif` extension, needed for the WebP target and for
   orientation. **`application/libraries/Upload_lib.php`** (new) sets the WebP
   target project-wide; copy it only together with the image change.
+
+## Sample nginx refuses PHP-family files under `/assets/` and `/media/`, and any-case `.php` at the root
+
+Reaches a project only when it reconciles `docker/nginx/conf.d/app.conf`;
+rebuild or reload nginx after.
+
+- Copy the `location` that denies `php`, `php3`, `php4`, `php5`, `php7`,
+  `php8`, `pht`, `phtml`, `phps` and `phar` under `/assets/` and `/media/`,
+  placing it before the `/assets/` block (the first matching regex wins). A
+  matching file now answers 403 instead of downloading; every other
+  extension is unchanged. It covers files stored before the upgrade and
+  ones the upload library never saw, such as a `put_file()` with a
+  server-chosen name.
+- A server other than the sample nginx needs the equivalent deny.
+- Change the public-root `location ~ \.php$` deny to `~*`. It was
+  case-sensitive, so a `.PHP`-cased file in `public/` was served instead of
+  refused; it now answers 403 like `.php`.

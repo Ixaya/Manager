@@ -82,6 +82,21 @@ leaves those names unchanged. The PHP-family refusal is stored-name policy,
 separate from the data. The lookup leaves `mimes.php` alone: CI's
 validation reads it by extension.
 
+## A desired name's extension must agree with its file (2026-11-16)
+
+A dotted desired name names what is stored, so a mismatch is refused, never
+rewritten, and a refusal follows only the server's choices. Under conversion
+the upload is an intermediate and the name names the converted main, so it
+is compared with the target (which `allowed_types` must list, as CI applies
+the list to a dotted name) and not with the upload. One dot at most: the
+text after it is the extension. Extensions are stored lowercase, so two
+stored names never differ only by case. No shared function decides the
+stored extension: CI sets it inside `do_upload()`, so the library configures
+CI (`file_ext_tolower`) and S3 does the equivalent in its own methods.
+Locally, under conversion, CI stores the upload as `<stem>_original`, so the
+main never overwrites its own source, CI never sees the desired extension,
+and a kept original is named as on S3.
+
 ## Left out on purpose (2026-11-14)
 
 AVIF output, animation detection, the `upload_config` merge, and removing
