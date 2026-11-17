@@ -26,7 +26,8 @@ Textract config); `mgr_clean_file_s3_path()` strips a leading `s3/` only.
   onto white. A missing encoder is refused, never replaced.
 - An animated GIF keeps its first frame; an animated WebP cannot be decoded
   by GD and is a failed upload. `preserve_type` stores the file as uploaded.
-- Thumbnails come from CI's `Image_lib`, reset before each use.
+- Thumbnails are built by `image_process_lib`'s `create_thumbnail()` and keep
+  WebP and PNG transparency.
 - The scaffold image gains GD WebP and `exif`; the sample adopts WebP
   through a same-named `Upload_lib` subclass.
 

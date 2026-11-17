@@ -197,7 +197,8 @@ already used.
   the main image is not stored; a failed `_original` or thumbnail store is
   logged and the call succeeds with that variant falling back. Thumbnails are
   built for WebP too, and two `upload_image()` calls with `$resolution` in one
-  request each get their own.
+  request each get their own. `image_process_lib` gains `create_thumbnail()` for
+  this: a resize that keeps PNG and WebP transparency, usable on its own.
 - **Failures return `null`.** An error inside an upload, GD's or the S3
   client's included, returns `null` with `$error` set instead of a 500. Pass
   `error: $error` and answer the failure; a falsy check alone now carries on

@@ -55,6 +55,13 @@ The MX loader keeps one instance per request, and `initialize()` alone
 keeps `master_dim`, so a second image would scale along the wrong side;
 `clear()` runs first.
 
+## Thumbnails built by `image_process_lib` (2026-11-16)
+
+`Image_lib` keeps alpha only for PNG, so a WebP thumbnail of a transparent
+image lost it, and its per-request instance needed a reset before each use.
+The thumbnail is built beside `convert_image()` with `Image_lib`'s fit
+arithmetic, so stored sizes do not change. Supersedes the entry above.
+
 ## Local paths from CI's resolved `file_path` (2026-11-16)
 
 Path comparisons with CI's `full_path` must hold under a symlinked media

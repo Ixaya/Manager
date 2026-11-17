@@ -507,17 +507,9 @@ class MGR_Upload_lib
 					if ($original_width > $resolution[0] || $original_height > $resolution[1]) {
 						// Create thumbnail
 						$thumb_file_name = $upload_data['raw_name'] . '_thumb' . $file_ext;
-						$img_config['image_library'] = 'gd2';
-						$img_config['source_image'] = $new_file_path;
-						$img_config['create_thumb'] = true;
-						$img_config['maintain_ratio'] = true;
-						$img_config['width'] = $resolution[0];
-						$img_config['height'] = $resolution[1];
-						$this->load->library('image_lib');
-						// The loader keeps one instance per request; reset it so a second call does not resize the first image.
-						$this->image_lib->clear();
-						if ($this->image_lib->initialize($img_config) && $this->image_lib->resize()) {
-							$written_paths[] = $upload_data['file_path'] . $thumb_file_name;
+						$thumb_file_path = $upload_data['file_path'] . $thumb_file_name;
+						if ($CI->image_process_lib->create_thumbnail(source_path: $new_file_path, detected_type: $file_type, target_path: $thumb_file_path, resolution: $resolution)) {
+							$written_paths[] = $thumb_file_path;
 							$new_file_thumb = $thumb_file_name;
 						} else {
 							log_message('error', "Error uploading($relative_path): thumbnail not created");
@@ -660,17 +652,8 @@ class MGR_Upload_lib
 				if ($original_width > $resolution[0] || $original_height > $resolution[1]) {
 					// Create thumbnail
 					$thumb_file_path = "{$base_file_path}_thumb";
-					$img_config['image_library']  = 'gd2';
-					$img_config['source_image']   = $base_file_path;
-					$img_config['create_thumb']   = true;
-					$img_config['maintain_ratio'] = true;
-					$img_config['width']		  = $resolution[0];
-					$img_config['height']		 = $resolution[1];
-					$this->load->library('image_lib');
-					// The loader keeps one instance per request; reset it so a second call does not resize the first image.
-					$this->image_lib->clear();
 
-					if ($this->image_lib->initialize($img_config) && $this->image_lib->resize()) {
+					if ($CI->image_process_lib->create_thumbnail(source_path: $base_file_path, detected_type: $file_type, target_path: $thumb_file_path, resolution: $resolution)) {
 						$thumb_file_name = "{$desired_file_name}_thumb.{$file_ext}";
 
 						$thumb_image_url = $this->amazon_aws_lib->upload_file($thumb_file_path, "{$s3_relative_path}{$thumb_file_name}");

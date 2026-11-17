@@ -88,6 +88,54 @@ class MGR_Image_process_lib
 		}
 	}
 
+	/**
+	 * Writes a copy of the image fitted inside the `[width, height]` box, in `$detected_type`; PNG and WebP keep transparency.
+	 *
+	 * @param array{0: int, 1: int} $resolution Both sides above zero.
+	 * @return bool False when GD cannot decode the source or the encoder fails.
+	 * @throws InvalidArgumentException When `$detected_type` is not a thumbnail type.
+	 */
+	public function create_thumbnail(string $source_path, string $detected_type, string $target_path, array $resolution): bool
+	{
+		$source_image = imagecreatefromstring(file_get_contents($source_path));
+		if ($source_image === false) {
+			return false;
+		}
+
+		$source_width = imagesx($source_image);
+		$source_height = imagesy($source_image);
+		[$box_width, $box_height] = $resolution;
+
+		if (($source_height / $source_width) - ($box_height / $box_width) < 0) {
+			$thumb_width = $box_width;
+			$thumb_height = (int) ceil($box_width * $source_height / $source_width);
+		} else {
+			$thumb_height = $box_height;
+			$thumb_width = (int) ceil($source_width * $box_height / $source_height);
+		}
+
+		$thumb_image = imagecreatetruecolor($thumb_width, $thumb_height);
+		if ($detected_type !== 'image/jpeg') {
+			imagealphablending($thumb_image, false);
+			imagesavealpha($thumb_image, true);
+		}
+
+		imagecopyresampled($thumb_image, $source_image, 0, 0, 0, 0, $thumb_width, $thumb_height, $source_width, $source_height);
+
+		$written = match ($detected_type) {
+			'image/jpeg' => imagejpeg($thumb_image, $target_path, 90),
+			'image/png' => imagepng($thumb_image, $target_path),
+			'image/webp' => imagewebp($thumb_image, $target_path),
+			default => throw new InvalidArgumentException("MGR_Image_process_lib: no thumbnail for '{$detected_type}'."),
+		};
+
+		if ($written && !chmod($target_path, 0644)) {
+			log_message('error', "MGR_Image_process_lib: cannot set permissions on {$target_path}");
+		}
+
+		return $written;
+	}
+
 	/** A truecolor copy of `$image` drawn over a white background, for targets without alpha. */
 	protected function flatten_on_white(GdImage $image): GdImage
 	{
