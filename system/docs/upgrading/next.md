@@ -328,3 +328,33 @@ rebuild or reload nginx after.
 - Change the public-root `location ~ \.php$` deny to `~*`. It was
   case-sensitive, so a `.PHP`-cased file in `public/` was served instead of
   refused; it now answers 403 like `.php`.
+
+## URL helpers: what a `$protocol` of `'https'` gives
+
+`image_url()`, `secure_url()`, `base_url()` and `site_url()` now share one
+rule for a `$protocol` of `'https'` or `'https:'` (both are accepted): a URL
+with a host gets `https://host/…`, replacing any scheme it has; a
+root-relative one (`CF_HOST` unset) stays root-relative. `''` and no
+protocol return what they did. Output that changes, and who may notice:
+
+- **A root-relative base with a protocol** returns `/media/x.jpg` where it
+  returned `https:/media/x.jpg`. The JWT `iss` claim is `/` instead of
+  `https:/` with `CF_HOST` unset, and unchanged (`https://host/`) when it is
+  set. A client or a stored value that matched the old form needs updating;
+  an email or push link needs `CF_HOST` set (build it with `secure_url()`).
+- **An absolute `image_url` or `base_url` with a protocol** returns
+  `https://cdn/…` where it returned `https:://cdn/…`.
+- **The bare `'https'`** now works on a `//host` base (it returned
+  `https//host/…`).
+- **`secure_url()` given an absolute `http://` URL** returns its `https://`
+  form instead of the URL appended to the base. `//cdn/x` and `https://cdn/x`
+  are unchanged.
+- **`MGR_Config` overrides `base_url()` and `site_url()`.** Only a call that
+  passes a protocol changes. A project `MY_Config` that overrides either
+  keeps its own behavior and does not get the rule.
+- **The sample `Profile::get_profile()`** answers `image_url` through
+  `image_url($uri, 'https:')`, as `image_post()` does: it honours a configured
+  `image_url`, gives `/media/…` instead of `https://media/…` with `CF_HOST`
+  unset, and no longer doubles the scheme on an absolute `base_url`. A project
+  that copied the old `'https://' . ltrim(base_url(…), '/')` expression
+  adopts the same call.

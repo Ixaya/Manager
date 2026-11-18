@@ -4,11 +4,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 if (!function_exists('image_url')) {
 	/**
-	 * Get the URL for an image, optionally specifying the protocol.
+	 * URL of an image path under the public web root, on `image_url` or else
+	 * `base_url`. Not for storage URIs: an S3 object needs
+	 * amazon_aws_lib->get_presigned_url().
 	 *
-	 * @param string $uri The URI of the image.
-	 * @param string|null $protocol The protocol to use (e.g., 'http' or 'https'), or null to use the default.
-	 * @return string The full URL to the image.
+	 * @param string $uri
+	 * @param string|null $protocol 'https' or 'https:' for `https://host/…`
+	 *                              (root-relative without a host), '' for `//host/…`
+	 * @return string
 	 */
 	function image_url($uri = '', $protocol = null)
 	{
@@ -18,24 +21,18 @@ if (!function_exists('image_url')) {
 
 if (!function_exists('secure_url')) {
 	/**
-	 * Generate a secure (HTTPS) URL from a given URI.
+	 * HTTPS URL of a path on `base_url`, or of an absolute or `//` URL.
+	 * Root-relative while `CF_HOST` is unset, so a link sent off-site needs it.
 	 *
-	 * @param string $uri The URI to be processed.
-	 * @return string The secure HTTPS URL.
+	 * @param string $uri
+	 * @return string
 	 */
 	function secure_url($uri = '')
 	{
-		if (!empty($uri)) {
-			if (strpos($uri, 'https://') === 0) {
-				return $uri;
-			}
+		$config = get_instance()->config;
+		$secured = empty($uri) ? null : $config->with_protocol(url: $uri, protocol: 'https:');
 
-			if (strpos($uri, '//') === 0) {
-				return 'https:' . $uri;
-			}
-		}
-
-		return get_instance()->config->base_url($uri, 'https:');
+		return $secured ?? $config->base_url($uri, 'https:');
 	}
 }
 

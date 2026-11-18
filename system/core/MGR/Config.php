@@ -191,14 +191,72 @@ class MGR_Config extends MX_Config
 	}
 
 	/**
+	 * Give a URL that has a host the scheme in $protocol ('https' or
+	 * 'https:'): an existing scheme is replaced, a `//host` URL gets one.
+	 *
+	 * @return string|null null when the URL has no host (root-relative or
+	 *                     relative), which takes no scheme: keep it as is
+	 */
+	public function with_protocol(string $url, string $protocol): ?string
+	{
+		// `//` must be followed by a host: `///x` has none
+		if (preg_match('#^(?:[a-z][a-z0-9+.-]*:)?(?=//[^/])#i', $url, $matches) !== 1) {
+			return null;
+		}
+
+		$scheme = substr($protocol, -1) === ':' ? substr($protocol, 0, -1) : $protocol;
+
+		return $scheme . ':' . substr($url, strlen($matches[0]));
+	}
+
+	/**
+	 * Base URL; a non-empty $protocol follows with_protocol().
+	 *
+	 * @param	string|string[]	$uri	URI string or an array of segments
+	 * @param	string|null	$protocol
+	 * @return	string
+	 */
+	public function base_url($uri = '', $protocol = null)
+	{
+		if (!isset($protocol) || $protocol === '') {
+			return parent::base_url($uri, $protocol);
+		}
+
+		$url = parent::base_url($uri);
+
+		return $this->with_protocol(url: $url, protocol: $protocol) ?? $url;
+	}
+
+	/**
+	 * Site URL; a non-empty $protocol follows with_protocol().
+	 *
+	 * @param	string|string[]	$uri	URI string or an array of segments
+	 * @param	string|null	$protocol
+	 * @return	string
+	 */
+	public function site_url($uri = '', $protocol = null)
+	{
+		if (!isset($protocol) || $protocol === '') {
+			return parent::site_url($uri, $protocol);
+		}
+
+		$url = parent::site_url($uri);
+
+		return $this->with_protocol(url: $url, protocol: $protocol) ?? $url;
+	}
+
+	/**
 	 * Image URL
 	 *
-	 * Returns image_url [. uri_string]
+	 * Returns image_url [. uri_string]; image_url falls back to base_url.
+	 * Takes a path under the public web root, not a storage URI: an S3
+	 * object needs amazon_aws_lib->get_presigned_url().
 	 *
 	 * @uses	CI_Config::_uri_string()
 	 *
 	 * @param	string|string[]	$uri	URI string or an array of segments
-	 * @param	string	$protocol
+	 * @param	string|null	$protocol	'' gives a protocol-relative URL; any
+	 *		other follows with_protocol()
 	 * @return	string
 	 */
 	public function image_url($uri = '', $protocol = null)
@@ -208,13 +266,11 @@ class MGR_Config extends MX_Config
 			$image_url = $this->slash_item('base_url');
 		}
 
-		if (isset($protocol)) {
+		if ($protocol === '') {
 			// For protocol-relative links
-			if ($protocol === '') {
-				$image_url = substr($image_url, strpos($image_url, '//'));
-			} else {
-				$image_url = $protocol . substr($image_url, strpos($image_url, '://'));
-			}
+			$image_url = substr($image_url, strpos($image_url, '//'));
+		} elseif (isset($protocol)) {
+			$image_url = $this->with_protocol(url: $image_url, protocol: $protocol) ?? $image_url;
 		}
 
 		return $image_url . $this->_uri_string($uri);

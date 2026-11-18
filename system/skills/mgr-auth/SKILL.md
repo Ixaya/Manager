@@ -139,9 +139,11 @@ plaintext `selector.validator` code for you to deliver — it also carries
 project's. The DB stores the selector plus the HASHED validator, never the
 plaintext; that plaintext must never be logged or returned in a response.
 
-**Links.** Build the delivered link from the configured `CF_HOST` (through
-`base_url()`), so it follows one host on web and CLI alike. The sample
-`config.php` reads only `CF_HOST`; unset, links come out root-relative.
+**Links.** Build the delivered link with `secure_url()` from the configured
+`CF_HOST`, so it is an absolute `https://` URL and follows one host on web and
+CLI alike. The sample `config.php` reads only `CF_HOST`; unset, the link comes
+out root-relative and cannot be opened from a mail client, so a delivered link
+needs `CF_HOST` set.
 
 **Redemption.** `reset_password_with_code()` is THE way — atomic, and the
 identity comes from the code's own user row, never from the caller:

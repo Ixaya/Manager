@@ -128,7 +128,7 @@ class Profile extends APP_Rest_Controller
 				'status' => $user['active'],
 				'user_group' => $user_groups,
 				'ip_address' => $user['ip_address'],
-				'image_url' => $user['image_url'] ? 'https://' . ltrim(base_url($user['image_url']), '/') : null,
+				'image_url' => $user['image_url'] ? image_url($user['image_url'], 'https:') : null,
 				'last_update' => $user['last_update'],
 			];
 		}
