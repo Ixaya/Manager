@@ -134,10 +134,11 @@ are set for a request, the resolved key wins.
 identifies the caller. `'none'` skips the key lookup entirely — `$_apiuser` is
 never set, so `process_api_user()` never runs and `user_id` /
 `logged_in_level` stay empty. `'allow'` reads `X-API-KEY` and looks it up: an
-absent or unknown key still passes, but a valid one populates `user_id`,
-`logged_in_level` and the `last_api_date` stamp. Use `'allow'` for one
-endpoint that serves anonymous callers and personalizes for authenticated
-ones, instead of shipping a public endpoint plus an authenticated twin.
+absent, unknown or revoked key still passes as anonymous, but a valid one
+populates `user_id`, `logged_in_level` and the `last_api_date` stamp. Use
+`'allow'` for one endpoint that serves anonymous callers and personalizes for
+authenticated ones, instead of shipping a public endpoint plus an
+authenticated twin.
 
 ### Rule 2 — permission gating via group_methods
 
@@ -190,13 +191,25 @@ key table directly. Typical flow after `$this->ion_auth->login()` succeeds:
 
 ```php
 $this->load->model('rest_key_model');
-$key = $this->rest_key_model->get_user_key($user_id, $device_uuid);  // existing key for this device
+$key = $this->rest_key_model->get_user_key($user_id, $device_uuid);  // newest usable key, or a newly issued one
 if (empty($key)) {
     $key = $this->rest_key_model->add_key(['user_id' => $user_id], $level, true, $device_uuid);
 }
 // also available: regenerate_key($old_key), suspend_key($key),
 //                 set_key_level($key, $level), delete_key($key), delete_user_key($user_id)
 ```
+
+A key is revoked, and answers as an unknown key, while its `level` is 0 or
+its `activated` column is 0 (`suspend_key()` sets both; NULL counts as
+active), while its user is deactivated, and once its user row is gone.
+`set_key_level()` alone does not restore a suspended key, since `activated`
+stays 0. New keys are stored with `activated = 1`, so a project key table
+needs that column. Deactivation keeps the key, so reactivating the user
+restores it; Ion Auth's `delete_user()` deletes the user's keys.
+`regenerate_key()` issues the new key to the same user and device, at the old
+key's level, and suspends the old one. `get_user_key()` returns the newest
+usable key and issues one when none is left, so a suspended key does not block
+a user who can log in; to cut off a user, deactivate them.
 
 Password reset goes through `$this->ion_auth->reset_password_with_code()`,
 never a path reachable with an identity alone (rules: mgr-auth).

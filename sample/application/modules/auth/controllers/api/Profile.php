@@ -50,12 +50,6 @@ class Profile extends APP_Rest_Controller
 			$data['password'] = $password;
 		}
 
-		if ($this->post('status') == 1) {
-			$this->ion_auth->activate($this->user_id);
-		} else {
-			$this->ion_auth->deactivate($this->user_id);
-		}
-
 		if (!$this->ion_auth->update($this->user_id, $data)) {
 			$this->response([
 				'status' => 0,

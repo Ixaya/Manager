@@ -72,6 +72,40 @@ class MGR_Ion_auth_model extends BE_Ion_auth_model
 	}
 
 	/**
+	 * Deletes the user, then their API keys; not atomic, and a key left behind is refused at auth.
+	 */
+	public function delete_user(int $id): bool
+	{
+		if (!parent::delete_user($id)) {
+			return false;
+		}
+
+		$this->load->model('rest_key_model');
+		if (!$this->rest_key_model->delete_user_key($id)) {
+			log_message('error', "MGR_Ion_auth_model: delete_user({$id}) removed the user but not their API keys.");
+		}
+
+		return true;
+	}
+
+	/**
+	 * Stamps the user's last API call (date and platform code), as update_last_login() stamps a login.
+	 *
+	 * @return bool Whether the update ran, not whether a row changed.
+	 */
+	public function update_last_api(int $id, int $platform): bool
+	{
+		$this->trigger_events('update_last_api');
+
+		$this->trigger_events('extra_where');
+
+		return $this->my_db->where('id', $id)->update($this->tables['users'], [
+			'last_api_date' => mgr_get_now_date_time_sql_format(),
+			'last_api_os' => $platform,
+		]);
+	}
+
+	/**
 	 * Session keys removed on the deactivation recheck, plus the client_id scope.
 	 *
 	 * @return array<int, string>

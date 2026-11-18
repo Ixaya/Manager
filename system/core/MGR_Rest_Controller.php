@@ -16,7 +16,7 @@ class MGR_Rest_Controller extends REST_Controller
 
 	/**
 	 * Applies the configured rest_time_zone and, for an identified API user,
-	 * loads their profile context.
+	 * loads their profile context. A revoked key is treated as an unknown one.
 	 */
 	public function __construct()
 	{
@@ -28,7 +28,58 @@ class MGR_Rest_Controller extends REST_Controller
 		}
 
 		if (isset($this->_apiuser)) {
+			$rejection = $this->api_key_rejection($this->_apiuser);
+			if ($rejection !== null) {
+				log_message('debug', 'REST key rejected for user_id ' . ($this->_apiuser->user_id ?? 'null') . ": {$rejection}");
+				$this->discard_api_user();
+			}
+		}
+
+		if (isset($this->_apiuser)) {
 			$this->process_api_user();
+		}
+	}
+
+	/**
+	 * Why a found key may not identify its caller, or null when it may: suspended (level 0),
+	 * deactivated (activated 0; NULL is active), or a user that Ion Auth can't find or is inactive.
+	 */
+	protected function api_key_rejection(object $key_row): ?string
+	{
+		// Cast before comparing: drivers return these columns as int or string.
+		if (isset($key_row->level) && (int) $key_row->level === 0) {
+			return 'key suspended (level 0)';
+		}
+		if (isset($key_row->activated) && (int) $key_row->activated === 0) {
+			return 'key deactivated (activated 0)';
+		}
+
+		// Through Ion Auth: its users table, its connection and its extra_where hooks.
+		$this->load->model('ion_auth_model');
+		$user = $this->ion_auth_model->select('id, active')->user((int) ($key_row->user_id ?? 0))->row();
+		if ($user === null) {
+			return 'user not found';
+		}
+		if ((int) $user->active === 0) {
+			return 'user inactive';
+		}
+
+		return null;
+	}
+
+	/**
+	 * Drops the identified key so the request continues as with an unknown key: the
+	 * invalid-key response where a key is required, anonymous on auth_override 'allow'.
+	 */
+	protected function discard_api_user(): void
+	{
+		$this->_apiuser = null;
+		$this->rest->key = null;
+		$this->rest->level = null;
+		$this->rest->user_id = null;
+
+		if ($this->_auth_override !== true) {
+			$this->_allow = false;
 		}
 	}
 
@@ -41,13 +92,11 @@ class MGR_Rest_Controller extends REST_Controller
 	{
 		$this->user_id = $this->_apiuser->user_id;
 
-		$data['last_api_date'] = mgr_get_now_date_time_sql_format();
-		$data['last_api_os'] = $this->get_platform();
-
-		$this->rest->db->where('id', $this->user_id);
-		$this->rest->db->update('user', $data);
-
 		$this->load->model('ion_auth_model');
+		if (!$this->ion_auth_model->update_last_api((int) $this->user_id, $this->get_platform())) {
+			log_message('error', "MGR_Rest_Controller: could not stamp last_api_date for user_id {$this->user_id}.");
+		}
+
 		$user_groups = $this->ion_auth_model->get_users_groups($this->user_id)->result();
 		foreach ($user_groups as $user_group) {
 			$user_group_level = (int) $user_group->level;

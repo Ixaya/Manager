@@ -23,6 +23,19 @@ class DeletionTest extends AuthTestCase
 		$this->assertFalse(self::$auth->identity_check(self::IDENTITY));
 	}
 
+	public function test_delete_user_removes_their_api_keys(): void
+	{
+		$id = self::create_active_user(self::IDENTITY);
+
+		$this->load->model('rest_key_model');
+		$this->assertIsString($this->rest_key_model->add_key(data: ['user_id' => $id], level: 1, returnKey: true));
+		$this->assertIsString($this->rest_key_model->add_key(data: ['user_id' => $id], level: 1, returnKey: true));
+		$this->assertSame(2, $this->count_user_keys($id));
+
+		$this->assertTrue(self::$auth->delete_user($id));
+		$this->assertSame(0, $this->count_user_keys($id));
+	}
+
 	public function test_delete_group_removes_the_group(): void
 	{
 		$gid = self::$auth->create_group(self::GROUP, 'PHPUnit deletion fixture');
@@ -32,5 +45,10 @@ class DeletionTest extends AuthTestCase
 
 		$row = self::$auth->where('name', self::GROUP)->groups()->row();
 		$this->assertNull($row);
+	}
+
+	private function count_user_keys(int $user_id): int
+	{
+		return $this->db->where('user_id', $user_id)->count_all_results($this->config->item('rest_keys_table'));
 	}
 }

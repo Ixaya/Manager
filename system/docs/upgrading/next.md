@@ -358,3 +358,59 @@ protocol return what they did. Output that changes, and who may notice:
   unset, and no longer doubles the scheme on an absolute `base_url`. A project
   that copied the old `'https://' . ltrim(base_url(…), '/')` expression
   adopts the same call.
+
+## API keys follow their suspension and their user's state
+
+A key now authenticates only while it is usable. A key whose `level` is 0
+(`Rest_key_model::suspend_key()`, or `set_key_level()` to 0), whose
+`activated` column is 0, whose user is deactivated, or whose user row no
+longer exists is treated as an unknown key: the invalid-key response
+(403) on an endpoint that requires a key, a failed `group_methods` gate (401)
+where the controller sets one, and an anonymous caller on `auth_override =
+'allow'` (no `user_id`, no `last_api_date` stamp). The package migration
+`Manager_user_key_v3` sets `activated` to 1 on every key where it is NULL,
+then makes the column `NOT NULL DEFAULT 1`; values already stored, 0
+included, are kept.
+
+- **Check which keys stop working.** Before upgrading, look for keys that
+  clients still send and that match one of those states; each one gets the
+  invalid-key response afterwards. A key table the migration does not cover
+  (a project `rest_keys_table` other than `user_key`) needs an `activated`
+  column: new keys are written with it and `get_user_key()` filters on it.
+  NULL there counts as active. A rejected key writes a `debug` log line naming
+  the reason and the user id.
+- **A database whose keys all carry `activated = 0`** (a `user_key` table
+  created with `activated` NOT NULL and no default, where every insert stored
+  0) has every key refused after the upgrade; the migration gives the column
+  its default but keeps the zeros. Each user receives a new, active key at
+  their next login, so clients recover by logging in again. To keep the
+  existing keys instead, set `activated = 1` on them before upgrading, once
+  you have confirmed nothing in the project writes 0 on purpose.
+- **New keys are stored with `activated = 1`**, from `add_key()` and
+  `regenerate_key()` alike, unless the caller passes `activated` itself.
+  `suspend_key()` sets `level` 0 and `activated` 0, so `set_key_level()`
+  alone no longer restores a suspended key: set `activated` back to 1 as well.
+- **`get_user_key()` returns the user's newest usable key**, and issues a new
+  one when none is left, so a login after a suspension, a regeneration or
+  `activated = 0` receives a working key. A suspended key no longer blocks a
+  user who can still log in: deactivate the user to cut off their access.
+- **The key's user is read, and its last call stamped, through
+  `Ion_auth_model`:** its users table, its connection (`AUTH_DB_CONNECTION`)
+  and its `extra_where` hooks. Both used to go to a table named `user` on
+  the REST connection. A project whose `extra_where` hook scopes users by
+  session state (a tenant `client_id`, for example) must let sessionless
+  REST requests through it, or every key is refused. The stamp is the new
+  `Ion_auth_model::update_last_api()`, which fires `update_last_api` and
+  `extra_where` the way `update_last_login()` fires its own event; a project
+  that overrides `process_api_user()` keeps its own stamp.
+- **Reactivating a user restores the same key.** No new login is needed.
+- **`delete_user()` deletes the user's API keys** after it deletes the user.
+  Keys left by users deleted earlier are refused at auth and can be deleted at
+  any time. A project `Ion_auth_model` that overrides `delete_user()` calls
+  the parent to keep this.
+- **`regenerate_key()` issues the new key to the same user and device**, at
+  the old key's level, and suspends the old key (`level` 0, `activated` 0).
+- **Sample `Profile::edit_post()` no longer takes `status`.** A project that
+  copied it removes the `activate()`/`deactivate()` block: the account state
+  is an administrator's setting (`Sysusers::update_post()`). A client that
+  still sends `status` gets no error; the field is ignored.

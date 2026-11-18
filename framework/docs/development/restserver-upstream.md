@@ -14,9 +14,13 @@ chain (see AGENTS.md's `system/third_party/` hard rule).
 
 `MGR_Format` is an empty-body shim, so the seam exists ahead of the first
 thing that needs it, same reasoning as the model-shim work's empty
-`Attachment`/`Domain` shims. `MGR_Rest_key_model` carries one override: its
-constructor falls back to `''` (the main handle) when `rest_database_group`
-is absent, where the `RS_` file falls back to `'default'`.
+`Attachment`/`Domain` shims. `MGR_Rest_key_model` overrides its constructor,
+which falls back to `''` (the main handle) when `rest_database_group` is
+absent where the `RS_` file falls back to `'default'`, and the key methods
+`suspend_key()`, `regenerate_key()`, `get_user_key()`, `_insert_key()` and
+`_generate_key()`. The last builds the key from `random_bytes()` as
+`rest_key_length` lowercase hex characters and keeps the `_key_exists()`
+collision loop.
 
 ## `RS_Format`
 

@@ -129,3 +129,15 @@ traceability to commits and probe names. The resulting rules live in
   The migration keeps its plain literal on purpose — migrations are the
   most-copied files in the repo, so the sync constants and their warning
   live in `Tools` instead, accepting hash-drift as a loud, fixable failure.
+- **2026-11-18: an API key is refused at auth by its own state or its
+  user's, and answers as an unknown key.** Refused: `level` 0, `activated` 0,
+  user inactive or missing. Same response as an unknown key (anonymous on
+  `allow`), so a refusal discloses nothing an unknown key wouldn't. The key's
+  user is read through `Ion_auth_model` with its hooks, so key auth and login
+  decide from the same rows; a hook-free check was rejected for making the two
+  differ. A key holding `activated = 0` stays refused after an upgrade, and
+  its user receives a new key at the next login; kept because older projects
+  reach this version only through the upgrade notes, which say how to keep
+  such keys. `activated` NULL still counts as active: it covers code deployed
+  before `migrate` and key tables the package migration doesn't touch.
+  Revisit once every key table is guaranteed NOT NULL.

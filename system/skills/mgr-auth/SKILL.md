@@ -103,7 +103,11 @@ if ($user !== false) {
 
 API endpoints then issue an `X-API-KEY` via `Rest_key_model` — flow and key
 lifecycle live in the mgr-rest-controller skill, whose
-`references/public-endpoint.md` is the worked login endpoint.
+`references/public-endpoint.md` is the worked login endpoint. A key follows
+its user's active state as a session does. The REST controller reads that
+user, and stamps its `last_api_date`, through the model (`user()`,
+`update_last_api()`), so a project's `extra_where` hook applies to key auth
+too and must not depend on a session.
 
 **Uniform failure messaging — the recommended default.** The same response
 for every failure cause (wrong password, locked out, already-registered,
