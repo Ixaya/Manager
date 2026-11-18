@@ -56,3 +56,13 @@ root-relative links, and `"//$host"` stays (same output as `'/'`, and it
 keeps CI's own host detection out). `resolve_theme()` logs and skips
 instead of throwing, since it runs in a constructor and a throw would fail
 every page of the domain.
+
+## A protocol on a base without a host (2026-11-17)
+
+With `CF_HOST` unset the base is root-relative, and no scheme makes it
+absolute: prepending one gives `https:/media/…`, which a client reads as host
+`media`. The URL stays root-relative instead, with no log line (it would fire
+on every call in the default configuration) and no throw (it would fail that
+configuration). The rule sits in `MGR_Config` overrides that wrap CI's
+`base_url()`/`site_url()` rather than copying their bodies, so a call without
+a protocol is CI's own.

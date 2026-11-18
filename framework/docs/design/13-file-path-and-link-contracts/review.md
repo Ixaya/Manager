@@ -12,6 +12,9 @@ plus a dry-run and a real-bucket S3 harness. On the final tree:
 - PHPStan level 5 and php-cs-fixer clean on every shipped file.
 - Id validation: the engines disagree on a malformed id, so the sample
   validates before it looks up.
+- URL helpers: an in-request matrix of every base and image-host shape
+  against every protocol form, checked against an independently computed
+  expectation; PostgreSQL only (no SQL involved).
 
 ## Not covered
 
@@ -21,3 +24,6 @@ plus a dry-run and a real-bucket S3 harness. On the final tree:
 - A rendered `load_clean_view()` (the scaffold ships no clean layout) and
   `resolve_theme()`'s mailer path.
 - `MGR_Amazon_aws_lib` beyond its argument handling, and `third_party/BE`.
+- A project `MY_Config` overriding `base_url()`/`site_url()`;
+  `enable_query_strings` on; what mail clients and external JWT readers
+  accept.

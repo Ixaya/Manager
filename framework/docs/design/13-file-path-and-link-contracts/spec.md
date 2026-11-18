@@ -34,11 +34,17 @@ the upload library, its read paths and the view loader.
   missing theme row or a shortname with a `..` segment.
 - **Error-path CORS** sends the API's own header and method lists, plus
   `Vary: Origin`.
+- **URL helpers.** `image_url()`, `secure_url()`, `base_url()` and
+  `site_url()` share one rule for a `'https'`/`'https:'` protocol
+  (`MGR_Config::with_protocol()`): a URL with a host gets that scheme, a
+  root-relative one stays as is. `secure_url()` also takes an absolute or
+  `//` URL.
 - **Sample.** `config.php` builds `base_url` from `CF_HOST` only (unset,
   links are root-relative). The nginx config gains a page-type `location`
   under `/media/`. `Sysusers::update_post()` validates the id with the new
   `mgr_validate_id()` and uses the database id; image uploads move to their
-  own `image_post()` endpoints on `Sysusers` and `Profile`.
+  own `image_post()` endpoints on `Sysusers` and `Profile`. Both `Profile`
+  endpoints answer `image_url` through `image_url($uri, 'https:')`.
 
 Stated, not enforced: write paths (`mgr_file_path()`, `$relative_path`,
 `MGR_Amazon_aws_lib::save_file()`) and `setup_model()`'s names.

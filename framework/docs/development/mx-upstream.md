@@ -81,7 +81,7 @@ MX has no active upstream release cadence (last touched 2015), so a merge
 is unlikely — if one ever happens, re-apply every edit above, in this
 order:
 
-1. `Config.php`: `image_url()`; the `load()` rewrite (or confirm the
+1. `Config.php`: the `load()` rewrite (or confirm the
    merged upstream already resolves module lookups compatibly); the
    `path()`/`read()` split with `path_env()`/`path_module()`/`read_path()`
    staying `protected`; then `load_fallback()`, redirecting `load()`'s
