@@ -356,7 +356,7 @@ One gotcha: single-file runs need absolute paths (`vendor/bin/phpunit
 /work/tests/unit/auth/LoginTest.php`) because the CLI boot chdir()s to
 `public/`.
 
-> **Test error visibility.** `.env.testing` sets `APP_ENV=development`, so PHP
+> **Test error visibility.** `.env.testing` sets `APP_ENV=local`, so PHP
 > errors surface in the PHPUnit output. Set `APP_ENV=testing` there (or pass
 > `-e APP_ENV=testing`, which process env outranks) to silence them.
 
@@ -794,8 +794,9 @@ API-key flow any client goes through.
 (`GET /smoke/async` dispatches a real async CLI job; `GET /smoke/whoami`
 proves the full login → X-API-KEY chain). Probes only — no assertions,
 fixtures, or reporting. Auth is the normal API-key
-auth above, never a bypass, and every controller 403s loudly if
-`ENVIRONMENT === 'production'`. Two ways to use it:
+auth above, never a bypass, and every controller refuses with a logged 403
+unless `ENVIRONMENT` is `local`, so the instance needs `APP_ENV=local` in
+its env file. Two ways to use it:
 
 ```bash
 # Baked into a local image (INCLUDE_SMOKE_MODULE=true, local images only):
@@ -865,7 +866,7 @@ If it reports the writes land, the failure happens *before* the app's logging
 subsystem initializes, so nothing can record it. Don't keep re-checking the
 same channels; escalate instead:
 
-1. Flip `display_errors`/`display_startup_errors` on (dev instance only).
+1. Flip `display_errors`/`display_startup_errors` on (`local` instance only).
    If the body is STILL empty, the error handler itself is failing too — go
    straight to step 3.
 2. Enable `db_debug` on the DB config so connection failures surface.
@@ -904,7 +905,7 @@ while the second is the actual cause and is identical everywhere.
 
 The client gets `500` with `{"status":0,"message":"An unexpected error
 occurred."}` in production, and the driver's own `pg_connect()` /
-`real_connect()` message in development.
+`real_connect()` message under `local`.
 
 **Known signature: `Cannot modify header information — headers already
 sent`.** Not a header problem. It means output was already written, which in
@@ -922,7 +923,7 @@ than the usual `{"status":0,"message":"An unexpected error occurred."}`.
 **Both are logged** — go to the app log for the cause; nothing else needs
 diagnosing.
 
-The same fatal in development is the more confusing one: it answers HTTP
+The same fatal under `local` is the more confusing one: it answers HTTP
 **200** with an HTML `Fatal error` dump, and the app log holds only the
 `Cannot modify header information` line above. The actual cause is on container
 stderr only (`docker logs <instance>-php-1`).

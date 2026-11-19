@@ -102,8 +102,8 @@ empty table. `$fields` is a comma-separated select list or array; `null`
 = `SELECT *`. `$limit` accepts `int`, `'10'`, or `[limit, offset]`.
 
 `db_debug` (`application/config/database.php`) decides whether a failed query
-stops the request or returns `null`; the shipped config turns it off in
-production, so always write the `null` check.
+stops the request or returns `null`; the shipped config turns it on only
+under `local`, so always write the `null` check.
 
 ```php
 get(int|string $id, $fields = null): ?array

@@ -542,8 +542,9 @@ $table_property
 		];
 
 		$missing = 0;
+		$ci_env = $_SERVER['CI_ENV'] ?? null;
 		foreach ($keys as $check_key) {
-			$row = Env_lib::resolve_source($check_key, ENVIRONMENT);
+			$row = Env_lib::resolve_source($check_key, $ci_env);
 
 			echo sprintf(
 				"%-36s source=%-12s set=%-3s len=%d" . PHP_EOL,

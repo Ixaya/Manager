@@ -36,9 +36,11 @@ include MGRPATH . 'config/database.php';
 |	['dbprefix'] (string) Prepended to table names by the Query Builder.
 |	['pconnect'] (bool) TRUE reuses a persistent connection.
 |	['db_debug'] (bool) What a query that fails to execute does:
-|	    TRUE  aborts the request — development renders the failing SQL,
-|	          production a generic 500; either way the detail is logged.
-|	    FALSE returns null/false and carries on, so every call must check.
+|	    TRUE  aborts the request and renders the failing SQL; on only
+|	          under `local`, the one environment that shows errors.
+|	    FALSE returns null/false and carries on, so every call must check;
+|	          every other environment runs this way, as production does.
+|	          The detail is logged either way.
 |	['cache_on'] (bool) TRUE caches query results into cachedir.
 |	['cachedir'] (string) Writable path for that cache.
 |	['char_set'] (string) Client character set. No default — the right
@@ -82,7 +84,7 @@ $db['default'] = mgr_apply_pdo_dsn([
 	// 'options' => [PDO::ATTR_STRINGIFY_FETCHES => true],
 	'dbprefix' => '',
 	'pconnect' => false,
-	'db_debug' => (ENVIRONMENT !== 'production'),
+	'db_debug' => (ENVIRONMENT === 'local'),
 	'cache_on' => false,
 	'cachedir' => '',
 	'char_set' => mgr_env('DB_CHAR_SET', ''),

@@ -243,9 +243,11 @@ define('VIEWPATH', $view_folder . DIRECTORY_SEPARATOR);
  * current environment. Setting the environment also influences
  * things like logging and error reporting.
  *
- * This can be set to anything, but default usage is:
+ * The names below are the ones this file accepts:
  *
- *	 development
+ *	 local        shows errors; a developer's own machine, never reachable
+ *	              from outside and never holding production-derived data
+ *	 development  production's error posture; an online dev server
  *	 testing
  *	 production
  *
@@ -259,7 +261,7 @@ Env_lib::load($ci_env);
 
 require_once MGRPATH . 'package/helpers/manager_env_helper.php';
 
-define('ENVIRONMENT', mgr_env('APP_ENV') ?? $ci_env ?? 'development');
+define('ENVIRONMENT', mgr_env('APP_ENV') ?? $ci_env ?? 'production');
 
 /*
  *---------------------------------------------------------------
@@ -267,11 +269,10 @@ define('ENVIRONMENT', mgr_env('APP_ENV') ?? $ci_env ?? 'development');
  *---------------------------------------------------------------
  *
  * Different environments will require different levels of error reporting.
- * By default development will show errors but testing and live will hide them.
+ * Only local shows errors; every other environment hides them.
  */
 switch (ENVIRONMENT) {
 	case 'local':
-	case 'development':
 		//Uncomment for php8.1 compatibility
 		// if (version_compare(PHP_VERSION, '8.1', '>=')) {
 		// error_reporting(E_ERROR | E_WARNING | E_PARSE);
@@ -282,6 +283,7 @@ switch (ENVIRONMENT) {
 		ini_set('display_errors', 1);
 		break;
 
+	case 'development':
 	case 'testing':
 	case 'production':
 		ini_set('display_errors', 0);

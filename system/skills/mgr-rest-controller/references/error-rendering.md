@@ -12,7 +12,7 @@ API clients, with CORS headers. A **5xx** arrives in one of two shapes, chosen
 by `should_disclose_details()` — which is `is_cli() || display_errors`, **not**
 `ENVIRONMENT`:
 
-- **Disclosed** (CLI, or `display_errors` on — development): `status` and
+- **Disclosed** (CLI, or `display_errors` on — `local`): `status` and
   `message` at the root, plus an `error` object carrying internals —
   `{status: 0, message, error: {class, file, line}}` for an uncaught
   exception. A query that fails while `db_debug` is on renders the parsed DB

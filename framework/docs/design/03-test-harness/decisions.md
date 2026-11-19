@@ -23,9 +23,10 @@ is the committed template showing the profile blocks. The bootstrap forces
 `CI_ENV=testing`, so `Env_lib` loads `.env.testing` instead of `.env`; process
 env still outranks both for one-off host-side overrides.
 
-`.env.testing` sets `APP_ENV=development` (not `testing`/`production`). File
+`.env.testing` sets `APP_ENV=local` (not `testing`/`production`). File
 selection keys on `CI_ENV`, but `ENVIRONMENT` — and therefore error visibility
-— keys on `APP_ENV` first (`public/index.php`). `development` is chosen so PHP
+— keys on `APP_ENV` first (`public/index.php`). `local`, the one environment
+that shows errors, is chosen so PHP
 errors and a broken CI3 boot surface in the phpunit output instead of failing
 silently under `display_errors=0`; it is a separate channel from
 `CF_LOG_THRESHOLD`, which independently keeps CI's own log files quiet. Flip to

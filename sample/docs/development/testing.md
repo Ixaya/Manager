@@ -157,5 +157,5 @@ testing.
 - The bootstrap pins `$_SERVER['argv']` so PHPUnit's own flags are not parsed
   as a CLI route. Do not read `$argv` from a test.
 - Single-file runs need absolute paths, and `.env.testing` sets
-  `APP_ENV=development` so PHP errors surface — both are covered in `docker.md`
+  `APP_ENV=local` so PHP errors surface — both are covered in `docker.md`
   under running the suite.

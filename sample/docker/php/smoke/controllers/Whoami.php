@@ -10,12 +10,12 @@ class Whoami extends APP_Rest_Controller
 		// auth (Ion Auth login -> X-Api-Key), same as any other endpoint.
 		parent::__construct();
 
-		// Defense in depth: this module must never run in production, even
-		// if it were ever accidentally baked into a prod image. The build
-		// guard (INCLUDE_SMOKE_MODULE, default false) is the primary control;
-		// this is the fallback if that ever fails.
-		if (ENVIRONMENT === 'production') {
-			log_message('error', 'SECURITY: smoke-test module (smoke/Whoami) was hit in a production environment. This module must never ship in a production build.');
+		// Defense in depth: this module runs only under local, even if it
+		// were accidentally baked into a prod image. The build guard
+		// (INCLUDE_SMOKE_MODULE, default false) is the primary control; this
+		// is the fallback if that ever fails.
+		if (ENVIRONMENT !== 'local') {
+			log_message('error', 'SECURITY: smoke-test module (smoke/Whoami) was hit in the ' . ENVIRONMENT . ' environment. This module must never ship in a production build.');
 			$this->response(['status' => 0, 'message' => 'Not found'], REST_Controller::HTTP_FORBIDDEN);
 		}
 	}

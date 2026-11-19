@@ -174,6 +174,18 @@ trusting a green result (see `mgr-docker-ops`) — grep an edited symbol inside
 the container — or a pass may be the released package's behavior rather than
 yours.
 
+### `public/` is baked, not bound
+
+`-b` binds `application/` only. `public/index.php` stays the copy baked into
+the image (`docker-compose.dev-bind.yml` keeps it that way on purpose), so
+editing it changes nothing in a running stack, and a request against the
+instance still passes because it ran the old file. Compare the two copies:
+
+```bash
+sha1sum sample/public/index.php
+docker exec <instance>-php-1 sha1sum /var/www/html/public/index.php
+```
+
 ### Optional (suggest-only) framework dependencies
 
 Whether a new integration needs a vendor SDK at all — versus a hand-rolled

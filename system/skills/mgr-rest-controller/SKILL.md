@@ -286,10 +286,10 @@ need. `error` and `response` are mutually exclusive on one body.
 ### Uncaught errors already return JSON
 
 `MGR_Exceptions` renders uncaught exceptions, PHP errors and 404s as JSON, a
-5xx always as HTTP 500 with the detail logged. In production
+5xx always as HTTP 500 with the detail logged. Outside `local`
 (`should_disclose_details()` false — `display_errors` off, not `ENVIRONMENT`)
 the body is only `{status: 0, message: 'An unexpected error occurred.'}`;
-development adds a framework-built internals `error` object. 4xx is never
+`local` adds a framework-built internals `error` object. 4xx is never
 suppressed. A controller-*constructor* exception or a true fatal returns a
 body-less 500 in production. Full shapes: `references/error-rendering.md`.
 

@@ -434,3 +434,42 @@ included, are kept.
   copied it removes the `activate()`/`deactivate()` block: the account state
   is an administrator's setting (`Sysusers::update_post()`). A client that
   still sends `status` gets no error; the field is ignored.
+
+## Sample: only `local` shows errors; `development` behaves like production
+
+Reaches a project only when it reconciles `public/index.php`,
+`application/config/database.php`, `.env.sample`, `.env.testing` and
+`docker/php/smoke/` from the sample; `composer update` alone changes nothing.
+The `manager/tools/env_check` change below does arrive with the package.
+
+- **`local` is the environment that shows errors and the failing SQL;
+  `development` hides them as `production` does.** A developer's own machine
+  and the PHPUnit run set `APP_ENV=local` (`.env.testing` does); an online dev
+  server keeps `development`. A developer who relied on `development` showing
+  errors sets `APP_ENV=local` in their own env file. `local` is never
+  reachable from outside and never holds data derived from production.
+- **An unset `APP_ENV` and `CI_ENV` now resolve to `production`**, where
+  they resolved to `development`. `.env.sample` ships `APP_ENV=production`
+  with a commented `# APP_ENV=local` line.
+- **`db_debug` is on only under `local`** (`ENVIRONMENT === 'local'`). On
+  `development` and `testing` a failed query now returns `null`/`false` and
+  the request carries on, as in production, so a call that does not check its
+  result behaves there as it will live.
+- **Gate dev-only endpoints with an allow-list**, after
+  `parent::__construct()`: `in_array(ENVIRONMENT, ['local', 'development'],
+  true)`. A check for `production` alone lets `testing` and any other name
+  through. The sample's `smoke/Whoami` and `smoke/Async` now answer 403
+  unless `ENVIRONMENT` is `local`; a docker instance that uses them sets
+  `APP_ENV=local` in its env file. Find your own gates:
+
+  ```bash
+  grep -rnE "ENVIRONMENT" application/
+  ```
+
+- **`config/<ENVIRONMENT>/` overrides still load by name.** A project with
+  `application/config/development/` files now applies them on the online dev
+  server and no longer on a developer's machine (`local`); copy them to
+  `config/local/` or move the values to environment variables.
+- **`manager/tools/env_check` reports the env file `CI_ENV` selects**, the one
+  `Env_lib::load()` reads, instead of one named after `ENVIRONMENT`. With
+  `APP_ENV=local` and no `CI_ENV` it no longer looks at `.env.local`.

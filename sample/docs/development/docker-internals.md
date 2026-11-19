@@ -464,10 +464,10 @@ which runs the auth check immediately) is owned by the
 `mgr-rest-controller` skill — read it before editing any REST controller.
 
 The docker-specific extension, used by the smoke-test module
-(`docker/php/smoke/controllers/`): a controller that must never run in
-production checks `ENVIRONMENT === 'production'` **AFTER**
-`parent::__construct()` — in addition to the normal auth check, never
-instead of it.
+(`docker/php/smoke/controllers/`): a controller that must run only in some
+environments checks an allow-list of them (smoke allows `local` alone)
+**AFTER** `parent::__construct()` — in addition to the normal auth check,
+never instead of it. Never test for `production` alone.
 
 ## `docker/valkey/entrypoint.sh` — password rendering and the root-start assumption
 

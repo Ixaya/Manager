@@ -90,7 +90,7 @@ What the base does:
 - **Guards dispatch.** An uncaught exception is logged and written to stderr
   with exit 1. This holds in production too, where `display_errors` is off
   and CI3's own handler would print nothing. A PHP warning is logged and the
-  command continues in production; development (`display_errors` on) aborts
+  command continues in production; `local` (`display_errors` on) aborts
   on it with exit 1.
 - **Keeps CI3's dispatch checks.** An unknown, non-public or
   underscore-prefixed method is a 404 on stderr, exit 1.

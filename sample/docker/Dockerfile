@@ -123,7 +123,7 @@ COPY public/      ./public/
 COPY --chmod=755 docker/php/bin/ ./bin/
 
 # Optional smoke-test module, baked only when INCLUDE_SMOKE_MODULE=true
-# (local images only). Runtime-guarded too — 403s outside development.
+# (local images only). Runtime-guarded too — 403s outside local.
 ARG INCLUDE_SMOKE_MODULE=false
 RUN --mount=type=bind,source=docker/php/smoke,target=/mnt/smoke \
     set -eux; \
