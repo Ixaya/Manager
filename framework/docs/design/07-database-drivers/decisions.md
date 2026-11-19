@@ -248,6 +248,23 @@ one, so the reasoning that held at the time stays readable.
   on either shipped engine, so this is defense-in-depth, not a reproduced
   regression — confirmed instead by feeding `MGR_Exceptions::show_error()`
   the constructed array through its real, unmodified rendering pipeline.
+- **2026-11-19 (supersedes the 2026-08-05 emulation entry, including its "No
+  security cost" sentence): `pdo/*` accepts one statement per `query()` call
+  by default.** The 2026-08-05 sentence held for values, which CI never binds,
+  and not for statement count: emulation sends a query as one simple-protocol
+  string, which the server runs as several statements. `mgr_apply_pdo_dsn()`
+  now gives `pdo/mysql` `MULTI_STATEMENTS => false` on every PHP version and
+  `pdo/pgsql` emulation off plus disable-prepares on PHP 8.4+, each under a
+  project's own `options`. Disable-prepares sends one unnamed extended-protocol
+  message, so a second statement is refused at the shipped mode's round-trip
+  count (1.04× same host, 0.98× through a 1 ms delay; emulation off alone
+  1.64× and 2.88×, `driver-matrix-benchmark.md`). PHP 8.3 keeps emulation:
+  its placeholder scanner rewrites `?` and `:name` inside `$$` text silently
+  in both extended modes, so the strict mode there would swap a loud failure
+  for a silent one; that branch goes when the PHP floor moves to 8.4. Native
+  `postgre` and `pdo/pgsql` on 8.3 still accept several statements. The
+  bundled `mariadb` service runs `--local-infile=0` (MySQL's default is
+  already off) and the client's `LOCAL_INFILE` option stays off.
 
 **Verification status of the above.** MySQL, MariaDB, PostgreSQL and SQLite
 are exercised live on the PDO path; the primary-key write paths are

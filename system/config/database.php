@@ -37,9 +37,19 @@ if (!function_exists('mgr_apply_pdo_dsn')) {
 		$overrides = ['dbdriver' => $dbdriver, 'dsn' => $dsn];
 		$options = $config['options'] ?? [];
 
+		// Defaults for one statement per query() call; a project's own `options` entry wins (+=).
+		// The Pdo\* constants exist from 8.4; the PDO:: spellings are deprecated in 8.5.
+		if ($subdriver === 'mysql') {
+			$options += PHP_VERSION_ID >= 80400
+				? [Pdo\Mysql::ATTR_MULTI_STATEMENTS => false]
+				: [PDO::MYSQL_ATTR_MULTI_STATEMENTS => false];
+		}
+
 		if ($subdriver === 'pgsql') {
-			// avoids server-side prepares — they slow queries with no benefit here, since CI binds no parameters.
-			$options += [PDO::ATTR_EMULATE_PREPARES => true];
+			// 8.3 keeps emulation: its extended-protocol placeholder scanner rewrites `?` and `:name` inside `$$` text.
+			$options += PHP_VERSION_ID >= 80400
+				? [PDO::ATTR_EMULATE_PREPARES => false, Pdo\Pgsql::ATTR_DISABLE_PREPARES => true]
+				: [PDO::ATTR_EMULATE_PREPARES => true];
 
 			// pdo_pgsql has no _db_set_charset(); the DSN's `options` keyword is
 			// the only way libpq accepts a client_encoding.

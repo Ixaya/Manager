@@ -147,8 +147,8 @@ compatibility option below does that on PDO:
   native extension. That is a deployment fact, not a preference.
 - **You want the exact behavior you already run.** Native and PDO are two
   client stacks, each pre-initializing its own defaults, and this framework
-  equalizes the differences it has found — `PDO::ATTR_EMULATE_PREPARES` on
-  `pgsql` was one, and it surfaced from benchmarking, not from reading
+  equalizes the differences it has found — the prepare mode on `pgsql` was
+  one, and it surfaced from benchmarking, not from reading
   documentation. Others may exist that nobody has hit yet. If you need
   certainty rather than a list of known differences, the driver you have
   been running in production is the one that gives it.
@@ -189,6 +189,58 @@ column that would otherwise convert comes back a string again, on all three
 engines. One value — not type — still differs: a Postgres `Bool` reads
 `'1'` where the native driver said `'t'`. Treat the flag as temporary and
 delete it once your clients accept native types.
+
+**One statement per `query()` call.** `mgr_apply_pdo_dsn()` sets the defaults
+below, and an entry of your own in `options` wins over them. A trailing `;` is
+fine; a second statement in the same string fails: the call returns `false`
+(with `db_debug` off) and the error is logged.
+
+Three PDO options decide it (the helper uses the `Pdo\Mysql::` and
+`Pdo\Pgsql::` spellings from PHP 8.4, the same keys):
+
+- `PDO::MYSQL_ATTR_MULTI_STATEMENTS`: whether one query string may carry
+  several statements. PHP's default is on.
+- `PDO::ATTR_EMULATE_PREPARES`: when true, the client builds the query and
+  sends it as one simple-protocol string, which the server runs as however
+  many statements it holds. When false, PostgreSQL gets the extended protocol,
+  which takes one statement.
+- `PDO::PGSQL_ATTR_DISABLE_PREPARES`: with emulation off, sends each statement
+  unnamed instead of preparing it first, which keeps the round trips of the
+  simple protocol. Without it, emulation off prepares a named statement per
+  call and measured 1.6x slower on the same host, 2.9x across a network.
+
+| Driver | PHP 8.4+ | PHP 8.3 |
+|---|---|---|
+| `pdo/mysql` (MySQL, MariaDB) | multi-statements off | same |
+| `pdo/pgsql` | extended protocol, unnamed statements | simple protocol; a second statement still runs |
+| `mysqli` | refuses a second statement | same |
+| `postgre` | runs a second statement; use `pdo/pgsql` where that matters | same |
+
+Run several statements as separate `query()` calls; they share the handle's
+session (`SET`, `@variables`). To opt out, set `PDO::MYSQL_ATTR_MULTI_STATEMENTS
+=> true` on `pdo/mysql`, or `PDO::ATTR_EMULATE_PREPARES => true` on
+`pdo/pgsql`, which wins over disable-prepares. On PHP 8.3, `pdo/pgsql` takes
+the strict mode with `PDO::ATTR_EMULATE_PREPARES => false` plus
+`PDO::PGSQL_ATTR_DISABLE_PREPARES => true`, only where no raw SQL has `?` or
+`:name` inside `$$`-quoted text, which 8.3 rewrites without an error.
+
+To find calls that need the opt-out, grep `application/` for SQL strings
+passed to `->query(`, `simple_query(` or `Model::query()` that hold a `;`
+followed by more SQL, and for code that reads a `.sql` file into a query.
+Run the suite with the new default: such a call fails loudly.
+
+On PostgreSQL with PHP 8.4+, a raw `?`, `?|` or `?&` jsonb operator fails with
+`syntax error at or near "$1"`; use `jsonb_exists()`, `jsonb_exists_any()` or
+`jsonb_exists_all()`, which work in every mode.
+
+**Files.** `PDO::MYSQL_ATTR_LOCAL_INFILE` is off by default and nothing in the
+framework or the sample sets it; leave it off. With it on, the server can
+ask the client to send a file, and the client is the web container. The
+bundled `mariadb` service also refuses it server-side (`--local-infile=0`);
+MySQL's default is already off. The bundled database accounts hold no `FILE`
+privilege (MySQL, MariaDB) and none of `pg_read_server_files`,
+`pg_write_server_files`, `pg_execute_server_program` (PostgreSQL); grant
+none of them to an application account.
 
 The image ships `pdo_mysql` and `pdo_pgsql`, so nothing needs building for
 MySQL, MariaDB or PostgreSQL — set `DB_DRIVER` and go.

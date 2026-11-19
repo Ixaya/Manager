@@ -420,6 +420,8 @@ services:
       - --max-heap-table-size=${MARIADB_TMP_TABLE_SIZE:-4M}
       - --key-buffer-size=8M
       - --aria-pagecache-buffer-size=16M
+      # LOCAL INFILE reads from the client, the web container; MySQL's default is off
+      - --local-infile=0
     volumes:
       - ${MARIADB_DATA:-mariadb-data}:/var/lib/mysql
     secrets:

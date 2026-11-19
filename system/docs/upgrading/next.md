@@ -58,7 +58,7 @@ things to check:
 - A pending package migration in an upgrade now runs before the project's
   pending ones.
 
-## The bundled `mariadb` profile runs a healthcheck as the app user, closes `root@'%'`, and becomes a server tier
+## The bundled `mariadb` profile runs a healthcheck as the app user, closes `root@'%'`, refuses `LOCAL INFILE`, and becomes a server tier
 
 Reaches a project only when it reconciles `docker/docker-compose.yml`,
 `docker/env/sample.docker.env` and `bin/` from the sample; `composer update`
@@ -82,6 +82,11 @@ alone changes nothing.
   A throwaway local instance can `down -v` instead. The app user, `docker
   exec` logins and `bin/db-backup.sh` are unaffected; anything that logged in
   as `root` over the network no longer can.
+- **`LOAD DATA LOCAL INFILE` is refused by the server:** the service starts
+  with `--local-infile=0` (MariaDB's default was on; MySQL's is already off),
+  so a client that turns `PDO::MYSQL_ATTR_LOCAL_INFILE` on still gets a
+  refusal. It applies when `up -d` recreates the `mariadb` service. A project
+  that loads files this way removes the flag from its `command`.
 - **New, for servers (additive):** `MARIADB_DATA` in `docker.env` (empty
   keeps today's named volume), the `mgr.backup=mariadb` label, and a `mariadb`
   branch in `bin/db-backup.sh`. **Re-copy `bin/db-backup.sh` to wherever a
@@ -473,3 +478,40 @@ The `manager/tools/env_check` change below does arrive with the package.
 - **`manager/tools/env_check` reports the env file `CI_ENV` selects**, the one
   `Env_lib::load()` reads, instead of one named after `ENVIRONMENT`. With
   `APP_ENV=local` and no `CI_ENV` it no longer looks at `.env.local`.
+
+## `pdo/mysql` and `pdo/pgsql` run one statement per `query()` call
+
+Arrives with `composer update`: `mgr_apply_pdo_dsn()` is in the package's
+`config/database.php`, which the project's `database.php` includes. A project
+that defines its own copy of the helper keeps it and does not get this.
+
+- **`pdo/mysql` (MySQL and MariaDB), every PHP version:**
+  `PDO::MYSQL_ATTR_MULTI_STATEMENTS` is false. **`pdo/pgsql` on PHP 8.4+:**
+  `PDO::ATTR_EMULATE_PREPARES` is false and
+  `PDO::PGSQL_ATTR_DISABLE_PREPARES` is true (extended protocol, unnamed
+  statements). **`pdo/pgsql` on PHP 8.3:** unchanged (emulation on, a second
+  statement still runs). `mysqli` and `postgre` are unchanged. The helper
+  uses the `Pdo\…` spellings of these constants on 8.4+; the `PDO::…` spelling
+  in a project's `options` is the same key, and wins.
+- **Who is affected:** a call that sends a second statement after a `;`
+  (`->query(`, `simple_query(`, `MY_Model::query()`, a `.sql` file read into
+  one call) now returns `false` with `db_debug` off, logs a `Query error`
+  line, and stops the request with `db_debug` on. A trailing `;` is fine.
+  Send each statement as its own call. Find them:
+
+  ```bash
+  grep -rnE "(->query|simple_query)\(" application/
+  ```
+
+  and read each match for a `;` followed by more SQL, then run the suite.
+- **PostgreSQL on PHP 8.4+: raw jsonb `?`, `?|` and `?&` fail** with `syntax
+  error at or near "$1"`. Use `jsonb_exists()`, `jsonb_exists_any()` and
+  `jsonb_exists_all()`.
+- **Opt out** in `$db['default']['options']`: `PDO::MYSQL_ATTR_MULTI_STATEMENTS
+  => true` on `pdo/mysql`, or `PDO::ATTR_EMULATE_PREPARES => true` on
+  `pdo/pgsql` (it wins over disable-prepares).
+- **Cost:** on PostgreSQL about 5% on small statements on the same host and
+  none across a network. Emulation off alone would cost 1.6x on the same host
+  and 2.9x across a network.
+- `docs/development/database.md` has the table per driver and PHP version, the
+  PHP 8.3 `pdo/pgsql` opt-in, and the file settings that stay off.

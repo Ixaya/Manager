@@ -32,11 +32,14 @@ project keeping its string contract can do that on PDO with
 `PDO::ATTR_STRINGIFY_FETCHES`, so the reasons left for native are a host
 without the subdriver, and a project wanting the exact client behavior it
 already runs rather than one this framework has equalized difference by
-difference. Parity holds only because `mgr_apply_pdo_dsn()` sets
-`PDO::ATTR_EMULATE_PREPARES => true`, scoped to the `pgsql` subdriver —
-without it, `pdo_pgsql` prepares every statement server-side and measured
-~1.65-2x slower; `pdo_mysql` already defaults the option on, which is why
-MySQL needed no equivalent override.
+difference. Parity holds only because `mgr_apply_pdo_dsn()` keeps `pdo_pgsql`
+off the named server-side prepare: on PHP 8.4+ it sets emulation off with
+`Pdo\Pgsql::ATTR_DISABLE_PREPARES` (one unnamed message per statement), on
+8.3 emulation on. Emulation off alone measured ~1.65x slower on the same host
+and ~2.9x through network latency. `pdo_mysql` defaults emulation on and needs
+no override for speed. The same helper sets `MULTI_STATEMENTS` off on
+`pdo_mysql` and uses the unnamed mode on `pdo_pgsql`, so one statement per
+call holds on the default drivers (8.4+ on PostgreSQL).
 Evidence: `framework/docs/design/07-database-drivers/driver-matrix-benchmark.md`
 (native-vs-PDO timings, all three engines) and `driver-matrix-types.md`
 (fetch-type matrix, including the `STRINGIFY_FETCHES` compatibility

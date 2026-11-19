@@ -23,7 +23,8 @@ sessions.
 # in sample/. 51 interleaved rounds + 300 contiguous per variant
 ./docker_manage.sh -e local exec php bash /var/www/html/bin/cli_run.sh probes/pdo_benchmark/run 51 300
 
-# 4th argument forces PDO::ATTR_EMULATE_PREPARES => false (the pre-fix control)
+# 4th argument picks the PDO options passed to the helper: 0 (default) none,
+# 1 emulation off, 2 emulation off + disable-prepares, 3 emulation on
 ./docker_manage.sh -e local exec php bash /var/www/html/bin/cli_run.sh probes/pdo_benchmark/run 51 300 0 1
 ```
 
@@ -52,22 +53,30 @@ Backing files, in the gitignored `sample/application/modules/probes/`:
 
 ## The one configuration fact that governs these numbers
 
-`mgr_apply_pdo_dsn()` sets `PDO::ATTR_EMULATE_PREPARES => true` for the `pgsql`
-subdriver. Without it, PDO_PGSQL prepares every statement server-side — an
-extra round trip per statement, since CI rebuilds the SQL string on every call
-and so never reuses a prepared statement. It is scoped to `pgsql` because
-`pdo_mysql` already defaults it on and `pdo_sqlite` gains nothing from it
-either way — the attribute is a silent no-op there, accepted at construction
-and ignored by `setAttribute()`.
+On PHP 8.4+, `mgr_apply_pdo_dsn()` gives the `pgsql` subdriver
+`PDO::ATTR_EMULATE_PREPARES => false` together with
+`Pdo\Pgsql::ATTR_DISABLE_PREPARES => true`: every statement goes out as one
+unnamed extended-protocol message, which costs the same round trips as the
+simple protocol and refuses a second statement in the same string. On 8.3 it
+keeps `ATTR_EMULATE_PREPARES => true` (simple protocol), because 8.3's
+placeholder scanner rewrites `?` and `:name` inside `$$` text in both
+extended modes. A project's own `options` entry wins over each default.
 
-There is no security cost: CI binds no parameters on any driver — it escapes
-values and splices them into the SQL string, and `pg_query_params`/`bindValue`/
-`bindParam` appear nowhere in its database layer — so the server-side prepare
-was guarding nothing. Verified at protocol level: with `log_statement='all'`,
-a Model-layer read under the shipped config logs as `LOG: statement: …` (simple
-protocol), identical in shape to the native driver's.
+Emulation off on its own is the costly mode: PDO_PGSQL prepares a named
+statement per call, an extra round trip per statement, since CI rebuilds the
+SQL string on every call and so never reuses one. `pdo_mysql` defaults
+emulation on and keeps it; the helper only turns `MULTI_STATEMENTS` off there.
 
-The **emulation-off** rows below are therefore a control, not a supported
+None of these settings changes how values reach the server: CI binds no
+parameters on any driver, it escapes values and splices them into the SQL
+string, and `pg_query_params`/`bindValue`/`bindParam` appear nowhere in its
+database layer. The settings differ in protocol and in whether a second
+statement in one string is accepted. Verified at protocol level with
+`log_statement='all'`: emulation logs `statement: …` (simple protocol),
+emulation off logs `execute pdo_stmt_0000000N` and leaves the statements
+allocated, disable-prepares logs `execute <unnamed>` and leaves none.
+
+The **emulation-off** rows below are a control, not a supported
 configuration. They exist so the shipped setting's effect is attributable.
 
 ## The matrix
@@ -78,7 +87,7 @@ Measured 2026-08-05, 51 interleaved rounds + 300 contiguous per variant. PHP
 
 | engine | emulation | count | list | get()×25 | in(50) | like | insert×10 | update×10 | delete | **total** | load phase |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| PostgreSQL | on *(shipped)* | 1.06 | 0.88 | 0.96 | 0.94 | 0.90 | 1.03 | 1.01 | 0.99 | **1.03** | 1.05 |
+| PostgreSQL | on *(until 2026-11-19; still PHP 8.3)* | 1.06 | 0.88 | 0.96 | 0.94 | 0.90 | 1.03 | 1.01 | 0.99 | **1.03** | 1.05 |
 | PostgreSQL | off *(control)* | 1.10 | 1.11 | 1.71 | 1.51 | 1.26 | 2.07 | 1.60 | 1.60 | **1.65** | 1.99 |
 | MySQL | on *(shipped)* | 1.01 | 1.06 | 1.11 | 1.00 | 1.01 | 1.03 | 1.06 | 0.95 | **1.04** | 0.98 |
 | MySQL | off *(control)* | 1.10 | 1.25 | 1.83 | 1.29 | 1.12 | 1.09 | 1.10 | 1.08 | **1.22** | 1.22 |
@@ -100,10 +109,33 @@ single-statement reads (`count`, `list`, `like`) barely move. That is the
 signature of a per-statement round trip, not per-row overhead.
 
 PostgreSQL pays the largest emulation-off penalty (1.65× total, 1.99× load
-phase) and is the only engine where the framework has to set the option
-explicitly — `pdo_mysql` already defaults it on, which is why MySQL and MariaDB
-are at parity out of the box and only degrade when the control forces the
-option off.
+phase) and is the only engine where the framework has to set the prepare mode
+explicitly — `pdo_mysql` already defaults emulation on, which is why MySQL and
+MariaDB are at parity out of the box and only degrade when the control forces
+the option off.
+
+### PostgreSQL prepare modes, measured 2026-11-19
+
+PHP 8.4.27, PostgreSQL 18.6, same 51 interleaved rounds, one session per row,
+`pdo / native`. The mode is the 4th argument above (3, 1 and 2). The delay rows
+put a TCP proxy that adds 1 ms one way per chunk between the app and the
+server, to count round trips rather than CPU.
+
+| path | mode | count | list | get()×25 | in(50) | like | insert×10 | update×10 | delete | **total** | load phase |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| same host | emulation on | 0.99 | 0.83 | 0.99 | 0.99 | 0.96 | 1.03 | 0.99 | 0.99 | **0.98** | 1.01 |
+| same host | emulation off | 1.13 | 1.03 | 1.83 | 1.25 | 1.15 | 1.72 | 1.56 | 1.72 | **1.64** | 2.10 |
+| same host | disable-prepares *(shipped, 8.4+)* | 0.97 | 0.90 | 1.06 | 1.06 | 0.99 | 1.07 | 1.07 | 1.03 | **1.04** | 1.06 |
+| 1 ms delay | emulation on | 1.01 | 0.97 | 1.01 | 0.98 | 0.97 | 1.00 | 0.98 | 0.99 | **1.00** | 0.99 |
+| 1 ms delay | emulation off | 2.43 | 2.56 | 2.95 | 2.79 | 2.54 | 2.90 | 2.84 | 2.87 | **2.88** | 2.88 |
+| 1 ms delay | disable-prepares *(shipped, 8.4+)* | 1.03 | 1.00 | 1.03 | 1.01 | 0.98 | 0.99 | 0.98 | 1.01 | **0.98** | 1.02 |
+
+Repeats of the same-host rows read 0.99 (emulation on) and 1.04
+(disable-prepares). Disable-prepares costs about 5% on small same-host
+statements, at the edge of this probe's noise, and nothing once the network
+adds latency: its round-trip count equals emulation's. Emulation off grows with
+distance, about three round trips per statement. With the helper's default on
+8.4 (mode 0) a later check read 1.06 total, and mode 3 read 0.96.
 
 ## Caveats that must travel with any citation
 

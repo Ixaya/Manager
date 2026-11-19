@@ -59,8 +59,10 @@ include MGRPATH . 'config/database.php';
 |	['encrypt'] (bool|array) TRUE/FALSE for sqlsrv and pdo/sqlsrv; mysqli
 |	    and pdo/mysql take an array of ssl_key, ssl_cert, ssl_ca,
 |	    ssl_capath, ssl_cipher, ssl_verify.
-|	['options'] (array) Passed straight to the PDO constructor on a
-|	    'pdo/<engine>' driver; ignored otherwise.
+|	['options'] (array) Passed to the PDO constructor on a 'pdo/<engine>'
+|	    driver; ignored otherwise. mgr_apply_pdo_dsn() adds defaults for
+|	    one statement per query() call, and an entry here wins (opt-outs:
+|	    docs/development/database.md).
 |	['compress'] (bool) TRUE enables client compression (MySQL only).
 |	['stricton'] (bool) TRUE forces MySQL/MariaDB Strict Mode
 |	    (STRICT_ALL_TABLES); no effect on other engines.

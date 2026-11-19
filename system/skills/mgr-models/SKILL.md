@@ -216,7 +216,7 @@ only; empty by default.
 ## Utilities
 
 ```php
-query(string $query, ?array $arguments = null): array|int|false  // last resort; ? placeholders. SELECT => rows, write => affected_rows
+query(string $query, ?array $arguments = null): array|int|false  // last resort; ? placeholders; one statement per call. SELECT => rows, write => affected_rows
 empty_row(?array $properties = null, bool $include_id = true): array   // blank row from table columns (for create forms)
 empty_object(...): object
 get_hash(int $length = 13): string
@@ -226,6 +226,10 @@ debug_query(bool $return = false): ?string     // last executed SQL
 set_override(int|string|null $id = null): void / set_override_column(string $column_name) / del_override(bool $reset_column = true)
 reconnect_database(string $connection_name, string $database_name, bool $generate_table_name = false): void
 ```
+
+Raw SQL is one statement per call. On the `pdo/*` drivers a second statement
+in the string fails (`false`, with the error logged), so send each statement
+as its own `query()` call; they share the handle's session.
 
 ## Dynamic queries — APP_Model_Dyn
 
