@@ -4,7 +4,7 @@
 # Always build and tag both together with the same IMAGE_TAG — mismatched
 # tags mean nginx serves static assets that don't match the running PHP code.
 
-FROM alpine:3.24.2 AS supercronic-bin
+FROM alpine:3.24.4 AS supercronic-bin
 # Cron daemon binary, safe to run as PID 1. Used by the cron service only.
 # TARGETARCH is populated automatically by BuildKit (amd64 or arm64). The
 # binary is verified against a SHA256 pin per arch. To bump: change the
@@ -12,16 +12,16 @@ FROM alpine:3.24.2 AS supercronic-bin
 ARG TARGETARCH
 RUN set -eux; \
     case "$TARGETARCH" in \
-      amd64) sha256="a53ae236602c7338aba3fbaff40bda6300eae3b9fedb8261eb06cfe3724430c1" ;; \
-      arm64) sha256="02aa0cb229ba09050cba6638059dadb9eedc2276632ea43d6a57a2f8c1629dd5" ;; \
+      amd64) sha256="cc232108374e8e2b537045f2d5eaa1229f619db314c3ba6a14d38b35dc0aa123" ;; \
+      arm64) sha256="4ae22576a78223d8ccdf5f3b3660a5cbb5288416bf0ca96afc4a36d195932b94" ;; \
       *) echo "unsupported TARGETARCH: $TARGETARCH"; exit 1 ;; \
     esac; \
     wget -qO /usr/local/bin/supercronic \
-      "https://github.com/aptible/supercronic/releases/download/v0.2.49/supercronic-linux-${TARGETARCH}"; \
+      "https://github.com/aptible/supercronic/releases/download/v0.2.51/supercronic-linux-${TARGETARCH}"; \
     echo "${sha256}  /usr/local/bin/supercronic" | sha256sum -c -; \
     chmod +x /usr/local/bin/supercronic
 
-FROM php:8.4.27-fpm-alpine3.24 AS php-base
+FROM php:8.4.28-fpm-alpine3.24 AS php-base
 # php-base: PHP + every extension + production php.ini. Shared by
 # vendor-builder and php-app so the extension build runs once.
 
@@ -58,9 +58,9 @@ RUN set -eux; \
     # PIE is pinned like supercronic: bump the version in the
     # URL and regenerate the SHA256 with bin/pin-checksums.sh pie <version>. Extension
     # versions are exact; confirm a bump with `php --ri <name>` in the built image.
-    pie_sha256="fe70c59738cf56ec00a818cf9cb9593da171aac86f5f1f859995b8839dfd2cc7"; \
+    pie_sha256="2ca0dff6868f1b53c095625674deef38ac698588e0a25e4321cd834a5b7553bc"; \
     curl -fsSL -o /tmp/pie.phar \
-        "https://github.com/php/pie/releases/download/1.5.2/pie.phar"; \
+        "https://github.com/php/pie/releases/download/1.5.5/pie.phar"; \
     echo "${pie_sha256}  /tmp/pie.phar" | sha256sum -c -; \
     # pie install also writes the conf.d enable files; no docker-php-ext-enable
     php /tmp/pie.phar install phpredis/phpredis:6.3.0; \
@@ -158,7 +158,7 @@ EXPOSE 9000
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm", "-F"]
 
-FROM nginx:1.30.6-alpine3.24 AS nginx-app
+FROM nginx:1.30.7-alpine3.24 AS nginx-app
 # nginx-app: serves static assets + reverse-proxies to php:9000. Static
 # files are baked in from php-app (no shared volume needed for code/assets).
 

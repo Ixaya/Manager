@@ -81,7 +81,7 @@ class MGR_Cache_redis extends CI_Cache_redis
 			return $this->_redis->set($id, $data);
 		}
 
-		return $this->_redis->set($id, $data, $ttl);
+		return $this->_redis->set($id, $data, ['EX' => $ttl]);
 	}
 
 	/**

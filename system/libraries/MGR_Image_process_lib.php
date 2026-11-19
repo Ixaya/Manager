@@ -5,16 +5,16 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class MGR_Image_process_lib
 {
 	/** Detected types treated as raster images: the ones convert_image() decodes and the ones served inline. */
-	protected const array RASTER_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+	protected const RASTER_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
 
 	/** Largest width × height fits_pixel_ceiling() accepts. */
-	protected const int MAX_IMAGE_PIXELS = 16_777_216;
+	protected const MAX_IMAGE_PIXELS = 16_777_216;
 
 	/** Detected types a thumbnail is built for. */
-	protected const array THUMBNAIL_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+	protected const THUMBNAIL_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 	/** Targets convert_image() re-encodes to, with the type each is stored as. */
-	protected const array CONVERT_TARGETS = ['jpg' => 'image/jpeg', 'webp' => 'image/webp'];
+	protected const CONVERT_TARGETS = ['jpg' => 'image/jpeg', 'webp' => 'image/webp'];
 
 	/** True for a detected type served inline as an image. */
 	public function is_raster_type(string $detected_type): bool

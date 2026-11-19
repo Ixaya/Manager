@@ -5,16 +5,16 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class MGR_Upload_lib
 {
 	/** Default `allowed_types` of upload_file() when no `$upload_config` is given. */
-	protected const string DEFAULT_FILE_TYPES = 'gif|jpg|jpeg|png|webp|pdf|txt|csv|doc|docx|xls|xlsx|ppt|pptx|odt|ods';
+	protected const DEFAULT_FILE_TYPES = 'gif|jpg|jpeg|png|webp|pdf|txt|csv|doc|docx|xls|xlsx|ppt|pptx|odt|ods';
 
 	/** Default `allowed_types` of upload_image() when no `$upload_config` is given. */
-	protected const string DEFAULT_IMAGE_TYPES = 'gif|jpg|png|jpeg|webp';
+	protected const DEFAULT_IMAGE_TYPES = 'gif|jpg|png|jpeg|webp';
 
 	/** Extensions never stored under the web root, whatever the config. Keep in sync with the page-type location in docker/nginx/conf.d/app.conf. */
-	protected const array PAGE_TYPES = ['html', 'htm', 'xhtml', 'shtml', 'svg', 'svgz', 'xml', 'xsl', 'js'];
+	protected const PAGE_TYPES = ['html', 'htm', 'xhtml', 'shtml', 'svg', 'svgz', 'xml', 'xsl', 'js'];
 
 	/** Extensions never stored, in any root or on S3, whatever the config, and never given to a generated name. */
-	protected const array PHP_FAMILY_TYPES = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'pht', 'phtml', 'phps', 'phar'];
+	protected const PHP_FAMILY_TYPES = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'pht', 'phtml', 'phps', 'phar'];
 
 	/** Default upload_image() target, `jpg` or `webp`; a same-named project subclass sets it project-wide. */
 	protected string $convert_to = 'jpg';
