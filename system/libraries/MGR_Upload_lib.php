@@ -142,9 +142,7 @@ class MGR_Upload_lib
 					$v = "?v=$v";
 				}
 
-				if (strpos($relative_path, '/') !== 0) {
-					$relative_path = "/$relative_path";
-				}
+				mgr_clean_file_path($relative_path);
 
 				$return_data['file_type'] = $file_type;
 				$return_data['file_name'] = $upload_data['file_name'] . $v;
@@ -225,9 +223,7 @@ class MGR_Upload_lib
 					$this->session->set_flashdata('message_kind', 'success');
 				}
 
-				if (strpos($relative_path, '/') !== 0) {
-					$relative_path = "/$relative_path";
-				}
+				mgr_clean_file_path($relative_path);
 
 				$return_data['file_type'] = $file_type;
 				$return_data['file_name'] = $s3_file_name . $v;
@@ -291,9 +287,7 @@ class MGR_Upload_lib
 			file_put_contents($file_path . $file_name, $data);
 			$written_paths[] = $file_path . $file_name;
 
-			if (strpos($relative_path, '/') !== 0) {
-				$relative_path = "/$relative_path";
-			}
+			mgr_clean_file_path($relative_path);
 
 			$mime_type = mgr_detect_mime_from_file($file_path . $file_name);
 
@@ -347,9 +341,7 @@ class MGR_Upload_lib
 					$this->session->set_flashdata('message_kind', 'success');
 				}
 
-				if (strpos($relative_path, '/') !== 0) {
-					$relative_path = "/$relative_path";
-				}
+				mgr_clean_file_path($relative_path);
 
 				$return_data['file_type'] = $content_type;
 				$return_data['file_name'] = $file_name . $v;
@@ -547,9 +539,7 @@ class MGR_Upload_lib
 					$v = "?v=$v";
 				}
 
-				if (strpos($relative_path, '/') !== 0) {
-					$relative_path = "/$relative_path";
-				}
+				mgr_clean_file_path($relative_path);
 
 				$return_data['fullsize_name'] = $new_file_name . $v;
 				$return_data['fullsize_type'] = $file_type;
@@ -719,9 +709,7 @@ class MGR_Upload_lib
 				$v = "?v=$v";
 			}
 
-			if (strpos($relative_path, '/') !== 0) {
-				$relative_path = "/$relative_path";
-			}
+			mgr_clean_file_path($relative_path);
 
 			$return_data['fullsize_type'] = $file_type;
 			$return_data['fullsize_name'] = $s3_file_name . $v;

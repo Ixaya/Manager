@@ -98,26 +98,27 @@ if (!function_exists('mgr_clean_file_path')) {
 
 if (!function_exists('mgr_is_s3_path')) {
 	/**
-	 * Whether a storage URI is stored on S3: `s3/` is its first segment, like `media/` and `private/`.
+	 * Whether a storage URI is stored on S3: `s3/` is its first segment after any leading slashes, like `media/`
+	 * and `private/`.
 	 */
 	function mgr_is_s3_path(string $uri): bool
 	{
+		mgr_clean_file_path($uri);
+
 		return str_starts_with($uri, 's3/');
 	}
 }
 
 if (!function_exists('mgr_clean_file_s3_path')) {
 	/**
-	 * Clean an S3 storage URI into its key: removes the query string and the leading `s3/`.
+	 * Clean an S3 storage URI into its key: removes the query string, leading slashes and the leading `s3/`.
 	 *
 	 * @param string &$uri The file path to clean (passed by reference).
 	 * @return void
 	 */
 	function mgr_clean_file_s3_path(string &$uri = ''): void
 	{
-		if (($pos = strpos($uri, '?')) !== false) {
-			$uri = substr($uri, 0, $pos);
-		}
+		mgr_clean_file_path($uri);
 
 		if (mgr_is_s3_path($uri)) {
 			$uri = substr($uri, 3);

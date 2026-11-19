@@ -9,6 +9,19 @@ reasons a future editor would otherwise re-derive.
 routing sites from drifting apart again. A leading slash is not accepted,
 and keys already stored are unchanged.
 
+## Routing drops leading slashes; returns carry none (2026-11-18)
+
+Supersedes "A leading slash is not accepted" above. The rule the entry
+protects is that `s3/` is the first segment, not found anywhere in the path,
+and that holds after leading slashes are dropped: `media/s3/…` and `files3/…`
+stay local. Every other path helper drops them before judging, and refusing
+them in the one S3 test left a stored `/s3/…` value unreadable from S3.
+
+The upload returns carry no leading slash because a value read back through
+the storage helpers is a storage URI, not a web path; a link for a browser is
+built from it with `base_url()` or `image_url()`. Stored rows are not
+rewritten: both forms read back.
+
 ## `upload_config` replaces the defaults (2026-11-14)
 
 A merge would silently change callers nobody has surveyed: an omitted

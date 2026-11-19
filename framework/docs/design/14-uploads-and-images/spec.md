@@ -11,7 +11,7 @@ adds its section here. The earlier type, name and path contracts are in
 A storage URI is on S3 only when its first segment is `s3/`, like `media/`
 and `private/`. One helper, `mgr_is_s3_path()`, is the check at every
 routing site (the five in `MGR_Upload_lib`, and `MGR_Amazon_aws_lib`'s
-Textract config); `mgr_clean_file_s3_path()` strips a leading `s3/` only.
+Textract config); `mgr_clean_file_s3_path()` strips the query, leading slashes and a leading `s3/`.
 
 ## Image conversion
 

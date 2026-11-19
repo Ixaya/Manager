@@ -243,14 +243,24 @@ already used.
   case-sensitive filesystem a re-upload of a former `X.JPG` writes `X.jpg`
   beside it, and a project that rebuilds a key from the client's file name
   sees the difference.
-- **Storage URIs route by their first segment.** A URI is on S3 only when it
-  starts with `s3/`, in every method (`upload_file()`, `upload_image()`,
-  `put_file()`, `display_image()`, `get_file_base64()` and the Textract
-  helper). `media/s3/…` and `/s3/…` are local paths. `mgr_clean_file_s3_path()`
-  removes the query string and a leading `s3/` only. New
+- **Storage URIs route by their first segment.** A URI is on S3 only when
+  `s3/` is its first segment, after any leading slashes, in every method
+  (`upload_file()`, `upload_image()`, `put_file()`, `display_image()`,
+  `get_file_base64()` and the Textract helper). `s3/…` and `/s3/…` are S3;
+  `media/s3/…` and `files3/…` are local paths. `mgr_clean_file_s3_path()`
+  removes the query string, leading slashes and a leading `s3/`. New
   `mgr_is_s3_path(string $uri): bool` is the one check; a project override of
   `mgr_clean_file_s3_path()` should use it. Objects already stored keep their
-  keys.
+  keys, and a stored `/s3/…` value still reads from S3.
+- **Upload returns carry no leading slash.** `file_url`, `fullsize_url`,
+  `thumb_url` and `original_url` from `upload_file()`, `upload_image()` and
+  `put_file()`, and the `full_path` `attachment_lib` stores and returns, are
+  storage URIs (`media/…`, `s3/…`, `?v=` included) where they were `/media/…`
+  and `/s3/…`. A project that sends a raw value to a client as a root-relative
+  `href` builds the link with `base_url()` or `image_url()`, which give the
+  same result for either form. Stored values are not rewritten and keep
+  reading back; a query that matches those columns on a leading `/`
+  (`LIKE '/media/%'`) no longer matches new rows.
 - **`attachment_lib` `upload_file()` and `put_file()`:** a non-empty
   `$desired_filename` over 89 characters (the `file_name` column's 100, less
   the 11 of `?v=`) throws `InvalidArgumentException` before anything is stored.
