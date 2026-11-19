@@ -128,7 +128,7 @@ if (!function_exists('mgr_clean_file_s3_path')) {
 
 if (!function_exists('mgr_is_allowed_file_path')) {
 	/**
-	 * Whether a storage URI may be read: false for a `..` segment (query string and leading slash dropped, then split
+	 * Whether a storage URI may be read or written: false for a `..` segment (query string and leading slash dropped, then split
 	 * on `/` and `\`). `strip_query: false` checks the whole string, for a name that reaches its consumer whole, such
 	 * as a view name. Overridable.
 	 */

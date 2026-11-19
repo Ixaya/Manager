@@ -157,7 +157,9 @@ already used.
   content. Page types (`html`, `htm`, `xhtml`, `shtml`, `svg`, `svgz`, `xml`,
   `xsl`, `js`) are refused under the web root (`media/…`) whatever the config.
   So are PHP-family extensions (`php`, `phtml`, `phar`…), even under
-  `allowed_types` `*`; a caller that stores PHP source moves it to `private/…`.
+  `allowed_types` `*`, in every root (`private/…` and `s3/…` included), and
+  `put_file()` refuses them in the name it is given. A caller that generates
+  PHP source writes it with PHP's own file functions, not the upload library.
   On `s3/…` paths the same lists and rules apply against the type
   detected from the content, and only `allowed_types` of an `upload_config` is
   honored there; `file_type` / `fullsize_type` report the detected type. To
@@ -206,7 +208,9 @@ already used.
 - **Failures return `null`.** An error inside an upload, GD's or the S3
   client's included, returns `null` with `$error` set instead of a 500. Pass
   `error: $error` and answer the failure; a falsy check alone now carries on
-  silently.
+  silently. A local `put_file()` that cannot create the directory or write
+  the file answers `null` too, with a message in `$error`, instead of the
+  result array.
 - **Stored names are generated.** `encrypt_name: false` is ignored. A desired
   name (`$desired_file_name`, `put_file()`'s `$file_name`, `attachment_lib`'s
   `$desired_filename`) is built by the server, and is refused (`null` +
@@ -286,6 +290,12 @@ already used.
   `display_image()` serves jpeg, png, gif, webp and avif inline, typed from
   the content, and anything else as a download (`application/octet-stream`,
   `attachment`).
+- **Writes refuse a `..` segment too.** `upload_file()`, `upload_image()` and
+  `put_file()`, local and S3, answer `null` with `The storage path is not
+  allowed.` in `$error` and one `error` log line, the check
+  `get_file_base64()` and `display_image()` already apply on reads
+  (`mgr_is_allowed_file_path()`, overridable). A call that builds its
+  directory from an id or a constant is not affected.
 
 ## Controller helpers are `protected`
 

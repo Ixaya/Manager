@@ -22,6 +22,21 @@ the storage helpers is a storage URI, not a web path; a link for a browser is
 built from it with `base_url()` or `image_url()`. Stored rows are not
 rewritten: both forms read back.
 
+## Storage writes refuse a `..` segment, and PHP-family names in every root (2026-11-18)
+
+A storage URI is built by the server, so a write applies the check a read
+already did (`mgr_is_allowed_file_path()`). It sits in each of the six
+backends beside the name checks, not before routing: `upload_file_local()`
+and `put_file_local()` are public, and a check before routing does not run
+for a direct call.
+
+A PHP-family extension is refused in every root, `private/` included, by
+`put_file()` as by the upload methods. The rule does not depend on which
+directory a deployment serves: `private/` is a layout convention, S3 refuses
+by name wherever the key is, and no framework caller stores PHP. Page types
+stay refused under the web root only, since they matter where a browser
+renders them from the app's own origin.
+
 ## `upload_config` replaces the defaults (2026-11-14)
 
 A merge would silently change callers nobody has surveyed: an omitted

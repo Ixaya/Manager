@@ -13,7 +13,7 @@ class MGR_Upload_lib
 	/** Extensions never stored under the web root, whatever the config. Keep in sync with the page-type location in docker/nginx/conf.d/app.conf. */
 	protected const array PAGE_TYPES = ['html', 'htm', 'xhtml', 'shtml', 'svg', 'svgz', 'xml', 'xsl', 'js'];
 
-	/** Extensions never stored under the web root or on S3, whatever the config, and never given to a generated name. */
+	/** Extensions never stored, in any root or on S3, whatever the config, and never given to a generated name. */
 	protected const array PHP_FAMILY_TYPES = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'pht', 'phtml', 'phps', 'phar'];
 
 	/** Default upload_image() target, `jpg` or `webp`; a same-named project subclass sets it project-wide. */
@@ -58,9 +58,9 @@ class MGR_Upload_lib
 	/**
 	 * Uploads a file and returns its details.
 	 *
-	 * Refused: page types and PHP-family types under the web root and on S3, whatever the config.
+	 * Refused whatever the config: PHP-family types in every root and on S3, page types under the web root and on S3.
 	 *
-	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
+	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; a `..` segment is refused.
 	 * @param ?string $desired_file_name Built by the server, never request input; null generates one. One dot at most: the text after it is the extension, which must fit the content; stored lowercase.
 	 * @param ?array $upload_config Replaces the defaults (images, pdf, txt, csv, Office and OpenDocument) entirely.
 	 * @param bool $encrypt_name Ignored; a name is generated unless `$desired_file_name` is given.
@@ -82,6 +82,10 @@ class MGR_Upload_lib
 	}
 	public function upload_file_local(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
+		if (!mgr_is_allowed_file_path($relative_path)) {
+			return $this->refuse_storage_path($relative_path, $error);
+		}
+
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
 		}
@@ -175,6 +179,10 @@ class MGR_Upload_lib
 	}
 	protected function upload_file_s3(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
+		if (!mgr_is_allowed_file_path($relative_path)) {
+			return $this->refuse_storage_path($relative_path, $error);
+		}
+
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
 		}
@@ -247,7 +255,7 @@ class MGR_Upload_lib
 	/**
 	 * Stores generated content under a server-chosen name.
 	 *
-	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
+	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; a `..` segment is refused.
 	 * @param string $file_name Built by the server, never request input; empty generates `<hash>.<ext>` from the detected type.
 	 * @return array|null Null on failure, reason in `$error`.
 	 */
@@ -261,6 +269,10 @@ class MGR_Upload_lib
 	}
 	public function put_file_local(string $relative_path, string $file_name, string $data, ?string &$error = null): ?array
 	{
+		if (!mgr_is_allowed_file_path($relative_path)) {
+			return $this->refuse_storage_path($relative_path, $error);
+		}
+
 		if (!$this->is_desired_name_allowed($file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
 		}
@@ -270,8 +282,12 @@ class MGR_Upload_lib
 		try {
 			$file_path = mgr_file_path($relative_path);
 
-			if (!file_exists($file_path)) {
-				mkdir($file_path, 0755, true);
+			if ($this->is_php_family_type($file_name)) {
+				return $this->refuse_filetype($relative_path, $error);
+			}
+
+			if (!is_dir($file_path) && !mkdir($file_path, 0755, true) && !is_dir($file_path)) {
+				return $this->refuse_upload($relative_path, 'Error al subir archivo', $error);
 			}
 
 			$v = '';
@@ -284,7 +300,9 @@ class MGR_Upload_lib
 				$file_name = $this->generate_file_name(mgr_detect_mime_from_data($data));
 			}
 
-			file_put_contents($file_path . $file_name, $data);
+			if (file_put_contents($file_path . $file_name, $data) === false) {
+				return $this->refuse_upload($relative_path, 'Error al subir archivo', $error);
+			}
 			$written_paths[] = $file_path . $file_name;
 
 			mgr_clean_file_path($relative_path);
@@ -310,8 +328,16 @@ class MGR_Upload_lib
 	}
 	protected function put_file_s3(string $relative_path, string $file_name, string $data, ?string &$error = null): ?array
 	{
+		if (!mgr_is_allowed_file_path($relative_path)) {
+			return $this->refuse_storage_path($relative_path, $error);
+		}
+
 		if (!$this->is_desired_name_allowed($file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
+		}
+
+		if ($this->is_php_family_type($file_name)) {
+			return $this->refuse_filetype($relative_path, $error);
 		}
 
 		try {
@@ -367,7 +393,7 @@ class MGR_Upload_lib
 	 *
 	 * Refused: page types and PHP-family types, content GD cannot decode, images over the pixel ceiling.
 	 *
-	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; not validated.
+	 * @param string $relative_path Storage URI (`media/…`, `private/…`, `s3/…`) built by the server, never request input; a `..` segment is refused.
 	 * @param ?string $desired_file_name Built by the server, never request input; null generates one. One dot at most: the text after it is the extension, which must be the conversion target (listed in `allowed_types`), or fit the content under `$preserve_type`; stored lowercase.
 	 * @param ?array $resolution `[width, height]` box; a thumbnail is built only when the image is larger.
 	 * @param bool $preserve_type Store as uploaded: no conversion, an animated GIF keeps its frames.
@@ -426,6 +452,10 @@ class MGR_Upload_lib
 		$CI->load->library('image_process_lib');
 
 		$convert_to ??= $this->convert_to;
+		if (!mgr_is_allowed_file_path($relative_path)) {
+			return $this->refuse_storage_path($relative_path, $error);
+		}
+
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
 		}
@@ -581,6 +611,10 @@ class MGR_Upload_lib
 		$CI->load->library('image_process_lib');
 
 		$convert_to ??= $this->convert_to;
+
+		if (!mgr_is_allowed_file_path($relative_path)) {
+			return $this->refuse_storage_path($relative_path, $error);
+		}
 
 		if (!$this->is_desired_name_allowed($desired_file_name)) {
 			return $this->refuse_desired_name($relative_path, $error);
@@ -880,14 +914,14 @@ class MGR_Upload_lib
 	}
 
 	/**
-	 * Deletes the file CI just stored and queues CI's filetype error when it is a page or PHP-family type under the web root.
+	 * Deletes the file CI just stored and queues CI's filetype error when it is a PHP-family type in any root, or a page type under the web root.
 	 *
 	 * @param string $file_path Upload directory as requested; CI resolves symlinks in its own copy.
 	 */
 	protected function refuse_public_page_type(string $file_path): bool
 	{
 		$file_name = $this->upload->data('file_name');
-		if (!str_starts_with($file_path, FCPATH) || (!$this->is_page_type($file_name) && !$this->is_php_family_type($file_name))) {
+		if (!$this->is_php_family_type($file_name) && !(str_starts_with($file_path, FCPATH) && $this->is_page_type($file_name))) {
 			return false;
 		}
 
@@ -1028,6 +1062,15 @@ class MGR_Upload_lib
 	protected function refuse_desired_name(string $relative_path, ?string &$error): null
 	{
 		return $this->refuse_upload($relative_path, 'The file name is not allowed.', $error);
+	}
+
+	/** Refuses a storage URI that fails `mgr_is_allowed_file_path()`: `null`, `$error`, and the path logged JSON-encoded. */
+	protected function refuse_storage_path(string $relative_path, ?string &$error): null
+	{
+		log_message('error', __METHOD__ . ': refused path ' . json_encode($relative_path, JSON_INVALID_UTF8_SUBSTITUTE));
+		$this->report_upload_error('The storage path is not allowed.', $error);
+
+		return null;
 	}
 
 	protected function refuse_upload(string $relative_path, string $message, ?string &$error): null
