@@ -365,6 +365,10 @@ other secret-bearing file here.
   the one case where the release's own digest is acceptable. Read running
   versions empirically from a built image
   (`php -r 'echo phpversion("redis");'`) before bumping — never guess.
+- **`opcache` is installed only below PHP 8.5.** From 8.5 it is built
+  into the binary and always loaded, and `docker-php-ext-install opcache`
+  fails the build; the Dockerfile's extension step appends it only when
+  `PHP_VERSION_ID < 80500`.
 - **Composer runs only in the `vendor-builder` stage; the runtime `php-app`
   stage has no composer.** Both descend from `php-base`. Never collapse
   this back into a single stage — that reintroduces the composer binary and

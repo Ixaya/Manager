@@ -480,7 +480,11 @@ Acting on it:
   so confirm the release date by hand. For MySQL and PostgreSQL the date
   matches the git tag, which can precede general availability.
 - **Plan series moves by support window.** A series showing `active
-  support ENDED` gets security fixes only; move before its EOL.
+  support ENDED` gets security fixes only; move before its EOL. The
+  scaffold's PHP pin follows the newest series the framework has been
+  verified on; a project on an older series the framework still supports
+  (the `^8.3` floor) keeps its own pin and is the one to bump its patch
+  releases, with nothing else to change.
 - **The series level sets the review.** Inside the pin's own series
   (`8.4.x`) is routine; a newer minor or major needs its changelog read
   first.
@@ -906,6 +910,13 @@ while the second is the actual cause and is identical everywhere.
 The client gets `500` with `{"status":0,"message":"An unexpected error
 occurred."}` in production, and the driver's own `pg_connect()` /
 `real_connect()` message under `local`.
+
+**A 500 under `local` whose message says `… is deprecated since 8.x`.**
+Not a framework fault. `local` reports every severity, deprecations
+included, and the error handler renders any reported error as a `500` and
+stops the request; the other environments mask deprecations. The message
+names the function and the line, and the fix is the replacement it names.
+It shows up when a project moves to a newer PHP series.
 
 **Known signature: `Cannot modify header information — headers already
 sent`.** Not a header problem. It means output was already written, which in

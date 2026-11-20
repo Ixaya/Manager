@@ -21,7 +21,7 @@ RUN set -eux; \
     echo "${sha256}  /usr/local/bin/supercronic" | sha256sum -c -; \
     chmod +x /usr/local/bin/supercronic
 
-FROM php:8.4.28-fpm-alpine3.24 AS php-base
+FROM php:8.5.13-fpm-alpine3.24 AS php-base
 # php-base: PHP + every extension + production php.ini. Shared by
 # vendor-builder and php-app so the extension build runs once.
 
@@ -43,18 +43,10 @@ RUN set -eux; \
         oniguruma-dev \
         postgresql-dev; \
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
-    docker-php-ext-install -j"$(nproc)" \
-        mysqli \
-        pgsql \
-        pdo_mysql \
-        pdo_pgsql \
-        pcntl \
-        sockets \
-        opcache \
-        gd \
-        exif \
-        mbstring \
-        zip; \
+    # opcache is built into PHP 8.5+ and installing it fails there
+    extensions="mysqli pgsql pdo_mysql pdo_pgsql pcntl sockets gd exif mbstring zip"; \
+    php -r 'exit(PHP_VERSION_ID < 80500 ? 0 : 1);' && extensions="${extensions} opcache"; \
+    docker-php-ext-install -j"$(nproc)" ${extensions}; \
     # PIE is pinned like supercronic: bump the version in the
     # URL and regenerate the SHA256 with bin/pin-checksums.sh pie <version>. Extension
     # versions are exact; confirm a bump with `php --ri <name>` in the built image.

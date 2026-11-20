@@ -371,3 +371,10 @@ error raised while output is still buffered.
   `password_recovery_post` keeps returning success for an unknown username.
   These were re-confirmed as a **false positive** in the originating findings,
   not fixed.
+- **2026-11-20: under `local`, a deprecation is a 500, and that is accepted.**
+  `public/index.php` sets `error_reporting(-1)` for `local` only, so CI's
+  handler routes any severity, `E_DEPRECATED` included, to
+  `show_php_error()`, which renders a 500 and exits. Found moving the stack to
+  PHP 8.5 (a `finfo_close()` call killed the request). Kept: `local` is the
+  environment meant to surface everything, and the other three mask
+  deprecations. A project's upgrade notes tell it to look for them there.

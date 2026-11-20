@@ -293,6 +293,25 @@ images, volumes and secrets stay untouched:
   volume; it refills. The copy's `vendor/` is root-owned, so delete it with a
   container.
 
+Finding what a newer PHP deprecates:
+
+- `public/index.php` masks `E_DEPRECATED` outside `local`, and under `local`
+  the handler turns one into a `500` that ends the request, so neither shows
+  the full list. In the throwaway copy's `tests/Bootstrap.php`, call
+  `error_reporting(E_ALL)` and `set_error_handler()` with a closure that
+  appends to a file, right after the `require` of `index.php` (the boot
+  installed the handler being replaced). Run the suite and read the file.
+  Add a test that calls a function the new version deprecates: an empty file
+  proves nothing without that positive control.
+- For the live paths, set the instance to `APP_ENV=local`, `GET` every
+  probe `*_get` endpoint with a real key, and diff status and message per
+  endpoint against a run on the previous version; do the same for the CLI
+  probes by exit code. Negative probes fail on both versions by design and
+  carry no signal.
+- A build that stops with `No space left on device` while extracting the PHP
+  source is the Docker disk, not the PHP version. `docker system df` shows
+  where it went.
+
 ### Two migration groups
 
 The scaffold ships one migration group, and its PHPUnit suite has no

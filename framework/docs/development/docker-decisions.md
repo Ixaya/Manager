@@ -1283,3 +1283,36 @@ through their own network.
 Revisit when: the nginx → PHP trust boundary can be further restricted
 without relying on container IP addresses, or another service becomes
 internet-facing.
+
+**The scaffold's base image moves to PHP 8.5; 8.6 waits.**
+Decision: `sample/docker/Dockerfile` builds on `php:8.5.x-fpm-alpine3.x`,
+and `opcache` joins `docker-php-ext-install` only when `PHP_VERSION_ID <
+80500`. The `^8.3` floor does not move, 8.4 stays supported (no framework
+code depends on the pin), and the move is optional for projects, framed so in
+the upgrade notes. 8.6 is parked.
+Why: 8.4 leaves active support on 2026-12-31. A scaffold on the newest
+verified series keeps its pins current for every project that follows it;
+a project that stays on 8.4 owns its own `8.4.x` bumps. 8.5 builds opcache
+into the binary, so the unconditional install broke the build; a version test
+keeps 8.3 and 8.4 building from the same file.
+Evidence (2026-11-20, latest patch of each series, PostgreSQL unless noted):
+the sample suite (172 tests), 285 GET probes and 23 CLI probes on 8.5.13 match
+8.4.28; 8.3.37 passes the suite and matches 8.4 apart from the documented
+PostgreSQL emulation difference; MySQL, MariaDB and the native `mysqli`/
+`postgre` drivers pass the suite on 8.5; WebSocket relay, spreadsheet, S3 and
+JWT smoke checks show no deprecations. Fixes landed in the framework:
+`finfo_close()` ×2, `curl_close()` and a now-dead `imageflip()` guard. The CI3
+base guards its own 8.5 deprecations behind `PHP_VERSION_ID`. Deprecations
+are invisible outside `APP_ENV=local`, where they become a 500: the bootstrap
+masks them in every other environment, so a run that captures them swaps the
+handler after boot (see `framework-workflow.md`).
+8.6.0 (released 2026-11-19) needed no framework change but three image
+changes: the official image is ZTS-only, `phpredis` 6.3.0 and `msgpack-php`
+3.0.1 do not compile (their development branches do), and GD links
+`libwebpdemux` and `libwebpmux`, which the runtime `apk` list lacks. With
+those worked around, the suite, probes, WebSocket relay and session cookies
+matched 8.5.
+Cost: new projects bootstrap on 8.5 and meet its `local`-only deprecations in
+their own code; existing projects are untouched until they reconcile.
+Revisit when: `phpredis` and `msgpack` tag releases that build on 8.6, or 8.4
+approaches its EOL (2028-12-31) with projects still pinned to it.
