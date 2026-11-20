@@ -146,7 +146,6 @@ if (!function_exists('mgr_detect_mime_from_file')) {
 
 		$finfo = finfo_open(FILEINFO_MIME_TYPE);
 		$mime = finfo_file($finfo, $file_path);
-		finfo_close($finfo);
 
 		return $mime ?: 'application/octet-stream';
 	}
@@ -171,7 +170,6 @@ if (!function_exists('mgr_detect_mime_from_data')) {
 
 		$finfo = finfo_open(FILEINFO_MIME_TYPE);
 		$mime = finfo_buffer($finfo, $chunk);
-		finfo_close($finfo);
 
 		return $mime ?: 'application/octet-stream';
 	}

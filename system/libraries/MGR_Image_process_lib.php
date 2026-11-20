@@ -193,8 +193,8 @@ class MGR_Image_process_lib
 			$image = $rotated_image;
 		}
 
-		if ($flip_mode !== null && !imageflip($image, $flip_mode)) {
-			throw new RuntimeException("MGR_Image_process_lib: cannot apply EXIF orientation {$orientation}.");
+		if ($flip_mode !== null) {
+			imageflip($image, $flip_mode);
 		}
 
 		return $image;

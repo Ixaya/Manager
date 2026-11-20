@@ -245,7 +245,6 @@ class MGR_Sendgrid_lib
 		$body = curl_exec($curl);
 		$status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 		$curl_error = curl_error($curl);
-		curl_close($curl);
 
 		if ($body === false) {
 			log_message('error', "MGR_Sendgrid_lib: curl error: $curl_error");
