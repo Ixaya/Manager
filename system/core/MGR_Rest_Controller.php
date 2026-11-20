@@ -377,9 +377,9 @@ class MGR_Rest_Controller extends REST_Controller
 	*/
 	protected function preflight_checks()
 	{
-		// Manager is recommended for v8.2 or above
-		if (is_php('8.2') === false) {
-			throw new Exception('Using PHP v' . PHP_VERSION . ', though PHP v8.2 or greater is required');
+		// Manager is recommended for v8.3 or above
+		if (is_php('8.3') === false) {
+			throw new Exception('Using PHP v' . PHP_VERSION . ', though PHP v8.3 or greater is required');
 		}
 	}
 

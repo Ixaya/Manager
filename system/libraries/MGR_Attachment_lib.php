@@ -7,7 +7,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class MGR_Attachment_lib
 {
-	protected const VERSION_SUFFIX_LENGTH = 11; // '?v=' + dechex(time())
+	protected const int VERSION_SUFFIX_LENGTH = 11; // '?v=' + dechex(time())
 
 	/** Width of the package `attachment.title` column; a project with a wider table overrides it. */
 	protected int $title_max_length = 100;

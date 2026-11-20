@@ -18,7 +18,7 @@
 		"deploy": "deploy"
 	},
 	"require": {
-		"php": "^8.2",
+		"php": "^8.3",
 		"nielbuys/framework": "^3.1.25"
 	},
 	"require-dev": {
