@@ -18,3 +18,6 @@ $lang['text_rest_api_key_time_limit'] = 'このAPIキーはこのメソッドの
 $lang['text_rest_ip_address_time_limit'] = 'このIPアドレスはこのメソッドの時間制限に達しました';
 $lang['text_rest_unknown_method'] = '不明なメソッドです';
 $lang['text_rest_unsupported'] = 'サポートされていないプロトコルです';
+$lang['text_rest_user_unauthorized'] = 'ユーザーは許可されていません';
+$lang['text_rest_user_level_unauthorized'] = 'ユーザーレベルは許可されていません';
+$lang['text_rest_user_group_unauthorized'] = 'ユーザーグループは許可されていません';

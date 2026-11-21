@@ -190,12 +190,12 @@ class MGR_Rest_Controller extends REST_Controller
 			if ($level > 0 || $group !== 'none') {
 				if ($level > 0 && $group !== 'none') {
 					if (!$this->validate_level($level) && !$this->validate_group($group)) {
-						$this->response(['status' => 0, 'message' => 'User not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
+						$this->response(['status' => 0, 'message' => $this->lang->line('text_rest_user_unauthorized')], REST_Controller::HTTP_UNAUTHORIZED);
 					}
 				} elseif ($level > 0 && !$this->validate_level($level)) {
-					$this->response(['status' => 0, 'message' => 'User level not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
+					$this->response(['status' => 0, 'message' => $this->lang->line('text_rest_user_level_unauthorized')], REST_Controller::HTTP_UNAUTHORIZED);
 				} elseif ($group !== 'none' && !$this->validate_group($group)) {
-					$this->response(['status' => 0, 'message' => 'User group not authorized'], REST_Controller::HTTP_UNAUTHORIZED);
+					$this->response(['status' => 0, 'message' => $this->lang->line('text_rest_user_group_unauthorized')], REST_Controller::HTTP_UNAUTHORIZED);
 				}
 			}
 

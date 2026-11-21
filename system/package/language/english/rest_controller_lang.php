@@ -18,3 +18,6 @@ $lang['text_rest_api_key_time_limit'] = 'This API key has reached the time limit
 $lang['text_rest_ip_address_time_limit'] = 'This IP Address has reached the time limit for this method';
 $lang['text_rest_unknown_method'] = 'Unknown method';
 $lang['text_rest_unsupported'] = 'Unsupported protocol';
+$lang['text_rest_user_unauthorized'] = 'User not authorized';
+$lang['text_rest_user_level_unauthorized'] = 'User level not authorized';
+$lang['text_rest_user_group_unauthorized'] = 'User group not authorized';

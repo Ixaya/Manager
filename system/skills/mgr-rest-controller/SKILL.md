@@ -255,7 +255,7 @@ $this->response(['status' => 0, 'message' => 'No data provided, please try again
 $this->response(['status' => 0, 'message' => 'The user ID not found.'], REST_Controller::HTTP_NOT_FOUND);
 // validation failure with structured detail the frontend needs to act on
 $this->response(['status' => 0, 'message' => 'Some fields are invalid.', 'error' => ['fields' => ['email', 'password']]], REST_Controller::HTTP_BAD_REQUEST);
-// auth failure (emitted by the framework): ['status' => 0, 'message' => 'User not authorized'] + HTTP 401
+// auth failure (emitted by the framework): ['status' => 0, 'message' => 'User not authorized'] + HTTP 401 (text follows the response language)
 ```
 
 Match the HTTP code to the failure with the `REST_Controller::HTTP_*`
