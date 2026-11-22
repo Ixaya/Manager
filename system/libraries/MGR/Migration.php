@@ -31,6 +31,13 @@ class MGR_Migration extends CI_Migration
 	protected ?string $_migration_table_module = null;
 
 	/**
+	 * Migration numbers recorded as applied without running, ascending.
+	 *
+	 * @var array<int, int>
+	 */
+	protected array $_skipped = [];
+
+	/**
 	 * Initialize Migration Class with database connection support
 	 *
 	 * @param array $config
@@ -150,15 +157,28 @@ class MGR_Migration extends CI_Migration
 	}
 
 	/**
-	 * Runs the migrations to $target_version. A migration that throws mid-transaction is rolled
-	 * back before the exception propagates, so the connection stays usable for the caller.
+	 * Sets the migration numbers recorded as applied without running their up() or down().
+	 * Replaces the previous list; pass [] to clear it.
+	 *
+	 * @param array<int, int> $numbers
+	 */
+	public function set_skipped(array $numbers): void
+	{
+		sort($numbers);
+		$this->_skipped = $numbers;
+	}
+
+	/**
+	 * Runs the migrations to $target_version, stepping over the skipped numbers. A migration that
+	 * throws mid-transaction is rolled back before the exception propagates, so the connection
+	 * stays usable for the caller.
 	 *
 	 * @throws Throwable whatever the migration threw
 	 */
 	public function version($target_version)
 	{
 		try {
-			return parent::version($target_version);
+			return $this->_version_in_segments($target_version);
 		} catch (Throwable $exception) {
 			while ($this->db->trans_active() && $this->db->trans_rollback()) {
 				// each rollback closes one nesting level
@@ -166,6 +186,65 @@ class MGR_Migration extends CI_Migration
 
 			throw $exception;
 		}
+	}
+
+	/**
+	 * Splits the run at each skipped number between the current version and the target: the
+	 * parent runs the stretches in between, a skipped number is only recorded.
+	 */
+	protected function _version_in_segments(int|string $target_version): bool|string
+	{
+		if (!$this->_skipped) {
+			return parent::version($target_version);
+		}
+
+		$current  = (int) $this->_get_version();
+		$target   = (int) $target_version;
+		$numbers  = array_map('intval', array_keys($this->find_migrations()));
+		$known    = $target === 0 || in_array($target, $numbers, true);
+		$in_range = array_values(array_filter(
+			$this->_skipped,
+			fn (int $skipped) => $skipped > min($current, $target) && $skipped <= max($current, $target)
+		));
+
+		// an unknown target goes to the parent, which reports it before running anything
+		if (!$known || !$in_range) {
+			return parent::version($target_version);
+		}
+
+		if ($target > $current) {
+			foreach ($in_range as $skipped) {
+				$previous = $this->_number_below($numbers, $skipped);
+				if ($previous > $current && parent::version((string) $previous) === false) {
+					return false;
+				}
+
+				$this->_update_version((string) $skipped);
+				$current = $skipped;
+			}
+		} else {
+			foreach (array_reverse($in_range) as $skipped) {
+				if (parent::version((string) $skipped) === false) {
+					return false;
+				}
+
+				$this->_update_version((string) max($target, $this->_number_below($numbers, $skipped) ?? 0));
+			}
+		}
+
+		return parent::version($target_version);
+	}
+
+	/**
+	 * The highest migration number under $number, or null when there is none.
+	 *
+	 * @param array<int, int> $numbers
+	 */
+	protected function _number_below(array $numbers, int $number): ?int
+	{
+		$below = array_filter($numbers, fn (int $candidate) => $candidate < $number);
+
+		return $below ? max($below) : null;
 	}
 
 	// -------------------------------------------------------------------------

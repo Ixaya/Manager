@@ -143,3 +143,77 @@
   Not fixed: other modules still run in key order, not dependency order.
   Revisit when: a real caller needs one project module to run before
   another; a declared-dependency mechanism has none today.
+
+- **A project's skip list is applied by the runner, as a record of "applied"
+  without `up()`/`down()`, keyed by target label.**
+  Decision (2026-11-21): `MGR_Migration::version()` splits a run around each
+  skipped number. Up, it runs the files before the skip through the parent,
+  then records the skipped number as the stored version; down, it runs the
+  `down()`s above the skip, then records the version below it without the
+  skipped file's `down()`. The list is the coordinator's
+  `$_skipped_migrations` property (`label => [file name without .php]`),
+  set in the project's `Migration_module_lib` shim. The skill
+  (`mgr-migrations`, `references/skip-list.md`) has the setup and the
+  caller-facing behavior; this entry records why it has this shape.
+  Why:
+  - *Intercept, not remove.* A skipped file stays in the runner's list, so
+    the result is the same as a hand-run `tools version_set`, automated.
+    Filtering the list would not work anyway: the vendor `version()` calls
+    `find_migrations()` itself, and the stored version is a high-water mark
+    (a file below it never runs, one above it always does).
+  - *Segments in the override, not a vendor patch or a copy.* The vendor
+    loop validates a file and calls it with no seam between the two.
+    A Composer patch adding one, or a copy of the whole vendor `version()`,
+    were both rejected as heavier than wrapping the parent call.
+  - *Label key.* It is what `plan` prints, so an operator copies it. A
+    filename-only list per connection was proposed first and dropped once an
+    unmatched entry became an error: the label no longer risks a silent
+    mismatch. The module part derives from the install path, so moving the
+    vendor directory rewrites every package label; the error makes that loud.
+  - *Error, not warning, for an entry that matches nothing.* The fix is on the
+    project side, and a project that meant to skip must not run the migration
+    by mistake. The check covers every label in the list against
+    `migration_db` plus the connection being run, before anything runs, so a
+    typo in the connection part (`…:defualt`) cannot leave the intended
+    connection running the file. `version_list` and `version_set` do not
+    validate, so they still help to correct an entry.
+  - *No shipped shim in the sample.* A shipped
+    `application/libraries/Migration_module_lib.php` would make every new
+    project own the shim for a feature few use; the pattern is in the skill.
+  - *A loud contract check instead of a `?? []` guard.* A project override of
+    `_discover_targets()` that omits `skipped` ran with the guard, silently
+    ignoring the list (observed: a file the list named ran, exit 0). Without
+    the guard it died on a `TypeError`. `_skipped_of()` now throws a
+    `RuntimeException` naming the fix (build it with `_skipped_files()`).
+  - *Display.* `plan` prints ` skipped:M` only when M is above 0, so a project
+    without a list sees today's line unchanged. `pending` now counts files
+    that will run, so it excludes the skipped ones. `Tools::plan()` prints the
+    "if already applied" hint only when runnable files are pending;
+    `version_list_files()` keeps its old condition, so for a target whose
+    pending files are all skipped at stored version 0 it still prints both
+    hints.
+  Evidence: live driver 117/117 on PostgreSQL 18, MariaDB 12.3 and MySQL 8.4
+  (`pdo/*`) on the last-but-one tree; the runner's own PHPUnit case
+  (`MigrationSkipListTest`, 13 tests) 13/13 on all three on the final tree;
+  a closing re-run of the central cases on all three on the final tree.
+  Eight single-line mutants of the segmenting code were run against the
+  test: seven fail it, the eighth was an equivalent change.
+  Cost:
+  - Each segment gets the vendor's validate-then-run pass on its own, so a
+    file with a missing class or `up()`/`down()` that comes after a skip in
+    the same run is found after the earlier segments ran. The stored version
+    stays at the last good step and a re-run continues from it. Pre-validating
+    would need a copy of the vendor checks.
+  - An old-shape `_discover_targets()` override breaks `plan`, `migrate` and
+    `version_list`, even with an empty list. How many projects override it is
+    unknown.
+  - `skip_list_errors()` rescans every `migration_db` connection per call, so
+    `run()` does N scans for N connections.
+  - When a skip is the target, `version()` returns `TRUE` rather than the
+    version string; the coordinator tests only `=== false`.
+  Not verified: SQLite and SQL Server (no routine pass), and native
+  `mysqli`/`postgre` (before release). The live driver on MariaDB and MySQL
+  ran one tree before the last, which differs by one integer comparison.
+  Revisit when: a project needs a skip list without a shim (config or
+  environment), skipping by pattern or range, or the `sequential` migration
+  type; none exists today.

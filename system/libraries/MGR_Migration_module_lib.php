@@ -15,6 +15,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * Library contract (implemented next, in MGR_Migration):
  *   set_path(string $absolute): void
  *   set_migration_key(?string $key): void
+ *   set_skipped(array $numbers): void
  *   _get_version()/_update_version() scoped by key, UPSERT on write
  */
 class MGR_Migration_module_lib
@@ -24,6 +25,14 @@ class MGR_Migration_module_lib
 
 	/** @var array<string, object> */
 	protected array $_libs = [];
+
+	/**
+	 * Migrations recorded as applied without running: target label (as `plan` prints it) =>
+	 * file names as `version_list` prints them, without `.php`. Set in a project subclass.
+	 *
+	 * @var array<string, mixed>
+	 */
+	protected array $_skipped_migrations = [];
 
 	protected bool $_force_db_debug = false;
 
@@ -44,7 +53,8 @@ class MGR_Migration_module_lib
 	// ---- Read-only: what WOULD run. No writes, nothing executed. ----------
 
 	/**
-	 * @return array<int,array{key:?string,label:string,path:string,current:int,latest:int,pending:array<int,string>}>
+	 * @return array<int,array{key:?string,label:string,path:string,current:int,latest:int,pending:array<int,string>,skipped:array<int,string>}>
+	 *   pending: files that will run; skipped: pending files recorded without running
 	 */
 	public function plan(string $conn = 'default'): array
 	{
@@ -57,7 +67,8 @@ class MGR_Migration_module_lib
 				: ($versions['modules'][$t['key']] ?? 0);
 
 			$numbers = array_keys($t['files']);
-			$pending = array_filter($t['files'], fn ($n) => (int) $n > $current, ARRAY_FILTER_USE_KEY);
+			$ahead   = array_filter($t['files'], fn ($n) => (int) $n > $current, ARRAY_FILTER_USE_KEY);
+			$skipped = array_intersect_key($ahead, $this->_skipped_of($t));
 
 			$plan[] = [
 				'key'     => $t['key'],
@@ -65,7 +76,8 @@ class MGR_Migration_module_lib
 				'path'    => $t['path'],
 				'current' => $current,
 				'latest'  => $numbers ? (int) end($numbers) : 0,
-				'pending' => $pending,
+				'pending' => array_diff_key($ahead, $skipped),
+				'skipped' => $skipped,
 			];
 		}
 
@@ -98,7 +110,7 @@ class MGR_Migration_module_lib
 		return $out;
 	}
 
-	/** @return array<int, string> Filenames, with "(current)" on the active version */
+	/** @return array<int, string> Filenames, with "(current)" on the active version and "(skipped)" on skip-list entries */
 	public function version_list_files(string $conn, ?string $key): array
 	{
 		$target = null;
@@ -120,9 +132,13 @@ class MGR_Migration_module_lib
 			: ($versions['modules'][$key] ?? 0);
 
 		$out = [];
+		$skipped = $this->_skipped_of($target);
 		foreach ($target['files'] as $number => $file) {
-			$name  = basename($file);
-			$out[] = $number === (int) $current ? "{$name} (current)" : $name;
+			$markers = array_filter([
+				$number === (int) $current ? '(current)' : null,
+				isset($skipped[$number]) ? '(skipped)' : null,
+			]);
+			$out[]   = implode(' ', [basename($file), ...$markers]);
 		}
 
 		if ((int) $current === 0 && !empty($target['files'])) {
@@ -130,6 +146,7 @@ class MGR_Migration_module_lib
 			$latest   = array_key_last($target['files']);
 			$out[]    = '';
 			$out[]    = "  hint: if already applied -> tools version_set {$latest} {$key_cli} {$conn}";
+			$out[]    = '  hint: to never run a file here -> list its name under "' . $target['label'] . '" in Migration_module_lib::$_skipped_migrations';
 		}
 
 		return $out;
@@ -140,6 +157,11 @@ class MGR_Migration_module_lib
 	/** @return array<int,string> one result line per target */
 	public function run(string $conn = 'default'): array
 	{
+		$errors = $this->skip_list_errors($conn);
+		if ($errors) {
+			return $errors;
+		}
+
 		$lib = $this->_lib($conn);
 		$out = [];
 
@@ -149,6 +171,7 @@ class MGR_Migration_module_lib
 			}
 			$lib->set_path($t['path']);
 			$lib->set_migration_key($t['key']);
+			$lib->set_skipped(array_keys($this->_skipped_of($t)));
 
 			if ($lib->latest() === false) {
 				$out[] = "[FAIL] {$t['label']} -> " . $lib->error_string();
@@ -179,6 +202,11 @@ class MGR_Migration_module_lib
 	 */
 	public function migrate_target(string $conn, ?string $key, ?string $version = null, bool $confirm_downgrade = false): string
 	{
+		$errors = $this->skip_list_errors($conn);
+		if ($errors) {
+			return implode(PHP_EOL, $errors);
+		}
+
 		$label  = ($key ?? 'application') . ':' . $conn;
 		$target = null;
 
@@ -196,6 +224,7 @@ class MGR_Migration_module_lib
 		$lib = $this->_lib($conn);
 		$lib->set_path($target['path']);
 		$lib->set_migration_key($key);
+		$lib->set_skipped(array_keys($this->_skipped_of($target)));
 
 		if ($version === null) {
 			if ($lib->latest() === false) {
@@ -217,23 +246,67 @@ class MGR_Migration_module_lib
 			: "[ ok ] {$label} -> {$version}";
 	}
 
+	/**
+	 * Checks the skip list against the targets of every connection a run can reach.
+	 *
+	 * @return array<int,string> one [FAIL] line per problem; [] when the list is valid
+	 */
+	public function skip_list_errors(string $conn): array
+	{
+		if (!$this->_skipped_migrations) {
+			return [];
+		}
+
+		$connections = array_unique([...(array) ($this->CI->config->item('migration_db') ?? ['default']), $conn]);
+		$file_names  = [];
+		foreach ($connections as $connection) {
+			foreach ($this->_discover_targets($connection) as $t) {
+				$file_names[$t['label']] = array_map(fn (string $path) => basename($path, '.php'), $t['files']);
+			}
+		}
+
+		$errors = [];
+		foreach ($this->_skipped_migrations as $label => $names) {
+			if (!isset($file_names[$label])) {
+				$errors[] = "[FAIL] skip list: no migration target \"{$label}\"";
+				continue;
+			}
+
+			if (!is_array($names)) {
+				$errors[] = "[FAIL] skip list: \"{$label}\" must be a list of migration file names";
+				continue;
+			}
+
+			foreach ($names as $name) {
+				if (!in_array($name, $file_names[$label], true)) {
+					$errors[] = "[FAIL] skip list: \"{$label}\" has no migration file " . json_encode($name);
+				}
+			}
+		}
+
+		return $errors;
+	}
+
 	// ---- Internals --------------------------------------------------------
 
 	/**
 	 * Package modules first (they own tables the project extends), then the
 	 * application, then every other module with a migrations/<conn> dir.
-	 * @return array<int,array{key:?string,label:string,path:string,files:array<int,string>}>
+	 * @return array<int,array{key:?string,label:string,path:string,files:array<int,string>,skipped:array<int,string>}>
 	 */
 	protected function _discover_targets(string $conn): array
 	{
 		// Application. CONFIRM this matches your layout — mirrors MX_Migration's
 		// "APPPATH/database/{migration_path}" convention.
-		$app_path = APPPATH . 'database/migrations/' . $conn . '/';
-		$targets  = [[
-			'key'   => null,
-			'label' => 'application'. ':' . $conn,
-			'path'  => $app_path,
-			'files' => is_dir($app_path) ? $this->_scan($app_path) : [],
+		$app_path  = APPPATH . 'database/migrations/' . $conn . '/';
+		$app_label = 'application'. ':' . $conn;
+		$app_files = is_dir($app_path) ? $this->_scan($app_path) : [];
+		$targets   = [[
+			'key'     => null,
+			'label'   => $app_label,
+			'path'    => $app_path,
+			'files'   => $app_files,
+			'skipped' => $this->_skipped_files($app_label, $app_files),
 		]];
 
 		if (class_exists('Modules') && ! empty(Modules::$locations)) {
@@ -255,7 +328,13 @@ class MGR_Migration_module_lib
 					// vendor/package one of the same name — use the full key (':'-joined,
 					// matching the CLI's module_key form) so the label stays unambiguous.
 					$label  = str_replace('/', ':', $key) . ':' . $conn;
-					$target = ['key' => $key, 'label' => $label, 'path' => $mig, 'files' => $files];
+					$target = [
+						'key'     => $key,
+						'label'   => $label,
+						'path'    => $mig,
+						'files'   => $files,
+						'skipped' => $this->_skipped_files($label, $files),
+					];
 
 					if ($location === MGRPATH . 'package/modules/') {
 						$package_modules[$key] = $target;
@@ -277,6 +356,38 @@ class MGR_Migration_module_lib
 	{
 		$name = ltrim(substr($module_directory, strlen(rtrim($module_location, '/'))), '/');
 		return str_replace('../', '', rtrim($offset, '/') . '/' . $name);
+	}
+
+	/**
+	 * The target's skipped files, [number => absolute path]. An override of _discover_targets()
+	 * must return them for every target.
+	 *
+	 * @param array<string, mixed> $target
+	 * @return array<int,string>
+	 */
+	protected function _skipped_of(array $target): array
+	{
+		if (!isset($target['skipped'])) {
+			throw new RuntimeException("MGR_Migration_module_lib: _discover_targets() returned no 'skipped' for target '{$target['label']}'. Every target must carry it ([number => path]); build it with _skipped_files(\$label, \$files).");
+		}
+
+		return $target['skipped'];
+	}
+
+	/**
+	 * The target's files named in the skip list.
+	 *
+	 * @param array<int,string> $files [number => absolute path]
+	 * @return array<int,string> [number => absolute path]
+	 */
+	protected function _skipped_files(string $label, array $files): array
+	{
+		$names = $this->_skipped_migrations[$label] ?? [];
+		if (!is_array($names)) {
+			return [];
+		}
+
+		return array_filter($files, fn (string $path) => in_array(basename($path, '.php'), $names, true));
 	}
 
 	/** @return array<int,string> [number => absolute path], sorted */

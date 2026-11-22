@@ -382,6 +382,14 @@ package table (`user`, `group`, …) on a fresh install; it may not rely on
 another project module having run before it — those go by key, not by
 dependency.
 
+### Never running a migration on a shared database
+
+A database shared with other platforms may need chosen migrations (the
+project's own or the package's) recorded as applied without running, instead
+of a hand-run `version_set` in every environment. A project lists them in its
+`Migration_module_lib` shim; the setup, the behavior and the
+`[FAIL] skip list: …` errors are in `references/skip-list.md`.
+
 ## Multi-step migrations (PostgreSQL transaction)
 
 PostgreSQL rolls DDL back; MySQL/MariaDB commit it implicitly. A migration

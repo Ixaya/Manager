@@ -34,7 +34,7 @@ class Tools extends CI_Controller
 			// [invocation, description] — <arg> required, [arg] optional (positional: skipping one skips the rest)
 			['migrate [version=latest] [module_key=all] [confirm_downgrade]', 'Run pending migrations. module_key=all (default) runs every target forward; a specific module_key with version=latest (default) runs only that target, forward to its own latest — never down(). An exact version below that target\'s current one runs down() instead — refused unless confirm_downgrade=1.'],
 			['migrate_database [connection] [module_key=all] [version=latest] [confirm_downgrade]', 'Run migrations on one database connection only. See migrate for module_key/version/confirm_downgrade.'],
-			['plan', 'Per-module migration status: current/latest/pending per database.'],
+			['plan', 'Per-module migration status: current/latest/pending per database, plus skipped when a project lists migrations to skip.'],
 			['version_list [module_key=all] [database=default]', 'List recorded migration versions (or one module\'s migration files).'],
 			['version_set <version> [module_key=app] [database]', 'Force the recorded migration version without running migrations.'],
 			['migration_file <name> <module> [database] [force_modification]', 'Print a `cat > ... <<\'MGR_EOF\'` command that writes an auto-versioned migration file (_v{n} if the name already exists in that module) — paste it into a host shell. force_modification=1 starts a table with pre-tool history at _v2 instead of a fresh create.'],
@@ -99,21 +99,33 @@ class Tools extends CI_Controller
 		$this->migration_module_lib->force_db_debug();
 
 		$migration_databases = $this->config->item('migration_db') ?? ['default'];
+
+		$errors = [];
+		foreach ($migration_databases as $database) {
+			$errors = [...$errors, ...$this->migration_module_lib->skip_list_errors($database)];
+		}
+		foreach (array_unique($errors) as $error) {
+			echo $error . PHP_EOL;
+		}
+
 		foreach ($migration_databases as $database) {
 			foreach ($this->migration_module_lib->plan($database) as $t) {
 				$pending = count($t['pending']);
+				$skipped = count($t['skipped']);
 				echo sprintf(
-					"%-24s current:%s latest:%s pending:%d" . PHP_EOL,
+					"%-24s current:%s latest:%s pending:%d%s" . PHP_EOL,
 					$t['label'],
 					$t['current'] ?: '-',
 					$t['latest'] ?: '-',
-					$pending
+					$pending,
+					$skipped > 0 ? " skipped:{$skipped}" : ''
 				);
 
 				if ($pending > 0 && $t['current'] === 0) {
 					$key_cli = $t['key'] !== null ? str_replace('/', ':', $t['key']) : 'app';
 					$hint = "version_set {$t['latest']} {$key_cli} {$database}";
 					echo sprintf("       hint: if already applied -> tools %s" . PHP_EOL, $hint);
+					echo sprintf('       hint: to never run a file here -> list its name under "%s" in Migration_module_lib::$_skipped_migrations' . PHP_EOL, $t['label']);
 				}
 			}
 		}
