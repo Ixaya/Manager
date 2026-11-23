@@ -118,15 +118,15 @@ class MGR_Attachment_lib
 	 * @param string|null $field_name Name of the multipart form field carrying the file. Untyped at runtime; validated against null before use.
 	 * @param string|null $module Owning model name, stored in `model_name` and used in the storage path. Untyped at runtime; validated against null before use.
 	 * @param string|null $hash Model hash, stored in `model_hash` and used in the storage path. Untyped at runtime; validated against null before use.
-	 * @param string $desired_filename Stored file name built by the server, never request input; empty to auto-generate. Throws when the upload library refuses it or it is over 89 characters (the `file_name` column less `?v=`).
+	 * @param string $desired_filename Stored file name built by the server, never request input; empty to auto-generate. Refused when the upload library refuses it or it is over 89 characters (the `file_name` column less `?v=`).
 	 * @param bool $return_data When true return the full attachment data array; when false return only the stored file URL.
 	 * @param bool $public_file When true store under the public path; when false under the private (S3) path.
 	 * @param array<string, mixed> $extra_data Extra column => value pairs merged into the inserted row.
-	 * @return string|array<string, mixed> Stored file URL, or the full attachment data array when $return_data is true.
-	 * @throws InvalidArgumentException When field_name, module or hash is missing, or the desired name is too long.
-	 * @throws RuntimeException When the underlying upload fails or the attachment row is not saved (the stored file stays).
+	 * @param ?string $error Reason for a failure; set whenever null is returned.
+	 * @return string|array<string, mixed>|null Stored file URL, or the full attachment data array when $return_data is true; null on failure, reason in `$error`.
+	 * @throws InvalidArgumentException When field_name, module or hash is missing.
 	 */
-	public function upload_file($field_name, $module, $hash, $desired_filename = '', $return_data = false, $public_file = true, $extra_data = [])
+	public function upload_file($field_name, $module, $hash, $desired_filename = '', $return_data = false, $public_file = true, $extra_data = [], ?string &$error = null)
 	{
 		$this->load->model($this->model_path);
 
@@ -135,47 +135,25 @@ class MGR_Attachment_lib
 			throw new InvalidArgumentException('Invalid parameters: field_name, module and hash are required.');
 		}
 
-		$this->assert_desired_name_fits($desired_filename);
-
-		// Determine the upload path based on public/private
-		$relative_path = $public_file ? "{$this->public_path}/$module/$hash/" : "{$this->private_path}/$module/$hash/";
-
 		$this->load->library('upload_lib');
 
-		$error = null;
-		$upload_result = $this->upload_lib->upload_file(
-			$relative_path,
-			$desired_filename,
-			$field_name,
-			$this->upload_config, // upload_config
-			true, // encrypt_name
-			$error
+		return $this->store_attachment(
+			store: fn (string $relative_path, ?string &$store_error): ?array => $this->upload_lib->upload_file(
+				$relative_path,
+				$desired_filename,
+				$field_name,
+				$this->upload_config, // upload_config
+				true, // encrypt_name
+				$store_error
+			),
+			module: $module,
+			hash: $hash,
+			desired_filename: $desired_filename,
+			return_data: $return_data,
+			public_file: $public_file,
+			extra_data: $extra_data,
+			error: $error
 		);
-
-		/** @var string|null $error */
-		if ($upload_result === null) {
-			throw new RuntimeException('File upload failed: ' . ($error ?? 'Unknown error'));
-		}
-
-		// Prepare data for database insertion using upload_file results
-		$data = [
-			'title' => $upload_result['client_name'], // Original filename from client
-			'file_name' => $upload_result['file_name'],
-			'full_path' => $upload_result['file_url'], // This should be the relative path + filename
-			'type' => $upload_result['file_type'],
-			'model_hash' => $hash,
-			'model_name' => $module,
-		];
-
-		$attachment_id = $this->save_row(array_merge($data, $extra_data));
-
-		// Return based on $return_data flag
-		if ($return_data == false) {
-			return $data['full_path'];
-		} else {
-			$data['attachment_id'] = $attachment_id;
-			return $data;
-		}
 	}
 
 	/**
@@ -184,15 +162,15 @@ class MGR_Attachment_lib
 	 * @param string|null $data Raw file contents to store. Untyped at runtime; validated against null before use.
 	 * @param string|null $module Owning model name, stored in `model_name` and used in the storage path. Untyped at runtime; validated against null before use.
 	 * @param string|null $hash Model hash, stored in `model_hash` and used in the storage path. Untyped at runtime; validated against null before use.
-	 * @param string $desired_filename Stored file name built by the server, never request input; empty to auto-generate. Throws when the upload library refuses it or it is over 89 characters (the `file_name` column less `?v=`).
+	 * @param string $desired_filename Stored file name built by the server, never request input; empty to auto-generate. Refused when the upload library refuses it or it is over 89 characters (the `file_name` column less `?v=`).
 	 * @param bool $return_data When true return the full attachment data array; when false return only the stored file URL.
 	 * @param bool $public_file When true store under the public path; when false under the private (S3) path.
 	 * @param array<string, mixed> $extra_data Extra column => value pairs merged into the inserted row.
-	 * @return string|array<string, mixed> Stored file URL, or the full attachment data array when $return_data is true.
-	 * @throws InvalidArgumentException When data, module or hash is missing, or the desired name is too long.
-	 * @throws RuntimeException When the underlying upload fails or the attachment row is not saved (the stored file stays).
+	 * @param ?string $error Reason for a failure; set whenever null is returned.
+	 * @return string|array<string, mixed>|null Stored file URL, or the full attachment data array when $return_data is true; null on failure, reason in `$error`.
+	 * @throws InvalidArgumentException When data, module or hash is missing.
 	 */
-	public function put_file($data, $module, $hash, $desired_filename = '', $return_data = false, $public_file = true, $extra_data = [])
+	public function put_file($data, $module, $hash, $desired_filename = '', $return_data = false, $public_file = true, $extra_data = [], ?string &$error = null)
 	{
 		$this->load->model($this->model_path);
 
@@ -201,44 +179,78 @@ class MGR_Attachment_lib
 			throw new InvalidArgumentException('Invalid parameters: data, module and hash are required.');
 		}
 
-		$this->assert_desired_name_fits($desired_filename);
-
-		// Determine the upload path based on public/private
-		$relative_path = $public_file ? "{$this->public_path}/$module/$hash/" : "{$this->private_path}/$module/$hash/";
-
 		$this->load->library('upload_lib');
 
-		$error = null;
-		$upload_result = $this->upload_lib->put_file(
-			$relative_path,
-			$desired_filename,
-			$data,
-			$error
+		return $this->store_attachment(
+			store: fn (string $relative_path, ?string &$store_error): ?array => $this->upload_lib->put_file(
+				$relative_path,
+				$desired_filename,
+				$data,
+				$store_error
+			),
+			module: $module,
+			hash: $hash,
+			desired_filename: $desired_filename,
+			return_data: $return_data,
+			public_file: $public_file,
+			extra_data: $extra_data,
+			error: $error
 		);
+	}
 
-		/** @var string|null $error */
-		if ($upload_result === null || $error !== null) {
-			throw new RuntimeException('File upload failed: ' . ($error ?? 'Unknown error'));
-		}
+	/**
+	 * Stores the file through `$store`, then its row; a failure after the file is stored removes it.
+	 *
+	 * The helpers throw; this is the one place that turns a throwable into `null` and `$error`.
+	 *
+	 * @param Closure(string, ?string &): ?array<string, mixed> $store Runs the upload for a relative path; `null` with its reason in the second argument on failure.
+	 * @param array<string, mixed> $extra_data
+	 * @return string|array<string, mixed>|null
+	 */
+	private function store_attachment(Closure $store, string $module, string $hash, ?string $desired_filename, bool $return_data, bool $public_file, array $extra_data, ?string &$error): string|array|null
+	{
+		$error = null;
+		$upload_result = null;
 
-		// Prepare data for database insertion using upload_file results
-		$result_data = [
-			'title' => $upload_result['client_name'], // Original filename from client
-			'file_name' => $upload_result['file_name'],
-			'full_path' => $upload_result['file_url'], // This should be the relative path + filename
-			'type' => $upload_result['file_type'],
-			'model_hash' => $hash,
-			'model_name' => $module,
-		];
+		try {
+			$this->assert_desired_name_fits($desired_filename);
 
-		$attachment_id = $this->save_row(array_merge($result_data, $extra_data));
+			$relative_path = $public_file ? "{$this->public_path}/$module/$hash/" : "{$this->private_path}/$module/$hash/";
 
-		// Return based on $return_data flag
-		if ($return_data == false) {
-			return $result_data['full_path'];
-		} else {
+			$upload_result = $store($relative_path, $error);
+			if ($upload_result === null) {
+				$error ??= 'File upload failed.';
+
+				return null;
+			}
+
+			// Prepare data for database insertion using the upload results
+			$result_data = [
+				'title' => $upload_result['client_name'], // Original filename from client
+				'file_name' => $upload_result['file_name'],
+				'full_path' => $upload_result['file_url'], // This should be the relative path + filename
+				'type' => $upload_result['file_type'],
+				'model_hash' => $hash,
+				'model_name' => $module,
+			];
+
+			$attachment_id = $this->save_row(array_merge($result_data, $extra_data));
+
+			if (!$return_data) {
+				return $result_data['full_path'];
+			}
+
 			$result_data['attachment_id'] = $attachment_id;
+
 			return $result_data;
+		} catch (Throwable $e) {
+			mgr_process_exception($e, 'MGR_Attachment_lib');
+			$this->discard_stored_file($upload_result);
+
+			// Only the name limit is the caller's to read; any other message may carry internals.
+			$error = $e instanceof InvalidArgumentException ? $e->getMessage() : 'The attachment could not be saved.';
+
+			return null;
 		}
 	}
 
@@ -278,7 +290,7 @@ class MGR_Attachment_lib
 	 *
 	 * @param array<string, mixed> $row
 	 * @return int|string The new row id.
-	 * @throws RuntimeException When the row is not saved; the stored file is left in place.
+	 * @throws RuntimeException When the row is not saved.
 	 */
 	private function save_row(array $row): int|string
 	{
@@ -299,9 +311,27 @@ class MGR_Attachment_lib
 			$reason = 'insert failed';
 		}
 
-		log_message('error', "MGR_Attachment_lib: row not saved ({$reason}), stored file left at " . ($row['full_path'] ?? ''));
+		throw new RuntimeException("MGR_Attachment_lib: the attachment row was not saved ({$reason}), stored file at " . ($row['full_path'] ?? ''));
+	}
 
-		throw new RuntimeException("MGR_Attachment_lib: the attachment row was not saved ({$reason}).");
+	/**
+	 * Removes the file a call stored locally; an `s3/…` object stays (no delete method yet).
+	 *
+	 * @param array<string, mixed>|null $upload_result
+	 */
+	private function discard_stored_file(?array $upload_result): void
+	{
+		if ($upload_result === null || mgr_is_s3_path((string) $upload_result['file_url'])) {
+			return;
+		}
+
+		try {
+			if (is_file($upload_result['file_path'])) {
+				unlink($upload_result['file_path']);
+			}
+		} catch (Throwable $e) {
+			mgr_process_exception($e, 'MGR_Attachment_lib: removing the file of an unsaved row');
+		}
 	}
 
 	/**

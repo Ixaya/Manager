@@ -82,22 +82,22 @@ class MGR_Upload_lib
 	}
 	public function upload_file_local(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
-		if (!mgr_is_allowed_file_path($relative_path)) {
-			return $this->refuse_storage_path($relative_path, $error);
-		}
-
-		if (!$this->is_desired_name_allowed($desired_file_name)) {
-			return $this->refuse_desired_name($relative_path, $error);
-		}
-
-		$name_parts = $this->split_desired_name($desired_file_name);
-		if ($name_parts === null || !$this->is_desired_extension_allowed($name_parts['extension'], (string) mgr_detect_mime_from_file(mgr_get_temp_upload_path(field_name: $field_name)), null, $upload_config, static::DEFAULT_FILE_TYPES)) {
-			return $this->refuse_filetype($relative_path, $error);
-		}
-
 		$written_paths = [];
 
 		try {
+			if (!mgr_is_allowed_file_path($relative_path)) {
+				return $this->refuse_storage_path($relative_path, $error);
+			}
+
+			if (!$this->is_desired_name_allowed($desired_file_name)) {
+				return $this->refuse_desired_name($relative_path, $error);
+			}
+
+			$name_parts = $this->split_desired_name($desired_file_name);
+			if ($name_parts === null || !$this->is_desired_extension_allowed($name_parts['extension'], (string) mgr_detect_mime_from_file(mgr_get_temp_upload_path(field_name: $field_name)), null, $upload_config, static::DEFAULT_FILE_TYPES)) {
+				return $this->refuse_filetype($relative_path, $error);
+			}
+
 			$file_path = mgr_file_path($relative_path);
 			if (!file_exists($file_path)) {
 				mkdir($file_path, 0755, true);
@@ -160,14 +160,7 @@ class MGR_Upload_lib
 
 				return $return_data;
 			} else {
-				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
-
-				if ($this->show_flashdata == true) {
-					$this->session->set_flashdata('message', $this->upload->display_errors());
-					$this->session->set_flashdata('message_kind', 'error');
-				} else {
-					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
-				}
+				$this->refuse_upload($relative_path, $this->upload->display_errors(), $error);
 			}
 		} catch (Throwable $e) {
 			$this->delete_written_files($written_paths);
@@ -179,15 +172,15 @@ class MGR_Upload_lib
 	}
 	protected function upload_file_s3(string $relative_path, ?string $desired_file_name = null, string $field_name = 'userfile', ?array $upload_config = null, bool $encrypt_name = true, ?string &$error = null): ?array
 	{
-		if (!mgr_is_allowed_file_path($relative_path)) {
-			return $this->refuse_storage_path($relative_path, $error);
-		}
-
-		if (!$this->is_desired_name_allowed($desired_file_name)) {
-			return $this->refuse_desired_name($relative_path, $error);
-		}
-
 		try {
+			if (!mgr_is_allowed_file_path($relative_path)) {
+				return $this->refuse_storage_path($relative_path, $error);
+			}
+
+			if (!$this->is_desired_name_allowed($desired_file_name)) {
+				return $this->refuse_desired_name($relative_path, $error);
+			}
+
 			$v = '';
 			if ($desired_file_name !== null && $desired_file_name !== '') {
 				$v = dechex(time());
@@ -269,17 +262,17 @@ class MGR_Upload_lib
 	}
 	public function put_file_local(string $relative_path, string $file_name, string $data, ?string &$error = null): ?array
 	{
-		if (!mgr_is_allowed_file_path($relative_path)) {
-			return $this->refuse_storage_path($relative_path, $error);
-		}
-
-		if (!$this->is_desired_name_allowed($file_name)) {
-			return $this->refuse_desired_name($relative_path, $error);
-		}
-
 		$written_paths = [];
 
 		try {
+			if (!mgr_is_allowed_file_path($relative_path)) {
+				return $this->refuse_storage_path($relative_path, $error);
+			}
+
+			if (!$this->is_desired_name_allowed($file_name)) {
+				return $this->refuse_desired_name($relative_path, $error);
+			}
+
 			$file_path = mgr_file_path($relative_path);
 
 			if ($this->is_php_family_type($file_name)) {
@@ -328,19 +321,19 @@ class MGR_Upload_lib
 	}
 	protected function put_file_s3(string $relative_path, string $file_name, string $data, ?string &$error = null): ?array
 	{
-		if (!mgr_is_allowed_file_path($relative_path)) {
-			return $this->refuse_storage_path($relative_path, $error);
-		}
-
-		if (!$this->is_desired_name_allowed($file_name)) {
-			return $this->refuse_desired_name($relative_path, $error);
-		}
-
-		if ($this->is_php_family_type($file_name)) {
-			return $this->refuse_filetype($relative_path, $error);
-		}
-
 		try {
+			if (!mgr_is_allowed_file_path($relative_path)) {
+				return $this->refuse_storage_path($relative_path, $error);
+			}
+
+			if (!$this->is_desired_name_allowed($file_name)) {
+				return $this->refuse_desired_name($relative_path, $error);
+			}
+
+			if ($this->is_php_family_type($file_name)) {
+				return $this->refuse_filetype($relative_path, $error);
+			}
+
 			$v = '';
 			if ($file_name !== '') {
 				$v = dechex(time());
@@ -419,32 +412,36 @@ class MGR_Upload_lib
 			return null;
 		}
 
-		// Runs on PHP's temp file, so a refusal leaves any previous image under the same name untouched.
-		$temp_path = $_FILES[$field_name]['tmp_name'];
-		$detected_type = (string) mgr_detect_mime_from_file($temp_path);
+		try {
+			// Runs on PHP's temp file, so a refusal leaves any previous image under the same name untouched.
+			$temp_path = $_FILES[$field_name]['tmp_name'];
+			$detected_type = (string) mgr_detect_mime_from_file($temp_path);
 
-		if (!$preserve_type && !$CI->image_process_lib->has_image_decoder($detected_type)) {
-			return $this->refuse_upload($relative_path, 'The filetype you are attempting to upload is not allowed.', $error);
+			if (!$preserve_type && !$CI->image_process_lib->has_image_decoder($detected_type)) {
+				return $this->refuse_upload($relative_path, 'The filetype you are attempting to upload is not allowed.', $error);
+			}
+
+			// A server-side gap, so the caller gets the generic message and the log names the missing encoder.
+			if (!$preserve_type && !$CI->image_process_lib->has_image_encoder($convert_to)) {
+				log_message('error', "Error uploading($relative_path): no GD encoder for the '{$convert_to}' target");
+				$this->report_upload_error('Error al subir imagen', $error);
+
+				return null;
+			}
+
+			$will_decode = !$preserve_type || ($resolution !== null && $CI->image_process_lib->is_thumbnail_type($detected_type));
+			if ($will_decode && !$CI->image_process_lib->fits_pixel_ceiling($temp_path)) {
+				return $this->refuse_upload($relative_path, 'The image you are attempting to upload does not fit into the allowed dimensions.', $error);
+			}
+
+			if (mgr_is_s3_path($relative_path)) {
+				return $this->upload_image_s3($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error, $convert_to);
+			}
+
+			return $this->upload_image_local($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error, $convert_to);
+		} catch (Throwable $e) {
+			return $this->fail_upload($e, $relative_path, 'Error al subir imagen', $error);
 		}
-
-		// A server-side gap, so the caller gets the generic message and the log names the missing encoder.
-		if (!$preserve_type && !$CI->image_process_lib->has_image_encoder($convert_to)) {
-			log_message('error', "Error uploading($relative_path): no GD encoder for the '{$convert_to}' target");
-			$this->report_upload_error('Error al subir imagen', $error);
-
-			return null;
-		}
-
-		$will_decode = !$preserve_type || ($resolution !== null && $CI->image_process_lib->is_thumbnail_type($detected_type));
-		if ($will_decode && !$CI->image_process_lib->fits_pixel_ceiling($temp_path)) {
-			return $this->refuse_upload($relative_path, 'The image you are attempting to upload does not fit into the allowed dimensions.', $error);
-		}
-
-		if (mgr_is_s3_path($relative_path)) {
-			return $this->upload_image_s3($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error, $convert_to);
-		}
-
-		return $this->upload_image_local($relative_path, $desired_file_name, $delete_original, $field_name, $resolution, $preserve_type, $upload_config, $error, $convert_to);
 	}
 	protected function upload_image_local(string $relative_path, ?string $desired_file_name = null, bool $delete_original = true, string $field_name = 'userfile', ?array $resolution = null, bool $preserve_type = false, ?array $upload_config = null, ?string &$error = null, ?string $convert_to = null): ?array
 	{
@@ -452,25 +449,26 @@ class MGR_Upload_lib
 		$CI->load->library('image_process_lib');
 
 		$convert_to ??= $this->convert_to;
-		if (!mgr_is_allowed_file_path($relative_path)) {
-			return $this->refuse_storage_path($relative_path, $error);
-		}
-
-		if (!$this->is_desired_name_allowed($desired_file_name)) {
-			return $this->refuse_desired_name($relative_path, $error);
-		}
-
-		$temp_path = mgr_get_temp_upload_path(field_name: $field_name);
-
-		$name_parts = $this->split_desired_name($desired_file_name);
-		if ($name_parts === null || !$this->is_desired_extension_allowed($name_parts['extension'], (string) mgr_detect_mime_from_file($temp_path), $preserve_type ? null : $convert_to, $upload_config, static::DEFAULT_IMAGE_TYPES)) {
-			return $this->refuse_filetype($relative_path, $error);
-		}
-
-		$stem = $name_parts['stem'] === '' ? mgr_generate_hash(32) : $name_parts['stem'];
 		$written_paths = [];
 
 		try {
+			if (!mgr_is_allowed_file_path($relative_path)) {
+				return $this->refuse_storage_path($relative_path, $error);
+			}
+
+			if (!$this->is_desired_name_allowed($desired_file_name)) {
+				return $this->refuse_desired_name($relative_path, $error);
+			}
+
+			$temp_path = mgr_get_temp_upload_path(field_name: $field_name);
+
+			$name_parts = $this->split_desired_name($desired_file_name);
+			if ($name_parts === null || !$this->is_desired_extension_allowed($name_parts['extension'], (string) mgr_detect_mime_from_file($temp_path), $preserve_type ? null : $convert_to, $upload_config, static::DEFAULT_IMAGE_TYPES)) {
+				return $this->refuse_filetype($relative_path, $error);
+			}
+
+			$stem = $name_parts['stem'] === '' ? mgr_generate_hash(32) : $name_parts['stem'];
+
 			$file_path = mgr_file_path($relative_path);
 
 			if (!file_exists($file_path)) {
@@ -588,14 +586,7 @@ class MGR_Upload_lib
 
 				return $return_data;
 			} else {
-				log_message('error', "Error uploading($relative_path): " . json_encode($this->upload->display_errors()));
-
-				if ($this->show_flashdata == true) {
-					$this->session->set_flashdata('message', $this->upload->display_errors()); //'Error al subir imagen');
-					$this->session->set_flashdata('message_kind', 'error');
-				} else {
-					$error = $this->upload->display_errors(); // end($this->upload->error_msg);
-				}
+				$this->refuse_upload($relative_path, $this->upload->display_errors(), $error);
 			}
 		} catch (Throwable $e) {
 			$this->delete_written_files($written_paths);
@@ -612,15 +603,15 @@ class MGR_Upload_lib
 
 		$convert_to ??= $this->convert_to;
 
-		if (!mgr_is_allowed_file_path($relative_path)) {
-			return $this->refuse_storage_path($relative_path, $error);
-		}
-
-		if (!$this->is_desired_name_allowed($desired_file_name)) {
-			return $this->refuse_desired_name($relative_path, $error);
-		}
-
 		try {
+			if (!mgr_is_allowed_file_path($relative_path)) {
+				return $this->refuse_storage_path($relative_path, $error);
+			}
+
+			if (!$this->is_desired_name_allowed($desired_file_name)) {
+				return $this->refuse_desired_name($relative_path, $error);
+			}
+
 			$this->load->library('amazon_aws_lib');
 
 			$s3_relative_path = $relative_path;
@@ -1092,11 +1083,11 @@ class MGR_Upload_lib
 
 	protected function report_upload_error(string $message, ?string &$error): void
 	{
+		$error = $message;
+
 		if ($this->show_flashdata == true) {
 			$this->session->set_flashdata('message', $message);
 			$this->session->set_flashdata('message_kind', 'error');
-		} else {
-			$error = $message;
 		}
 	}
 
@@ -1107,10 +1098,14 @@ class MGR_Upload_lib
 	 */
 	protected function delete_written_files(array $paths): void
 	{
-		foreach (array_unique($paths) as $path) {
-			if (is_file($path)) {
-				unlink($path);
+		try {
+			foreach (array_unique($paths) as $path) {
+				if (is_file($path)) {
+					unlink($path);
+				}
 			}
+		} catch (Throwable $e) {
+			mgr_process_exception($e, 'Error removing files after a failed upload');
 		}
 	}
 

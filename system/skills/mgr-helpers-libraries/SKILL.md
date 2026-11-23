@@ -83,7 +83,7 @@ signatures). Load in the method that uses the library, not the constructor
 | `async_exec_lib` | Fire-and-forget background execution of controller URIs or module library calls (see mgr-cli-modules). Use instead of `exec()` |
 | `upload_lib` | File/image uploads: validation, unique naming, resizing/thumbnails (`upload_image` with `$resolution`), `put_file` for generated content, `display_image` (serves jpeg/png/gif/webp/avif inline by detected type; any other file is sent as a download). Controllers already proxy it: `$this->upload_file()`, `$this->upload_image()`, `$this->put_file()`, `$this->get_file_base64()` on any `MY_Controller` descendant (REST included) |
 | `image_process_lib` | GD image processing behind `upload_lib`, stateless and usable on its own, e.g. re-encoding stored images: `convert_image($source_path, $detected_type, $target_path, $convert_to)` (`jpg` or `webp`; see "Conversion target"), `create_thumbnail($source_path, $detected_type, $target_path, $resolution)` (a copy fitted inside the `[width, height]` box, in the same type; `false` when it cannot be built), `has_image_decoder()`, `has_image_encoder()`, `fits_pixel_ceiling()`, and the readers `is_raster_type()`, `is_convert_target()`, `convert_target_type()`, `is_thumbnail_type()` |
-| `attachment_lib` | Uploads tied to DB records: stores files AND rows in the `attachment` table keyed by `(model_name, model_hash)` — use when a file belongs to an entity. Accepted types follow its public `$upload_config` property (see "Upload defaults"). The `title` and `file_name` limits (100 characters each) are the protected `$title_max_length` / `$file_name_max_length`, which a project with its own wider table sets in a subclass; `title` is stored cut to its limit (extension kept, invalid UTF-8 bytes dropped), and a row that cannot be saved throws `RuntimeException` (the stored file stays) |
+| `attachment_lib` | Uploads tied to DB records: stores files AND rows in the `attachment` table keyed by `(model_name, model_hash)` — use when a file belongs to an entity. Accepted types follow its public `$upload_config` property (see "Upload defaults"). The `title` and `file_name` limits (100 characters each) are the protected `$title_max_length` / `$file_name_max_length`, which a project with its own wider table sets in a subclass; `title` is stored cut to its limit (extension kept, invalid UTF-8 bytes dropped). `upload_file()` / `put_file()` end in `?string &$error`: a failure returns `null` with the reason there, and a row that cannot be saved removes the file the call stored (an `s3/…` object stays, logged); only a missing `field_name`/`data`/`module`/`hash` throws `InvalidArgumentException` |
 | `amazon_aws_lib` | S3: `upload_file`, `upload_data`, `get_file`, `save_file` (`$file_name` is a server-chosen key that becomes a local path under `$path`; never request input), `get_presigned_url`, `list_files`; multiple configs via `set_config_key()` |
 | `jwt_lib` | `generate_token($user_id, $aud, $scopes, $extra)` / `decode_token($token, $aud)`; config-keyed secrets via `set_config_key()` |
 | `mailing_lib` | Themed email: `send_email($email, $data, $subject, $view)` renders a mailing view; transport is the active profile's `protocol` (`smtp`/`sendmail`/`sendgrid`). `send_template($email, $template_key, $data)` is `sendgrid`-only, `$template_key` declared in the subclass's `$templates`; `set_theme()`, `set_config_key()` |
@@ -186,11 +186,11 @@ also list; `<id>.png` is refused, `report.v2`, `a.b.jpg` and `X.` too). On
 `s3/…` the key carries that one extension. A stored extension is lowercase on
 both backends, a desired one included (`report.PDF` is stored `report.pdf`);
 the stem keeps its case. `put_file()` stores its name whole, except that a PHP-family extension is refused in every root. A name that fails
-is refused with `$error` (`attachment_lib` throws), never rewritten.
-`attachment_lib` also throws `InvalidArgumentException` for a desired name
-over 89 characters (its `file_name` column of 100, less the 11 characters of
-the `?v=` suffix), and `RuntimeException` when the stored `file_name` still
-would not fit (an extension the library appends counts). Two
+is refused with `$error`, never rewritten.
+`attachment_lib` does the same for a desired name over 89 characters (its
+`file_name` column of 100, less the 11 characters of the `?v=` suffix), and
+when the stored `file_name` still would not fit (an extension the library
+appends counts). Two
 layers decide: fixed rules in `upload_lib` (valid UTF-8,
 no `/`, `\`, `?` or NUL, no leading dot) and the overridable
 `mgr_is_allowed_file_name()` — ASCII letters, digits, `.`, `_`, `-`, starting
